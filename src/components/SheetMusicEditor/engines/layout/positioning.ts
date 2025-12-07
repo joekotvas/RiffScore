@@ -1,0 +1,191 @@
+import { NOTE_TYPES, MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT, KEY_SIGNATURES } from '../../constants';
+import { CONFIG } from '../../config';
+import { getNoteDuration } from '../../utils/core';
+import { Note, ChordLayout, HeaderLayout } from './types';
+
+// ========== HEADER LAYOUT (SSOT) ==========
+
+// Layout constants - single source of truth
+const HEADER_LAYOUT_CONSTANTS = {
+  KEY_SIG_START_X: 45,
+  KEY_SIG_ACCIDENTAL_WIDTH: 10,
+  KEY_SIG_PADDING: 10,
+  TIME_SIG_WIDTH: 30,
+  TIME_SIG_PADDING: 20,
+};
+
+/**
+ * Calculates header layout positions based on key signature.
+ * This is the SINGLE SOURCE OF TRUTH for header layout calculations.
+ * @param keySignature - The key signature string (e.g., 'C', 'G', 'F')
+ * @returns HeaderLayout object with all calculated positions
+ */
+export const calculateHeaderLayout = (keySignature: string): HeaderLayout => {
+  const { KEY_SIG_START_X, KEY_SIG_ACCIDENTAL_WIDTH, KEY_SIG_PADDING, TIME_SIG_WIDTH, TIME_SIG_PADDING } = HEADER_LAYOUT_CONSTANTS;
+  
+  const keySigCount = KEY_SIGNATURES[keySignature]?.count || 0;
+  const keySigVisualWidth = keySigCount > 0 ? (keySigCount * KEY_SIG_ACCIDENTAL_WIDTH) + 10 : 0;
+  const timeSigStartX = KEY_SIG_START_X + keySigVisualWidth + KEY_SIG_PADDING;
+  const startOfMeasures = timeSigStartX + TIME_SIG_WIDTH + TIME_SIG_PADDING;
+
+  return {
+    keySigStartX: KEY_SIG_START_X,
+    keySigVisualWidth,
+    timeSigStartX,
+    startOfMeasures,
+  };
+};
+
+export const HEADER_CONSTANTS = HEADER_LAYOUT_CONSTANTS;
+
+// ========== TREBLE CLEF PITCHES (C3 to G6) ==========
+// Offset is relative to CONFIG.baseY
+export const PITCH_TO_OFFSET: Record<string, number> = {
+  'C3': 102, 'D3': 96, 'E3': 90, 'F3': 84, 'G3': 78, 'A3': 72, 'B3': 66,
+  'C4': 60, 'D4': 54, 'E4': 48, 'F4': 42, 'G4': 36, 'A4': 30, 'B4': 24,
+  'C5': 18, 'D5': 12, 'E5': 6, 'F5': 0, 'G5': -6, 'A5': -12, 'B5': -18,
+  'C6': -24, 'D6': -30, 'E6': -36, 'F6': -42, 'G6': -48
+};
+
+// Inverse mapping: Y offset to pitch (for hit detection - treble)
+export const Y_TO_PITCH: Record<number, string> = Object.fromEntries(
+  Object.entries(PITCH_TO_OFFSET).map(([pitch, offset]) => [offset, pitch])
+);
+
+// ========== BASS CLEF PITCHES (E1 to B4) ==========
+// Same visual positions, different pitches (approximately 2 octaves lower)
+export const BASS_PITCH_TO_OFFSET: Record<string, number> = {
+  'E1': 102, 'F1': 96, 'G1': 90, 'A1': 84, 'B1': 78, 'C2': 72, 'D2': 66,
+  'E2': 60, 'F2': 54, 'G2': 48, 'A2': 42, 'B2': 36, 'C3': 30, 'D3': 24,
+  'E3': 18, 'F3': 12, 'G3': 6, 'A3': 0, 'B3': -6, 'C4': -12, 'D4': -18,
+  'E4': -24, 'F4': -30, 'G4': -36, 'A4': -42, 'B4': -48
+};
+
+// Inverse mapping: Y offset to pitch (for hit detection - bass)
+export const BASS_Y_TO_PITCH: Record<number, string> = Object.fromEntries(
+  Object.entries(BASS_PITCH_TO_OFFSET).map(([pitch, offset]) => [offset, pitch])
+);
+
+// ========== CLEF-AWARE HELPERS ==========
+/**
+ * Gets the pitch-to-offset mapping for a given clef.
+ */
+export const getPitchToOffset = (clef: string = 'treble'): Record<string, number> => {
+  return clef === 'bass' ? BASS_PITCH_TO_OFFSET : PITCH_TO_OFFSET;
+};
+
+/**
+ * Gets the Y-to-pitch mapping for a given clef.
+ */
+export const getYToPitch = (clef: string = 'treble'): Record<number, string> => {
+  return clef === 'bass' ? BASS_Y_TO_PITCH : Y_TO_PITCH;
+};
+
+/**
+ * Gets the offset for a pitch in a given clef.
+ */
+export const getOffsetForPitch = (pitch: string, clef: string = 'treble'): number => {
+  const mapping = getPitchToOffset(clef);
+  return mapping[pitch] ?? 0;
+};
+
+/**
+ * Gets the pitch for a Y offset in a given clef.
+ */
+export const getPitchForOffset = (offset: number, clef: string = 'treble'): string | undefined => {
+  const mapping = getYToPitch(clef);
+  return mapping[offset];
+};
+
+/**
+ * Calculates the visual width of a note based on its duration.
+ * Spacing is proportional to the square root of quants to balance density.
+ * @param duration - The duration type (e.g., 'quarter', 'eighth')
+ * @param dotted - Whether the note is dotted
+ * @returns The calculated width in pixels
+ */
+/**
+ * Calculates the visual width of a note based on its duration.
+ * Spacing is proportional to the square root of quants to balance density.
+ * @param duration - The duration type (e.g., 'quarter', 'eighth')
+ * @param dotted - Whether the note is dotted
+ * @returns The calculated width in pixels
+ */
+export const getNoteWidth = (duration: string, dotted: boolean): number => {
+  const quants = getNoteDuration(duration, dotted, undefined);
+  // Spacing proportional to sqrt(quants)
+  return NOTE_SPACING_BASE_UNIT * Math.sqrt(quants);
+};
+
+// ... (existing content)
+
+/**
+ * Calculates layout details for a chord (group of notes at the same time).
+ * Determines stem direction, note offsets for clusters, and vertical bounds.
+ * All calculations use CONFIG.baseY - staff positioning is handled by SVG transforms.
+ * @param notes - Array of notes in the chord
+ * @param clef - The current clef ('treble' or 'bass')
+ * @param forcedDirection - Optional direction to force ('up' or 'down')
+ * @returns Object containing sortedNotes, direction, noteOffsets, maxNoteShift, minY, maxY
+ */
+export const calculateChordLayout = (notes: Note[], clef: string = 'treble', forcedDirection?: 'up' | 'down'): ChordLayout => {
+  const sortedNotes = [...notes].sort((a, b) => {
+      const yA = getOffsetForPitch(a.pitch, clef);
+      const yB = getOffsetForPitch(b.pitch, clef);
+      return yA - yB; 
+  });
+
+  let furthestNote = sortedNotes[0];
+  let maxDist = -1;
+  let minY = Infinity; 
+  let maxY = -Infinity; 
+
+  sortedNotes.forEach(n => {
+     const y = CONFIG.baseY + getOffsetForPitch(n.pitch, clef);
+     const dist = Math.abs(y - MIDDLE_LINE_Y);
+     if (dist > maxDist) {
+       maxDist = dist;
+       furthestNote = n;
+     }
+     if (y < minY) minY = y;
+     if (y > maxY) maxY = y;
+  });
+
+  const furthestY = CONFIG.baseY + getOffsetForPitch(furthestNote.pitch, clef);
+  
+  // Use forced direction if provided, otherwise calculate based on furthest note
+  const direction = forcedDirection || (furthestY <= MIDDLE_LINE_Y ? 'down' : 'up');
+  
+  const noteOffsets: Record<string, number> = {};
+  
+  if (direction === 'up') {
+      for (let i = sortedNotes.length - 1; i > 0; i--) {
+          const noteLower = sortedNotes[i]; 
+          const noteUpper = sortedNotes[i-1]; 
+          const yLower = getOffsetForPitch(noteLower.pitch, clef);
+          const yUpper = getOffsetForPitch(noteUpper.pitch, clef);
+          if (Math.abs(yLower - yUpper) === 6) {
+              if (!noteOffsets[noteLower.id]) { 
+                  noteOffsets[noteUpper.id] = 11; 
+              }
+          }
+      }
+  } else {
+      for (let i = 0; i < sortedNotes.length - 1; i++) {
+          const noteUpper = sortedNotes[i]; 
+          const noteLower = sortedNotes[i+1]; 
+          const yUpper = getOffsetForPitch(noteUpper.pitch, clef);
+          const yLower = getOffsetForPitch(noteLower.pitch, clef);
+          if (Math.abs(yLower - yUpper) === 6) {
+              if (!noteOffsets[noteUpper.id]) { 
+                  noteOffsets[noteLower.id] = -11; 
+              }
+          }
+      }
+  }
+
+  const maxNoteShift = Math.max(0, ...Object.values(noteOffsets));
+
+  return { sortedNotes, direction, noteOffsets, maxNoteShift, minY, maxY };
+};
+
