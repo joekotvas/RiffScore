@@ -70,7 +70,7 @@ describe('Bass Clef Selection Reproduction', () => {
       scale: 1,
       containerRef: { current: null, focus: jest.fn() } as any,
       onHoverChange: jest.fn(),
-      playbackPosition: { measureIndex: null, eventIndex: null, duration: 0 }
+      playbackPosition: { measureIndex: null, quant: null, duration: 0 }
   };
 
   test('should pass correct staffIndex when clicking note in bass staff', () => {

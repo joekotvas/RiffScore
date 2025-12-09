@@ -5,7 +5,65 @@ import { ScoreEvent, MeasureLayout, HitZone, Note } from './types';
 import { getNoteWidth, calculateChordLayout, getOffsetForPitch } from './positioning';
 import { getTupletGroup } from './tuplets';
 
+// --- CONSTANTS ---
+
+/** Hit zone radius around each note for click detection (pixels) */
+const HIT_RADIUS = 24;
+
+/** Padding added before noteheads when accidentals are present */
+const ACCIDENTAL_PADDING = NOTE_SPACING_BASE_UNIT * 0.8;
+
+/** Minimum width factors for short-duration notes relative to NOTE_SPACING_BASE_UNIT */
+const MIN_WIDTH_FACTORS: Record<string, number> = {
+    'sixtyfourth': 1.2,
+    'thirtysecond': 1.5,
+    'sixteenth': 1.8,
+    'eighth': 2.2,
+};
+
+// --- HELPERS ---
+
+/**
+ * Adds a hit zone to the collection while maintaining continuity.
+ * Automatically adjusts the previous zone's endX to prevent overlaps/gaps.
+ * @param zones - The array of existing hit zones
+ * @param newZone - The new hit zone to add
+ */
+const addHitZone = (zones: HitZone[], newZone: HitZone): void => {
+    if (zones.length > 0) {
+        const prevZone = zones[zones.length - 1];
+        // Ensure the previous zone connects to this one, but respect min sizes
+        prevZone.endX = Math.min(prevZone.endX, newZone.startX);
+    }
+    zones.push(newZone);
+};
+
+/**
+ * Calculates visual metrics for a single event context.
+ * Consolidates width calculation, accidental spacing, and chord offsets.
+ * @param event - The score event to analyze
+ * @param clef - The current clef ('treble' or 'bass')
+ * @returns Object containing chordLayout, totalWidth, accidentalSpace, and hit zone offsets
+ */
+const getEventMetrics = (event: ScoreEvent, clef: string) => {
+    const chordLayout = calculateChordLayout(event.notes, clef);
+    const hasAccidental = event.notes.some((n: Note) => n.accidental);
+    const accidentalSpace = hasAccidental ? ACCIDENTAL_PADDING : 0;
+    const chordShift = Math.abs(chordLayout.maxNoteShift);
+    
+    // Width calculation
+    const baseWidth = getNoteWidth(event.duration, event.dotted);
+    const totalWidth = accidentalSpace + baseWidth + chordShift;
+
+    // Hit zone offsets based on chord vertical spread
+    const minOffset = Math.min(0, ...Object.values(chordLayout.noteOffsets));
+    const maxOffset = Math.max(0, ...Object.values(chordLayout.noteOffsets));
+
+    return { chordLayout, totalWidth, accidentalSpace, minOffset, maxOffset, baseWidth };
+};
+
 // --- LAYOUT CALCULATOR ---
+
 /**
  * Calculates the layout for a single measure, determining x-positions for events
  * and creating hit zones for user interaction.
@@ -15,18 +73,24 @@ import { getTupletGroup } from './tuplets';
  * @param clef - The current clef ('treble' or 'bass')
  * @param isPickup - Whether this is a pickup measure
  * @param forcedEventPositions - Optional map of Quant -> X Position for synchronization
- * @returns Object containing hitZones, eventPositions map, totalWidth, and processedEvents
+ * @returns MeasureLayout containing hitZones, eventPositions, totalWidth, and processedEvents
  */
-export const calculateMeasureLayout = (events: ScoreEvent[], totalQuants: number = CONFIG.quantsPerMeasure, clef: string = 'treble', isPickup: boolean = false, forcedEventPositions?: Record<number, number>): MeasureLayout => {
-    const hitZones: HitZone[] = []; // { startX, endX, index, type, eventId }
-    const eventPositions: Record<string, number> = {}; // Map<eventId, x>
+export const calculateMeasureLayout = (
+    events: ScoreEvent[], 
+    totalQuants: number = CONFIG.quantsPerMeasure, 
+    clef: string = 'treble', 
+    isPickup: boolean = false, 
+    forcedEventPositions?: Record<number, number>
+): MeasureLayout => {
+    const hitZones: HitZone[] = [];
+    const eventPositions: Record<string, number> = {};
     const processedEvents: ScoreEvent[] = [];
     
     let currentX = CONFIG.measurePaddingLeft;
     let currentQuant = 0;
 
+    // 1. Handle Empty Measure
     if (events.length === 0) {
-        // Inject Default Whole Rest
         const width = getNoteWidth('whole', false);
         processedEvents.push({
             id: 'rest-placeholder',
@@ -39,407 +103,275 @@ export const calculateMeasureLayout = (events: ScoreEvent[], totalQuants: number
             chordLayout: { sortedNotes: [], direction: 'up', noteOffsets: {}, maxNoteShift: 0, minY: 0, maxY: 0 }
         });
         
-        // Hit Zone covers the rest but acts as APPEND (click anywhere to add note)
-        hitZones.push({
-            startX: CONFIG.measurePaddingLeft,
-            endX: currentX + width,
-            index: 0,
-            type: 'APPEND'
-        });
+        hitZones.push({ startX: CONFIG.measurePaddingLeft, endX: currentX + width, index: 0, type: 'APPEND' });
         
-        currentX += width;
-    } else {
-        // Add Initial Insert Zone (Before first note)
-        hitZones.push({
-            startX: 0,
-            endX: CONFIG.measurePaddingLeft,
-            index: 0,
-            type: 'INSERT'
-        });
+        // Ensure minimum width for empty measure
+        const minWidth = width + CONFIG.measurePaddingLeft + CONFIG.measurePaddingRight;
+        return { hitZones, eventPositions, totalWidth: Math.max(currentX + width, minWidth), processedEvents };
+    }
 
-        const processedIndices = new Set<number>();
+    // 2. Initial Insert Zone
+    hitZones.push({ startX: 0, endX: CONFIG.measurePaddingLeft, index: 0, type: 'INSERT' });
 
-        events.forEach((event, index) => {
-            if (processedIndices.has(index)) return;
+    const processedIndices = new Set<number>();
 
-            // SYNC OVERRIDE: If we have forced positions, jump to the correct X for this quant
-            if (forcedEventPositions && forcedEventPositions[currentQuant] !== undefined) {
-                currentX = forcedEventPositions[currentQuant];
-            }
+    // 3. Process Events
+    events.forEach((event, index) => {
+        if (processedIndices.has(index)) return;
 
-            // Check if this is the start of a tuplet group
-            const isTupletStart = event.tuplet && event.tuplet.position === 0;
+        // Sync Override
+        if (forcedEventPositions?.[currentQuant] !== undefined) {
+            currentX = forcedEventPositions[currentQuant];
+        }
+
+        const isTupletStart = event.tuplet && event.tuplet.position === 0;
+
+        if (isTupletStart) {
+            // --- TUPLET GROUP LOGIC ---
+            const tupletGroup = getTupletGroup(events, index);
+            const { ratio } = event.tuplet!;
             
-            if (isTupletStart) {
-                // Use robust grouping helper
-                const tupletGroup = getTupletGroup(events, index);
-                const { ratio } = event.tuplet!;
-                
-                // Calculate individual widths for each note in tuplet
-                const tupletEventWidths: number[] = [];
-                
-                tupletGroup.forEach(tupletEvent => {
-                    const noteWidth = getNoteWidth(tupletEvent.duration, tupletEvent.dotted);
-                    const tupletAdjustedWidth = noteWidth * Math.sqrt(ratio[1] / ratio[0]);
-                    tupletEventWidths.push(tupletAdjustedWidth);
-                });
-                
-                // Calculate unified direction for the tuplet group
-                let maxDist = -1;
-                let unifiedDirection: 'up' | 'down' = 'down'; // Default
+            // Determine Unified Direction
+            let maxDist = -1;
+            let unifiedDirection: 'up' | 'down' = 'down';
 
-                tupletGroup.forEach(tupletEvent => {
-                    tupletEvent.notes.forEach(n => {
-                        const y = CONFIG.baseY + getOffsetForPitch(n.pitch, clef);
-                        const dist = Math.abs(y - MIDDLE_LINE_Y);
-                        if (dist > maxDist) {
-                            maxDist = dist;
-                            unifiedDirection = y <= MIDDLE_LINE_Y ? 'down' : 'up';
-                        }
-                    });
-                });
-
-                // Process all events in tuplet group
-                tupletGroup.forEach((tupletEvent, i) => {
-                    const evtIndex = events.indexOf(tupletEvent);
-                    if (evtIndex !== -1) processedIndices.add(evtIndex);
-
-                    const durationQuants = getNoteDuration(tupletEvent.duration, tupletEvent.dotted, tupletEvent.tuplet);
-                    const noteWidth = tupletEventWidths[i];
-                    
-                    eventPositions[tupletEvent.id] = currentX;
-                    
-                    // Pass unified direction
-                    const chordLayout = calculateChordLayout(tupletEvent.notes, clef, unifiedDirection);
-                    
-                    processedEvents.push({
-                        ...tupletEvent,
-                        x: currentX,
-                        quant: currentQuant,
-                        chordLayout
-                    });
-                    
-                    // Create hit zones for tuplet events
-                    const minOffset = Math.min(0, ...Object.values(chordLayout.noteOffsets));
-                    const HIT_RADIUS = 24;
-                    const adjustedStartX = Math.max(0, currentX - HIT_RADIUS + minOffset);
-                    
-                    if (hitZones.length > 0) {
-                        const prevZone = hitZones[hitZones.length - 1];
-                        prevZone.endX = Math.min(prevZone.endX, adjustedStartX);
+            tupletGroup.forEach(te => {
+                te.notes.forEach((n: Note) => {
+                    const y = CONFIG.baseY + getOffsetForPitch(n.pitch, clef);
+                    const dist = Math.abs(y - MIDDLE_LINE_Y);
+                    if (dist > maxDist) {
+                        maxDist = dist;
+                        unifiedDirection = y <= MIDDLE_LINE_Y ? 'down' : 'up';
                     }
-
-                    const maxOffset = Math.max(0, ...Object.values(chordLayout.noteOffsets));
-                    const adjustedEndX = currentX + HIT_RADIUS + maxOffset;
-
-                    hitZones.push({
-                        startX: adjustedStartX,
-                        endX: adjustedEndX,
-                        index: evtIndex, // Use original index
-                        type: 'EVENT',
-                        eventId: tupletEvent.id
-                    });
-
-                    if (noteWidth > (HIT_RADIUS * 2 + maxOffset)) {
-                        hitZones.push({
-                            startX: adjustedEndX,
-                            endX: currentX + noteWidth,
-                            index: evtIndex + 1,
-                            type: 'INSERT'
-                        });
-                    }
-                    
-                    currentX += noteWidth;
-                    currentQuant += durationQuants;
                 });
-                
-            } else if (event.tuplet && event.tuplet.position > 0) {
-                // Fallback: Process as regular event
-                const width = getNoteWidth(event.duration, event.dotted);
-                const durationQuants = getNoteDuration(event.duration, event.dotted, event.tuplet);
+            });
 
-                eventPositions[event.id] = currentX;
-                const chordLayout = calculateChordLayout(event.notes, clef);
+            tupletGroup.forEach((tupletEvent, i) => {
+                const evtIndex = events.indexOf(tupletEvent);
+                if (evtIndex !== -1) processedIndices.add(evtIndex);
+
+                // Calculate compressed width for tuplet
+                const originalWidth = getNoteWidth(tupletEvent.duration, tupletEvent.dotted);
+                const tupletWidth = originalWidth * Math.sqrt(ratio[1] / ratio[0]);
                 
-                processedEvents.push({
-                    ...event,
-                    x: currentX,
-                    quant: currentQuant,
-                    chordLayout
-                });
-                
-                const HIT_RADIUS = 24;
-                hitZones.push({
-                    startX: currentX,
-                    endX: currentX + width,
-                    index: index,
-                    type: 'EVENT',
-                    eventId: event.id
-                });
-                
-                currentX += width;
-                currentQuant += durationQuants;
-                
-            } else {
-                // Regular event (not part of tuplet)
-                const baseWidth = getNoteWidth(event.duration, event.dotted);
-                const durationQuants = getNoteDuration(event.duration, event.dotted, event.tuplet);
-                
-                // Calculate Chord Layout first to determine offsets
-                const chordLayout = calculateChordLayout(event.notes, clef);
-                
-                // Calculate accidental padding (space before notehead)
-                const hasAccidental = event.notes.some((n: Note) => n.accidental);
-                const accidentalPadding = hasAccidental ? (NOTE_SPACING_BASE_UNIT * 0.8) : 0;
-                
-                // Calculate total event width including accidentals and chord offsets
-                const chordExtraWidth = Math.abs(chordLayout.maxNoteShift);
-                const totalEventWidth = accidentalPadding + baseWidth + chordExtraWidth;
-                
-                // The visual event position (where the notehead starts, after accidental space)
-                const noteheadX = currentX + accidentalPadding;
-                eventPositions[event.id] = noteheadX;
-                
-                processedEvents.push({
-                    ...event,
-                    x: noteheadX,
-                    quant: currentQuant,
-                    chordLayout
-                });
-                
-                // Zone 1: Chord Hit (On the note)
+                // Recalculate chord layout with unified direction
+                const chordLayout = calculateChordLayout(tupletEvent.notes, clef, unifiedDirection);
                 const minOffset = Math.min(0, ...Object.values(chordLayout.noteOffsets));
-                const HIT_RADIUS = 24; 
-                const adjustedStartX = Math.max(0, noteheadX - HIT_RADIUS + minOffset);
-                
-                if (hitZones.length > 0) {
-                    const prevZone = hitZones[hitZones.length - 1];
-                    prevZone.endX = Math.min(prevZone.endX, adjustedStartX);
-                }
-
                 const maxOffset = Math.max(0, ...Object.values(chordLayout.noteOffsets));
-                const adjustedEndX = noteheadX + HIT_RADIUS + maxOffset;
 
-                hitZones.push({
+                eventPositions[tupletEvent.id] = currentX;
+
+                processedEvents.push({ ...tupletEvent, x: currentX, quant: currentQuant, chordLayout });
+
+                // Hit Zone: Event
+                const adjustedStartX = Math.max(0, currentX - HIT_RADIUS + minOffset);
+                const adjustedEndX = currentX + HIT_RADIUS + maxOffset;
+
+                addHitZone(hitZones, {
                     startX: adjustedStartX,
                     endX: adjustedEndX,
-                    index: index,
+                    index: evtIndex,
                     type: 'EVENT',
-                    eventId: event.id
+                    eventId: tupletEvent.id
                 });
 
-                // Zone 2: Insert Hit (Space after note)
-                const eventEndX = currentX + totalEventWidth;
-                if (eventEndX > adjustedEndX) {
-                    hitZones.push({
+                // Hit Zone: Insert (if enough space)
+                if (tupletWidth > (HIT_RADIUS * 2 + maxOffset)) {
+                    addHitZone(hitZones, {
                         startX: adjustedEndX,
-                        endX: eventEndX,
-                        index: index + 1, 
+                        endX: currentX + tupletWidth,
+                        index: evtIndex + 1,
                         type: 'INSERT'
                     });
                 }
-                
-                // Advance cursor by total event width
-                currentX += totalEventWidth;
-                currentQuant += durationQuants;
 
-                // Add extra padding if NEXT event has accidentals (lookahead for dense passages)
-                const nextEvent = events[index + 1];
-                if (nextEvent && nextEvent.notes.some((n: Note) => n.accidental)) {
-                    // Extra breathing room for accidentals on following note
-                    currentX += NOTE_SPACING_BASE_UNIT * 0.3;
-                }
+                currentX += tupletWidth;
+                currentQuant += getNoteDuration(tupletEvent.duration, tupletEvent.dotted, tupletEvent.tuplet);
+            });
+
+        } else if (!event.tuplet || event.tuplet.position === 0) { 
+            // --- REGULAR EVENT LOGIC (Non-tuplet or fallback) ---
+            // Note: The `!event.tuplet` check handles normal notes. 
+            // The `position === 0` check is technically redundant due to the `if` above, 
+            // but ensures safety if a stray tuplet part exists without a start.
+            
+            const metrics = getEventMetrics(event, clef);
+            const noteheadX = currentX + metrics.accidentalSpace;
+            
+            eventPositions[event.id] = noteheadX;
+            
+            processedEvents.push({
+                ...event,
+                x: noteheadX,
+                quant: currentQuant,
+                chordLayout: metrics.chordLayout
+            });
+
+            // Zone 1: Chord/Event Hit
+            const adjustedStartX = Math.max(0, noteheadX - HIT_RADIUS + metrics.minOffset);
+            const adjustedEndX = noteheadX + HIT_RADIUS + metrics.maxOffset;
+
+            addHitZone(hitZones, {
+                startX: adjustedStartX,
+                endX: adjustedEndX,
+                index: index,
+                type: 'EVENT',
+                eventId: event.id
+            });
+
+            // Zone 2: Insert Hit (Space after note)
+            const eventTotalEndX = currentX + metrics.totalWidth;
+            if (eventTotalEndX > adjustedEndX) {
+                addHitZone(hitZones, {
+                    startX: adjustedEndX,
+                    endX: eventTotalEndX,
+                    index: index + 1,
+                    type: 'INSERT'
+                });
             }
-        });
-    }
-    
-    // Append Zone (Remaining space)
-    hitZones.push({
-        startX: currentX,
-        endX: currentX + 2000, 
-        index: events.length,
-        type: 'APPEND'
+
+            currentX += metrics.totalWidth;
+            currentQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
+
+            // Lookahead Padding for Next Accidentals
+            const nextEvent = events[index + 1];
+            if (nextEvent && nextEvent.notes.some((n: Note) => n.accidental)) {
+                currentX += NOTE_SPACING_BASE_UNIT * 0.3;
+            }
+        }
     });
     
-    // Ensure minimum width
+    // 4. Final Append Zone
+    addHitZone(hitZones, { startX: currentX, endX: currentX + 2000, index: events.length, type: 'APPEND' });
+    
+    // 5. Calculate Final Width
     const minDuration = isPickup ? 'quarter' : 'whole';
     const minWidth = getNoteWidth(minDuration, false) + CONFIG.measurePaddingLeft + CONFIG.measurePaddingRight;
     const finalWidth = Math.max(currentX + CONFIG.measurePaddingRight, minWidth);
 
-    return {
-        hitZones,
-        eventPositions,
-        totalWidth: finalWidth,
-        processedEvents
-    };
+    return { hitZones, eventPositions, totalWidth: finalWidth, processedEvents };
 };
 
 /**
  * Calculates the total visual width of a measure based on its events.
  * @param events - List of events in the measure
+ * @param isPickup - Whether this is a pickup measure
  * @returns Total width in pixels
  */
 export const calculateMeasureWidth = (events: ScoreEvent[], isPickup: boolean = false): number => {
-    const layout = calculateMeasureLayout(events, undefined, 'treble', isPickup);
-    return layout.totalWidth;
+    return calculateMeasureLayout(events, undefined, 'treble', isPickup).totalWidth;
 };
 
 // --- SYSTEM LAYOUT SYNCHRONIZATION ---
 
 /**
  * Calculates a unified layout for a system (group of measures vertically aligned).
- * Ensures that vertical alignment is maintained across staves by considering the rhythm of all staves.
+ * Ensures that vertical alignment is maintained across staves by considering
+ * the rhythm and visual requirements of all staves.
  * @param measures - Array of measures at the same index across all staves
- * @returns Map of Quant -> X Position
+ * @returns Map of Quant -> X Position for synchronized positioning
  */
-export const calculateSystemLayout = (measures: any[]): Record<number, number> => {
-  // 1. Collect all unique time points (quants) where events start or end across all staves
-  const timePoints = new Set<number>();
-  timePoints.add(0);
-  
-  measures.forEach(measure => {
-    let currentQuant = 0;
-    measure.events.forEach((event: ScoreEvent) => {
-      timePoints.add(currentQuant);
-      const dur = getNoteDuration(event.duration, event.dotted, event.tuplet);
-      currentQuant += dur;
-      timePoints.add(currentQuant);
-    });
-  });
-  
-  const sortedPoints = Array.from(timePoints).sort((a, b) => a - b);
-  
-  // 2. Calculate X position for each time point
-  const quantToX: Record<number, number> = {};
-  let currentX = CONFIG.measurePaddingLeft;
-  
-  if (sortedPoints.length === 0) {
-      quantToX[0] = currentX;
-      return quantToX;
-  }
-  
-  quantToX[sortedPoints[0]] = currentX;
-  
-  for (let i = 0; i < sortedPoints.length - 1; i++) {
-    const startQuant = sortedPoints[i];
-    const endQuant = sortedPoints[i+1];
+export const calculateSystemLayout = (measures: { events: ScoreEvent[] }[]): Record<number, number> => {
+    // 1. Collect unique time points (Set -> Sort)
+    const timePoints = new Set<number>([0]);
     
     measures.forEach(measure => {
         let q = 0;
-        let eventFound: ScoreEvent | null = null;
-        for(const e of measure.events) {
-            if (q === startQuant) {
-                eventFound = e;
-                break;
+        for (const event of measure.events) {
+            // Add start of event
+            timePoints.add(q);
+            q += getNoteDuration(event.duration, event.dotted, event.tuplet);
+            // Add end of event
+            timePoints.add(q);
+        }
+    });
+    
+    const sortedPoints = Array.from(timePoints).sort((a, b) => a - b);
+    const quantToX: Record<number, number> = { [sortedPoints[0]]: CONFIG.measurePaddingLeft };
+    let currentX = CONFIG.measurePaddingLeft;
+    
+    // 2. Iterate Segments
+    for (let i = 0; i < sortedPoints.length - 1; i++) {
+        const startQuant = sortedPoints[i];
+        const endQuant = sortedPoints[i + 1];
+        const segmentDuration = endQuant - startQuant;
+        
+        // Base width based on duration
+        let segmentWidth = NOTE_SPACING_BASE_UNIT * Math.sqrt(segmentDuration);
+        let maxExtraPadding = 0;
+
+        // Check all measures for events starting at this quant
+        for (const measure of measures) {
+            // Fast find: we track q manually to avoid .find() complexity
+            let q = 0;
+            for (const e of measure.events) {
+                if (q === startQuant) {
+                    // A. Minimum Width Check
+                    const minFactor = MIN_WIDTH_FACTORS[e.duration] || 0;
+                    if (minFactor > 0) {
+                        segmentWidth = Math.max(segmentWidth, minFactor * NOTE_SPACING_BASE_UNIT);
+                    }
+                    
+                    // B. Accidental Padding
+                    if (e.notes.some((n: Note) => n.accidental)) {
+                        maxExtraPadding = Math.max(maxExtraPadding, ACCIDENTAL_PADDING);
+                    }
+                    
+                    // C. Chord Displacement (Seconds)
+                    const chordLayout = calculateChordLayout(e.notes, 'treble');
+                    if (chordLayout.maxNoteShift > 0) {
+                        maxExtraPadding = Math.max(maxExtraPadding, chordLayout.maxNoteShift + (NOTE_SPACING_BASE_UNIT * 0.3));
+                    }
+                    
+                    // D. Dots
+                    if (e.dotted) {
+                        maxExtraPadding = Math.max(maxExtraPadding, NOTE_SPACING_BASE_UNIT * 0.5);
+                    }
+                    break; // Found the event for this measure at this quant
+                }
+                
+                q += getNoteDuration(e.duration, e.dotted, e.tuplet);
+                if (q > startQuant) break; // Optimization: Stop if we passed the quant
             }
-            const dur = getNoteDuration(e.duration, e.dotted, e.tuplet);
-            q += dur;
-            if (q > startQuant) break; // Passed it
         }
         
-    });
-
-    // We calculate a base rhythmic width for this segment
-    const segmentDuration = endQuant - startQuant;
+        currentX += (segmentWidth + maxExtraPadding);
+        quantToX[endQuant] = currentX;
+    }
     
-    // Use minimum width factors for short durations
-    const MIN_WIDTH_FACTORS: Record<string, number> = {
-      'sixtyfourth': 1.2,
-      'thirtysecond': 1.5,
-      'sixteenth': 1.8,
-      'eighth': 2.2,
-    };
-    
-    let segmentWidth = NOTE_SPACING_BASE_UNIT * Math.sqrt(segmentDuration);
-
-    // Now adding "Layout Padding" (accidentals, short notes, seconds)
-    // We check if ANY event starting at startQuant needs extra space.
-    let maxExtraPadding = 0;
-    
-    measures.forEach(measure => {
-        let q = 0;
-        for(const e of measure.events) {
-            if (q === startQuant) {
-                // Check minimum width for short durations
-                const minFactor = MIN_WIDTH_FACTORS[e.duration] || 0;
-                if (minFactor > 0) {
-                    const minWidth = minFactor * NOTE_SPACING_BASE_UNIT;
-                    if (minWidth > segmentWidth) {
-                        segmentWidth = minWidth;
-                    }
-                }
-                
-                // Add accidental padding for ALL durations (not just 32nds)
-                const hasAccidental = e.notes.some((n: Note) => n.accidental);
-                if (hasAccidental) {
-                    maxExtraPadding = Math.max(maxExtraPadding, NOTE_SPACING_BASE_UNIT * 0.8);
-                }
-                
-                // Add padding for chord note displacement (seconds)
-                const chordLayout = calculateChordLayout(e.notes, 'treble');
-                if (chordLayout.maxNoteShift > 0) {
-                    maxExtraPadding = Math.max(maxExtraPadding, chordLayout.maxNoteShift + (NOTE_SPACING_BASE_UNIT * 0.3));
-                }
-                
-                // Add dot width if dotted
-                if (e.dotted) {
-                    maxExtraPadding = Math.max(maxExtraPadding, NOTE_SPACING_BASE_UNIT * 0.5);
-                }
-                
-                break;
-            }
-            const dur = getNoteDuration(e.duration, e.dotted, e.tuplet);
-            q += dur;
-            if (q > startQuant) break;
-        }
-    });
-    
-    currentX += (segmentWidth + maxExtraPadding);
-    quantToX[endQuant] = currentX;
-  }
-  
-  return quantToX;
+    return quantToX;
 };
 
-// --- PLACEMENT CALCULATOR (INDEX BASED) ---
-export const analyzePlacement = (events: ScoreEvent[], intendedQuant: number, durationType: string, isDotted: boolean) => {
-  const MAGNET_THRESHOLD = 3; 
-  
-  // Reconstruct timeline for analysis
-  let currentQuant = 0;
-  
-  // Loop through events to find where intendedQuant lands
-  for (let i = 0; i < events.length; i++) {
-      const eventDur = getNoteDuration(events[i].duration, events[i].dotted, events[i].tuplet);
-      const eventStart = currentQuant;
-      const eventEnd = currentQuant + eventDur;
+// --- PLACEMENT CALCULATOR ---
 
-      // Case 1: Cursor is near the start of an event -> CHORD
-      if (Math.abs(intendedQuant - eventStart) <= MAGNET_THRESHOLD) {
-          return {
-              mode: 'CHORD',
-              index: i,
-              visualQuant: eventStart
-          };
-      }
+/**
+ * Analyzes where a new note should be placed based on intended quant position.
+ * Determines whether to chord with existing note, insert before, or append after.
+ * Uses a "magnet" threshold for snapping to existing event positions.
+ * @param events - List of events in the measure
+ * @param intendedQuant - The intended placement position in quants
+ * @returns Object with mode ('CHORD', 'INSERT', or 'APPEND'), index, and visualQuant
+ */
+export const analyzePlacement = (events: ScoreEvent[], intendedQuant: number) => {
+    const MAGNET_THRESHOLD = 3; 
+    let currentQuant = 0;
+    
+    for (const [i, event] of events.entries()) {
+        const eventDur = getNoteDuration(event.duration, event.dotted, event.tuplet);
+        
+        // Case 1: Chord Magnet (Start of event)
+        if (Math.abs(intendedQuant - currentQuant) <= MAGNET_THRESHOLD) {
+            return { mode: 'CHORD', index: i, visualQuant: currentQuant };
+        }
 
-      // Case 2: Cursor is inside or before this event -> INSERT
-      if (intendedQuant < eventEnd) {
-          return {
-              mode: 'INSERT',
-              index: i, // Insert before this event
-              quant: eventStart, 
-              visualQuant: intendedQuant 
-          };
-      }
-      
-      currentQuant += eventDur;
-  }
+        // Case 2: Insert (Within current event duration)
+        if (intendedQuant < currentQuant + eventDur) {
+            return { mode: 'INSERT', index: i, quant: currentQuant, visualQuant: intendedQuant };
+        }
+        
+        currentQuant += eventDur;
+    }
 
-  // Case 3: Cursor is after all events -> APPEND
-  return {
-      mode: 'APPEND',
-      index: events.length,
-      visualQuant: currentQuant
-  };
+    // Case 3: Append
+    return { mode: 'APPEND', index: events.length, visualQuant: currentQuant };
 };

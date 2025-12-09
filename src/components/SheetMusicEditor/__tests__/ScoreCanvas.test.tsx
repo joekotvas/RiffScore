@@ -53,7 +53,7 @@ describe('ScoreCanvas', () => {
     scale: 1,
     containerRef: { current: null } as any,
     onHoverChange: jest.fn(),
-    playbackPosition: { measureIndex: null, eventIndex: null, duration: 0 },
+    playbackPosition: { measureIndex: null, quant: null, duration: 0 },
     onKeySigClick: jest.fn(),
     onTimeSigClick: jest.fn(),
     onClefClick: jest.fn(),

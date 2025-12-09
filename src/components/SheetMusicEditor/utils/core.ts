@@ -90,28 +90,28 @@ export const getBreakdownOfQuants = (quants: number) => {
  * @param newTimeSignature - New time signature string (e.g., '4/4')
  * @returns New list of measures
  */
-export const reflowScore = (measures, newTimeSignature) => {
-    const maxQuants = TIME_SIGNATURES[newTimeSignature] || 64;
+export const reflowScore = (measures: any[], newTimeSignature: string) => {
+    const maxQuants = TIME_SIGNATURES[newTimeSignature as keyof typeof TIME_SIGNATURES] || 64;
     
     // 1. Identify if first measure is a pickup
     const isPickup = measures.length > 0 && measures[0].isPickup;
     
     // 2. Flatten all events
-    const allEvents = [];
-    measures.forEach(m => {
-        m.events.forEach(e => {
+    const allEvents: any[] = [];
+    measures.forEach((m: any) => {
+        m.events.forEach((e: any) => {
             // Clone event to avoid mutation issues
             // Reset ties as we will recalculate them
             const event = { 
                 ...e, 
-                notes: e.notes.map(n => ({ ...n, tied: false })) 
+                notes: e.notes.map((n: any) => ({ ...n, tied: false })) 
             };
             allEvents.push(event);
         });
     });
 
-    const newMeasures = [];
-    let currentMeasureEvents = [];
+    const newMeasures: any[] = [];
+    let currentMeasureEvents: any[] = [];
     let currentMeasureQuants = 0;
 
     const commitMeasure = (isPickupMeasure = false) => {
@@ -232,7 +232,7 @@ export const reflowScore = (measures, newTimeSignature) => {
                         id: Date.now() + Math.random(),
                         duration: part.duration,
                         dotted: part.dotted,
-                        notes: event.notes.map(n => ({ ...n, tied: true })) 
+                        notes: event.notes.map((n: any) => ({ ...n, tied: true })) 
                     };
                     currentMeasureEvents.push(newEvent);
                 });
@@ -256,7 +256,7 @@ export const reflowScore = (measures, newTimeSignature) => {
                         id: Date.now() + Math.random(),
                         duration: part.duration,
                         dotted: part.dotted,
-                        notes: event.notes.map(n => ({ ...n, tied: event.notes[0].tied })) 
+                        notes: event.notes.map((n: any) => ({ ...n, tied: event.notes[0].tied })) 
                     };
                     
                     // Check if fits in NEW measure (which is standard size)

@@ -2,12 +2,13 @@ import { useEffect } from 'react';
 import { CONFIG } from '../config';
 import { calculateMeasureWidth, calculateMeasureLayout, calculateHeaderLayout } from '../engines/layout';
 import { getActiveStaff, Score, Selection } from '../types';
+import { getNoteDuration } from '../utils/core';
 
 interface UseAutoScrollProps {
   containerRef: React.RefObject<HTMLDivElement>;
   score: Score;
   selection: Selection;
-  playbackPosition: { measureIndex: number | null; eventIndex: number | null; duration: number };
+  playbackPosition: { measureIndex: number | null; quant: number | null; duration: number };
   previewNote: any;
   scale: number;
 }
@@ -101,7 +102,7 @@ export const useAutoScroll = ({
 
   // Auto-Scroll for Playback Cursor
   useEffect(() => {
-    if (!containerRef.current || playbackPosition.measureIndex === null) return;
+    if (!containerRef.current || playbackPosition.measureIndex === null || playbackPosition.quant === null) return;
     
     const container = containerRef.current;
     const { scrollLeft, clientWidth } = container;
@@ -117,11 +118,25 @@ export const useAutoScroll = ({
         absX += calculateMeasureWidth(measures[i].events, measures[i].isPickup);
       }
     }
+    
+    // Find event at the current quant position
     const measure = measures[playbackPosition.measureIndex];
-    if (measure && measure.events[playbackPosition.eventIndex!]) {
+    if (measure) {
       const layout = calculateMeasureLayout(measure.events, undefined, clef);
-      const event = measure.events[playbackPosition.eventIndex!];
-      absX += layout.eventPositions[event.id] || CONFIG.measurePaddingLeft;
+      let currentQuant = 0;
+      
+      for (const event of measure.events) {
+        if (currentQuant >= playbackPosition.quant) {
+          absX += layout.eventPositions[event.id] || CONFIG.measurePaddingLeft;
+          break;
+        }
+        currentQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
+      }
+      
+      // If we've passed all events, use total width
+      if (currentQuant < playbackPosition.quant) {
+        absX += layout.totalWidth - CONFIG.measurePaddingRight;
+      }
     }
     
     const scaledX = absX * scale;
