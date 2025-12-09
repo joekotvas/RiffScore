@@ -1,7 +1,8 @@
 // @ts-nocheck
-import { NOTE_TYPES, MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT, ORDERED_PITCHES, TIME_SIGNATURES, getOrderedPitches } from '../constants';
+import { NOTE_TYPES, TIME_SIGNATURES } from '../constants';
 import { CONFIG } from '../config';
 import { calculateNewPitch } from '../services/PitchService';
+import { getMidi } from '../services/MusicService';
 
 /**
  * Calculates the duration of a note in quants.
@@ -333,9 +334,9 @@ export const navigateSelection = (measures: any[], selection: any, direction: st
          if (event.notes.length > 1 && noteId) {
              // Sort notes by pitch to ensure consistent up/down navigation
              const sortedNotes = [...event.notes].sort((a: any, b: any) => {
-                 const idxA = getOrderedPitches(clef).indexOf(a.pitch); 
-                 const idxB = getOrderedPitches(clef).indexOf(b.pitch);
-                 return idxA - idxB;
+                 const midiA = getMidi(a.pitch);
+                 const midiB = getMidi(b.pitch);
+                 return midiA - midiB;
              });
              
              const currentNoteIdx = sortedNotes.findIndex((n: any) => n.id === noteId);

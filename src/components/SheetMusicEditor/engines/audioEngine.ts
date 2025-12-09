@@ -1,51 +1,8 @@
 // @ts-nocheck
-import { NOTE_TYPES, KEY_SIGNATURES, TIME_SIGNATURES } from '../constants';
+import { NOTE_TYPES, TIME_SIGNATURES } from '../constants';
 import { getNoteDuration } from '../utils/core';
 import { getActiveStaff } from '../types';
-
-/**
- * Gets the effective accidental for a note based on key signature.
- * If the note has an explicit accidental ('natural' cancels key sig), use that.
- * Otherwise, apply the key signature.
- * @param pitch - Note pitch (e.g., 'F4')
- * @param noteAccidental - Explicit accidental on the note
- * @param keySignature - Current key signature (e.g., 'G' for G major)
- * @returns The effective accidental for playback
- */
-export const getEffectiveAccidental = (pitch: string, noteAccidental: string | null, keySignature: string): string | null => {
-    // If note has explicit accidental, use it
-    if (noteAccidental) {
-        // 'natural' cancels key signature
-        if (noteAccidental === 'natural') return null;
-        return noteAccidental;
-    }
-    
-    // Apply key signature
-    const keySig = KEY_SIGNATURES[keySignature];
-    if (!keySig) return null;
-    
-    // Extract note letter from pitch (e.g., 'F' from 'F4')
-    const noteLetter = pitch.charAt(0);
-    
-    // Check if this note letter is affected by the key signature
-    if (keySig.accidentals.includes(noteLetter)) {
-        return keySig.type; // 'sharp' or 'flat'
-    }
-    
-    return null;
-};
-
-// Pitch frequencies in Hz (all pitches from E1 to G6)
-const PITCH_FREQUENCIES: Record<string, number> = {
-  // Bass clef range (E1 to B4)
-  'E1': 41.20, 'F1': 43.65, 'G1': 49.00, 'A1': 55.00, 'B1': 61.74,
-  'C2': 65.41, 'D2': 73.42, 'E2': 82.41, 'F2': 87.31, 'G2': 98.00, 'A2': 110.00, 'B2': 123.47,
-  // Overlapping and treble range (C3 to G6)
-  'C3': 130.81, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
-  'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'B4': 493.88,
-  'C5': 523.25, 'D5': 587.33, 'E5': 659.25, 'F5': 698.46, 'G5': 783.99, 'A5': 880.00, 'B5': 987.77,
-  'C6': 1046.50, 'D6': 1174.66, 'E6': 1318.51, 'F6': 1396.91, 'G6': 1567.98
-};
+import { getFrequency } from '../services/MusicService';
 
 // --- AUDIO CONTEXT MANAGEMENT ---
 
@@ -76,21 +33,6 @@ export const initAudio = (audioCtxRef?: any) => {
 // --- LOW LEVEL PLAYBACK ---
 
 /**
- * Calculates frequency for a pitch with optional accidental.
- */
-const getFrequency = (pitch: string, accidental?: string | null) => {
-    const baseFreq = PITCH_FREQUENCIES[pitch];
-    if (!baseFreq) return 0;
-
-    if (accidental === 'sharp') {
-        return baseFreq * Math.pow(2, 1/12);
-    } else if (accidental === 'flat') {
-        return baseFreq / Math.pow(2, 1/12);
-    }
-    return baseFreq;
-};
-
-/**
  * Schedules a note to be played at a specific time.
  * @param ctx - The AudioContext
  * @param destination - The destination node (e.g., masterGain or ctx.destination)
@@ -99,11 +41,12 @@ const getFrequency = (pitch: string, accidental?: string | null) => {
  * @param dotted - Whether the note is dotted
  * @param startTime - Time to start playing
  * @param bpm - Beats per minute (default 120)
- * @param accidental - Accidental ('sharp', 'flat', 'natural', or null)
+ * @param accidental - DEPRECATED: Ignored in favor of absolute pitch
  * @returns The duration of the note in seconds
  */
 export const scheduleNote = (ctx, destination, pitch, durationType, dotted, startTime, bpm = 120, accidental = null) => {
-    const freq = getFrequency(pitch, accidental);
+    // Use MusicService to get frequency from absolute pitch
+    const freq = getFrequency(pitch);
     if (!freq) return 0;
 
     // Calculate duration in seconds
@@ -140,8 +83,8 @@ export const scheduleNote = (ctx, destination, pitch, durationType, dotted, star
  * @param pitch - The pitch to play (e.g., 'C4')
  * @param durationType - The duration type (e.g., 'quarter')
  * @param dotted - Whether the note is dotted
- * @param accidental - Accidental ('sharp', 'flat', 'natural', or null)
- * @param keySignature - Key signature to apply (e.g., 'G')
+ * @param accidental - DEPRECATED: Ignored
+ * @param keySignature - DEPRECATED: Ignored
  */
 export const playTone = (pitch: string, durationType = 'quarter', dotted = false, accidental: 'flat' | 'natural' | 'sharp' | null = null, keySignature: string = 'C') => {
     if (typeof window === 'undefined') return;
@@ -149,9 +92,7 @@ export const playTone = (pitch: string, durationType = 'quarter', dotted = false
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     const ctx = new AudioContext();
     
-    const effectiveAccidental = getEffectiveAccidental(pitch, accidental, keySignature);
-    
-    scheduleNote(ctx, ctx.destination, pitch, durationType, dotted, ctx.currentTime, 120, effectiveAccidental);
+    scheduleNote(ctx, ctx.destination, pitch, durationType, dotted, ctx.currentTime, 120, null);
 };
 
 // --- SCORE PLAYBACK ENGINE ---

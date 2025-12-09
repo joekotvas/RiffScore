@@ -1,16 +1,16 @@
-import { getOrderedPitches } from '../constants';
-import { getStaffPitch } from './MusicService';
+// @ts-nocheck
+const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
 /**
  * Calculates a new pitch based on the current pitch and a direction.
  * Handles shift key for octave jumps.
- * Now handles accidentals - normalizes for staff lookup, preserves accidental.
+ * Preserves existing accidental.
  * 
  * @param currentPitch - The current pitch (e.g., 'C4', 'F#4', 'Bb3')
  * @param direction - 'up' or 'down'
  * @param isShift - Whether shift key is pressed (for octave jump)
- * @param clef - The current clef ('treble' or 'bass')
- * @returns The new pitch with preserved accidental, or current pitch if out of bounds
+ * @param clef - Not used (legacy compat)
+ * @returns The new pitch
  */
 export const calculateNewPitch = (
     currentPitch: string, 
@@ -18,70 +18,64 @@ export const calculateNewPitch = (
     isShift: boolean, 
     clef: string = 'treble'
 ): string => {
-    const orderedPitches = getOrderedPitches(clef);
-    
-    // Extract accidental from current pitch (e.g., F#4 -> "#")
+    // Extract accidental
     const match = currentPitch.match(/^([A-G])(#{1,2}|b{1,2})?(\d+)$/);
-    const accidental = match?.[2] || '';
-    
-    // Normalize to staff pitch for lookup (F#4 -> F4)
-    const staffPitch = getStaffPitch(currentPitch);
-    const currentIndex = orderedPitches.indexOf(staffPitch);
-    
-    if (currentIndex === -1) {
-        // Pitch not in range for this clef
-        return currentPitch;
-    }
+    if (!match) return currentPitch;
 
+    const letter = match[1];
+    const accidental = match[2] || '';
+    const octave = parseInt(match[3], 10);
+    
     let delta = direction === 'up' ? 1 : -1;
     if (isShift) delta *= 7;
 
-    const newIndex = Math.max(0, Math.min(orderedPitches.length - 1, currentIndex + delta));
-    const newStaffPitch = orderedPitches[newIndex];
+    const currentIdx = LETTERS.indexOf(letter);
+    let newIdx = currentIdx + delta;
     
-    // Re-apply accidental to new pitch
-    const newMatch = newStaffPitch.match(/^([A-G])(\d+)$/);
-    if (newMatch && accidental) {
-        return `${newMatch[1]}${accidental}${newMatch[2]}`;
-    }
+    // Calculate octave shift
+    const octaveShift = Math.floor(newIdx / 7);
+    newIdx = ((newIdx % 7) + 7) % 7; // Handle negative wrap
     
-    return newStaffPitch;
+    const newLetter = LETTERS[newIdx];
+    const newOctave = octave + octaveShift;
+    
+    // Bounds check (roughly A0 to C8 standard piano)
+    if (newOctave < 0 || newOctave > 8) return currentPitch;
+    
+    return `${newLetter}${accidental}${newOctave}`;
 };
 
 /**
  * Calculates a new pitch based on an offset in steps.
- * Handles accidentals by normalizing for lookup.
+ * Handles accidentals by preserving them.
  * 
  * @param currentPitch - The starting pitch
  * @param offset - Number of steps (positive = up, negative = down)
- * @param clef - The current clef
- * @returns The new pitch with preserved accidental
+ * @param clef - Not used
+ * @returns The new pitch
  */
 export const getPitchByOffset = (
     currentPitch: string, 
     offset: number, 
     clef: string = 'treble'
 ): string => {
-    const orderedPitches = getOrderedPitches(clef);
-    
-    // Extract accidental from current pitch
     const match = currentPitch.match(/^([A-G])(#{1,2}|b{1,2})?(\d+)$/);
-    const accidental = match?.[2] || '';
-    
-    // Normalize to staff pitch for lookup
-    const staffPitch = getStaffPitch(currentPitch);
-    const currentIndex = orderedPitches.indexOf(staffPitch);
-    
-    if (currentIndex === -1) return currentPitch;
+    if (!match) return currentPitch;
 
-    const newIndex = Math.max(0, Math.min(orderedPitches.length - 1, currentIndex + offset));
-    const newStaffPitch = orderedPitches[newIndex];
+    const letter = match[1];
+    const accidental = match[2] || '';
+    const octave = parseInt(match[3], 10);
     
-    // Re-apply accidental to new pitch
-    const newMatch = newStaffPitch.match(/^([A-G])(\d+)$/);
-    if (newMatch && accidental) {
-        return `${newMatch[1]}${accidental}${newMatch[2]}`;
-    }
+    const currentIdx = LETTERS.indexOf(letter);
+    let newIdx = currentIdx + offset;
     
-    return newStaffPitch;
+    const octaveShift = Math.floor(newIdx / 7);
+    newIdx = ((newIdx % 7) + 7) % 7;
+    
+    const newLetter = LETTERS[newIdx];
+    const newOctave = octave + octaveShift;
+    
+    if (newOctave < 0 || newOctave > 8) return currentPitch;
+    
+    return `${newLetter}${accidental}${newOctave}`;
 };

@@ -2,24 +2,36 @@
 import { NOTE_TYPES } from '../constants';
 import { getActiveStaff } from '../types';
 
-// ABC notation pitch mapping - Treble clef (C3 to G6)
-const ABC_PITCH_MAP_TREBLE: Record<string, string> = {
-  'C3': 'C,', 'D3': 'D,', 'E3': 'E,', 'F3': 'F,', 'G3': 'G,', 'A3': 'A,', 'B3': 'B,',
-  'C4': 'C', 'D4': 'D', 'E4': 'E', 'F4': 'F', 'G4': 'G', 'A4': 'A', 'B4': 'B',
-  'C5': 'c', 'D5': 'd', 'E5': 'e', 'F5': 'f', 'G5': 'g', 'A5': 'a', 'B5': 'b',
-  'C6': "c'", 'D6': "d'", 'E6': "e'", 'F6': "f'", 'G6': "g'"
-};
+// ABC notation pitch mapping - Algorithmic
+const toAbcPitch = (pitch: string, clef: string = 'treble'): string => {
+  // Extract letter and octave
+  const match = pitch.match(/^([A-G])(#{1,2}|b{1,2})?(\d+)$/);
+  if (!match) return 'C'; // Fallback
 
-// ABC notation pitch mapping - Bass clef (E1 to B4)
-const ABC_PITCH_MAP_BASS: Record<string, string> = {
-  'E1': 'E,,,', 'F1': 'F,,,', 'G1': 'G,,,', 'A1': 'A,,,', 'B1': 'B,,,',
-  'C2': 'C,,', 'D2': 'D,,', 'E2': 'E,,', 'F2': 'F,,', 'G2': 'G,,', 'A2': 'A,,', 'B2': 'B,,',
-  'C3': 'C,', 'D3': 'D,', 'E3': 'E,', 'F3': 'F,', 'G3': 'G,', 'A3': 'A,', 'B3': 'B,',
-  'C4': 'C', 'D4': 'D', 'E4': 'E', 'F4': 'F', 'G4': 'G', 'A4': 'A', 'B4': 'B'
-};
-
-const getAbcPitchMap = (clef: string): Record<string, string> => {
-  return clef === 'bass' ? ABC_PITCH_MAP_BASS : ABC_PITCH_MAP_TREBLE;
+  const letter = match[1];
+  const octave = parseInt(match[3], 10);
+  
+  // ABC Logic:
+  // C4 (Middle C) -> C
+  // c (C5) -> c
+  // c' (C6) -> c'
+  // C, (C3) -> C,
+  
+  let abcPitch = "";
+  
+  if (octave >= 5) {
+      abcPitch = letter.toLowerCase();
+      if (octave > 5) {
+          abcPitch += "'".repeat(octave - 5);
+      }
+  } else {
+      abcPitch = letter.toUpperCase();
+      if (octave < 4) {
+          abcPitch += ",".repeat(4 - octave);
+      }
+  }
+  
+  return abcPitch;
 };
 
 export const generateABC = (score: any, bpm: number) => {
@@ -39,7 +51,6 @@ export const generateABC = (score: any, bpm: number) => {
     staves.forEach((staff: any, staffIndex: number) => {
         const clef = staff.clef || 'treble';
         const abcClef = clef === 'bass' ? 'bass' : 'treble';
-        const pitchMap = getAbcPitchMap(clef);
         const voiceId = staffIndex + 1;
         
         // Voice Header
@@ -84,7 +95,7 @@ export const generateABC = (score: any, bpm: number) => {
                         else if (n.accidental === 'flat') acc = '_';
                         else if (n.accidental === 'natural') acc = '=';
                         
-                        const pitch = pitchMap[n.pitch] || 'c';
+                        const pitch = toAbcPitch(n.pitch, clef);
                         const tie = n.tied ? '-' : '';
                         return `${acc}${pitch}${tie}`;
                     };

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { requestMIDIAccess, setupMIDIListeners, midiNoteToPitch, getMidiNoteAccidental } from '../engines/midiEngine';
-import { ORDERED_PITCHES } from '../constants';
+import { requestMIDIAccess, setupMIDIListeners, midiNoteToPitch } from '../engines/midiEngine';
 import { playTone } from '../engines/audioEngine';
 import { getActiveStaff } from '../types';
 
@@ -67,10 +66,9 @@ export const useMIDI = (
           
           const cleanup = setupMIDIListeners(access as any, (midiNote: number, velocity: number) => {
               const pitch = midiNoteToPitch(midiNote);
-              const accidental = getMidiNoteAccidental(midiNote);
-              if (!ORDERED_PITCHES.includes(pitch)) return;
+              // Valid range check could be here if needed
               
-              midiChordBuffer.current.push({ pitch, accidental });
+              midiChordBuffer.current.push({ pitch, accidental: null });
               
               if (midiChordTimer.current) clearTimeout(midiChordTimer.current);
               midiChordTimer.current = setTimeout(commitChord, CHORD_WINDOW_MS);

@@ -4,42 +4,26 @@
  * Uses the Web MIDI API.
  */
 
-// MIDI note number to pitch name mapping
-const MIDI_NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+// @ts-nocheck
+/**
+ * MIDI utility module for connecting to MIDI devices and handling note input.
+ * Uses the Web MIDI API.
+ */
+
+import { midiToPitch } from '../services/MusicService';
 
 /**
  * Converts a MIDI note number to a pitch string (e.g., 60 -> "C4")
+ * now wraps MusicService.midiToPitch
  * @param midiNote - MIDI note number (0-127)
- * @returns Pitch string like "C4", "F#5", etc.
+ * @returns Pitch string like "C4", "C#4", etc.
  */
 export const midiNoteToPitch = (midiNote: number): string => {
-    const octave = Math.floor(midiNote / 12) - 1;
-    const noteIndex = midiNote % 12;
-    const noteName = MIDI_NOTE_NAMES[noteIndex];
-    
-    // Convert sharps to natural + accidental info
-    // For now, return as natural notes (sharps will be handled separately)
-    if (noteName.includes('#')) {
-        // Return the natural note name, accidental handled separately
-        return `${noteName.replace('#', '')}${octave}`;
-    }
-    return `${noteName}${octave}`;
+    return midiToPitch(midiNote);
 };
 
-/**
- * Checks if a MIDI note is a sharp/black key
- */
-export const isMidiNoteSharp = (midiNote: number): boolean => {
-    const noteIndex = midiNote % 12;
-    return [1, 3, 6, 8, 10].includes(noteIndex); // C#, D#, F#, G#, A#
-};
-
-/**
- * Gets the accidental for a MIDI note
- */
-export const getMidiNoteAccidental = (midiNote: number): string | null => {
-    return isMidiNoteSharp(midiNote) ? 'sharp' : null;
-};
+// Legacy helpers removed: isMidiNoteSharp, getMidiNoteAccidental
+// Callers should rely on absolute pitch strings.
 
 /**
  * Request MIDI access and return available input devices
