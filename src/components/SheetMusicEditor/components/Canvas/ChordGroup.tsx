@@ -39,27 +39,18 @@ const getAccidentalSymbol = (note, keySignature) => {
  * @param {number} props.quant - Quant position of the chord
  * @param {string} props.duration - Duration type of the chord
  * @param {boolean} props.dotted - Whether the chord is dotted
- * @param {number} props.quantWidth - Width per quant (unused if x is provided)
  * @param {number} props.measureIndex - Index of the measure
  * @param {string} props.eventId - ID of the event
- * @param {Object} props.selection - Current selection state
- * @param {Function} props.onSelectNote - Callback to select a note
  * @param {boolean} props.isGhost - Whether this is a ghost/preview chord
  * @param {number} props.opacity - Opacity for ghost notes
  * @param {boolean} props.renderStem - Whether to render the stem
  * @param {Function|string} props.filterNote - Optional filter to render only specific notes
  * @param {number} props.x - Absolute X position
  * @param {Object} props.beamSpec - Beaming specification if part of a beam group
- * @param {Object} props.layout - Pre-calculated layout data for the chord
- * @param {string} props.clef - Clef for pitch calculation
- * @param {Function} props.onDragStart - Drag handler
- * @param {boolean} props.modifierHeld - Whether a modifier key is held
- * @param {string} props.activeDuration - Active duration for preview logic
- * @param {boolean} props.activeDotted - Active dotted state for preview logic
- * @param {Function} props.onNoteHover - Hover handler
- * @param {boolean} props.isDragging - Whether a drag is in progress
- * @param {number} props.baseY - Y-offset for the staff
- * @param {string} props.keySignature - Key signature
+ * @param {Object} props.chordLayout - Pre-calculated layout data for the chord
+ * 
+ * @param {Object} props.layout - Global Layout Config { baseY, clef, keySignature }
+ * @param {Object} props.interaction - Interaction State { selection, activeDuration, etc }
  */
 const ChordGroup = ({
   // Identity/Data
@@ -67,7 +58,6 @@ const ChordGroup = ({
   quant,
   duration,
   dotted,
-  quantWidth, // Deprecated but kept for safety
   measureIndex,
   eventId,
   isGhost = false,
@@ -107,9 +97,8 @@ const ChordGroup = ({
   const effectiveDirection = beamSpec?.direction || direction;
   
   // X Position Calculation
-  const noteX = useMemo(() => 
-    x > 0 ? x : (quant * quantWidth) + CONFIG.measurePaddingLeft, 
-  [x, quant, quantWidth]);
+  // We assume x is always provided by layout engine. Fallback to 0 if missing.
+  const noteX = x;
 
   const stemX = useMemo(() => 
     noteX + getStemOffset(chordLayout, effectiveDirection), 
@@ -202,7 +191,7 @@ const ChordGroup = ({
                 type={duration} 
                 dotted={dotted}
                 isSelected={noteSelected} 
-                quantWidth={quantWidth}
+                quantWidth={0}
                 renderStem={false} 
                 xOffset={xShift}
                 dotShift={maxNoteShift}
@@ -222,7 +211,7 @@ const ChordGroup = ({
                   type={activeDuration} 
                   dotted={activeDotted}
                   isSelected={false} 
-                  quantWidth={quantWidth}
+                  quantWidth={0}
                   renderStem={true} 
                   xOffset={xShift}
                   dotShift={maxNoteShift}

@@ -8,6 +8,7 @@ import Tie from './Tie';
 import ScoreHeader from '../Panels/ScoreHeader';
 
 import { InteractionState } from '../../componentTypes';
+import { Measure as MeasureData } from '../../types';
 
 /**
  * Props for a self-contained Staff component.
@@ -19,7 +20,7 @@ export interface StaffProps {
   clef: string;
   keySignature: string;
   timeSignature: string;
-  measures: any[]; // TODO: Define Measure interface
+  measures: MeasureData[];
   
   // Layout
   baseY?: number; // Y offset for stacking staves (default: CONFIG.baseY)
@@ -75,7 +76,7 @@ const Staff: React.FC<StaffProps> = ({
   // Calculate measure positions and render
   let currentX = startOfMeasures;
   
-  const measureComponents = measures.map((measure: any, index: number) => {
+  const measureComponents = measures.map((measure, index: number) => {
     // Use synchronized layout if available, otherwise calculate
     const layoutData = measureLayouts?.[index];
     const width = layoutData ? layoutData.width : calculateMeasureWidth(measure.events, measure.isPickup);
@@ -125,9 +126,9 @@ const Staff: React.FC<StaffProps> = ({
     let currentMeasureX = tieStartX;
     const allNotes: any[] = [];
     
-    measures.forEach((measure: any, mIndex: number) => {
+    measures.forEach((measure, mIndex: number) => {
       const layout = calculateMeasureLayout(measure.events, undefined, clef, false);
-      measure.events.forEach((event: any, eIndex: number) => {
+      measure.events.forEach((event, eIndex: number) => {
         const eventX = currentMeasureX + layout.eventPositions[event.id];
         event.notes.forEach((note: any, nIndex: number) => {
           allNotes.push({
@@ -293,10 +294,10 @@ const Staff: React.FC<StaffProps> = ({
 };
 
 // Export totalWidth calculation for parent container sizing
-export const calculateStaffWidth = (measures: any[], keySignature: string): number => {
+export const calculateStaffWidth = (measures: MeasureData[], keySignature: string): number => {
   const { startOfMeasures } = calculateHeaderLayout(keySignature);
   let width = startOfMeasures;
-  measures.forEach((measure: any) => {
+  measures.forEach((measure) => {
     width += calculateMeasureWidth(measure.events, measure.isPickup);
   });
   return width + 50;

@@ -11,7 +11,6 @@ interface RestProps {
   dotted?: boolean;
   x?: number;
   quant?: number;
-  quantWidth?: number;
   baseY?: number;
   noteX?: number; // Pre-calculated x-position if available
 }
@@ -32,7 +31,6 @@ export const Rest = ({
   dotted = false,
   x = 0,
   quant = 0,
-  quantWidth = 0,
   baseY = CONFIG.baseY
 }: RestProps) => {
   const { theme } = useTheme();
@@ -47,7 +45,8 @@ export const Rest = ({
   let finalX = 0;
   
   // Base X position (normally start of quant, but can be overridden)
-  const baseX = x > 0 ? x : (quant * quantWidth) + CONFIG.measurePaddingLeft;
+  // We rely on 'x' passed from the layout engine.
+  const baseX = x > 0 ? x : CONFIG.measurePaddingLeft;
   
   // Check if we have a direct override.
   // When x prop is > 0, we treat it as the precise LEFT edge position.
@@ -55,6 +54,7 @@ export const Rest = ({
        finalX = x;
   } else {
        // Default fallback logic for normal flow (if not explicitly centered by measure)
+       // Note: This path should rarely be taken in the new layout engine
        const quants = getNoteDuration(duration, dotted, undefined);
        const noteWidth = NOTE_SPACING_BASE_UNIT * Math.sqrt(quants);
        const centerOffset = (CONFIG.measurePaddingLeft - CONFIG.measurePaddingRight) / 2;

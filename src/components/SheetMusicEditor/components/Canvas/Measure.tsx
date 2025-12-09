@@ -221,7 +221,7 @@ const Measure: React.FC<MeasureProps> = ({
                    dotted={event.dotted}
                    x={event.x}
                    quant={event.quant}
-                   quantWidth={0}
+                   quantWidth={0} // To be refactored in Rest.tsx
                    baseY={baseY}
                 />
             );
@@ -247,7 +247,6 @@ const Measure: React.FC<MeasureProps> = ({
               
               // Local Options
               measureIndex={measureIndex}
-              quantWidth={0}
               onNoteHover={(isHovering) => setIsNoteHovered(isHovering)}
             />
         );
@@ -273,10 +272,7 @@ const Measure: React.FC<MeasureProps> = ({
           />
       ))}
       
-      {/* Legacy Fallback for Tuplets if tupletGroups is empty but engine/tuplets is used? 
-          No, calculateMeasureLayout returns tupletGroups now.
-          The previous file import calculateTupletBrackets manually. 
-          Let's stick to what layout returns. */}
+
 
       {/* Hit Area extended for Interaction */}
       <rect 
@@ -319,7 +315,6 @@ const Measure: React.FC<MeasureProps> = ({
 
                         // Local Options
                         measureIndex={measureIndex}
-                        quantWidth={0}
                         opacity={0.5}
                         renderStem={shouldDrawStem}
                         filterNote={(note) => note.id === 'preview'}
