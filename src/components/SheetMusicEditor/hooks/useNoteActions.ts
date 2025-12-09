@@ -28,7 +28,7 @@ interface UseNoteActionsReturn {
   addNoteToMeasure: (measureIndex: number, newNote: any, shouldAutoAdvance?: boolean, placementOverride?: any) => void;
   addChordToMeasure: (measureIndex: number, notes: any[], duration: string, dotted: boolean) => void;
   deleteSelected: () => void;
-  updateNotePitch: (measureIndex: number, eventId: number, noteId: number, newPitch: string) => void;
+  updateNotePitch: (measureIndex: number, eventId: string | number, noteId: string | number, newPitch: string) => void;
 }
 
 /**
@@ -251,7 +251,7 @@ export const useNoteActions = ({
     setPreviewNote(null);
   }, [dispatch, setSelection, setPreviewNote, selection.staffIndex]);
 
-  const updateNotePitch = useCallback((measureIndex: number, eventId: number, noteId: number, newPitch: string) => {
+  const updateNotePitch = useCallback((measureIndex: number, eventId: string | number, noteId: string | number, newPitch: string) => {
     // Convert eventId and noteId to string if necessary, as Command expects string|number but usually string for IDs
     dispatch(new ChangePitchCommand(measureIndex, eventId, noteId, newPitch, selection.staffIndex));
   }, [dispatch, selection.staffIndex]);

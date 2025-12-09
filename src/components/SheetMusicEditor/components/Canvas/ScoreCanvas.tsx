@@ -74,10 +74,10 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
   const { dragState, handleDragStart } = useScoreInteraction({
       scoreRef,
-      onUpdatePitch: (m, e, n, p) => updateNotePitch(m, Number(e), Number(n), p),
+      onUpdatePitch: (m, e, n, p) => updateNotePitch(m, e, n, p),
       onSelectNote: (measureIndex, eventId, noteId, staffIndex) => {
           if (measureIndex !== null && eventId !== null) {
-              handleNoteSelection(measureIndex, Number(eventId), Number(noteId), staffIndex);
+              handleNoteSelection(measureIndex, eventId, noteId, staffIndex);
           }
           setPreviewNote(null);
       }

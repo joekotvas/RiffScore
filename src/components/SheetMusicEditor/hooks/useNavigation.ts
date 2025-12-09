@@ -20,7 +20,7 @@ interface UseNavigationProps {
 }
 
 interface UseNavigationReturn {
-  handleNoteSelection: (measureIndex: number, eventId: number, noteId: number | null, staffIndex?: number) => void;
+  handleNoteSelection: (measureIndex: number, eventId: string | number, noteId: string | number | null, staffIndex?: number) => void;
   moveSelection: (direction: string) => void;
   transposeSelection: (direction: string, isShift: boolean) => void;
   switchStaff: (direction: 'up' | 'down') => void;
@@ -42,7 +42,7 @@ export const useNavigation = ({
   dispatch
 }: UseNavigationProps): UseNavigationReturn => {
 
-  const handleNoteSelection = useCallback((measureIndex: number, eventId: number, noteId: number | null, staffIndex: number = 0) => {
+  const handleNoteSelection = useCallback((measureIndex: number, eventId: string | number, noteId: string | number | null, staffIndex: number = 0) => {
     if (!eventId) { 
        setSelection({ staffIndex, measureIndex: null, eventId: null, noteId: null });
        syncToolbarState(null, null, null, staffIndex);

@@ -196,27 +196,15 @@ const ChordGroup = ({
             }}
             style={{ cursor: !isGhost ? (modifierHeld ? 'pointer' : 'crosshair') : 'default' }}
           >
-            {/* Ghost Preview - shows what duration will be applied on click */}
-            {/* Hide preview when dragging */}
-            {!isGhost && !isDragging && !modifierHeld && hoveredNoteId === note.id && activeDuration && (duration !== activeDuration || dotted !== activeDotted) && (
-              <g style={{ pointerEvents: 'none' }}>
-                <Note 
-                  quant={quant} 
-                  pitch={note.pitch} 
-                  type={activeDuration} 
-                  dotted={activeDotted}
-                  isSelected={false} 
-                  quantWidth={quantWidth}
-                  renderStem={true} 
-                  xOffset={xShift}
-                  dotShift={maxNoteShift}
-                  isGhost={true}
-                  x={noteX}
-                  clef={clef}
-                  baseY={baseY}
-                />
-              </g>
-            )}
+            {/* Invisible Hit Area for easier clicking */}
+             <rect 
+              x={noteX + xShift - 12}
+              y={noteY - 15}
+              width={24}
+              height={30}
+              fill="white"
+              fillOpacity={0.01}
+            />
             {/* Accidental - calculated based on key signature */}
             {(() => {
                 // Calculate if accidental is needed based on key
@@ -258,6 +246,28 @@ const ChordGroup = ({
               clef={clef}
               baseY={baseY}
             />
+
+            {/* Ghost Preview - shows what duration will be applied on click */}
+            {/* Hide preview when dragging */}
+            {!isGhost && !isDragging && !modifierHeld && hoveredNoteId === note.id && activeDuration && (duration !== activeDuration || dotted !== activeDotted) && (
+              <g style={{ pointerEvents: 'none' }}>
+                <Note 
+                  quant={quant} 
+                  pitch={note.pitch} 
+                  type={activeDuration} 
+                  dotted={activeDotted}
+                  isSelected={false} 
+                  quantWidth={quantWidth}
+                  renderStem={true} 
+                  xOffset={xShift}
+                  dotShift={maxNoteShift}
+                  isGhost={true}
+                  x={noteX}
+                  clef={clef}
+                  baseY={baseY}
+                />
+              </g>
+            )}
           </g>
         );
       })}
