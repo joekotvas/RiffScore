@@ -148,6 +148,18 @@ export const getNoteWidth = (duration: string, dotted: boolean): number => {
  * @returns Object containing sortedNotes, direction, noteOffsets, maxNoteShift, minY, maxY
  */
 export const calculateChordLayout = (notes: Note[], clef: string = 'treble', forcedDirection?: 'up' | 'down'): ChordLayout => {
+  if (!notes || notes.length === 0) {
+    return {
+      sortedNotes: [],
+      direction: forcedDirection || 'up',
+      noteOffsets: {},
+      maxNoteShift: 0,
+      minNoteShift: 0,
+      minY: 0,
+      maxY: 0
+    };
+  }
+
   const sortedNotes = [...notes].sort((a, b) => {
       const yA = getOffsetForPitch(a.pitch, clef);
       const yB = getOffsetForPitch(b.pitch, clef);
