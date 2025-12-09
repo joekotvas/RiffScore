@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 
 import { getNoteDuration } from '../../utils/core';
 import { calculateMeasureLayout, calculateBeamingGroups, calculateChordLayout, getNoteWidth, getYToPitch, calculateTupletBrackets } from '../../engines/layout';
+import { applyKeySignature } from '../../services/MusicService';
 import ChordGroup from './ChordGroup';
 import Beam from './Beam';
 import TupletBracket from './TupletBracket';
@@ -26,7 +27,7 @@ import TupletBracket from './TupletBracket';
  * @param previewNote - Current preview note data
  * @param isDotted - Whether the active note is dotted
  */
-const Measure = ({ measureData, measureIndex, onAddNote, activeDuration, selection, onSelectNote, scale, startX, isLast, onHover, previewNote, isDotted, clef = 'treble', onDragStart, modifierHeld = false, isDragging = false, baseY = CONFIG.baseY, verticalOffset = 0, forcedWidth, forcedEventPositions, staffIndex = 0 }) => {
+const Measure = ({ measureData, measureIndex, onAddNote, activeDuration, selection, onSelectNote, scale, startX, isLast, onHover, previewNote, isDotted, clef = 'treble', keySignature = 'C', onDragStart, modifierHeld = false, isDragging = false, baseY = CONFIG.baseY, verticalOffset = 0, forcedWidth, forcedEventPositions, staffIndex = 0 }) => {
   const { theme } = useTheme();
   const [isNoteHovered, setIsNoteHovered] = useState(false);
   // Use new layout calculator
@@ -88,7 +89,10 @@ const Measure = ({ measureData, measureIndex, onAddNote, activeDuration, selecti
     const snappedY = stepIndex * 6;
     const yOffsetKey = snappedY; // Use number key
     const yToPitch = getYToPitch(clef);
-    const resolvedPitch = yToPitch[yOffsetKey];
+    const visualPitch = yToPitch[yOffsetKey];
+    
+    // Apply key signature to get absolute pitch (e.g., F4 → F#4 in G Major)
+    const resolvedPitch = visualPitch ? applyKeySignature(visualPitch, keySignature) : undefined;
 
     return { hit, resolvedPitch };
   };

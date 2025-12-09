@@ -122,6 +122,7 @@ const Staff: React.FC<StaffProps> = ({
         previewNote={staffPreviewNote}
         isDotted={isDotted}
         clef={clef}
+        keySignature={keySignature}
         onDragStart={onDragStart}
         modifierHeld={modifierHeld}
         isDragging={isDragging}

@@ -2,6 +2,7 @@ import { NOTE_TYPES, MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT, KEY_SIGNATURES } fro
 import { CONFIG } from '../../config';
 import { getNoteDuration } from '../../utils/core';
 import { Note, ChordLayout, HeaderLayout } from './types';
+import { getStaffPitch } from '../../services/MusicService';
 
 // ========== HEADER LAYOUT (SSOT) ==========
 
@@ -83,10 +84,17 @@ export const getYToPitch = (clef: string = 'treble'): Record<number, string> => 
 
 /**
  * Gets the offset for a pitch in a given clef.
+ * Normalizes accidentals (F#4 → F4) so they render on the correct staff line.
+ * 
+ * @param pitch - Pitch to look up (e.g., "F#4", "Bb3", "C4")
+ * @param clef - Clef context ('treble' or 'bass')
+ * @returns Y offset in pixels relative to CONFIG.baseY
  */
 export const getOffsetForPitch = (pitch: string, clef: string = 'treble'): number => {
   const mapping = getPitchToOffset(clef);
-  return mapping[pitch] ?? 0;
+  // Normalize pitch to staff position (F#4 → F4, Bb3 → B3)
+  const normalizedPitch = getStaffPitch(pitch);
+  return mapping[normalizedPitch] ?? 0;
 };
 
 /**
