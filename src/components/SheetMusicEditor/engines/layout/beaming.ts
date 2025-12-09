@@ -73,6 +73,8 @@ export const calculateBeamingGroups = (events: any[], eventPositions: Record<str
     return groups;
 };
 
+import { STEM_LENGTHS } from './stems';
+
 /**
  * Calculates the geometry for a single beam group.
  * Implements proper beam sloping based on pitch contour.
@@ -81,7 +83,7 @@ const processBeamGroup = (groupEvents: any[], eventPositions: Record<string, num
     const startEvent = groupEvents[0];
     const endEvent = groupEvents[groupEvents.length - 1];
     
-    const minStemLength = 35; // Standard minimum stem length in pixels
+    const minStemLength = STEM_LENGTHS.default; // Standard minimum stem length from centralized config
     
     // First pass: collect note data to determine direction
     const noteData = groupEvents.map(e => {

@@ -1,6 +1,6 @@
 import { CONFIG } from '../../config';
 import { getNoteDuration } from '../../utils/core';
-import { MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT } from '../../constants';
+import { MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT, WHOLE_REST_WIDTH } from '../../constants';
 import { ScoreEvent, MeasureLayout, HitZone, Note } from './types';
 import { getNoteWidth, calculateChordLayout, getOffsetForPitch } from './positioning';
 import { getTupletGroup } from './tuplets';
@@ -79,7 +79,7 @@ const getEventMetrics = (event: ScoreEvent, clef: string) => {
  * @param totalQuants - Total quants in the measure (default: CONFIG.quantsPerMeasure)
  * @param clef - The current clef ('treble' or 'bass')
  * @param isPickup - Whether this is a pickup measure
- * @param forcedEventPositions - Optional map of Quant -> X Position for synchronization
+ * @param forcedEventPositions - Optional map of {Quant -> X Position} for multi-staff synchronization
  * @returns MeasureLayout containing hitZones, eventPositions, totalWidth, and processedEvents
  */
 export const calculateMeasureLayout = (
@@ -391,4 +391,33 @@ export const analyzePlacement = (events: ScoreEvent[], intendedQuant: number) =>
 
     // Case 3: Append
     return { mode: 'APPEND', index: events.length, visualQuant: currentQuant };
+};
+
+/**
+ * Post-processes the events to apply special centering rules.
+ * Currently handles: Centering a single whole rest (placeholder) in the exact middle of the measure.
+ * 
+ * @param events - The list of processed events
+ * @param measureWidth - The total width of the measure (between barlines)
+ * @returns The updated list of events
+ */
+export const applyMeasureCentering = (events: ScoreEvent[], measureWidth: number): ScoreEvent[] => {
+    // Check if we need to center a whole rest (placeholder)
+    if (events.length === 1 && events[0].id === 'rest-placeholder') {
+        const rest = events[0];
+        
+        // Target: Geometric center of the measure box (equidistant from barlines)
+        const targetVisualCenter = measureWidth / 2;
+        
+        // Calculate the X-coordinate for the LEFT edge of the rest glyph
+        // This bypasses standard note positioning offsets in ChordGroup (logic: if x > 0, use x as left edge)
+        const x = targetVisualCenter - (WHOLE_REST_WIDTH / 2);
+
+        return [{
+            ...rest,
+            x: x
+        }];
+    }
+    
+    return events;
 };

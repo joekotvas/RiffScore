@@ -35,10 +35,10 @@ export interface StaffProps {
   hidePlaybackCursor?: boolean; // Hide cursor when rendered by parent (Grand Staff)
   
   // Callbacks (scoped to this staff)
-  onSelectNote: (measureIndex: number, eventId: number, noteId: number | null) => void;
+  onSelectNote: (measureIndex: number, eventId: string | number | null, noteId: string | number | null) => void;
   onAddNote: (measureIndex: number, note: any, shouldAutoAdvance?: boolean, placementOverride?: any) => void;
   onHover: (measureIndex: number | null, hit: any, pitch: string) => void;
-  onDragStart: (measureIndex: number, eventId: number, noteId: number, pitch: string, startY: number, modifierHeld: boolean) => void;
+  onDragStart: (measureIndex: number, eventId: string | number, noteId: string | number, pitch: string, startY: number, modifierHeld: boolean) => void;
   
   // Header click callbacks
   onClefClick?: () => void;
@@ -112,25 +112,29 @@ const Staff: React.FC<StaffProps> = ({
         startX={currentX}
         measureIndex={index}
         measureData={measure}
-        staffIndex={staffIndex}
-        onAddNote={onAddNote}
-        activeDuration={activeDuration}
-        selection={selection}
-        onSelectNote={onSelectNote}
-        scale={scale}
         isLast={index === measures.length - 1}
-        onHover={onHover}
-        previewNote={staffPreviewNote}
-        isDotted={isDotted}
-        clef={clef}
-        keySignature={keySignature}
-        onDragStart={onDragStart}
-        modifierHeld={modifierHeld}
-        isDragging={isDragging}
-        baseY={CONFIG.baseY}  // Always use CONFIG.baseY - staff positioning handled by SVG transform
-        verticalOffset={verticalOffset}  // Pass transform offset for hit detection
         forcedWidth={width}
         forcedEventPositions={forcedPositions}
+        layout={{
+          scale,
+          baseY: CONFIG.baseY,
+          clef,
+          keySignature,
+          staffIndex,
+          verticalOffset
+        }}
+        interaction={{
+          selection,
+          previewNote: staffPreviewNote,
+          activeDuration,
+          isDotted,
+          modifierHeld,
+          isDragging,
+          onAddNote,
+          onSelectNote,
+          onDragStart,
+          onHover
+        }}
       />
     );
     currentX += width;
