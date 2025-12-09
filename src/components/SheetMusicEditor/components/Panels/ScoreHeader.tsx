@@ -38,7 +38,7 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
       {[0, 1, 2, 3, 4].map(i => (
         <line key={`staff-head-${i}`} x1={0} y1={baseY + (i * CONFIG.lineHeight)} x2={startOfMeasures} y2={baseY + (i * CONFIG.lineHeight)} stroke={theme.score.line} strokeWidth="1"/>
       ))}
-      <line x1={0} y1={baseY} x2={0} y2={baseY + (CONFIG.lineHeight * 4)} stroke={theme.secondaryText} strokeWidth="3" />
+      <line x1={0} y1={baseY} x2={0} y2={baseY + (CONFIG.lineHeight * 4)} stroke={theme.secondaryText} strokeWidth="1" />
 
       {/* Clef - clickable */}
       <g 
