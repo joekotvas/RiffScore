@@ -230,27 +230,25 @@ const Measure: React.FC<MeasureProps> = ({
         return (
             <ChordGroup
               key={event.id}
+              // Data
               notes={event.notes}
               quant={event.quant}
               duration={event.duration}
               dotted={event.dotted}
-              quantWidth={0} 
-              measureIndex={measureIndex}
               eventId={event.id}
-              selection={selection}
-              onSelectNote={onSelectNote}
               x={event.x}
               beamSpec={beamMap[event.id]}
-              layout={event.chordLayout}
-              clef={clef}
-              onDragStart={onDragStart}
-              modifierHeld={modifierHeld}
-              activeDuration={activeDuration}
-              activeDotted={isDotted}
+              chordLayout={event.chordLayout}
+              isGhost={false}
+              
+              // Contexts (Pass through)
+              layout={layout}
+              interaction={interaction}
+              
+              // Local Options
+              measureIndex={measureIndex}
+              quantWidth={0}
               onNoteHover={(isHovering) => setIsNoteHovered(isHovering)}
-              isDragging={isDragging}
-              baseY={baseY}
-              keySignature={keySignature}
             />
         );
       })}
@@ -305,22 +303,26 @@ const Measure: React.FC<MeasureProps> = ({
 
                  return (
                     <ChordGroup
+                        // Data
                         notes={chordNotes}
                         quant={quant}
                         duration={previewNote.duration}
                         dotted={previewNote.dotted}
-                        quantWidth={0}
-                        measureIndex={measureIndex}
                         eventId="preview"
+                        x={x}
+                        chordLayout={previewRender.chordLayout}
                         isGhost={true}
+                        
+                         // Contexts (Pass through)
+                        layout={layout}
+                        interaction={interaction}
+
+                        // Local Options
+                        measureIndex={measureIndex}
+                        quantWidth={0}
                         opacity={0.5}
                         renderStem={shouldDrawStem}
                         filterNote={(note) => note.id === 'preview'}
-                        x={x}
-                        layout={previewRender.chordLayout}
-                        clef={clef}
-                        baseY={baseY}
-                        keySignature={keySignature}
                     />
                  );
                })()}

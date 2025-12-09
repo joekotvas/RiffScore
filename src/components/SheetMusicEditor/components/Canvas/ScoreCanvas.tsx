@@ -178,8 +178,29 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
           {score.staves?.map((staff: any, staffIndex: number) => {
             const staffBaseY = CONFIG.baseY + staffIndex * CONFIG.staffSpacing;
             const isSelectedStaff = staffIndex === (selection.staffIndex || 0);
-            const isPreviewStaff = previewNote?.staffIndex !== undefined ? previewNote.staffIndex === staffIndex : isSelectedStaff;
             
+            // Construct Interaction State
+            const interaction = {
+                selection: isSelectedStaff ? selection : { staffIndex, measureIndex: null, eventId: null, noteId: null },
+                previewNote, // Global preview note (Staff filters it)
+                activeDuration,
+                isDotted,
+                modifierHeld,
+                isDragging: dragState.active,
+                onAddNote: addNoteToMeasure,
+                onSelectNote: (measureIndex: number, eventId: number | string | null, noteId: number | string | null) => {
+                   handleNoteSelection(measureIndex, eventId, noteId, staffIndex);
+                },
+                onDragStart: (measureIndex: number, eventId: number | string, noteId: number | string, pitch: string, startY: number, modifierHeld: boolean) => {
+                   handleDragStart(startY, measureIndex, eventId, noteId, pitch, staffIndex);
+                },
+                onHover: (measureIndex: number | null, hit: any, pitch: string) => {
+                   if (!dragState.active) {
+                       handleMeasureHover(measureIndex, hit, pitch, staffIndex);
+                   }
+                }
+            };
+
             return (
               <Staff
                 key={staff.id || staffIndex}
@@ -190,30 +211,12 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 measures={staff.measures}
                 measureLayouts={synchronizedLayoutData}
                 baseY={staffBaseY}
-                selection={isSelectedStaff ? selection : { staffIndex, measureIndex: null, eventId: null, noteId: null }}
-                previewNote={isPreviewStaff ? previewNote : null}
-                activeDuration={activeDuration}
-                isDotted={isDotted}
                 scale={scale}
+                interaction={interaction}
                 playbackPosition={playbackPosition}
-                onSelectNote={(measureIndex: number, eventId: number, noteId: number | null) => {
-                  handleNoteSelection(measureIndex, eventId, noteId, staffIndex);
-                }}
-                onAddNote={addNoteToMeasure}
-                onHover={(measureIndex, hit, pitch) => {
-                    if (!dragState.active) {
-                        // Pass 4 arguments to support multi-staff pitch calculation
-                        handleMeasureHover(measureIndex, hit, pitch, staffIndex);
-                    }
-                }}
-                onDragStart={(measureIndex, eventId, noteId, pitch, startY, modifierHeld) => {
-                  handleDragStart(startY, measureIndex, eventId, noteId, pitch, staffIndex);
-                }}
                 onClefClick={onClefClick}
                 onKeySigClick={onKeySigClick}
                 onTimeSigClick={onTimeSigClick}
-                modifierHeld={modifierHeld}
-                isDragging={dragState.active}
                 hidePlaybackCursor={isGrandStaff}
               />
             );

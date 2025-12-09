@@ -7,6 +7,8 @@ import Measure from './Measure';
 import Tie from './Tie';
 import ScoreHeader from '../Panels/ScoreHeader';
 
+import { InteractionState } from '../../componentTypes';
+
 /**
  * Props for a self-contained Staff component.
  * Each Staff is independent and can be stacked for Grand Staff.
@@ -22,34 +24,19 @@ export interface StaffProps {
   // Layout
   baseY?: number; // Y offset for stacking staves (default: CONFIG.baseY)
   measureLayouts?: { width: number, forcedPositions: Record<number, number> }[]; // Synchronized layouts
-  
-  // Interaction state (scoped to this staff)
-  selection: any;
-  previewNote: any;
-  activeDuration: string;
-  isDotted: boolean;
   scale: number;
+
+  // Interaction (Grouped)
+  interaction: InteractionState;
   
   // Playback
   playbackPosition: { measureIndex: number | null; quant: number | null; duration: number };
   hidePlaybackCursor?: boolean; // Hide cursor when rendered by parent (Grand Staff)
   
-  // Callbacks (scoped to this staff)
-  onSelectNote: (measureIndex: number, eventId: string | number | null, noteId: string | number | null) => void;
-  onAddNote: (measureIndex: number, note: any, shouldAutoAdvance?: boolean, placementOverride?: any) => void;
-  onHover: (measureIndex: number | null, hit: any, pitch: string) => void;
-  onDragStart: (measureIndex: number, eventId: string | number, noteId: string | number, pitch: string, startY: number, modifierHeld: boolean) => void;
-  
-  // Header click callbacks
+  // Header click callbacks (Panel/Menu interactions)
   onClefClick?: () => void;
   onKeySigClick?: () => void;
   onTimeSigClick?: () => void;
-  
-  // Modifier state for cursor changes
-  modifierHeld?: boolean;
-  
-  // Drag state for hiding ghost preview
-  isDragging?: boolean;
 }
 
 /**
@@ -68,22 +55,13 @@ const Staff: React.FC<StaffProps> = ({
   measures,
   baseY = CONFIG.baseY,
   measureLayouts,
-  selection,
-  previewNote,
-  activeDuration,
-  isDotted,
   scale,
+  interaction,
   playbackPosition,
   hidePlaybackCursor = false,
-  onSelectNote,
-  onAddNote,
-  onHover,
-  onDragStart,
   onClefClick,
   onKeySigClick,
   onTimeSigClick,
-  modifierHeld = false,
-  isDragging = false,
 }) => {
   const { theme } = useTheme();
   
@@ -104,7 +82,13 @@ const Staff: React.FC<StaffProps> = ({
     const forcedPositions = layoutData?.forcedPositions;
     
     // Only show preview note if it belongs to this staff
-    const staffPreviewNote = (previewNote && previewNote.staffIndex === staffIndex) ? previewNote : null;
+    // We create a DERIVED InteractionState for this scope
+    const staffPreviewNote = (interaction.previewNote && interaction.previewNote.staffIndex === staffIndex) ? interaction.previewNote : null;
+    
+    const scopedInteraction = {
+        ...interaction,
+        previewNote: staffPreviewNote
+    };
 
     const component = (
       <Measure 
@@ -123,18 +107,7 @@ const Staff: React.FC<StaffProps> = ({
           staffIndex,
           verticalOffset
         }}
-        interaction={{
-          selection,
-          previewNote: staffPreviewNote,
-          activeDuration,
-          isDotted,
-          modifierHeld,
-          isDragging,
-          onAddNote,
-          onSelectNote,
-          onDragStart,
-          onHover
-        }}
+        interaction={scopedInteraction}
       />
     );
     currentX += width;

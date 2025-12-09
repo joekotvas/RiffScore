@@ -62,35 +62,46 @@ const getAccidentalSymbol = (note, keySignature) => {
  * @param {string} props.keySignature - Key signature
  */
 const ChordGroup = ({
+  // Identity/Data
   notes,
   quant,
   duration,
   dotted,
-  quantWidth,
+  quantWidth, // Deprecated but kept for safety
   measureIndex,
   eventId,
-  selection = {},
-  onSelectNote, // Unused in original, kept for API compatibility
   isGhost = false,
+  x = 0,
+  beamSpec = null,
+  chordLayout, // Renamed from 'layout' to avoid collision with context layout
+  
+  // Contexts
+  layout,       // Global Layout Config { baseY, clef, keySignature }
+  interaction,  // Interaction State { selection, activeDuration, etc }
+
+  // Render Options
   opacity = 1,
   renderStem = true,
   filterNote = null,
-  x = 0,
-  beamSpec = null,
-  layout,
-  clef = 'treble',
-  onDragStart,
-  modifierHeld = false,
-  activeDuration = null,
-  activeDotted = false,
-  onNoteHover = null,
-  isDragging = false,
-  baseY = CONFIG.baseY,
-  keySignature = 'C',
+  onNoteHover = null, // Local callback
 }) => {
   const { theme } = useTheme();
+  
+  // Destructure contexts
+  const { baseY, clef, keySignature } = layout;
+  const { 
+    selection, 
+    onDragStart, 
+    modifierHeld, 
+    activeDuration, 
+    isDotted: activeDotted, 
+    isDragging 
+  } = interaction;
+
   const [hoveredNoteId, setHoveredNoteId] = useState(null);
-  const { sortedNotes, direction, noteOffsets, maxNoteShift, minY, maxY } = layout;
+  
+  // Use chordLayout for internal positioning
+  const { sortedNotes, direction, noteOffsets, maxNoteShift, minY, maxY } = chordLayout;
 
   // 1. Derived State & Calculations
   const effectiveDirection = beamSpec?.direction || direction;
@@ -101,8 +112,8 @@ const ChordGroup = ({
   [x, quant, quantWidth]);
 
   const stemX = useMemo(() => 
-    noteX + getStemOffset(layout, effectiveDirection), 
-  [noteX, layout, effectiveDirection]);
+    noteX + getStemOffset(chordLayout, effectiveDirection), 
+  [noteX, chordLayout, effectiveDirection]);
 
   const { startY: stemStartY, endY: stemEndY } = useMemo(() => 
     calculateStemGeometry({ beamSpec, stemX, direction: effectiveDirection, minY, maxY, duration }),
@@ -116,6 +127,7 @@ const ChordGroup = ({
   // Filter Logic
   const notesToRender = useMemo(() => {
     if (!filterNote) return sortedNotes;
+    // ... logic same as before
     return typeof filterNote === 'function' 
       ? sortedNotes.filter(filterNote) 
       : sortedNotes.filter(n => n.pitch === filterNote);
@@ -134,6 +146,7 @@ const ChordGroup = ({
   }, [onNoteHover]);
 
   const handleNoteMouseDown = useCallback((e, note) => {
+    // onDragStart is now from interaction context
     if (isGhost || !onDragStart) return;
     e.stopPropagation();
     const isModifier = e.metaKey || e.ctrlKey;
