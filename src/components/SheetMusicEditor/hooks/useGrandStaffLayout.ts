@@ -6,7 +6,7 @@ import { getNoteDuration } from '../utils/core';
 
 interface UseGrandStaffLayoutProps {
   score: Score;
-  playbackPosition: { measureIndex: number | null; eventIndex: number | null; duration: number };
+  playbackPosition: { measureIndex: number | null; quant: number | null; duration: number };
   activeStaff: any; // Using activeStaff from ScoreCanvas for now
   keySignature: string;
   clef: string;
@@ -54,9 +54,9 @@ export const useGrandStaffLayout = ({
 
   const unifiedCursor = useMemo(() => {
     if (!isGrandStaff) return null;
-    if (playbackPosition.measureIndex === null || playbackPosition.eventIndex === null) return null;
+    if (playbackPosition.measureIndex === null || playbackPosition.quant === null) return null; // Logic updated to use quant
     
-    // Always use Staff 0 (Treble) as the reference for playback tracking
+    // Always use Staff 0 (Treble) as the reference for layout (shared layout)
     const referenceStaff = score.staves?.[0];
     if (!referenceStaff) return null;
 
@@ -64,7 +64,7 @@ export const useGrandStaffLayout = ({
     let cursorX = startOfMeasures;
     let cursorWidth = 0;
     
-    // Add widths of previous measures using synchronized data
+    // 1. Add widths of previous measures
     if (synchronizedLayoutData) {
         for (let i = 0; i < playbackPosition.measureIndex; i++) {
              if (synchronizedLayoutData[i]) {
@@ -72,57 +72,52 @@ export const useGrandStaffLayout = ({
              }
         }
     } else {
-        // Fallback (shouldn't happen in Grand Staff mode)
-        for (let i = 0; i < playbackPosition.measureIndex; i++) {
+        // Fallback
+         for (let i = 0; i < playbackPosition.measureIndex; i++) {
            if (referenceStaff.measures && referenceStaff.measures[i]) {
              cursorX += calculateMeasureWidth(referenceStaff.measures[i].events, referenceStaff.measures[i].isPickup);
            }
         }
     }
     
-    // Calculate position within current measure using forcedPositions
+    // 2. Calculate position within current measure using forcedPositions (Grid)
     const currentMeasureIndex = playbackPosition.measureIndex;
-    const currentEventIndex = playbackPosition.eventIndex;
+    const currentQuant = playbackPosition.quant;
     
-    // Calculate tick (accumulated duration) of the target event
-    const measure = referenceStaff.measures[currentMeasureIndex];
-    if (measure && measure.events[currentEventIndex]) {
-        if (synchronizedLayoutData && synchronizedLayoutData[currentMeasureIndex]) {
-             // Calculate absolute tick of the event within the measure
-             let currentTick = 0;
-             for (let i = 0; i < currentEventIndex; i++) {
-                 const evt = measure.events[i];
-                 currentTick += getNoteDuration(evt.duration, evt.dotted, evt.tuplet);
-             }
+    if (synchronizedLayoutData && synchronizedLayoutData[currentMeasureIndex]) {
+         const forcedPositions = synchronizedLayoutData[currentMeasureIndex].forcedPositions;
+         
+         // Loop up exact position for this quant
+         if (forcedPositions && currentQuant in forcedPositions) {
+             cursorX += forcedPositions[currentQuant];
              
-             // Look up position in synchronized layout (keyed by tick)
-             const forcedPositions = synchronizedLayoutData[currentMeasureIndex].forcedPositions;
+             // Calculate Width: Find next quant in the map
+             // Get all keys, sort them, find currentQuant, find next.
+             const sortedQuants = Object.keys(forcedPositions).map(Number).sort((a,b) => a-b);
+             const idx = sortedQuants.indexOf(currentQuant);
              
-             // Note: forcedPositions keys are numbers (ticks).
-             // We need to match the tick exactly.
-             if (forcedPositions && currentTick in forcedPositions) {
-                 cursorX += forcedPositions[currentTick];
-                 
-                 // Calculate Width (Distance to next visual point)
-                 const evt = measure.events[currentEventIndex];
-                 const dur = getNoteDuration(evt.duration, evt.dotted, evt.tuplet);
-                 const nextTick = currentTick + dur;
-                 const nextX = forcedPositions[nextTick] ?? synchronizedLayoutData[currentMeasureIndex].width;
-                 if (typeof nextX === 'number') {
-                    cursorWidth = nextX - forcedPositions[currentTick];
-                 } else {
-                    cursorWidth = getNoteWidth(evt.duration, evt.dotted);
-                 }
-                 
+             if (idx !== -1 && idx < sortedQuants.length - 1) {
+                 const nextQuant = sortedQuants[idx + 1];
+                 const nextX = forcedPositions[nextQuant];
+                 cursorWidth = nextX - forcedPositions[currentQuant];
              } else {
-                 // Fallback: Use single-staff calculation if tick not found (should be rare)
-                 const layout = calculateMeasureLayout(measure.events, undefined, clef);
-                 const event = measure.events[currentEventIndex];
-                 cursorX += layout.eventPositions[event.id] || CONFIG.measurePaddingLeft;
-                 // Approximate fallback width
-                 cursorWidth = getNoteWidth(event.duration, event.dotted);
+                 // Last event/quant in layout: Width is Distance to End of Measure
+                 // Note: measure.width includes padding
+                 const measureWidth = synchronizedLayoutData[currentMeasureIndex].width;
+                 // forcedPositions[currentQuant] is where we are.
+                 // We slide to end? Or use a fallback default?
+                 // If we slide to end of measure, it's consistent for last note.
+                 cursorWidth = measureWidth - forcedPositions[currentQuant];
+                 
+                 // If resulting width is suspiciously large (e.g. whole rest logic), it's fine.
+                 // If width is negative (padding issues?), clamp it.
+                 cursorWidth = Math.max(cursorWidth, 20);
              }
-        }
+         } else {
+             // Quant not found in layout map? Should not happen if Audio Engine matches Layout.
+             // Fallback to approximate
+             cursorWidth = 20;
+         }
     }
     
     return { x: cursorX, width: cursorWidth };

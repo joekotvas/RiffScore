@@ -2,6 +2,7 @@ import React from 'react';
 import { CONFIG } from '../../config';
 import { useTheme } from '../../context/ThemeContext';
 import { calculateMeasureWidth, calculateMeasureLayout, getOffsetForPitch, calculateHeaderLayout } from '../../engines/layout';
+import { getNoteDuration } from '../../utils/core';
 import Measure from './Measure';
 import Tie from './Tie';
 import ScoreHeader from '../Panels/ScoreHeader';
@@ -30,7 +31,7 @@ export interface StaffProps {
   scale: number;
   
   // Playback
-  playbackPosition: { measureIndex: number | null; eventIndex: number | null; duration: number };
+  playbackPosition: { measureIndex: number | null; quant: number | null; duration: number };
   hidePlaybackCursor?: boolean; // Hide cursor when rendered by parent (Grand Staff)
   
   // Callbacks (scoped to this staff)
@@ -223,7 +224,7 @@ const Staff: React.FC<StaffProps> = ({
 
   // Calculate playback cursor X position for this staff
   const playbackCursorX = React.useMemo(() => {
-    if (playbackPosition.measureIndex === null || playbackPosition.eventIndex === null) {
+    if (playbackPosition.measureIndex === null || playbackPosition.quant === null) {
       return null;
     }
     
@@ -237,11 +238,26 @@ const Staff: React.FC<StaffProps> = ({
       }
     }
     
+    // Find event corresponding to the current quant
     const measure = measures[playbackPosition.measureIndex];
-    if (measure && measure.events[playbackPosition.eventIndex]) {
+    if (measure) {
       const layout = calculateMeasureLayout(measure.events, undefined, clef, false);
-      const event = measure.events[playbackPosition.eventIndex];
-      absX += layout.eventPositions[event.id] || CONFIG.measurePaddingLeft;
+      const targetQuant = playbackPosition.quant;
+      
+      // Find event covering this quant
+      // Note: layout.processedEvents includes x and quant
+      const targetEvent = layout.processedEvents.find((e: any) => {
+          const dur = getNoteDuration(e.duration, e.dotted, e.tuplet);
+          return e.quant <= targetQuant && (e.quant + dur) > targetQuant;
+      });
+      
+      if (targetEvent) {
+          absX += (targetEvent as any).x;
+      } else {
+          // If no note found at this quant (e.g. within a rest or beyond), use fallback
+          // Try to find closest previous event? Or just use padding if at start.
+          absX += CONFIG.measurePaddingLeft;
+      }
     }
     
     return absX;

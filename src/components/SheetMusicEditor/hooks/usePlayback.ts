@@ -3,8 +3,8 @@ import { initAudio, scheduleScorePlayback } from '../engines/audioEngine';
 
 export const usePlayback = (score: any, bpm: number) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackPosition, setPlaybackPosition] = useState<{ measureIndex: number | null; eventIndex: number | null; duration: number }>({ measureIndex: null, eventIndex: null, duration: 0 });
-  const [lastPlayStart, setLastPlayStart] = useState({ measureIndex: 0, eventIndex: 0 });
+  const [playbackPosition, setPlaybackPosition] = useState<{ measureIndex: number | null; quant: number | null; duration: number }>({ measureIndex: null, quant: null, duration: 0 });
+  const [lastPlayStart, setLastPlayStart] = useState({ measureIndex: 0, quant: 0 });
   
   const audioCtxRef = useRef<AudioContext | null>(null);
   const playbackRef = useRef<{ disconnect: () => void } | null>(null);
@@ -22,12 +22,12 @@ export const usePlayback = (score: any, bpm: number) => {
     setIsPlaying(false);
   }, []);
 
-  const playScore = useCallback((startMeasureIndex = 0, startEventIndex = 0) => {
+  const playScore = useCallback((startMeasureIndex = 0, startQuant = 0) => {
     const ctx = initAudio(audioCtxRef);
     if (!ctx) return;
     stopPlayback();
 
-    setLastPlayStart({ measureIndex: startMeasureIndex, eventIndex: startEventIndex });
+    setLastPlayStart({ measureIndex: startMeasureIndex, quant: startQuant });
 
     setIsPlaying(true);
     
@@ -36,13 +36,13 @@ export const usePlayback = (score: any, bpm: number) => {
         score, 
         bpm, 
         startMeasureIndex, 
-        startEventIndex, 
+        startQuant, 
         () => {
             setIsPlaying(false);
             playbackRef.current = null;
         },
-        (mIndex: number, eIndex: number, duration: number) => {
-            setPlaybackPosition({ measureIndex: mIndex, eventIndex: eIndex, duration: duration || 0 });
+        (mIndex: number, quant: number, duration: number) => {
+            setPlaybackPosition({ measureIndex: mIndex, quant: quant, duration: duration || 0 });
         }
     );
     

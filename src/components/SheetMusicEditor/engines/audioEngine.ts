@@ -72,7 +72,7 @@ export const playTone = (pitch: string, durationType = 'quarter', dotted = false
 /**
  * Schedules the entire score for playback using TimelineService.
  */
-export const scheduleScorePlayback = (ctx: AudioContext, score: any, bpm: number, startMeasureIndex = 0, startEventIndex = 0, onComplete?: () => void, onPositionUpdate?: (m: number, e: number, d: number) => void) => {
+export const scheduleScorePlayback = (ctx: AudioContext, score: any, bpm: number, startMeasureIndex = 0, startQuant = 0, onComplete?: () => void, onPositionUpdate?: (m: number, q: number, d: number) => void) => {
     const masterGain = ctx.createGain();
     masterGain.connect(ctx.destination);
     masterGain.gain.value = 0.5;
@@ -87,24 +87,23 @@ export const scheduleScorePlayback = (ctx: AudioContext, score: any, bpm: number
     let startTimeOffset = 0;
     
     // Filter out events before start point
-    // Logic: Find the time of the event at startMeasureIndex/startEventIndex
-    const startEvent = timeline.find(e => e.measureIndex >= startMeasureIndex && (e.measureIndex > startMeasureIndex || e.eventIndex >= startEventIndex));
+    // Logic: Find the time of the event at startMeasureIndex/startQuant
+    const startEvent = timeline.find(e => e.measureIndex >= startMeasureIndex && (e.measureIndex > startMeasureIndex || e.quant >= startQuant));
     
     if (startEvent) {
         startTimeOffset = startEvent.time;
     } else if (startMeasureIndex > 0) {
         // If we are starting beyond existing events (empty score?), try to estimate?
         // Or just play nothing.
-        if (timeline.length > 0) startTimeOffset = timeline[timeline.length - 1].time + 10; // Logic gap: if empty space
+        if (timeline.length > 0) startTimeOffset = timeline[timeline.length - 1].time + 10; 
     }
 
     const filteredTimeline = timeline.filter(e => e.time >= startTimeOffset);
-    let maxTime = 0;
+    let maxTime = now;
     
-    // 3. Schedule Events
+    // 3. Schedule Tones
     filteredTimeline.forEach(event => {
-        const relativeTime = event.time - startTimeOffset;
-        const noteStartTime = now + relativeTime;
+        const noteStartTime = now + (event.time - startTimeOffset);
         
         // Schedule Audio
         const oscillator = ctx.createOscillator();
@@ -131,11 +130,13 @@ export const scheduleScorePlayback = (ctx: AudioContext, score: any, bpm: number
 
     // 4. Schedule UI Updates (Cursor) using RequestAnimationFrame for Sync
     
-    // Filter sorting (same as before)
+    // Group events by time to avoid firing multiple updates for chords
+    // But unlike before, we do NOT filter by Staff 0. We want the unified rhythmic grid.
+    // Map: Time -> TimelineEvent (representative)
     const uniqueTimePoints = new Map<number, TimelineEvent>();
     if (filteredTimeline.length > 0) {
         filteredTimeline.forEach(e => {
-             if (e.staffIndex === 0 && !uniqueTimePoints.has(e.time)) {
+             if (!uniqueTimePoints.has(e.time)) {
                  uniqueTimePoints.set(e.time, e);
              }
         });
@@ -172,10 +173,12 @@ export const scheduleScorePlayback = (ctx: AudioContext, score: any, bpm: number
             
             // Calculate duration to slide to next event
             // Logic: Snap to Start (handled by CSS reset in component), then Slide to Next over duration.
-            const transitionDuration = curr.duration;
+            // If there is a next rhythmic point, we slide to it.
+            // If no next point, we slide over event duration.
+            const transitionDuration = next ? (next.time - curr.time) : curr.duration;
             
             if (onPositionUpdate) {
-                onPositionUpdate(curr.measureIndex, curr.eventIndex, transitionDuration);
+                onPositionUpdate(curr.measureIndex, curr.quant, transitionDuration);
             }
             lastEventIndex = currentEventIndex;
         }

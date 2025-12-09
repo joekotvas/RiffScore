@@ -9,8 +9,9 @@ export interface TimelineEvent {
     frequency: number;  // Frequency in Hz
     type: 'note';       // (Future: 'rest')
     measureIndex: number;
-    eventIndex: number;
+    eventIndex: number; // Keep for legacy reference or fallback
     staffIndex: number;
+    quant: number; // Relative quant from start of measure
 }
 
 /**
@@ -121,7 +122,8 @@ export const createTimeline = (score: any, bpm: number): TimelineEvent[] => {
                             type: 'note',
                             measureIndex: mIndex,
                             eventIndex: eIndex,
-                            staffIndex: staffIndex
+                            staffIndex: staffIndex,
+                            quant: currentMeasureQuant
                         });
                     }
                 });

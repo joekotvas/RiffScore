@@ -12,7 +12,7 @@ import GrandStaffBracket from '../Assets/GrandStaffBracket';
 
 interface ScoreCanvasProps {
   scale: number;
-  playbackPosition?: { measureIndex: number | null; eventIndex: number | null; duration: number };
+  playbackPosition?: { measureIndex: number | null; quant: number | null; duration: number };
   onKeySigClick?: () => void;
   onTimeSigClick?: () => void;
   onClefClick?: () => void;
@@ -27,7 +27,7 @@ interface ScoreCanvasProps {
  */
 const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   scale,
-  playbackPosition = { measureIndex: null, eventIndex: null, duration: 0 },
+  playbackPosition = { measureIndex: null, quant: null, duration: 0 },
   onKeySigClick,
   onTimeSigClick,
   onClefClick,
