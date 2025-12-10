@@ -1,5 +1,6 @@
 import { Command } from './types';
-import { Score, getActiveStaff, ScoreEvent, Note } from '../types';
+import { Score, ScoreEvent, Note } from '../types';
+import { updateMeasure } from '../utils/commandHelpers';
 
 export class DeleteNoteCommand implements Command {
   public readonly type = 'DELETE_NOTE';
@@ -16,93 +17,71 @@ export class DeleteNoteCommand implements Command {
   ) {}
 
   execute(score: Score): Score {
-    const activeStaff = getActiveStaff(score, this.staffIndex);
-    const newMeasures = [...activeStaff.measures];
-    
-    if (!newMeasures[this.measureIndex]) return score;
+    return updateMeasure(score, this.staffIndex, this.measureIndex, (measure) => {
+        const eventIndex = measure.events.findIndex(e => e.id === this.eventId);
+        if (eventIndex === -1) return false;
 
-    const measure = { ...newMeasures[this.measureIndex] };
-    const eventIndex = measure.events.findIndex(e => e.id === this.eventId);
+        const event = { ...measure.events[eventIndex] };
+        this.deletedEventIndex = eventIndex;
 
-    if (eventIndex === -1) return score;
+        const noteIndex = event.notes.findIndex(n => n.id === this.noteId);
+        if (noteIndex === -1) return false;
 
-    const event = { ...measure.events[eventIndex] };
-    this.deletedEventIndex = eventIndex;
+        this.deletedNote = event.notes[noteIndex];
 
-    // Check if note exists
-    const noteIndex = event.notes.findIndex(n => n.id === this.noteId);
-    if (noteIndex === -1) return score;
-
-    this.deletedNote = event.notes[noteIndex];
-
-    if (event.notes.length === 1) {
-        // Remove the entire event if it's the last note
-        this.wasLastNoteInEvent = true;
-        this.deletedEvent = event;
-        const newEvents = [...measure.events];
-        newEvents.splice(eventIndex, 1);
-        measure.events = newEvents;
-    } else {
-        // Remove just the note
-        this.wasLastNoteInEvent = false;
-        const newNotes = [...event.notes];
-        newNotes.splice(noteIndex, 1);
-        event.notes = newNotes;
-        
-        const newEvents = [...measure.events];
-        newEvents[eventIndex] = event;
-        measure.events = newEvents;
-    }
-
-    newMeasures[this.measureIndex] = measure;
-    const newStaves = [...score.staves];
-    newStaves[this.staffIndex] = { ...activeStaff, measures: newMeasures };
-
-    return { ...score, staves: newStaves };
+        if (event.notes.length === 1) {
+            // Remove entire event
+            this.wasLastNoteInEvent = true;
+            this.deletedEvent = event;
+            const newEvents = [...measure.events];
+            newEvents.splice(eventIndex, 1);
+            measure.events = newEvents;
+        } else {
+            // Remove just the note
+            this.wasLastNoteInEvent = false;
+            const newNotes = [...event.notes];
+            newNotes.splice(noteIndex, 1);
+            event.notes = newNotes;
+            
+            const newEvents = [...measure.events];
+            newEvents[eventIndex] = event;
+            measure.events = newEvents;
+        }
+        return true;
+    });
   }
 
   undo(score: Score): Score {
     if (this.deletedEventIndex === -1 || !this.deletedNote) return score;
 
-    const activeStaff = getActiveStaff(score, this.staffIndex);
-    const newMeasures = [...activeStaff.measures];
-    
-    if (!newMeasures[this.measureIndex]) return score;
+    return updateMeasure(score, this.staffIndex, this.measureIndex, (measure) => {
+        const newEvents = [...measure.events];
 
-    const measure = { ...newMeasures[this.measureIndex] };
-    const newEvents = [...measure.events];
-
-    if (this.wasLastNoteInEvent && this.deletedEvent) {
-        // Restore the entire event
-        newEvents.splice(this.deletedEventIndex, 0, this.deletedEvent);
-    } else {
-        // Restore the note to the event
-        // Note: This logic assumes the event still exists at the same index if we didn't delete it.
-        // In a real collaborative environment, we'd need more robust ID-based lookup.
-        // For single-user undo stack, index is usually safe if operations are strictly sequential.
-        const event = { ...newEvents[this.deletedEventIndex] };
-        if (event.id !== this.eventId) {
-            // Fallback: try to find by ID if index shifted (though strictly sequential undo shouldn't shift)
-             const foundIndex = newEvents.findIndex(e => e.id === this.eventId);
-             if (foundIndex !== -1) {
-                 this.deletedEventIndex = foundIndex;
-             } else {
-                 return score; // Cannot find event to restore note to
+        if (this.wasLastNoteInEvent && this.deletedEvent) {
+             // Restore entire event
+             newEvents.splice(this.deletedEventIndex, 0, this.deletedEvent);
+        } else {
+             // Restore note to event
+             // Try to find event at original index first (optimistic)
+             let targetIndex = this.deletedEventIndex;
+             let event = newEvents[targetIndex];
+             
+             // Verify ID match
+             if (!event || event.id !== this.eventId) {
+                 targetIndex = newEvents.findIndex(e => e.id === this.eventId);
+                 if (targetIndex === -1) return false; // Cannot restore
+                 event = newEvents[targetIndex];
              }
+
+             // Clone event and add note
+             const newEvent = { ...event };
+             newEvent.notes = [...newEvent.notes, this.deletedNote!];
+             
+             newEvents[targetIndex] = newEvent;
         }
         
-        const newNotes = [...event.notes, this.deletedNote];
-        // Optional: sort notes by pitch if needed, but simple append is fine for restore
-        event.notes = newNotes;
-        newEvents[this.deletedEventIndex] = event;
-    }
-
-    measure.events = newEvents;
-    newMeasures[this.measureIndex] = measure;
-
-    const newStaves = [...score.staves];
-    newStaves[this.staffIndex] = { ...activeStaff, measures: newMeasures };
-
-    return { ...score, staves: newStaves };
+        measure.events = newEvents;
+        return true;
+    });
   }
 }

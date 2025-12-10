@@ -1,5 +1,6 @@
 import { Command } from './types';
-import { Score, getActiveStaff, Note } from '../types';
+import { Score, Note } from '../types';
+import { updateNote } from '../utils/commandHelpers';
 
 export class UpdateNoteCommand implements Command {
   public readonly type = 'UPDATE_NOTE';
@@ -14,75 +15,28 @@ export class UpdateNoteCommand implements Command {
   ) {}
 
   execute(score: Score): Score {
-    const activeStaff = score.staves[this.staffIndex];
-    if (!activeStaff) return score;
-
-    const newMeasures = [...activeStaff.measures];
-    
-    if (!newMeasures[this.measureIndex]) return score;
-
-    const measure = { ...newMeasures[this.measureIndex] };
-    const eventIndex = measure.events.findIndex(e => e.id === this.eventId);
-
-    if (eventIndex === -1) return score;
-
-    const event = { ...measure.events[eventIndex] };
-    const noteIndex = event.notes.findIndex(n => n.id === this.noteId);
-
-    if (noteIndex === -1) return score;
-
-    const note = { ...event.notes[noteIndex] };
-    this.previousNote = note;
-
-    const newNote = { ...note, ...this.updates };
-    
-    const newNotes = [...event.notes];
-    newNotes[noteIndex] = newNote;
-    event.notes = newNotes;
-    
-    const newEvents = [...measure.events];
-    newEvents[eventIndex] = event;
-    measure.events = newEvents;
-
-    newMeasures[this.measureIndex] = measure;
-    const newStaves = [...score.staves];
-    newStaves[this.staffIndex] = { ...activeStaff, measures: newMeasures };
-
-    return { ...score, staves: newStaves };
+    return updateNote(score, this.staffIndex, this.measureIndex, this.eventId, this.noteId, (note) => {
+        this.previousNote = { ...note };
+        Object.assign(note, this.updates);
+        return true;
+    });
   }
 
   undo(score: Score): Score {
     if (!this.previousNote) return score;
 
-    const activeStaff = score.staves[this.staffIndex];
-    if (!activeStaff) return score;
-
-    const newMeasures = [...activeStaff.measures];
-    
-    if (!newMeasures[this.measureIndex]) return score;
-
-    const measure = { ...newMeasures[this.measureIndex] };
-    const eventIndex = measure.events.findIndex(e => e.id === this.eventId);
-
-    if (eventIndex === -1) return score;
-
-    const event = { ...measure.events[eventIndex] };
-    const noteIndex = event.notes.findIndex(n => n.id === this.noteId);
-
-    if (noteIndex === -1) return score;
-
-    const newNotes = [...event.notes];
-    newNotes[noteIndex] = this.previousNote;
-    event.notes = newNotes;
-    
-    const newEvents = [...measure.events];
-    newEvents[eventIndex] = event;
-    measure.events = newEvents;
-
-    newMeasures[this.measureIndex] = measure;
-    const newStaves = [...score.staves];
-    newStaves[this.staffIndex] = { ...activeStaff, measures: newMeasures };
-
-    return { ...score, staves: newStaves };
+    return updateNote(score, this.staffIndex, this.measureIndex, this.eventId, this.noteId, (note) => {
+        // Restore all properties from previousNote
+        // Note: Object.assign implies we overwrite keys, but if 'updates' added keys that were undefined, 
+        // previousNote might not have them. A strict 'replace' logic is safer if we want full undo.
+        // updateNote gives us a clone of the current note.
+        // The safest way is to replace the properties we changed.
+        
+        // Since 'updates' is Partial<Note>, we can just re-apply previousNote properties?
+        // Actually, updateNote expects modification of the passed 'note' object.
+        // We can just Object.assign(note, this.previousNote).
+        Object.assign(note, this.previousNote);
+        return true;
+    });
   }
 }

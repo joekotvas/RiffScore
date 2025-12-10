@@ -1,5 +1,6 @@
 import { Command } from './types';
-import { Score, getActiveStaff } from '../types';
+import { Score } from '../types';
+import { updateMeasure } from '../utils/commandHelpers';
 
 /**
  * Command to remove tuplet metadata from a group of events.
@@ -18,89 +19,56 @@ export class RemoveTupletCommand implements Command {
   ) {}
 
   execute(score: Score): Score {
-    const activeStaff = getActiveStaff(score);
-    const newMeasures = [...activeStaff.measures];
-    
-    if (!newMeasures[this.measureIndex]) {
-      return score;
-    }
+    // Note: This command assumes STAFF 0 (Active Staff) as per current implementation logic 
+    // seen in original file ("getActiveStaff(score)" usually defaults to 0 or active one).
+    // Original implementation hardcoded "newStaves[0]". We will assume staffIndex 0.
+    const staffIndex = 0;
 
-    const measure = { ...newMeasures[this.measureIndex] };
-    const newEvents = [...measure.events];
+    return updateMeasure(score, staffIndex, this.measureIndex, (measure) => {
+        const events = measure.events;
+        const targetEvent = events[this.eventIndex];
+        
+        if (!targetEvent?.tuplet) return false;
 
-    // Find the tuplet group that this event belongs to
-    const targetEvent = newEvents[this.eventIndex];
-    if (!targetEvent?.tuplet) {
-      return score; // Not a tuplet
-    }
+        const { groupSize, position } = targetEvent.tuplet;
+        const startIndex = this.eventIndex - position;
 
-    const { groupSize, position } = targetEvent.tuplet;
-    const startIndex = this.eventIndex - position;
+        this.previousStates = [];
+        const newEvents = [...events];
 
-    // Store previous states for undo
-    this.previousStates = [];
+        for (let i = 0; i < groupSize; i++) {
+            const idx = startIndex + i;
+            if (idx < 0 || idx >= newEvents.length) continue;
 
-    // Remove tuplet metadata from all events in the group
-    for (let i = 0; i < groupSize; i++) {
-      const idx = startIndex + i;
-      
-      if (idx < 0 || idx >= newEvents.length) {
-        continue;
-      }
+            const event = newEvents[idx];
+            this.previousStates.push({
+                eventId: event.id,
+                tuplet: event.tuplet ? { ...event.tuplet } : undefined
+            });
 
-      const event = newEvents[idx];
-      
-      // Store previous state
-      this.previousStates.push({
-        eventId: event.id,
-        tuplet: event.tuplet ? { ...event.tuplet } : undefined
-      });
-
-      // Remove tuplet metadata
-      newEvents[idx] = {
-        ...event,
-        tuplet: undefined
-      };
-    }
-
-    measure.events = newEvents;
-    newMeasures[this.measureIndex] = measure;
-
-    const newStaves = [...score.staves];
-    newStaves[0] = { ...activeStaff, measures: newMeasures };
-
-    return { ...score, staves: newStaves };
+            newEvents[idx] = { ...event, tuplet: undefined };
+        }
+        
+        measure.events = newEvents;
+        return true;
+    });
   }
 
   undo(score: Score): Score {
-    const activeStaff = getActiveStaff(score);
-    const newMeasures = [...activeStaff.measures];
+    const staffIndex = 0; 
     
-    if (!newMeasures[this.measureIndex]) {
-      return score;
-    }
-
-    const measure = { ...newMeasures[this.measureIndex] };
-    const newEvents = [...measure.events];
-
-    // Restore previous states
-    this.previousStates.forEach(({ eventId, tuplet }) => {
-      const eventIndex = newEvents.findIndex(e => e.id === eventId);
-      if (eventIndex !== -1) {
-        const event = newEvents[eventIndex];
-        newEvents[eventIndex] = {
-          ...event,
-          tuplet
-        };
-      }
+    return updateMeasure(score, staffIndex, this.measureIndex, (measure) => {
+        const newEvents = [...measure.events];
+        
+        this.previousStates.forEach(({ eventId, tuplet }) => {
+            const eventIndex = newEvents.findIndex(e => e.id === eventId);
+            if (eventIndex !== -1) {
+                newEvents[eventIndex] = { ...newEvents[eventIndex], tuplet };
+            }
+        });
+        
+        measure.events = newEvents;
+        return true;
     });
-
-    measure.events = newEvents;
-    newMeasures[this.measureIndex] = measure;
-
-    const newStaves = [...score.staves];
-    newStaves[0] = { ...activeStaff, measures: newMeasures };
-
-    return { ...score, staves: newStaves };
   }
 }

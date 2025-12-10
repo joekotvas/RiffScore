@@ -1,5 +1,6 @@
 import { Command } from './types';
-import { Score, getActiveStaff, Note } from '../types';
+import { Score, Note } from '../types';
+import { updateEvent } from '../utils/commandHelpers';
 
 export class AddNoteToEventCommand implements Command {
   public readonly type = 'ADD_NOTE_TO_EVENT';
@@ -12,64 +13,20 @@ export class AddNoteToEventCommand implements Command {
   ) {}
 
   execute(score: Score): Score {
-    const activeStaff = getActiveStaff(score, this.staffIndex);
-    const newMeasures = [...activeStaff.measures];
-    
-    if (!newMeasures[this.measureIndex]) return score;
+    return updateEvent(score, this.staffIndex, this.measureIndex, this.eventId, (event) => {
+        // Check duplicate
+        if (event.notes.some(n => n.pitch === this.note.pitch)) return false;
 
-    const measure = { ...newMeasures[this.measureIndex] };
-    const eventIndex = measure.events.findIndex(e => e.id === this.eventId);
-
-    if (eventIndex === -1) return score;
-
-    const event = { ...measure.events[eventIndex] };
-    
-    // Check if note with same pitch already exists
-    if (event.notes.some(n => n.pitch === this.note.pitch)) {
-        return score; // No-op if duplicate pitch
-    }
-
-    const newNotes = [...event.notes, this.note];
-    // Optional: Sort notes by pitch
-    // newNotes.sort(...) 
-
-    event.notes = newNotes;
-    
-    const newEvents = [...measure.events];
-    newEvents[eventIndex] = event;
-    measure.events = newEvents;
-
-    newMeasures[this.measureIndex] = measure;
-    const newStaves = [...score.staves];
-    newStaves[this.staffIndex] = { ...activeStaff, measures: newMeasures };
-
-    return { ...score, staves: newStaves };
+        event.notes = [...event.notes, this.note];
+        return true;
+    });
   }
 
   undo(score: Score): Score {
-    const activeStaff = getActiveStaff(score, this.staffIndex);
-    const newMeasures = [...activeStaff.measures];
-    
-    if (!newMeasures[this.measureIndex]) return score;
-
-    const measure = { ...newMeasures[this.measureIndex] };
-    const eventIndex = measure.events.findIndex(e => e.id === this.eventId);
-
-    if (eventIndex === -1) return score;
-
-    const event = { ...measure.events[eventIndex] };
-    const newNotes = event.notes.filter(n => n.id !== this.note.id);
-    
-    event.notes = newNotes;
-    
-    const newEvents = [...measure.events];
-    newEvents[eventIndex] = event;
-    measure.events = newEvents;
-
-    newMeasures[this.measureIndex] = measure;
-    const newStaves = [...score.staves];
-    newStaves[this.staffIndex] = { ...activeStaff, measures: newMeasures };
-
-    return { ...score, staves: newStaves };
+    return updateEvent(score, this.staffIndex, this.measureIndex, this.eventId, (event) => {
+        const initialLength = event.notes.length;
+        event.notes = event.notes.filter(n => n.id !== this.note.id);
+        return event.notes.length !== initialLength;
+    });
   }
 }
