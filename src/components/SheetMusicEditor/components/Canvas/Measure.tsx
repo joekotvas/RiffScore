@@ -129,6 +129,12 @@ const Measure: React.FC<MeasureProps> = ({
 
   const handleMeasureClick = (e: React.MouseEvent) => {
     if (isNoteHovered) return;
+    
+    // If there's an active selection, don't add notes - let click bubble up to deselect
+    if (selection.selectedNotes && selection.selectedNotes.length > 0) {
+      return; // Don't stop propagation - let container handle deselection
+    }
+    
     e.stopPropagation();
 
     if (hoveredMeasure && onAddNote) {
@@ -145,6 +151,9 @@ const Measure: React.FC<MeasureProps> = ({
   // PREVIEW LOGIC
   const previewRender = useMemo(() => {
     if (!previewNote) return null;
+    
+    // Hide preview when there are selected notes (user is in "edit selection" mode)
+    if (selection.selectedNotes && selection.selectedNotes.length > 0) return null;
     
     // Allow rendering if it's for this measure OR if it's for the next measure (overflow) and we are the last measure
     const isOverflowPreview = isLast && previewNote.measureIndex === measureIndex + 1;
@@ -200,7 +209,7 @@ const Measure: React.FC<MeasureProps> = ({
         chordLayout
     };
 
-  }, [previewNote, events, measureIndex, layout, hitZones, eventPositions, totalWidth, clef, isLast]);
+  }, [previewNote, events, measureIndex, layout, hitZones, eventPositions, totalWidth, clef, isLast, selection.selectedNotes]);
 
   // Map renderable events
   const beamMap = {};

@@ -140,8 +140,16 @@ export const useDragToSelect = ({
         const handleMouseUp = () => {
             const selectedNotes = getSelectedNotes();
             
-            if (selectedNotes.length > 0) {
+            // Check if there was significant movement (more than 5px) to distinguish from a click
+            const hasMoved = dragState.startPoint && dragState.currentPoint && 
+                (Math.abs(dragState.currentPoint.x - dragState.startPoint.x) > 5 ||
+                 Math.abs(dragState.currentPoint.y - dragState.startPoint.y) > 5);
+            
+            if (hasMoved && selectedNotes.length > 0) {
                 onSelectionComplete(selectedNotes, dragState.isAdditive);
+                // Only block click if we actually performed a drag selection
+                setJustFinishedDrag(true);
+                setTimeout(() => setJustFinishedDrag(false), 50);
             }
 
             setDragState({
@@ -150,10 +158,6 @@ export const useDragToSelect = ({
                 currentPoint: null,
                 isAdditive: false
             });
-            
-            // Set justFinishedDrag to block the click event, then clear it
-            setJustFinishedDrag(true);
-            setTimeout(() => setJustFinishedDrag(false), 50);
         };
 
         document.addEventListener('mousemove', handleMouseMove);

@@ -113,7 +113,12 @@ const ChordGroup = ({
   // Selection Logic
   const isEventSelected = !isGhost && selection.measureIndex === measureIndex && selection.eventId === eventId;
   const isWholeChordSelected = !isGhost && areAllNotesSelected(selection, staffIndex, measureIndex, eventId, notes);
-  const groupColor = isGhost ? theme.accent : (isWholeChordSelected ? theme.accent : theme.score.note);
+  
+  // Hover Logic - if any note in the chord is hovered, preview the "selected" styling for the whole chord
+  const isAnyNoteHovered = !isGhost && !isDragging && hoveredNoteId !== null;
+  
+  // Use accent color when: ghost, selected, or hovered (previewing selection)
+  const groupColor = isGhost ? theme.accent : (isWholeChordSelected || isAnyNoteHovered ? theme.accent : theme.score.note);
 
   // Filter Logic
   const notesToRender = useMemo(() => {
@@ -212,16 +217,12 @@ const ChordGroup = ({
         const xShift = noteOffsets[note.id] || 0;
         const noteY = baseY + getOffsetForPitch(note.pitch, clef);
         const accidentalSymbol = getAccidentalSymbol(note, keySignature);
-        const isHovered = !isGhost && !isDragging && hoveredNoteId === note.id;
         const noteSelected = isNoteSelected(selection, { 
             staffIndex, // Use the actual staffIndex from layout, not selection.staffIndex
             measureIndex,
             eventId,
             noteId: note.id
         });
-        
-        // Ghost Preview Logic
-        const showPreview = isHovered && activeDuration;
 
         return (
           <g
@@ -243,7 +244,7 @@ const ChordGroup = ({
                 pitch={note.pitch} 
                 type={duration} 
                 dotted={dotted}
-                isSelected={noteSelected} 
+                isSelected={noteSelected || isAnyNoteHovered} 
                 quantWidth={0}
                 renderStem={false} 
                 xOffset={xShift}
@@ -255,32 +256,12 @@ const ChordGroup = ({
               />
             </g>
 
-            {/* Note Duration Preview (Ghost on Hover) */}
-            {showPreview && (
-              <g style={{ pointerEvents: 'none' }}>
-                <Note 
-                  quant={quant} 
-                  pitch={note.pitch} 
-                  type={activeDuration} 
-                  dotted={activeDotted}
-                  isSelected={false} 
-                  quantWidth={0}
-                  renderStem={true} 
-                  xOffset={xShift}
-                  dotShift={maxNoteShift}
-                  isGhost={true}
-                  x={noteX}
-                  clef={clef}
-                  baseY={baseY}
-                />
-              </g>
-            )}
 
             {/* Hit Area - Must be LAST to sit on top of everything */}
             <NoteHitArea 
               x={noteX + xShift + LAYOUT.HIT_AREA.OFFSET_X}
               y={noteY + LAYOUT.HIT_AREA.OFFSET_Y}
-              cursor={!isGhost ? (modifierHeld ? 'pointer' : 'crosshair') : 'default'}
+              cursor={!isGhost ? 'pointer' : 'default'}
               onClick={(e) => !isGhost && e.stopPropagation()}
               onMouseDown={(e) => handleNoteMouseDown(e, note)}
               onDoubleClick={(e) => handleNoteDoubleClick(e, note)}
