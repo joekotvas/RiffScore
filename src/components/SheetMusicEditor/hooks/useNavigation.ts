@@ -141,18 +141,32 @@ export const useNavigation = ({
 
     // 2. Handle Shift+Click (Range Selection)
     if (isShift) {
+        const focusNoteId = noteId || event.notes[0]?.id;
         const clickedFocus: Selection = {
             staffIndex,
             measureIndex,
             eventId,
-            noteId: noteId || event.notes[0]?.id,
+            noteId: focusNoteId,
             selectedNotes: [],
             anchor: null
         };
         
         const rangeSelection = getRangeSelection(clickedFocus, selection, scoreRef.current);
-        setSelection(rangeSelection);
-        syncToolbarState(measureIndex, eventId, noteId || event.notes[0]?.id, staffIndex);
+        
+        // Fallback: if range calculation failed, at least select the clicked event's notes
+        if (rangeSelection.selectedNotes.length === 0) {
+            const fallbackNotes = event.notes.map((n: any) => ({
+                staffIndex, measureIndex, eventId, noteId: n.id
+            }));
+            setSelection({
+                ...rangeSelection,
+                selectedNotes: fallbackNotes
+            });
+        } else {
+            setSelection(rangeSelection);
+        }
+        
+        syncToolbarState(measureIndex, eventId, focusNoteId, staffIndex);
         return;
     }
 
@@ -161,17 +175,23 @@ export const useNavigation = ({
         const allNotes = event.notes.map((n: any) => ({
             staffIndex, measureIndex, eventId, noteId: n.id
         }));
+        
+        const focusNoteId = noteId || event.notes[0].id;
+        const newAnchor = { staffIndex, measureIndex, eventId, noteId: focusNoteId };
+        
+
 
         setSelection({
             staffIndex,
             measureIndex,
             eventId,
-            noteId: noteId || event.notes[0].id, // Focus defaults to clicked note or first
+            noteId: focusNoteId,
             selectedNotes: allNotes,
-            anchor: null
+            // Set anchor for future shift+click operations
+            anchor: newAnchor
         });
         
-        syncToolbarState(measureIndex, eventId, noteId || event.notes[0].id, staffIndex);
+        syncToolbarState(measureIndex, eventId, focusNoteId, staffIndex);
         playAudioFeedback(event.notes);
         return;
     } 
@@ -187,7 +207,7 @@ export const useNavigation = ({
     } else {
         playAudioFeedback(event.notes);
     }
-  }, [setSelection, syncToolbarState, scoreRef, playAudioFeedback]);
+  }, [setSelection, syncToolbarState, scoreRef, playAudioFeedback, selection]);
 
 
   const moveSelection = useCallback((direction: string, isShift: boolean = false) => {
