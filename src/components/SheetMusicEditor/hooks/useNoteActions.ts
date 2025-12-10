@@ -1,7 +1,7 @@
 import { useCallback, RefObject } from 'react';
 import { canAddEventToMeasure } from '../utils/validation';
 import { playNote } from '../engines/toneEngine';
-import { Score, getActiveStaff } from '../types';
+import { Score, getActiveStaff, createDefaultSelection } from '../types';
 import { Command } from '../commands/types';
 import { AddNoteCommand } from '../commands/NoteCommands';
 import { AddNoteToEventCommand } from '../commands/AddNoteToEventCommand';
@@ -157,7 +157,7 @@ export const useNoteActions = ({
             tied: activeTie
         };
         dispatch(new AddNoteToEventCommand(measureIndex, placementOverride.eventId, noteToAdd, currentStaffIndex));
-        setSelection({ ...selection, staffIndex: currentStaffIndex, measureIndex, eventId: placementOverride.eventId, noteId: noteToAdd.id });
+        setSelection({ ...selection, staffIndex: currentStaffIndex, measureIndex, eventId: placementOverride.eventId, noteId: noteToAdd.id, selectedNotes: [] });
         setPreviewNote(null);
     } else {
         // Create new event
@@ -179,7 +179,7 @@ export const useNoteActions = ({
             currentStaffIndex
         ));
 
-        setSelection({ ...selection, staffIndex: currentStaffIndex, measureIndex, eventId, noteId: noteToAdd.id });
+        setSelection({ ...selection, staffIndex: currentStaffIndex, measureIndex, eventId, noteId: noteToAdd.id, selectedNotes: [] });
         setPreviewNote(null);
     }
 
@@ -194,6 +194,19 @@ export const useNoteActions = ({
   }, [activeDuration, isDotted, currentQuantsPerMeasure, scoreRef, setPreviewNote, activeAccidental, activeTie, dispatch, selection, setSelection]);
 
   const deleteSelected = useCallback(() => {
+    // Check for multi-select
+    if (selection.selectedNotes && selection.selectedNotes.length > 0) {
+        selection.selectedNotes.forEach(note => {
+             if (note.noteId) {
+                dispatch(new DeleteNoteCommand(note.measureIndex, note.eventId, note.noteId, note.staffIndex));
+            } else {
+                dispatch(new DeleteEventCommand(note.measureIndex, note.eventId, note.staffIndex));
+            }
+        });
+         setSelection(prev => ({ ...createDefaultSelection(), staffIndex: selection.staffIndex }));
+         return;
+    }
+
     if (selection.measureIndex === null || !selection.eventId) return;
 
     if (selection.noteId) {
@@ -203,7 +216,8 @@ export const useNoteActions = ({
         dispatch(new DeleteEventCommand(selection.measureIndex, selection.eventId, selection.staffIndex));
     }
     
-    setSelection({ ...selection, measureIndex: null, eventId: null, noteId: null });
+    // We need to import createDefaultSelection or recreate it
+    setSelection(prev => ({ staffIndex: selection.staffIndex, measureIndex: null, eventId: null, noteId: null, selectedNotes: [] }));
   }, [selection, dispatch, setSelection]);
 
   const addChordToMeasure = useCallback((measureIndex: number, notes: any[], duration: string, dotted: boolean) => {
@@ -243,7 +257,7 @@ export const useNoteActions = ({
         dispatch(new AddNoteToEventCommand(measureIndex, eventId, chordNote, selection.staffIndex));
     }
     
-    setSelection({ ...selection, measureIndex, eventId, noteId: noteToAdd.id });
+    setSelection({ ...selection, measureIndex, eventId, noteId: noteToAdd.id, selectedNotes: [] });
     setPreviewNote(null);
   }, [dispatch, setSelection, setPreviewNote, selection.staffIndex]);
 

@@ -74,10 +74,11 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
   const { dragState, handleDragStart } = useScoreInteraction({
       scoreRef,
+      selection,
       onUpdatePitch: (m, e, n, p) => updateNotePitch(m, e, n, p),
-      onSelectNote: (measureIndex, eventId, noteId, staffIndex) => {
+      onSelectNote: (measureIndex, eventId, noteId, staffIndex, isMulti) => {
           if (measureIndex !== null && eventId !== null) {
-              handleNoteSelection(measureIndex, eventId, noteId, staffIndex);
+              handleNoteSelection(measureIndex, eventId, noteId, staffIndex, isMulti);
           }
           setPreviewNote(null);
       }
@@ -189,13 +190,13 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 modifierHeld,
                 isDragging: dragState.active,
                 onAddNote: addNoteToMeasure,
-                onSelectNote: (measureIndex: number, eventId: number | string | null, noteId: number | string | null) => {
+                onSelectNote: (measureIndex: number, eventId: number | string | null, noteId: number | string | null, isMulti?: boolean) => {
                    if (eventId !== null) {
-                       handleNoteSelection(measureIndex, eventId, noteId, staffIndex);
+                       handleNoteSelection(measureIndex, eventId, noteId, staffIndex, isMulti);
                    }
                 },
                 onDragStart: (measureIndex: number, eventId: number | string, noteId: number | string, pitch: string, startY: number, modifierHeld: boolean) => {
-                   handleDragStart(startY, measureIndex, eventId, noteId, pitch, staffIndex);
+                   handleDragStart(measureIndex, eventId, noteId, pitch, startY, modifierHeld, staffIndex);
                 },
                 onHover: (measureIndex: number | null, hit: any, pitch: string) => {
                    if (!dragState.active) {

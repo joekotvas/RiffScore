@@ -9,7 +9,7 @@ import { useModifiers } from './useModifiers';
 import { useNavigation } from './useNavigation';
 import { useTupletActions } from './useTupletActions';
 
-import { Score, createDefaultScore, migrateScore, getActiveStaff } from '../types';
+import { Score, createDefaultScore, migrateScore, getActiveStaff, createDefaultSelection } from '../types';
 
 /**
  * Main score logic orchestrator hook.
@@ -47,7 +47,7 @@ export const useScoreLogic = (initialScore: any) => {
   } = tools;
 
   // --- SELECTION & PREVIEW STATE ---
-  const [selection, setSelection] = useState<{staffIndex: number, measureIndex: number | null, eventId: string | number | null, noteId: string | number | null}>({ staffIndex: 0, measureIndex: null, eventId: null, noteId: null });
+  const [selection, setSelection] = useState<import('../types').Selection>(createDefaultSelection());
   const [previewNote, setPreviewNote] = useState<any>(null);
 
   // --- COMPUTED VALUES ---

@@ -71,7 +71,7 @@ const ScoreEditorContent = ({ scale = 1, label }) => {
   }, []);
   
   // State for clef change confirmation dialog
-
+  // State for clef change confirmation dialog
   const scoreContainerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
   
@@ -90,6 +90,14 @@ const ScoreEditorContent = ({ scale = 1, label }) => {
       applyTuplet, removeTuplet, canApplyTuplet, activeTupletRatio,
       togglePickup // Added missing destructive
   } = scoreLogic;
+
+  // Interaction (Click/Drag Handling)
+  const { dragState, handleDragStart } = useScoreInteraction({
+    scoreRef,
+    selection,
+    onUpdatePitch: updateNotePitch, // Using updateNotePitch from useNoteActions
+    onSelectNote: handleNoteSelection
+  });
 
   const playback = usePlayback(score, bpm);
   const { isPlaying, playbackPosition, playScore, stopPlayback, handlePlayToggle, lastPlayStart } = playback;

@@ -10,16 +10,18 @@ interface DragState {
   startY: number;
   startPitch: string;
   currentPitch: string;
-  staffIndex: number; // Added staffIndex to DragState
+  staffIndex: number;
+  initialPitches: Map<string, string>; // Map noteId -> pitch
 }
 
 interface UseScoreInteractionProps {
-  scoreRef: React.MutableRefObject<any>; // Using any for Score to avoid circular deps if types are tricky, but preferably Score
+  scoreRef: React.MutableRefObject<any>;
+  selection: any; // Using any or import Selection type
   onUpdatePitch: (measureIndex: number, eventId: string | number, noteId: string | number, newPitch: string) => void;
-  onSelectNote: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndex?: number) => void;
+  onSelectNote: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndex?: number, isMulti?: boolean) => void;
 }
 
-export const useScoreInteraction = ({ scoreRef, onUpdatePitch, onSelectNote }: UseScoreInteractionProps) => {
+export const useScoreInteraction = ({ scoreRef, selection, onUpdatePitch, onSelectNote }: UseScoreInteractionProps) => {
     const [dragState, setDragState] = useState<DragState>({
         active: false,
         measureIndex: null,
@@ -28,22 +30,54 @@ export const useScoreInteraction = ({ scoreRef, onUpdatePitch, onSelectNote }: U
         startY: 0,
         startPitch: '',
         currentPitch: '',
-        staffIndex: 0
+        staffIndex: 0,
+        initialPitches: new Map()
     });
     
     const mouseDownTime = useRef<number>(0);
     const CLICK_THRESHOLD = 200; // ms to distinguish click from drag
 
     const handleDragStart = useCallback((
-      startY: number,
       measureIndex: number, 
       eventId: string | number, 
       noteId: string | number, 
       startPitch: string,
+      startY: number,
+      isMulti: boolean = false,
       staffIndex: number = 0
     ) => {
         mouseDownTime.current = Date.now();
         
+        // Capture initial pitches
+        const initialPitches = new Map<string, string>();
+        
+        // Helper to find pitch
+        const getPitch = (sIndex: number, mIndex: number, eId: string, nId: string | number | null) => {
+             const m = scoreRef.current.staves[sIndex]?.measures[mIndex];
+             const e = m?.events.find((ev: any) => String(ev.id) === String(eId));
+             if (nId) {
+                 return e?.notes.find((n: any) => String(n.id) === String(nId))?.pitch;
+             }
+             return e?.notes[0]?.pitch; 
+        };
+
+        const isNoteInSelection = selection.selectedNotes && selection.selectedNotes.some((n: any) => 
+            String(n.noteId) === String(noteId) && 
+            String(n.eventId) === String(eventId) &&
+            n.staffIndex === staffIndex
+        );
+
+        if (isNoteInSelection) {
+            // Multi-move
+            selection.selectedNotes.forEach((n: any) => {
+                const p = getPitch(n.staffIndex, n.measureIndex, n.eventId, n.noteId);
+                if (p) initialPitches.set(String(n.noteId), p);
+            });
+        } else {
+            // Single move
+            initialPitches.set(String(noteId), startPitch);
+        }
+
         setDragState({
             active: true,
             measureIndex,
@@ -52,11 +86,12 @@ export const useScoreInteraction = ({ scoreRef, onUpdatePitch, onSelectNote }: U
             startY,
             startPitch,
             currentPitch: startPitch,
-            staffIndex
+            staffIndex,
+            initialPitches
         });
         
         // Optimistic selection update on mouse down
-        onSelectNote(measureIndex, eventId, noteId, staffIndex);
+        onSelectNote(measureIndex, eventId, noteId, staffIndex, isMulti);
     }, [onSelectNote]);
 
     useEffect(() => {
@@ -76,17 +111,40 @@ export const useScoreInteraction = ({ scoreRef, onUpdatePitch, onSelectNote }: U
             const currentStaff = currentScore?.staves?.[dragState.staffIndex];
             const keySignature = currentStaff?.keySignature || 'C';
     
-            // Use MusicService for visual pitch movement (Key-Aware)
-            const newPitch = movePitchVisual(dragState.startPitch, steps, keySignature);
-            
-            if (newPitch !== dragState.currentPitch) {
-                // Update local state for smooth UI
-                setDragState(prev => ({ ...prev, currentPitch: newPitch }));
+            // Perform bulk update
+            dragState.initialPitches.forEach((pStart, pUserId) => {
+                const newP = movePitchVisual(pStart, steps, keySignature);
                 
-                // Dispatch update to store
-                if (dragState.measureIndex !== null && dragState.eventId && dragState.noteId) {
-                    onUpdatePitch(dragState.measureIndex, dragState.eventId, dragState.noteId, newPitch);
+                // Find note context from selection (inefficient look up but okay for small selections)
+                // We stored pUserId = noteId.
+                // But onUpdatePitch needs measureIndex, eventId...
+                // We iterate selection.selectedNotes to match noteId?
+                // Or if single move, we use dragging params.
+                
+                // Better approach: We iterate selection.selectedNotes
+                // But wait, if single move, note wasn't in selection?
+                // If single move, dragged note is in initialPitches.
+                
+                // Let's use selection if available, or fallback to dragged note params.
+                if (selection.selectedNotes && selection.selectedNotes.length > 0 && dragState.initialPitches.size > 1) {
+                     const noteInfo = selection.selectedNotes.find((n: any) => String(n.noteId) === pUserId);
+                     if (noteInfo) {
+                         onUpdatePitch(noteInfo.measureIndex, noteInfo.eventId, noteInfo.noteId, newP);
+                     }
+                } else {
+                     if (dragState.measureIndex !== null && dragState.eventId && dragState.noteId) {
+                        onUpdatePitch(dragState.measureIndex, dragState.eventId, dragState.noteId, newP);
+                     }
                 }
+            });
+
+            if (dragState.initialPitches.size > 0) {
+                 // Update local state just for the primary dragged note for smoothness (if tracked)
+                 const primaryStart = dragState.initialPitches.get(String(dragState.noteId)) || dragState.startPitch;
+                 const newPrimary = movePitchVisual(primaryStart, steps, keySignature);
+                 if (newPrimary !== dragState.currentPitch) {
+                    setDragState(prev => ({ ...prev, currentPitch: newPrimary }));
+                 }
             }
         };
     

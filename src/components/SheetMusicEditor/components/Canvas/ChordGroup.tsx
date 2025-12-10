@@ -179,7 +179,12 @@ const ChordGroup = ({
         const noteY = baseY + getOffsetForPitch(note.pitch, clef);
         const accidentalSymbol = getAccidentalSymbol(note, keySignature);
         const isHovered = !isGhost && !isDragging && hoveredNoteId === note.id;
-        const noteSelected = isEventSelected && (selection.noteId === note.id || !selection.noteId);
+        const noteSelected = (isEventSelected && (String(selection.noteId) === String(note.id) || !selection.noteId)) || 
+                             (selection.selectedNotes && selection.selectedNotes.some(sn => 
+                                String(sn.noteId) === String(note.id) && 
+                                String(sn.eventId) === String(eventId) && 
+                                sn.measureIndex === measureIndex
+                             ));
         
         // Ghost Preview Logic
         const showPreview = isHovered && activeDuration;

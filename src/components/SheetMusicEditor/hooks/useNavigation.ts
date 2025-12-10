@@ -1,7 +1,7 @@
 import { useCallback, RefObject } from 'react';
 import { calculateNextSelection, calculateTranspositionWithPreview } from '../utils/interaction';
 import { playNote } from '../engines/toneEngine';
-import { Score, getActiveStaff } from '../types';
+import { Score, getActiveStaff, createDefaultSelection } from '../types';
 import { Command } from '../commands/types';
 import { AddMeasureCommand } from '../commands/MeasureCommands';
 import { TransposeSelectionCommand } from '../commands/TransposeSelectionCommand';
@@ -42,17 +42,78 @@ export const useNavigation = ({
   dispatch
 }: UseNavigationProps): UseNavigationReturn => {
 
-  const handleNoteSelection = useCallback((measureIndex: number, eventId: string | number, noteId: string | number | null, staffIndex: number = 0) => {
+  const handleNoteSelection = useCallback((measureIndex: number, eventId: string | number, noteId: string | number | null, staffIndex: number = 0, isMulti: boolean = false) => {
     if (!eventId) { 
-       setSelection({ staffIndex, measureIndex: null, eventId: null, noteId: null });
+       setSelection(prev => ({ ...createDefaultSelection(), staffIndex: prev.staffIndex }));
        syncToolbarState(null, null, null, staffIndex);
        return; 
     }
 
-    setSelection({ staffIndex, measureIndex, eventId, noteId });
+    setSelection(prev => {
+        let newSelectedNotes = isMulti ? (prev.selectedNotes ? [...prev.selectedNotes] : []) : [];
+        
+        // If starting multi-select and we have a single selection not yet in array, add it
+        if (isMulti && prev.noteId && prev.eventId && prev.measureIndex !== null) {
+            const alreadyInList = newSelectedNotes.some(n => 
+                String(n.noteId) === String(prev.noteId) && 
+                String(n.eventId) === String(prev.eventId) &&
+                n.measureIndex === prev.measureIndex
+            );
+            if (!alreadyInList) {
+                newSelectedNotes.push({
+                    staffIndex: prev.staffIndex,
+                    measureIndex: prev.measureIndex,
+                    eventId: prev.eventId,
+                    noteId: prev.noteId
+                });
+            }
+        }
+        
+        // Normalize ID types for comparison
+        const currentIdStr = String(noteId);
+        const currentEventIdStr = String(eventId);
+        
+        const existingIndex = newSelectedNotes.findIndex(n => 
+            String(n.noteId) === currentIdStr && 
+            String(n.eventId) === currentEventIdStr &&
+            n.measureIndex === measureIndex
+        );
+
+        if (isMulti) {
+            if (existingIndex >= 0) {
+                // Toggle OFF
+                newSelectedNotes.splice(existingIndex, 1);
+            } else {
+                // Toggle ON
+                if (noteId) {
+                    newSelectedNotes.push({ staffIndex, measureIndex, eventId, noteId });
+                }
+            }
+        } else {
+            // Single select replacement
+            if (noteId) {
+                newSelectedNotes = [{ staffIndex, measureIndex, eventId, noteId }];
+            }
+        }
+        
+        // Update Primary Selection (Cursor)
+        // If we just toggled off the primary cursor, we should move cursor to another selected note if possible,
+        // or just keep the clicked one as "Last Focused" even if descaled? 
+        // Standard behavior: Clicked item becomes primary focus.
+        
+        return {
+            staffIndex, 
+            measureIndex, 
+            eventId, 
+            noteId, // Set the clicked item as primary (cursor)
+            selectedNotes: newSelectedNotes 
+        };
+    });
+
     syncToolbarState(measureIndex, eventId, noteId, staffIndex);
 
     // Play Selection
+    // Only play if we are adding it (not toggling off, theoretically, but playing on click is good feedback regardless)
     const measure = getActiveStaff(scoreRef.current, staffIndex).measures[measureIndex];
     if (measure) {
         const event = measure.events.find((e: any) => e.id === eventId);
@@ -66,7 +127,7 @@ export const useNavigation = ({
             }
         }
     }
-  }, [selection, setSelection, syncToolbarState, scoreRef]);
+  }, [setSelection, syncToolbarState, scoreRef]);
 
   const moveSelection = useCallback((direction: string) => {
     const result = calculateNextSelection(

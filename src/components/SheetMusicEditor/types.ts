@@ -176,6 +176,12 @@ export interface Selection {
   measureIndex: number | null;  // Index of the selected measure
   eventId: string | number | null;  // ID of the selected event
   noteId: string | number | null;   // ID of the selected note (for chords)
+  selectedNotes: Array<{           // List of all selected notes (including the primary one above)
+      staffIndex: number;
+      measureIndex: number;
+      eventId: string | number;
+      noteId: string | number;
+  }>;
 }
 
 /**
@@ -185,5 +191,6 @@ export const createDefaultSelection = (): Selection => ({
   staffIndex: 0,
   measureIndex: null,
   eventId: null,
-  noteId: null
+  noteId: null,
+  selectedNotes: []
 });
