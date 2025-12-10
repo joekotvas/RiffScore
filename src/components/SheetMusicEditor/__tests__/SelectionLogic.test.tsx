@@ -9,10 +9,7 @@ describe('Selection Utils', () => {
             expect(compareIds('2', 2)).toBe(true);
             expect(compareIds('foo', 'foo')).toBe(true);
             expect(compareIds(1, 2)).toBe(false);
-            expect(compareIds(null, undefined)).toBe(true); // both loosely equal? compareIds implementation uses == match for null/undefined check logic?
-            // "if (id1 === null || id1 === undefined || id2 === null || id2 === undefined) return id1 === id2;"
-            // primitive equality. null !== undefined. But they are both "nullish". 
-            // My implementation: return id1 === id2. So null === undefined is FALSE.
+            expect(compareIds(null, undefined)).toBe(true);
         });
     });
 
@@ -41,10 +38,6 @@ describe('Selection Utils', () => {
             expect(isNoteSelected(mockSelection, { staffIndex: 0, measureIndex: 0, eventId: 'e1', noteId: 'n3' })).toBe(false);
         });
         
-        it('returns true if entire event is selected (no noteId in selection)', () => {
-             const eventSelection = { ...mockSelection, noteId: null };
-             expect(isNoteSelected(eventSelection, { staffIndex: 0, measureIndex: 0, eventId: 'e1', noteId: 'n3' })).toBe(true);
-        });
     });
 
     describe('toggleNoteInSelection', () => {

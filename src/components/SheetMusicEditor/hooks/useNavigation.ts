@@ -1,7 +1,6 @@
 import React, { useCallback, RefObject } from 'react';
 import { Selection, Score, getActiveStaff, createDefaultSelection } from '../types';
 import { calculateNextSelection, calculateTranspositionWithPreview, calculateCrossStaffSelection } from '../utils/interaction';
-import { toggleNoteInSelection, getLinearizedNotes, calculateNoteRange } from '../utils/selection';
 import { playNote } from '../engines/toneEngine';
 import { Command } from '../commands/types';
 import { AddMeasureCommand } from '../commands/MeasureCommands';
@@ -11,9 +10,9 @@ interface UseNavigationProps {
   scoreRef: RefObject<Score>;
   selection: Selection;
   setSelection: React.Dispatch<React.SetStateAction<Selection>>;
+  select: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndex?: number, options?: any) => void;
   previewNote: any;
   setPreviewNote: (note: any) => void;
-  syncToolbarState: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndex?: number) => void;
   activeDuration: string;
   isDotted: boolean;
   currentQuantsPerMeasure: number;
@@ -31,9 +30,9 @@ export const useNavigation = ({
   scoreRef,
   selection,
   setSelection,
+  select,
   previewNote,
   setPreviewNote,
-  syncToolbarState,
   activeDuration,
   isDotted,
   currentQuantsPerMeasure,
@@ -47,76 +46,6 @@ export const useNavigation = ({
       notes.forEach(n => playNote(n.pitch));
   }, []);
 
-  /** Handles the logic for Shift+Arrow selection (Range Extension). */
-  const getRangeSelection = (newFocus: Selection, currentSelection: Selection, score: Score): Selection => {
-      // 1. Establish Anchor (default to current selection if none exists)
-      const anchor = currentSelection.anchor || {
-          staffIndex: currentSelection.staffIndex || 0,
-          measureIndex: currentSelection.measureIndex!,
-          eventId: currentSelection.eventId!,
-          noteId: currentSelection.noteId
-      };
-
-      // 2. Define Focus (where the cursor moved to)
-      const focus = {
-          staffIndex: newFocus.staffIndex || 0,
-          measureIndex: newFocus.measureIndex!,
-          eventId: newFocus.eventId!,
-          noteId: newFocus.noteId
-      };
-
-      // 3. Calculate Range (Linearize score to find notes between anchor and focus)
-      const linearNotes = getLinearizedNotes(score);
-      const selectedNotes = calculateNoteRange(anchor, focus, linearNotes);
-
-      return {
-          ...newFocus,
-          anchor, // Anchor persists during shift-selection
-          selectedNotes
-      };
-  };
-
-  /** Handles the logic for Standard Arrow selection (Moving Cursor). */
-  const getStandardSelection = (newFocus: Selection, currentSelection: Selection, score: Score): Selection => {
-      const isSameEvent = newFocus.eventId === currentSelection.eventId &&
-                          newFocus.measureIndex === currentSelection.measureIndex &&
-                          newFocus.staffIndex === currentSelection.staffIndex;
-
-      // Case A: Drill Down (Moving within the same chord) -> Select single note
-      if (isSameEvent && newFocus.noteId) {
-          return {
-              ...newFocus,
-              anchor: null,
-              selectedNotes: [{
-                  staffIndex: newFocus.staffIndex || 0,
-                  measureIndex: newFocus.measureIndex!,
-                  eventId: newFocus.eventId!,
-                  noteId: newFocus.noteId
-              }]
-          };
-      }
-
-      // Case B: Traverse (Moving to new event) -> Select ALL notes in target event
-      const targetStaff = score.staves[newFocus.staffIndex || 0];
-      const targetEvent = targetStaff?.measures[newFocus.measureIndex!]?.events.find(e => e.id === newFocus.eventId);
-      
-      const targetNotes = targetEvent?.notes 
-          ? targetEvent.notes.map(n => ({
-              staffIndex: newFocus.staffIndex || 0,
-              measureIndex: newFocus.measureIndex!,
-              eventId: newFocus.eventId!,
-              noteId: n.id
-            }))
-          : [];
-
-      return {
-          ...newFocus,
-          anchor: null, // Clear anchor on standard move
-          selectedNotes: targetNotes
-      };
-  };
-
-
   // --- Public Handlers ---
 
   const handleNoteSelection = useCallback((
@@ -128,86 +57,9 @@ export const useNavigation = ({
     selectAllInEvent: boolean = false,
     isShift: boolean = false
   ) => {
-    // 1. Handle Empty Selection
-    if (!eventId) { 
-       setSelection(prev => ({ ...createDefaultSelection(), staffIndex: prev.staffIndex }));
-       syncToolbarState(null, null, null, staffIndex);
-       return; 
-    }
-
-    const measure = getActiveStaff(scoreRef.current, staffIndex).measures[measureIndex];
-    const event = measure?.events.find((e: any) => e.id === eventId);
-    if (!event) return;
-
-    // 2. Handle Shift+Click (Range Selection)
-    if (isShift) {
-        const focusNoteId = noteId || event.notes[0]?.id;
-        const clickedFocus: Selection = {
-            staffIndex,
-            measureIndex,
-            eventId,
-            noteId: focusNoteId,
-            selectedNotes: [],
-            anchor: null
-        };
-        
-        const rangeSelection = getRangeSelection(clickedFocus, selection, scoreRef.current);
-        
-        // Fallback: if range calculation failed, at least select the clicked event's notes
-        if (rangeSelection.selectedNotes.length === 0) {
-            const fallbackNotes = event.notes.map((n: any) => ({
-                staffIndex, measureIndex, eventId, noteId: n.id
-            }));
-            setSelection({
-                ...rangeSelection,
-                selectedNotes: fallbackNotes
-            });
-        } else {
-            setSelection(rangeSelection);
-        }
-        
-        syncToolbarState(measureIndex, eventId, focusNoteId, staffIndex);
-        return;
-    }
-
-    // 3. Handle "Select All" (e.g. clicking the event stem/body)
-    if (selectAllInEvent && event.notes?.length > 0) {
-        const allNotes = event.notes.map((n: any) => ({
-            staffIndex, measureIndex, eventId, noteId: n.id
-        }));
-        
-        const focusNoteId = noteId || event.notes[0].id;
-        const newAnchor = { staffIndex, measureIndex, eventId, noteId: focusNoteId };
-        
-
-
-        setSelection({
-            staffIndex,
-            measureIndex,
-            eventId,
-            noteId: focusNoteId,
-            selectedNotes: allNotes,
-            // Set anchor for future shift+click operations
-            anchor: newAnchor
-        });
-        
-        syncToolbarState(measureIndex, eventId, focusNoteId, staffIndex);
-        playAudioFeedback(event.notes);
-        return;
-    } 
-
-    // 4. Handle Standard Toggle (Single or Multi-select)
-    setSelection(prev => toggleNoteInSelection(prev, { staffIndex, measureIndex, eventId, noteId }, isMulti));
-    syncToolbarState(measureIndex, eventId, noteId, staffIndex);
-
-    // Audio Feedback
-    if (noteId) {
-        const note = event.notes.find((n: any) => n.id === noteId);
-        if (note) playAudioFeedback([note]);
-    } else {
-        playAudioFeedback(event.notes);
-    }
-  }, [setSelection, syncToolbarState, scoreRef, playAudioFeedback, selection]);
+    // Delegate entirely to useSelection.select
+    select(measureIndex, eventId, noteId, staffIndex, { isMulti, isShift, selectAllInEvent });
+  }, [select]);
 
 
   const moveSelection = useCallback((direction: string, isShift: boolean = false) => {
@@ -230,17 +82,58 @@ export const useNavigation = ({
 
     // 2. Process Selection Update
     if (navResult.selection) {
-        const nextSelection = isShift 
-            ? getRangeSelection(navResult.selection, selection, scoreRef.current)
-            : getStandardSelection(navResult.selection, selection, scoreRef.current);
-
-        setSelection(nextSelection);
-        syncToolbarState(
-            nextSelection.measureIndex, 
-            nextSelection.eventId, 
-            nextSelection.noteId, 
-            nextSelection.staffIndex || 0
-        );
+        // We use 'select' to update, but navResult returns a raw partial selection.
+        // We need to map it to 'select' arguments if possible, OR use setSelection directly 
+        // if we trust calculateNextSelection to have done the "derived selection" logic?
+        // Actually, calculateNextSelection might return { noteId: null } for events.
+        // We need to ensure we don't allow noteId: null.
+        
+        let targetSelection = navResult.selection;
+        
+        // Fix up invalid event selections
+        if (targetSelection.eventId && !targetSelection.noteId && targetSelection.measureIndex !== null) {
+             const m = activeStaff.measures[targetSelection.measureIndex];
+             const e = m?.events.find((ev: any) => ev.id === targetSelection.eventId);
+             if (e && e.notes.length > 0) {
+                 // Select first note? Or last?
+                 // Dependent on direction? Too complex for now, safe default: first note.
+                 // Actually, if we are moving LEFT/RIGHT, we might want specific logic.
+                 // But let's assume 'select' handles the "select all in event" if we pass the right flag?
+                 // No, useSelection.select sets 'selectedNotes' for us.
+                 
+                 // If we use setSelection directly, we bypass useSelection logic unless we duplicate it.
+                 // Better to use 'select' if we can. 
+                 
+                 // But 'select' takes specific arguments.
+                 // We can call select() with options.
+                 
+                 select(
+                     targetSelection.measureIndex,
+                     targetSelection.eventId,
+                     targetSelection.noteId, // Might be null
+                     targetSelection.staffIndex,
+                     { isShift } 
+                 );
+             } else {
+                 // Empty event? (Rest). select() handles it.
+                 select(
+                     targetSelection.measureIndex,
+                     targetSelection.eventId,
+                     targetSelection.noteId,
+                     targetSelection.staffIndex,
+                     { isShift }
+                 );
+             }
+        } else {
+            // Note is specified
+             select(
+                 targetSelection.measureIndex,
+                 targetSelection.eventId,
+                 targetSelection.noteId,
+                 targetSelection.staffIndex,
+                 { isShift }
+             );
+        }
     }
     
     // 3. Process Side Effects (Preview, Measures, Audio)
@@ -255,7 +148,7 @@ export const useNavigation = ({
     if (navResult.audio) {
         playAudioFeedback(navResult.audio.notes);
     }
-  }, [selection, previewNote, activeDuration, isDotted, currentQuantsPerMeasure, scoreRef, dispatch, setSelection, setPreviewNote, syncToolbarState, playAudioFeedback]);
+  }, [selection, previewNote, activeDuration, isDotted, currentQuantsPerMeasure, scoreRef, dispatch, select, setPreviewNote, playAudioFeedback]);
 
 
   const transposeSelection = useCallback((direction: string, isShift: boolean) => {
@@ -315,8 +208,7 @@ export const useNavigation = ({
         const crossResult = calculateCrossStaffSelection(scoreRef.current, selection, direction, activeDuration, isDotted);
         
         if (crossResult && crossResult.selection) {
-            setSelection(crossResult.selection);
-            syncToolbarState(
+            select(
                 crossResult.selection.measureIndex, 
                 crossResult.selection.eventId, 
                 crossResult.selection.noteId, 
@@ -343,14 +235,10 @@ export const useNavigation = ({
     else if (direction === 'down' && currentIdx < numStaves - 1) newIdx++;
     
     if (newIdx !== currentIdx) {
-      setSelection({
-        ...createDefaultSelection(),
-        staffIndex: newIdx,
-        measureIndex: selection.measureIndex // Keep measure index if possible
-      });
-      syncToolbarState(null, null, null, newIdx);
+      // Use select to clear properly or set empty selection on new staff
+      select(null, null, null, newIdx);
     }
-  }, [selection, scoreRef, setSelection, syncToolbarState, activeDuration, isDotted, playAudioFeedback, setPreviewNote]);
+  }, [selection, scoreRef, select, activeDuration, isDotted, playAudioFeedback, setPreviewNote]);
 
   return {
     handleNoteSelection,

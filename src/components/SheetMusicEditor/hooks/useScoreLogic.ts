@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { TIME_SIGNATURES } from '../constants';
 import { CONFIG } from '../config';
 import { useScoreEngine } from './useScoreEngine';
@@ -8,8 +8,9 @@ import { useNoteActions } from './useNoteActions';
 import { useModifiers } from './useModifiers';
 import { useNavigation } from './useNavigation';
 import { useTupletActions } from './useTupletActions';
+import { useSelection } from './useSelection';
 
-import { Score, createDefaultScore, migrateScore, getActiveStaff, createDefaultSelection } from '../types';
+import { Score, createDefaultScore, migrateScore, getActiveStaff } from '../types';
 
 /**
  * Main score logic orchestrator hook.
@@ -35,8 +36,6 @@ export const useScoreLogic = (initialScore: any) => {
   const scoreRef = useRef(score);
   scoreRef.current = score;
 
-
-
   // --- EDITOR TOOLS ---
   const tools = useEditorTools();
   const { 
@@ -47,7 +46,7 @@ export const useScoreLogic = (initialScore: any) => {
   } = tools;
 
   // --- SELECTION & PREVIEW STATE ---
-  const [selection, setSelection] = useState<import('../types').Selection>(createDefaultSelection());
+  const { selection, setSelection, select, clearSelection, updateSelection, selectAllInMeasure } = useSelection({ score });
   const [previewNote, setPreviewNote] = useState<any>(null);
 
   // --- COMPUTED VALUES ---
@@ -67,8 +66,10 @@ export const useScoreLogic = (initialScore: any) => {
   }, [score.timeSignature]);
 
   // --- SYNC TOOLBAR STATE ---
-  // Only syncs accidental and tie state on selection - duration is NOT synced
-  const syncToolbarState = useCallback((measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndex: number = 0) => {
+  // Automatically syncs accidental and tie state on selection change
+  useEffect(() => {
+      const { measureIndex, eventId, noteId, staffIndex } = selection;
+      
       if (measureIndex === null || !eventId) {
           // No selection - reset accidental and tie only
           setActiveAccidental(null);
@@ -76,8 +77,9 @@ export const useScoreLogic = (initialScore: any) => {
           return;
       }
 
-      const measure = getActiveStaff(scoreRef.current, staffIndex).measures[measureIndex];
+      const measure = getActiveStaff(score, staffIndex || 0).measures[measureIndex];
       if (!measure) return;
+      
       const event = measure.events.find((e: any) => e.id === eventId);
       
       if (event) {
@@ -90,12 +92,15 @@ export const useScoreLogic = (initialScore: any) => {
                   setActiveTie(!!note.tied);
               }
           } else {
-              // When no specific note selected, clear accidental/tie
+              // When no specific note selected, clear
               setActiveAccidental(null);
               setActiveTie(false);
           }
       }
-  }, [setActiveAccidental, setActiveTie]);
+  }, [selection, score, setActiveAccidental, setActiveTie]);
+
+  // Deprecated shim
+  const syncToolbarState = useCallback(() => {}, []); 
 
   // --- COMPOSED HOOKS ---
   
@@ -111,9 +116,10 @@ export const useScoreLogic = (initialScore: any) => {
   const noteActions = useNoteActions({
     scoreRef,
     selection,
-    setSelection,
+    setSelection, // Still passed but might be unused if we fully switched
+    select,
     setPreviewNote,
-    syncToolbarState,
+    syncToolbarState, // Deprecated
     activeDuration,
     isDotted,
     activeAccidental,
@@ -135,10 +141,11 @@ export const useScoreLogic = (initialScore: any) => {
   const navigation = useNavigation({
     scoreRef,
     selection,
-    setSelection,
+    setSelection, // Still passed
+    select,
     previewNote,
     setPreviewNote,
-    syncToolbarState,
+    syncToolbarState, // Deprecated
     activeDuration,
     isDotted,
     currentQuantsPerMeasure,

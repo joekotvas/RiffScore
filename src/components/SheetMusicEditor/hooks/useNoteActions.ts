@@ -15,14 +15,16 @@ interface UseNoteActionsProps {
   scoreRef: RefObject<Score>;
   selection: Selection;
   setSelection: React.Dispatch<React.SetStateAction<Selection>>;
+  select: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndex?: number, options?: any) => void;
   setPreviewNote: (note: any) => void;
-  syncToolbarState: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndex?: number) => void;
   activeDuration: string;
   isDotted: boolean;
   activeAccidental: 'flat' | 'natural' | 'sharp' | null;
   activeTie: boolean;
   currentQuantsPerMeasure: number;
   dispatch: (command: Command) => void;
+  // deprecated but currently passed by useScoreLogic before refactor is complete
+  syncToolbarState?: any; 
 }
 
 interface UseNoteActionsReturn {
@@ -40,8 +42,8 @@ export const useNoteActions = ({
   scoreRef,
   selection,
   setSelection,
+  select,
   setPreviewNote,
-  syncToolbarState,
   activeDuration,
   isDotted,
   activeAccidental,
@@ -114,13 +116,7 @@ export const useNoteActions = ({
     
     const newMeasures = [...currentStaffData.measures];
     
-    // Ensure measure exists
-    if (measureIndex >= newMeasures.length) {
-        // This should trigger AddMeasureCommand but that adds to ALL staves now.
-        // But here we are just checking existence.
-        // If we need to add a measure, we should dispatch AddMeasureCommand.
-        // But wait, if we are auto-advancing, we might need to add a measure.
-    }
+    // Ensure measure exists (though Command handles logic usually)
     
     const targetMeasure = { ...newMeasures[measureIndex] };
     if (!targetMeasure.events) targetMeasure.events = [];
@@ -143,7 +139,6 @@ export const useNoteActions = ({
             // Auto-create new measure via Command
             dispatch(new AddMeasureCommand());
             // Recursive call will now target the new measure
-            // Must propagate the staffIndex in the newNote object for recursive call
             addNoteToMeasure(measureIndex + 1, { ...newNote, staffIndex: currentStaffIndex }, false, { mode: 'APPEND', index: 0 });
             return;
         } else {
@@ -161,7 +156,9 @@ export const useNoteActions = ({
             tied: activeTie
         };
         dispatch(new AddNoteToEventCommand(measureIndex, placementOverride.eventId, noteToAdd, currentStaffIndex));
-        setSelection((prev: Selection) => ({ ...prev, staffIndex: currentStaffIndex, measureIndex, eventId: placementOverride.eventId, noteId: noteToAdd.id, selectedNotes: [], anchor: null }));
+        
+        // Update selection to the new note
+        select(measureIndex, placementOverride.eventId, noteToAdd.id, currentStaffIndex);
         setPreviewNote(null);
     } else {
         // Create new event
@@ -183,21 +180,20 @@ export const useNoteActions = ({
             currentStaffIndex
         ));
 
-        setSelection((prev: Selection) => ({ ...prev, staffIndex: currentStaffIndex, measureIndex, eventId, noteId: noteToAdd.id, selectedNotes: [], anchor: null }));
+        // Update selection to the new note
+        select(measureIndex, eventId, noteToAdd.id, currentStaffIndex);
         setPreviewNote(null);
     }
 
     playNote(newNote.pitch);
     
     if (shouldAutoAdvance && mode === 'APPEND') {
-        // Prepare simulated measure to calculate next position
         const simulatedEvents = [...targetMeasure.events];
-        // In APPEND mode, we just push
         simulatedEvents.push({ 
             id: 'sim-event',
             duration: activeDuration, 
             dotted: isDotted, 
-            notes: [{ id: 9999, pitch: newNote.pitch, duration: activeDuration, dotted: isDotted, tied: false }] // Mock full note object
+            notes: [{ id: 9999, pitch: newNote.pitch, duration: activeDuration, dotted: isDotted, tied: false }] 
         });
         
         const simulatedMeasure = { ...targetMeasure, events: simulatedEvents };
@@ -212,7 +208,6 @@ export const useNoteActions = ({
         );
 
         if (nextPreview.quant >= currentQuantsPerMeasure) {
-             // Move to next measure if full
              setPreviewNote({
                  measureIndex: measureIndex + 1,
                  staffIndex: currentStaffIndex,
@@ -231,39 +226,43 @@ export const useNoteActions = ({
     }
     
     setPreviewNote(null);
-  }, [activeDuration, isDotted, currentQuantsPerMeasure, scoreRef, setPreviewNote, activeAccidental, activeTie, dispatch, selection, setSelection]);
+  }, [activeDuration, isDotted, currentQuantsPerMeasure, scoreRef, setPreviewNote, activeAccidental, activeTie, dispatch, selection, select]);
 
   const deleteSelected = useCallback(() => {
-    // Check for multi-select
+    // 1. Delete Multi-Selection
     if (selection.selectedNotes && selection.selectedNotes.length > 0) {
-        selection.selectedNotes.forEach(note => {
+        const notesToDelete = [...selection.selectedNotes];
+        notesToDelete.forEach(note => {
              if (note.noteId) {
                 dispatch(new DeleteNoteCommand(note.measureIndex, note.eventId, note.noteId, note.staffIndex));
             } else {
+                // If this state is reached (event selected but no noteId?), delete event.
+                // But new logic says we always have noteId.
+                // However, safe fallback:
                 dispatch(new DeleteEventCommand(note.measureIndex, note.eventId, note.staffIndex));
             }
         });
-         setSelection((prev: Selection) => ({ ...createDefaultSelection(), staffIndex: selection.staffIndex }));
+         // Clear selection after delete
+         select(null, null, null, selection.staffIndex);
          return;
     }
 
     if (selection.measureIndex === null || !selection.eventId) return;
 
+    // 2. Delete Single Selection
     if (selection.noteId) {
         dispatch(new DeleteNoteCommand(selection.measureIndex, selection.eventId, selection.noteId, selection.staffIndex));
     } else {
-        // Delete the entire event (chord/rest) if no specific note is selected
+        // Fallback for "event selected" (though effectively caught by multi-select usually if we select all notes)
         dispatch(new DeleteEventCommand(selection.measureIndex, selection.eventId, selection.staffIndex));
     }
     
-    // We need to import createDefaultSelection or recreate it
-    setSelection(prev => ({ ...createDefaultSelection(), staffIndex: selection.staffIndex }));
-  }, [selection, dispatch, setSelection]);
+    select(null, null, null, selection.staffIndex);
+  }, [selection, dispatch, select]);
 
   const addChordToMeasure = useCallback((measureIndex: number, notes: any[], duration: string, dotted: boolean) => {
     if (!notes || notes.length === 0) return;
     
-    // Generate ID for the new event so we can add subsequent notes to it
     const eventId = Date.now().toString();
     const firstNote = notes[0];
     
@@ -274,18 +273,16 @@ export const useNoteActions = ({
         tied: false
     };
     
-    // Add the first note as a new event
     dispatch(new AddNoteCommand(
         measureIndex, 
         noteToAdd, 
         duration, 
         dotted,
-        undefined, // Append to end
+        undefined, 
         eventId,
         selection.staffIndex
     ));
     
-    // Add remaining notes to the same event
     for (let i = 1; i < notes.length; i++) {
         const note = notes[i];
         const chordNote = {
@@ -297,12 +294,12 @@ export const useNoteActions = ({
         dispatch(new AddNoteToEventCommand(measureIndex, eventId, chordNote, selection.staffIndex));
     }
     
-    setSelection((prev: Selection) => ({ ...prev, measureIndex, eventId, noteId: noteToAdd.id, selectedNotes: [], anchor: null }));
+    // Select the first note of the chord
+    select(measureIndex, eventId, noteToAdd.id, selection.staffIndex);
     setPreviewNote(null);
-  }, [dispatch, setSelection, setPreviewNote, selection.staffIndex]);
+  }, [dispatch, select, setPreviewNote, selection.staffIndex]);
 
   const updateNotePitch = useCallback((measureIndex: number, eventId: string | number, noteId: string | number, newPitch: string) => {
-    // Convert eventId and noteId to string if necessary, as Command expects string|number but usually string for IDs
     dispatch(new ChangePitchCommand(measureIndex, eventId, noteId, newPitch, selection.staffIndex));
   }, [dispatch, selection.staffIndex]);
 
