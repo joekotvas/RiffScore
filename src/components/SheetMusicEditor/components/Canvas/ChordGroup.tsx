@@ -142,12 +142,26 @@ const ChordGroup = ({
     onDragStart(measureIndex, eventId, note.id, note.pitch, e.clientY, isModifier);
   }, [isGhost, onDragStart, measureIndex, eventId]);
 
+  const handleChordClick = useCallback((e) => {
+    if (isGhost || !onDragStart) return;
+    e.stopPropagation();
+    onDragStart(measureIndex, eventId, null, null, e.clientY, e.metaKey || e.ctrlKey);
+  }, [isGhost, onDragStart, measureIndex, eventId]);
+
   // 3. Render
   const shouldRenderFlags = renderStem && !beamSpec && ['eighth', 'sixteenth', 'thirtysecond', 'sixtyfourth'].includes(duration);
   const hasStem = renderStem && NOTE_TYPES[duration]?.stem;
 
   return (
-    <g className={`chord-group ${isGhost ? 'ghost' : ''}`} opacity={opacity}>
+    <g 
+      className={`chord-group ${isGhost ? 'opacity-50' : ''}`}
+      data-testid={isGhost ? 'ghost-note' : `chord-${eventId}`}
+      data-selected={isWholeChordSelected}
+      style={{ opacity }}
+      onMouseEnter={() => onNoteHover?.(true)}
+      onMouseLeave={() => onNoteHover?.(false)}
+      onClick={handleChordClick}
+    >
       
       {/* Stem */}
       {hasStem && (

@@ -152,6 +152,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   return (
     <div 
       ref={containerRef} 
+      data-testid="score-canvas-container"
       className="overflow-x-auto relative outline-none z-10 pl-12 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600/50" 
       style={{ marginTop: '-30px', backgroundColor: theme.background }} 
       onClick={handleBackgroundClick}

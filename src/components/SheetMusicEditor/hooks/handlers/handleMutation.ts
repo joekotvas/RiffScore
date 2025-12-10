@@ -78,6 +78,7 @@ export const handleMutation = (
 
     // DELETE
     if (e.key === 'Delete' || e.key === 'Backspace') {
+        console.log('Mutation: Delete key pressed', { selection: logic.selection });
         e.preventDefault();
         deleteSelected();
         return true;

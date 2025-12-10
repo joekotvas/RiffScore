@@ -297,6 +297,7 @@ const Measure: React.FC<MeasureProps> = ({
 
       {/* Hit Area extended for Interaction */}
       <rect 
+        data-testid={`measure-hit-area-${layout.staffIndex}-${measureIndex}`}
         x={0} 
         y={baseY - 50} 
         width={effectiveWidth} 
