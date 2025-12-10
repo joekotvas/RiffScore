@@ -4,7 +4,7 @@
  */
 export const handleNavigation = (
     e: KeyboardEvent,
-    moveSelection: (direction: string) => void,
+    moveSelection: (direction: string, isShift: boolean) => void,
     switchStaff?: (direction: 'up' | 'down') => void
 ) => {
     if (!e.key.startsWith('Arrow')) return false;
@@ -20,7 +20,7 @@ export const handleNavigation = (
 
     if (direction === 'left' || direction === 'right') {
         e.preventDefault();
-        moveSelection(direction);
+        moveSelection(direction, e.shiftKey);
         return true;
     }
 
@@ -29,7 +29,7 @@ export const handleNavigation = (
         // Otherwise it's transposition (handled by handleMutation)
         if (e.metaKey || e.ctrlKey) {
             e.preventDefault();
-            moveSelection(direction);
+            moveSelection(direction, e.shiftKey);
             return true;
         }
     }

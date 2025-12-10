@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { movePitchVisual } from '../services/MusicService';
 import { CONFIG } from '../config';
+import { isNoteSelected } from '../utils/selection';
 
 interface DragState {
   active: boolean;
@@ -37,15 +38,17 @@ export const useScoreInteraction = ({ scoreRef, selection, onUpdatePitch, onSele
     const mouseDownTime = useRef<number>(0);
     const CLICK_THRESHOLD = 200; // ms to distinguish click from drag
 
-    const handleDragStart = useCallback((
-      measureIndex: number, 
-      eventId: string | number, 
-      noteId: string | number, 
-      startPitch: string,
-      startY: number,
-      isMulti: boolean = false,
-      staffIndex: number = 0
-    ) => {
+    const handleDragStart = useCallback((params: {
+      measureIndex: number;
+      eventId: string | number;
+      noteId: string | number;
+      startPitch: string;
+      startY: number;
+      isMulti?: boolean;
+      staffIndex?: number;
+    }) => {
+        const { measureIndex, eventId, noteId, startPitch, startY, isMulti = false, staffIndex = 0 } = params;
+        
         mouseDownTime.current = Date.now();
         
         // Capture initial pitches
@@ -61,11 +64,7 @@ export const useScoreInteraction = ({ scoreRef, selection, onUpdatePitch, onSele
              return e?.notes[0]?.pitch; 
         };
 
-        const isNoteInSelection = selection.selectedNotes && selection.selectedNotes.some((n: any) => 
-            String(n.noteId) === String(noteId) && 
-            String(n.eventId) === String(eventId) &&
-            n.staffIndex === staffIndex
-        );
+        const isNoteInSelection = isNoteSelected(selection, { staffIndex, measureIndex, eventId, noteId });
 
         if (isNoteInSelection) {
             // Multi-move
@@ -112,7 +111,7 @@ export const useScoreInteraction = ({ scoreRef, selection, onUpdatePitch, onSele
             const keySignature = currentStaff?.keySignature || 'C';
     
             // Perform bulk update
-            dragState.initialPitches.forEach((pStart, pUserId) => {
+            dragState.initialPitches.forEach((pStart: string, pUserId: string) => {
                 const newP = movePitchVisual(pStart, steps, keySignature);
                 
                 // Find note context from selection (inefficient look up but okay for small selections)

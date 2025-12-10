@@ -76,11 +76,11 @@ export const useKeyboardShortcuts = (logic: any, playback: any, meta: UIState, h
                     setSelection({ ...selection, noteId: null });
                 } else {
                     // If single note (not chord), clear selection entirely
-                    setSelection({ staffIndex: 0, measureIndex: null, eventId: null, noteId: null });
+                    setSelection({ staffIndex: 0, measureIndex: null, eventId: null, noteId: null, selectedNotes: [] });
                 }
             } else if (selection.eventId) {
                 // If event is selected, clear selection
-                setSelection({ staffIndex: 0, measureIndex: null, eventId: null, noteId: null });
+                setSelection({ staffIndex: 0, measureIndex: null, eventId: null, noteId: null, selectedNotes: [] });
             }
             return;
         }

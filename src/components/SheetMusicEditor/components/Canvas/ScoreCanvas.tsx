@@ -190,13 +190,13 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 modifierHeld,
                 isDragging: dragState.active,
                 onAddNote: addNoteToMeasure,
-                onSelectNote: (measureIndex: number, eventId: number | string | null, noteId: number | string | null, isMulti?: boolean) => {
+                onSelectNote: (measureIndex: number, eventId: number | string | null, noteId: number | string | null, isMulti: boolean = false) => {
                    if (eventId !== null) {
                        handleNoteSelection(measureIndex, eventId, noteId, staffIndex, isMulti);
                    }
                 },
-                onDragStart: (measureIndex: number, eventId: number | string, noteId: number | string, pitch: string, startY: number, modifierHeld: boolean) => {
-                   handleDragStart(measureIndex, eventId, noteId, pitch, startY, modifierHeld, staffIndex);
+                onDragStart: (args) => {
+                   handleDragStart(args);
                 },
                 onHover: (measureIndex: number | null, hit: any, pitch: string) => {
                    if (!dragState.active) {

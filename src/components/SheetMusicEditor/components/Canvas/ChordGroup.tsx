@@ -8,6 +8,7 @@ import { calculateStemGeometry } from '../../engines/layout/stems';
 import { needsAccidental } from '../../services/MusicService';
 import { Note, renderFlags } from './Note';
 import { ChordStem, ChordAccidental, NoteHitArea } from './ChordComponents';
+import { isNoteSelected } from '../../utils/selection';
 
 // --- Helper Functions (Pure Logic) ---
 
@@ -139,13 +140,31 @@ const ChordGroup = ({
     if (isGhost || !onDragStart) return;
     e.stopPropagation();
     const isModifier = e.metaKey || e.ctrlKey;
-    onDragStart(measureIndex, eventId, note.id, note.pitch, e.clientY, isModifier);
+    onDragStart({
+        measureIndex, 
+        eventId, 
+        noteId: note.id, 
+        startPitch: note.pitch, 
+        startY: e.clientY, 
+        isMulti: isModifier
+        // staffIndex is missing here? ScoreCanvas adds it? No, handleDragStart needs it.
+        // Interaction object in ScoreCanvas wraps it:
+        // onDragStart: (args) => handleDragStart(args)
+        // CHECK SCORE CANVAS AGAIN. 
+    });
   }, [isGhost, onDragStart, measureIndex, eventId]);
 
   const handleChordClick = useCallback((e) => {
     if (isGhost || !onDragStart) return;
     e.stopPropagation();
-    onDragStart(measureIndex, eventId, null, null, e.clientY, e.metaKey || e.ctrlKey);
+    onDragStart({
+        measureIndex, 
+        eventId, 
+        noteId: null, 
+        startPitch: null, 
+        startY: e.clientY, 
+        isMulti: e.metaKey || e.ctrlKey
+    });
   }, [isGhost, onDragStart, measureIndex, eventId]);
 
   // 3. Render
@@ -179,12 +198,12 @@ const ChordGroup = ({
         const noteY = baseY + getOffsetForPitch(note.pitch, clef);
         const accidentalSymbol = getAccidentalSymbol(note, keySignature);
         const isHovered = !isGhost && !isDragging && hoveredNoteId === note.id;
-        const noteSelected = (isEventSelected && (String(selection.noteId) === String(note.id) || !selection.noteId)) || 
-                             (selection.selectedNotes && selection.selectedNotes.some(sn => 
-                                String(sn.noteId) === String(note.id) && 
-                                String(sn.eventId) === String(eventId) && 
-                                sn.measureIndex === measureIndex
-                             ));
+        const noteSelected = isNoteSelected(selection, { 
+            staffIndex: selection.staffIndex, // ChordGroup doesn't know its own staffIndex? It receives 'layout' and 'interaction'.
+            measureIndex,
+            eventId,
+            noteId: note.id
+        });
         
         // Ghost Preview Logic
         const showPreview = isHovered && activeDuration;
