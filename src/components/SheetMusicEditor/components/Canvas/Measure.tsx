@@ -219,6 +219,20 @@ const Measure: React.FC<MeasureProps> = ({
   return (
     <g transform={`translate(${startX}, 0)`}>
       
+      {/* Hit Area extended for Interaction (Background Layer) */}
+      <rect 
+        data-testid={`measure-hit-area-${layout.staffIndex}-${measureIndex}`}
+        x={0} 
+        y={baseY - 50} 
+        width={effectiveWidth} 
+        height={CONFIG.lineHeight * 12} 
+        fill="transparent" 
+        style={{ cursor: 'crosshair' }} 
+        onClick={handleMeasureClick}
+        onMouseMove={handleMeasureMouseMove}
+        onMouseLeave={handleMeasureMouseLeave}
+      />
+      
       {/* Staff Lines */}
       {[0, 1, 2, 3, 4].map(i => (
         <line
@@ -295,20 +309,6 @@ const Measure: React.FC<MeasureProps> = ({
       
 
 
-      {/* Hit Area extended for Interaction */}
-      <rect 
-        data-testid={`measure-hit-area-${layout.staffIndex}-${measureIndex}`}
-        x={0} 
-        y={baseY - 50} 
-        width={effectiveWidth} 
-        height={CONFIG.lineHeight * 12} 
-        fill="transparent" 
-        style={{ cursor: 'crosshair' }} 
-        onClick={handleMeasureClick}
-        onMouseMove={handleMeasureMouseMove}
-        onMouseLeave={handleMeasureMouseLeave}
-      />
-      
       {/* Bar Line */}
       {renderBarLine()}
 

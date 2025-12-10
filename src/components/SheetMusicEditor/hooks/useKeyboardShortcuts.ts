@@ -29,7 +29,7 @@ export const useKeyboardShortcuts = (logic: any, playback: any, meta: UIState, h
     const { handleTitleCommit } = handlers;
 
     const handleKeyDown = useCallback((e: any) => {
-        const tagName = e.target.tagName.toLowerCase();
+        const tagName = (e.target as HTMLElement).tagName?.toLowerCase() || '';
         if (tagName === 'input' || tagName === 'textarea') {
             if (e.key === 'Enter' && isEditingTitle) {
                 e.preventDefault();

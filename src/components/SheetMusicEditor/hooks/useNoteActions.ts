@@ -7,6 +7,7 @@ import { AddNoteCommand } from '../commands/NoteCommands';
 import { AddNoteToEventCommand } from '../commands/AddNoteToEventCommand';
 import { AddMeasureCommand } from '../commands/MeasureCommands';
 import { DeleteNoteCommand } from '../commands/DeleteNoteCommand';
+import { DeleteEventCommand } from '../commands/DeleteEventCommand';
 import { ChangePitchCommand } from '../commands/ChangePitchCommand';
 
 interface UseNoteActionsProps {
@@ -198,13 +199,8 @@ export const useNoteActions = ({
     if (selection.noteId) {
         dispatch(new DeleteNoteCommand(selection.measureIndex, selection.eventId, selection.noteId, selection.staffIndex));
     } else {
-        // If no specific note selected, delete the whole event? 
-        // Or maybe the UI doesn't support event selection without note selection yet.
-        // Assuming noteId is present for now based on current UI.
-        // If eventId is present but noteId is null, we might want to delete the whole event.
-        // DeleteNoteCommand handles "last note deletes event", but if we want to explicitly delete event:
-        // We might need a DeleteEventCommand or just pass a dummy noteId if the command supports it.
-        // For now, let's assume noteId is required for DeleteNoteCommand as per implementation.
+        // Delete the entire event (chord/rest) if no specific note is selected
+        dispatch(new DeleteEventCommand(selection.measureIndex, selection.eventId, selection.staffIndex));
     }
     
     setSelection({ ...selection, measureIndex: null, eventId: null, noteId: null });
