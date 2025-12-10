@@ -46,7 +46,9 @@ export const useModifiers = ({
 
     // If requested, try to apply to selection
     if (applyToSelection && selection.measureIndex !== null && selection.eventId) {
-        dispatch(new UpdateEventCommand(selection.measureIndex, selection.eventId, { duration: newDuration }));
+        // Use proper staff index, defaulting to 0
+        const staffIdx = selection.staffIndex !== undefined ? selection.staffIndex : 0;
+        dispatch(new UpdateEventCommand(selection.measureIndex, selection.eventId, { duration: newDuration }, staffIdx));
     }
   }, [selection, tools, dispatch]);
 
@@ -54,7 +56,9 @@ export const useModifiers = ({
     const newDotted = tools.handleDotToggle();
     
     if (selection.measureIndex !== null && selection.eventId) {
-        dispatch(new UpdateEventCommand(selection.measureIndex, selection.eventId, { dotted: newDotted }));
+        // Use proper staff index, defaulting to 0
+        const staffIdx = selection.staffIndex !== undefined ? selection.staffIndex : 0;
+        dispatch(new UpdateEventCommand(selection.measureIndex, selection.eventId, { dotted: newDotted }, staffIdx));
     }
   }, [selection, tools, dispatch]);
 
@@ -65,8 +69,12 @@ export const useModifiers = ({
     if (selection.measureIndex === null || !selection.eventId || !selection.noteId) return;
     
     const currentScore = scoreRef.current;
-    const keySignature = getActiveStaff(currentScore).keySignature || 'C';
-    const measure = getActiveStaff(currentScore).measures[selection.measureIndex];
+    
+    // Get correct staff based on selection
+    const staffIdx = selection.staffIndex !== undefined ? selection.staffIndex : 0;
+    const activeStaff = currentScore.staves[staffIdx] || getActiveStaff(currentScore);
+    const keySignature = activeStaff.keySignature || 'C';
+    const measure = activeStaff.measures[selection.measureIndex];
     const event = measure?.events.find((e: any) => e.id === selection.eventId);
     const note = event?.notes.find((n: any) => n.id === selection.noteId);
     
@@ -112,7 +120,9 @@ export const useModifiers = ({
     
     if (newPitch !== currentPitch) {
       // Update the pitch, not the accidental flag
-      dispatch(new UpdateNoteCommand(selection.measureIndex, selection.eventId, selection.noteId, { pitch: newPitch }));
+      // Use proper staff index, defaulting to 0
+      const staffIdx = selection.staffIndex !== undefined ? selection.staffIndex : 0;
+      dispatch(new UpdateNoteCommand(selection.measureIndex, selection.eventId, selection.noteId, { pitch: newPitch }, staffIdx));
       
       // Play tone to preview change
       if (event) {
@@ -128,14 +138,20 @@ export const useModifiers = ({
     const newTie = tools.handleTieToggle();
     
     if (selection.measureIndex !== null && selection.eventId && selection.noteId) {
-        dispatch(new UpdateNoteCommand(selection.measureIndex, selection.eventId, selection.noteId, { tied: newTie }));
+        // Use proper staff index, defaulting to 0
+        const staffIdx = selection.staffIndex !== undefined ? selection.staffIndex : 0;
+        dispatch(new UpdateNoteCommand(selection.measureIndex, selection.eventId, selection.noteId, { tied: newTie }, staffIdx));
     }
   }, [selection, tools, dispatch]);
 
   const checkDurationValidity = useCallback((targetDuration: string) => {
     if (selection.measureIndex === null || !selection.eventId) return true;
 
-    const measure = getActiveStaff(scoreRef.current).measures[selection.measureIndex];
+    const staffIdx = selection.staffIndex !== undefined ? selection.staffIndex : 0;
+    const staff = scoreRef.current.staves[staffIdx];
+    if (!staff) return true;
+    
+    const measure = staff.measures[selection.measureIndex];
     if (!measure) return true;
 
     return canModifyEventDuration(measure.events, selection.eventId, targetDuration, currentQuantsPerMeasure);
@@ -144,7 +160,11 @@ export const useModifiers = ({
   const checkDotValidity = useCallback(() => {
     if (selection.measureIndex === null || !selection.eventId) return true;
 
-    const measure = getActiveStaff(scoreRef.current).measures[selection.measureIndex];
+    const staffIdx = selection.staffIndex !== undefined ? selection.staffIndex : 0;
+    const staff = scoreRef.current.staves[staffIdx];
+    if (!staff) return true;
+
+    const measure = staff.measures[selection.measureIndex];
     if (!measure) return true;
 
     return canToggleEventDot(measure.events, selection.eventId, currentQuantsPerMeasure);

@@ -8,11 +8,14 @@ export class UpdateEventCommand implements Command {
   constructor(
     private measureIndex: number,
     private eventId: string | number,
-    private updates: Partial<ScoreEvent>
+    private updates: Partial<ScoreEvent>,
+    private staffIndex: number = 0
   ) {}
 
   execute(score: Score): Score {
-    const activeStaff = getActiveStaff(score);
+    const activeStaff = score.staves[this.staffIndex];
+    if (!activeStaff) return score;
+
     const newMeasures = [...activeStaff.measures];
     
     if (!newMeasures[this.measureIndex]) return score;
@@ -33,7 +36,7 @@ export class UpdateEventCommand implements Command {
 
     newMeasures[this.measureIndex] = measure;
     const newStaves = [...score.staves];
-    newStaves[0] = { ...activeStaff, measures: newMeasures };
+    newStaves[this.staffIndex] = { ...activeStaff, measures: newMeasures };
 
     return { ...score, staves: newStaves };
   }
@@ -41,7 +44,9 @@ export class UpdateEventCommand implements Command {
   undo(score: Score): Score {
     if (!this.previousEvent) return score;
 
-    const activeStaff = getActiveStaff(score);
+    const activeStaff = score.staves[this.staffIndex];
+    if (!activeStaff) return score;
+
     const newMeasures = [...activeStaff.measures];
     
     if (!newMeasures[this.measureIndex]) return score;
@@ -57,7 +62,7 @@ export class UpdateEventCommand implements Command {
 
     newMeasures[this.measureIndex] = measure;
     const newStaves = [...score.staves];
-    newStaves[0] = { ...activeStaff, measures: newMeasures };
+    newStaves[this.staffIndex] = { ...activeStaff, measures: newMeasures };
 
     return { ...score, staves: newStaves };
   }
