@@ -97,6 +97,6 @@ describe('ScoreCanvas', () => {
     
     expect(mockContextValue.handleNoteSelection).toHaveBeenCalled();
     // Now uses separate args: (measureIndex, eventId, noteId, staffIndex)
-    expect(mockContextValue.handleNoteSelection).toHaveBeenCalledWith(0, undefined, undefined, 0);
+    expect(mockContextValue.handleNoteSelection).toHaveBeenCalledWith(0, undefined, undefined, 0, undefined);
   });
 });

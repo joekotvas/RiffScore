@@ -94,6 +94,6 @@ describe('Bass Clef Selection Reproduction', () => {
     fireEvent.click(screen.getByTestId('note-in-staff-1-measure-0'));
 
     // Check if handleNoteSelection was called with staffIndex 1 (4th argument)
-    expect(mockContextValue.handleNoteSelection).toHaveBeenCalledWith(0, 123, 456, 1);
+    expect(mockContextValue.handleNoteSelection).toHaveBeenCalledWith(0, 123, 456, 1, undefined);
   });
 });
