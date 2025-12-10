@@ -202,7 +202,7 @@ const Measure: React.FC<MeasureProps> = ({
           <line 
             x1={x} y1={baseY} 
             x2={x} y2={baseY + CONFIG.lineHeight * 4} 
-            stroke={theme.score.staffLine} 
+            stroke={theme.score.line} 
             strokeWidth={isLast ? 3 : 1} 
           />
       );
@@ -211,6 +211,19 @@ const Measure: React.FC<MeasureProps> = ({
   return (
     <g transform={`translate(${startX}, 0)`}>
       
+      {/* Staff Lines */}
+      {[0, 1, 2, 3, 4].map(i => (
+        <line
+          key={`staff-${i}`}
+          x1={0}
+          y1={baseY + i * CONFIG.lineHeight}
+          x2={effectiveWidth}
+          y2={baseY + i * CONFIG.lineHeight}
+          stroke={theme.score.line}
+          strokeWidth={1}
+        />
+      ))}
+
       {/* RENDER EVENTS */}
       {renderableEvents.map((event, idx) => {
         if (event.isRest) {

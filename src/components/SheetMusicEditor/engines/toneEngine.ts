@@ -62,24 +62,40 @@ export const initTone = async (onState?: (state: ToneEngineState) => void): Prom
     // Start audio context (requires user gesture)
     await Tone.start();
     
-    // Initialize synth immediately (no loading) - clean piano-like tone
+    // Initialize synth immediately (no loading) - piano-like fallback
+    // Best practices for avoiding artifacts:
+    // 1. Non-zero attack prevents clicks
+    // 2. Smooth release prevents pops
+    // 3. FMSynth provides richer harmonics than basic sine
+    // 4. Volume limiting prevents clipping
     if (!synth) {
-        synth = new Tone.PolySynth(Tone.Synth, {
-            envelope: {
-                attack: 0.005,
-                decay: 0.5,
-                sustain: 0.1,
-                release: 1.2
-            },
+        synth = new Tone.PolySynth(Tone.FMSynth, {
+            harmonicity: 3,           // Ratio of modulator to carrier frequency
+            modulationIndex: 10,      // Depth of FM modulation
             oscillator: {
-                type: 'sine' // Clean, simple sine wave
+                type: 'sine'          // Clean carrier wave
+            },
+            envelope: {
+                attack: 0.01,         // Fast but not instant (prevents clicks)
+                decay: 0.4,           // Piano-like decay
+                sustain: 0.2,         // Low sustain for percussive feel
+                release: 1.5          // Long release for natural fade
+            },
+            modulation: {
+                type: 'triangle'      // Smooth modulator wave
+            },
+            modulationEnvelope: {
+                attack: 0.01,
+                decay: 0.3,
+                sustain: 0.1,
+                release: 0.5
             }
         }).toDestination();
         
-        // Reduce volume to prevent clipping
-        synth.volume.value = -6;
+        // Volume limiting to prevent clipping on chords
+        synth.volume.value = -10;
         
-        // Limit polyphony to prevent audio glitches
+        // 24 voice polyphony as required
         synth.maxPolyphony = 24;
         
         updateState({ instrumentState: 'synth' });
