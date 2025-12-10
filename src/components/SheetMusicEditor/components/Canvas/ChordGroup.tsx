@@ -79,7 +79,7 @@ const ChordGroup = ({
   const { theme } = useTheme();
   
   // Destructure contexts
-  const { baseY, clef, keySignature } = layout;
+  const { baseY, clef, keySignature, staffIndex } = layout;
   const { 
     selection, 
     onDragStart, 
@@ -146,13 +146,10 @@ const ChordGroup = ({
         noteId: note.id, 
         startPitch: note.pitch, 
         startY: e.clientY, 
-        isMulti: isModifier
-        // staffIndex is missing here? ScoreCanvas adds it? No, handleDragStart needs it.
-        // Interaction object in ScoreCanvas wraps it:
-        // onDragStart: (args) => handleDragStart(args)
-        // CHECK SCORE CANVAS AGAIN. 
+        isMulti: isModifier,
+        staffIndex: staffIndex // Pass correct staffIndex
     });
-  }, [isGhost, onDragStart, measureIndex, eventId]);
+  }, [isGhost, onDragStart, measureIndex, eventId, staffIndex]);
 
   const handleChordClick = useCallback((e) => {
     if (isGhost || !onDragStart) return;
@@ -163,9 +160,10 @@ const ChordGroup = ({
         noteId: null, 
         startPitch: null, 
         startY: e.clientY, 
-        isMulti: e.metaKey || e.ctrlKey
+        isMulti: e.metaKey || e.ctrlKey,
+        staffIndex: staffIndex // Pass correct staffIndex
     });
-  }, [isGhost, onDragStart, measureIndex, eventId]);
+  }, [isGhost, onDragStart, measureIndex, eventId, staffIndex]);
 
   // 3. Render
   const shouldRenderFlags = renderStem && !beamSpec && ['eighth', 'sixteenth', 'thirtysecond', 'sixtyfourth'].includes(duration);

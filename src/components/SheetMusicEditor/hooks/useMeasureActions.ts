@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { Score, getActiveStaff } from '../types';
+import React, { useCallback } from 'react';
+import { Score, getActiveStaff, createDefaultSelection, Selection } from '../types';
 import { Command } from '../commands/types';
 import { AddMeasureCommand, DeleteMeasureCommand } from '../commands/MeasureCommands';
 import { TogglePickupCommand } from '../commands/TogglePickupCommand';
@@ -9,7 +9,7 @@ import { SetKeySignatureCommand } from '../commands/SetKeySignatureCommand';
 
 interface UseMeasureActionsProps {
   score: Score;
-  setSelection: (selection: { staffIndex: number; measureIndex: number | null; eventId: string | number | null; noteId: string | number | null }) => void;
+  setSelection: React.Dispatch<React.SetStateAction<Selection>>;
   setPreviewNote: (note: any) => void;
   dispatch: (command: Command) => void;
 }
@@ -36,7 +36,7 @@ export const useMeasureActions = ({
   const handleTimeSignatureChange = useCallback((newSig: string) => {
     if (newSig === score.timeSignature) return;
     dispatch(new SetTimeSignatureCommand(newSig));
-    setSelection({ staffIndex: 0, measureIndex: null, eventId: null, noteId: null });
+    setSelection(createDefaultSelection());
     setPreviewNote(null);
   }, [score.timeSignature, dispatch, setSelection, setPreviewNote]);
 

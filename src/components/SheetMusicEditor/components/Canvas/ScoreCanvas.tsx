@@ -3,7 +3,7 @@ import { CONFIG } from '../../config';
 import { useTheme } from '../../context/ThemeContext';
 import { calculateHeaderLayout, getNoteWidth } from '../../engines/layout';
 import Staff, { calculateStaffWidth } from './Staff';
-import { getActiveStaff } from '../../types';
+import { getActiveStaff, createDefaultSelection } from '../../types';
 import { useScoreContext } from '../../context/ScoreContext';
 import { useScoreInteraction } from '../../hooks/useScoreInteraction';
 import { useAutoScroll } from '../../hooks/useAutoScroll';
@@ -75,10 +75,14 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   const { dragState, handleDragStart } = useScoreInteraction({
       scoreRef,
       selection,
-      onUpdatePitch: (m, e, n, p) => updateNotePitch(m, e, n, p),
-      onSelectNote: (measureIndex, eventId, noteId, staffIndex, isMulti) => {
+      onUpdatePitch: (m: number, e: string | number, n: string | number, p: string) => updateNotePitch(m, e, n, p),
+      onSelectNote: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndexParam?: number, isMulti?: boolean) => {
           if (measureIndex !== null && eventId !== null) {
-              handleNoteSelection(measureIndex, eventId, noteId, staffIndex, isMulti);
+              // Ensure we use the passed staffIndex if present, otherwise default to 0? 
+              // Actually, useScoreInteraction passes what we give it.
+              // Logic check: useScoreInteraction calls this callback.
+              const targetStaff = staffIndexParam !== undefined ? staffIndexParam : 0;
+              handleNoteSelection(measureIndex, eventId, noteId, targetStaff, isMulti);
           }
           setPreviewNote(null);
       }
@@ -146,7 +150,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   const handleBackgroundClick = () => {
       onBackgroundClick?.();
       // Default: deselect
-      setSelection({ staffIndex: 0, measureIndex: null, eventId: null, noteId: null });
+      setSelection(createDefaultSelection());
       containerRef.current?.focus();
   };
 
@@ -183,24 +187,32 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             
             // Construct Interaction State
             const interaction = {
-                selection: isSelectedStaff ? selection : { staffIndex, measureIndex: null, eventId: null, noteId: null },
+                selection: isSelectedStaff ? selection : { 
+                    staffIndex, 
+                    measureIndex: null, 
+                    eventId: null, 
+                    noteId: null,
+                    selectedNotes: [], // Fix missing property
+                    anchor: null      // Fix missing property
+                },
                 previewNote, // Global preview note (Staff filters it)
                 activeDuration,
                 isDotted,
                 modifierHeld,
                 isDragging: dragState.active,
                 onAddNote: addNoteToMeasure,
-                onSelectNote: (measureIndex: number, eventId: number | string | null, noteId: number | string | null, isMulti: boolean = false) => {
-                   if (eventId !== null) {
-                       handleNoteSelection(measureIndex, eventId, noteId, staffIndex, isMulti);
+                onSelectNote: (measureIndex: number | null, eventId: number | string | null, noteId: number | string | null, staffIndexParam?: number, isMulti?: boolean) => {
+                   if (eventId !== null && measureIndex !== null) {
+                       const targetStaff = staffIndexParam !== undefined ? staffIndexParam : 0;
+                       handleNoteSelection(measureIndex, eventId, noteId, targetStaff, isMulti);
                    }
                 },
-                onDragStart: (args) => {
+                onDragStart: (args: any) => {
                    handleDragStart(args);
                 },
-                onHover: (measureIndex: number | null, hit: any, pitch: string) => {
+                onHover: (measureIndex: number | null, hit: any, pitch: string | null) => {
                    if (!dragState.active) {
-                       handleMeasureHover(measureIndex, hit, pitch, staffIndex);
+                       handleMeasureHover(measureIndex, hit, pitch || '', staffIndex);
                    }
                 }
             };

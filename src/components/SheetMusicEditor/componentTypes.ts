@@ -28,8 +28,8 @@ export interface InteractionState {
   
   // Actions
   onAddNote: (measureIndex: number, note: any, shouldAutoAdvance?: boolean, placementOverride?: any) => void;
-  onSelectNote: (measureIndex: number, eventId: number | string | null, noteId: number | string | null, isMulti?: boolean) => void;
-  onDragStart: (measureIndex: number, eventId: number | string, noteId: number | string, pitch: string, startY: number, modifierHeld: boolean) => void;
+  onSelectNote: (measureIndex: number | null, eventId: number | string | null, noteId: number | string | null, staffIndex?: number, isMulti?: boolean) => void;
+  onDragStart: (params: any) => void;
   onHover: (measureIndex: number | null, hit: any, pitch: string, staffIndex?: number) => void;
 }
 

@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { movePitchVisual } from '../services/MusicService';
 import { CONFIG } from '../config';
 import { isNoteSelected } from '../utils/selection';
+import { Selection } from '../types';
 
 interface DragState {
   active: boolean;
@@ -17,7 +18,7 @@ interface DragState {
 
 interface UseScoreInteractionProps {
   scoreRef: React.MutableRefObject<any>;
-  selection: any; // Using any or import Selection type
+  selection: Selection; 
   onUpdatePitch: (measureIndex: number, eventId: string | number, noteId: string | number, newPitch: string) => void;
   onSelectNote: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndex?: number, isMulti?: boolean) => void;
 }

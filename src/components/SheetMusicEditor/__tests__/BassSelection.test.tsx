@@ -23,7 +23,7 @@ jest.mock('../components/Canvas/Staff', () => {
                 onClick={() => {
                     // Simulate selecting a note in this staff
                     // measureIndex=i, eventId=123, noteId=456
-                    onSelectNote?.(i, 123, 456); 
+                    onSelectNote?.(i, 123, 456, staffIndex); 
                 }}
              >
                 Click Note Staff {staffIndex}

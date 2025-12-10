@@ -1,16 +1,16 @@
-import { useCallback, RefObject } from 'react';
+import React, { useCallback, RefObject } from 'react';
+import { Selection, Score, getActiveStaff, createDefaultSelection } from '../types';
 import { calculateNextSelection, calculateTranspositionWithPreview } from '../utils/interaction';
 import { toggleNoteInSelection, getLinearizedNotes, calculateNoteRange } from '../utils/selection';
 import { playNote } from '../engines/toneEngine';
-import { Score, getActiveStaff, createDefaultSelection } from '../types';
 import { Command } from '../commands/types';
 import { AddMeasureCommand } from '../commands/MeasureCommands';
 import { TransposeSelectionCommand } from '../commands/TransposeSelectionCommand';
 
 interface UseNavigationProps {
   scoreRef: RefObject<Score>;
-  selection: { staffIndex: number; measureIndex: number | null; eventId: string | number | null; noteId: string | number | null };
-  setSelection: (selection: { staffIndex: number; measureIndex: number | null; eventId: string | number | null; noteId: string | number | null }) => void;
+  selection: Selection;
+  setSelection: React.Dispatch<React.SetStateAction<Selection>>;
   previewNote: any;
   setPreviewNote: (note: any) => void;
   syncToolbarState: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndex?: number) => void;
@@ -21,7 +21,7 @@ interface UseNavigationProps {
 }
 
 interface UseNavigationReturn {
-  handleNoteSelection: (measureIndex: number, eventId: string | number, noteId: string | number | null, staffIndex?: number) => void;
+  handleNoteSelection: (measureIndex: number, eventId: string | number, noteId: string | number | null, staffIndex?: number, isMulti?: boolean) => void;
   moveSelection: (direction: string, isShift: boolean) => void;
   transposeSelection: (direction: string, isShift: boolean) => void;
   switchStaff: (direction: 'up' | 'down') => void;
@@ -231,6 +231,7 @@ export const useNavigation = ({
     if (newStaffIndex !== currentStaffIndex) {
       // Clear specific selection when switching staff, keep measure context
       setSelection({
+        ...createDefaultSelection(),
         staffIndex: newStaffIndex,
         measureIndex: selection.measureIndex,
         eventId: null,

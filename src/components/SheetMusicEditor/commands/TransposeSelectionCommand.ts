@@ -1,12 +1,12 @@
 import { Command } from './types';
-import { Score, getActiveStaff } from '../types';
+import { Score, getActiveStaff, Selection, Staff } from '../types';
 import { movePitchVisual } from '../services/MusicService';
 
 export class TransposeSelectionCommand implements Command {
   public readonly type = 'TRANSPOSE_SELECTION';
 
   constructor(
-    private selection: { staffIndex?: number; measureIndex: number | null; eventId: string | number | null; noteId: string | number | null },
+    private selection: Selection,
     private semitones: number,
     private keySignature: string = 'C'
   ) {}
@@ -149,14 +149,14 @@ export class TransposeSelectionCommand implements Command {
             });
             
             notesByEvent.forEach((notesInEvent, eIdStr) => {
-                 const eventIndex = newMeasure.events.findIndex(e => String(e.id) === eIdStr);
+                 const eventIndex = newMeasure.events.findIndex((e: any) => String(e.id) === eIdStr);
                  if (eventIndex === -1) return;
                  
                  const newEvent = { ...newMeasure.events[eventIndex], notes: [...newMeasure.events[eventIndex].notes] };
                  newMeasure.events[eventIndex] = newEvent;
                  
                  notesInEvent.forEach(nTarget => {
-                     const noteIndex = newEvent.notes.findIndex(note => idsMatch(note.id, nTarget.noteId));
+                     const noteIndex = newEvent.notes.findIndex((note: any) => idsMatch(note.id, nTarget.noteId));
                      if (noteIndex !== -1) {
                          newEvent.notes[noteIndex] = {
                              ...newEvent.notes[noteIndex],
