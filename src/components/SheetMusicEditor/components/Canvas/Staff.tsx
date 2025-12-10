@@ -3,6 +3,7 @@ import { CONFIG } from '../../config';
 import { useTheme } from '../../context/ThemeContext';
 import { calculateMeasureWidth, calculateMeasureLayout, getOffsetForPitch, calculateHeaderLayout } from '../../engines/layout';
 import { getNoteDuration } from '../../utils/core';
+import { isNoteSelected } from '../../utils/selection';
 import Measure from './Measure';
 import Tie from './Tie';
 import ScoreHeader from '../Panels/ScoreHeader';
@@ -150,6 +151,19 @@ const Staff: React.FC<StaffProps> = ({
       if (note.tied) {
         let nextNote = null;
         
+        // Check Selection using global staffIndex
+        const eventId = measures[note.measureIndex]?.events[note.eventIndex]?.id;
+        const isSelected = isNoteSelected(interaction.selection, {
+            staffIndex, // Staff prop
+            measureIndex: note.measureIndex,
+            eventId,
+            noteId: note.id
+        });
+
+        // Use accent color if selected
+        // Important: Use theme.score.note as default instead of hardcoded 'black'
+        const tieColor = isSelected ? theme.accent : theme.score.note;
+
         let targetMIndex = note.measureIndex;
         let targetEIndex = note.eventIndex + 1;
         
@@ -179,6 +193,7 @@ const Staff: React.FC<StaffProps> = ({
               endX={nextNote.x} 
               endY={nextNote.y}
               direction={direction}
+              color={tieColor}
             />
           );
         } else {
@@ -191,6 +206,7 @@ const Staff: React.FC<StaffProps> = ({
               endX={note.x + 35}
               endY={note.y}
               direction={direction}
+              color={tieColor}
             />
           );
         }

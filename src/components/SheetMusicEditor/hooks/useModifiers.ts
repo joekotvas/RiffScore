@@ -75,12 +75,34 @@ export const useModifiers = ({
   const handleDotToggle = useCallback(() => {
     const newDotted = tools.handleDotToggle();
     
-    if (selection.measureIndex !== null && selection.eventId) {
-        // Use proper staff index, defaulting to 0
-        const staffIdx = selection.staffIndex !== undefined ? selection.staffIndex : 0;
-        dispatch(new UpdateEventCommand(selection.measureIndex, selection.eventId, { dotted: newDotted }, staffIdx));
+    // Collect targets
+    const targets: Array<{ measureIndex: number, eventId: string | number, staffIndex: number }> = [];
+
+    if (selection.selectedNotes && selection.selectedNotes.length > 0) {
+        selection.selectedNotes.forEach(n => {
+            // Avoid duplicate events if multiple notes in same event selected
+            const exists = targets.find(t => t.measureIndex === n.measureIndex && t.eventId === n.eventId && t.staffIndex === n.staffIndex);
+            if (!exists) {
+                targets.push({ measureIndex: n.measureIndex, eventId: n.eventId, staffIndex: n.staffIndex });
+            }
+        });
+    } else if (selection.measureIndex !== null && selection.eventId) {
+        targets.push({ 
+            measureIndex: selection.measureIndex, 
+            eventId: selection.eventId, 
+            staffIndex: selection.staffIndex !== undefined ? selection.staffIndex : 0 
+        });
     }
-  }, [selection, tools, dispatch]);
+
+    // Iterate and apply if valid
+    targets.forEach(target => {
+        const staff = scoreRef.current.staves[target.staffIndex] || getActiveStaff(scoreRef.current);
+        const measure = staff.measures[target.measureIndex];
+        if (measure && canToggleEventDot(measure.events, target.eventId, currentQuantsPerMeasure)) {
+            dispatch(new UpdateEventCommand(target.measureIndex, target.eventId, { dotted: newDotted }, target.staffIndex));
+        }
+    });
+  }, [selection, tools, dispatch, scoreRef, currentQuantsPerMeasure]);
 
   const handleAccidentalToggle = useCallback((type: 'flat' | 'natural' | 'sharp' | null) => {
     // Import dynamically to avoid circular deps - MusicService handles transposition
@@ -157,11 +179,28 @@ export const useModifiers = ({
   const handleTieToggle = useCallback(() => {
     const newTie = tools.handleTieToggle();
     
-    if (selection.measureIndex !== null && selection.eventId && selection.noteId) {
-        // Use proper staff index, defaulting to 0
-        const staffIdx = selection.staffIndex !== undefined ? selection.staffIndex : 0;
-        dispatch(new UpdateNoteCommand(selection.measureIndex, selection.eventId, selection.noteId, { tied: newTie }, staffIdx));
+    // Collect targets (Notes)
+    const targets: Array<{ measureIndex: number, eventId: string | number, noteId: string | number, staffIndex: number }> = [];
+
+    if (selection.selectedNotes && selection.selectedNotes.length > 0) {
+        selection.selectedNotes.forEach(n => {
+            if (n.noteId) {
+                targets.push({ measureIndex: n.measureIndex, eventId: n.eventId, noteId: n.noteId, staffIndex: n.staffIndex });
+            }
+        });
+    } else if (selection.measureIndex !== null && selection.eventId && selection.noteId) {
+        targets.push({ 
+            measureIndex: selection.measureIndex, 
+            eventId: selection.eventId, 
+            noteId: selection.noteId,
+            staffIndex: selection.staffIndex !== undefined ? selection.staffIndex : 0 
+        });
     }
+
+    // Apply to all selected notes
+    targets.forEach(target => {
+        dispatch(new UpdateNoteCommand(target.measureIndex, target.eventId, target.noteId, { tied: newTie }, target.staffIndex));
+    });
   }, [selection, tools, dispatch]);
 
   const checkDurationValidity = useCallback((targetDuration: string) => {

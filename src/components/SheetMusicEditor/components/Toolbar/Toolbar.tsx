@@ -88,7 +88,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
       handleTimeSignatureChange, handleKeySignatureChange,
       handleClefChange,
       dispatch, applyTuplet, removeTuplet, canApplyTuplet, activeTupletRatio,
-      selectedDurations, editorState
+      selectedDurations, editorState, selectedDots, selectedTies
   } = useScoreContext();
 
   useImperativeHandle(ref, () => ({
@@ -189,6 +189,9 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
           activeTie={activeTie}
           onToggleTie={handleTieToggle}
           isDotValid={checkDotValidity()}
+          selectedDots={selectedDots}
+          selectedTies={selectedTies}
+          editorState={editorState}
         />
 
         <div className="w-px h-6" style={{ backgroundColor: theme.border }}></div>

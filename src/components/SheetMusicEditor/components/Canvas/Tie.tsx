@@ -7,9 +7,10 @@ interface TieProps {
   endX: number;
   endY: number;
   direction: 'up' | 'down';
+  color?: string; // Optional color override
 }
 
-const Tie: React.FC<TieProps> = ({ startX, startY, endX, endY, direction }) => {
+const Tie: React.FC<TieProps> = ({ startX, startY, endX, endY, direction, color = 'black' }) => {
   const dirMult = direction === 'up' ? -1 : 1;
   
   // 1. Add Gaps (Padding)
@@ -79,7 +80,7 @@ const Tie: React.FC<TieProps> = ({ startX, startY, endX, endY, direction }) => {
   return (
     <path 
       d={path} 
-      fill="black"
+      fill={color}
       stroke="none"
     />
   );

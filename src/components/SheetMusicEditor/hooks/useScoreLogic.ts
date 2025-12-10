@@ -193,6 +193,57 @@ export const useScoreLogic = (initialScore: any) => {
     return Array.from(durations);
   }, [selection, score, editorState]);
 
+  const selectedDots = useMemo(() => {
+    if (editorState !== 'SELECTION_READY') return [];
+    
+    const dots = new Set<boolean>();
+    const currentScore = scoreRef.current;
+
+    const addFromEvent = (measureIndex: number, eventId: string | number, staffIndex: number) => {
+        const staff = currentScore.staves[staffIndex] || getActiveStaff(currentScore);
+        const measure = staff.measures[measureIndex];
+        const event = measure?.events.find((e: any) => e.id === eventId);
+        if (event) dots.add(!!event.dotted);
+    };
+
+    if (selection.selectedNotes && selection.selectedNotes.length > 0) {
+        selection.selectedNotes.forEach(n => addFromEvent(n.measureIndex, n.eventId, n.staffIndex));
+    } else if (selection.measureIndex !== null && selection.eventId) {
+        const staffIndex = selection.staffIndex !== undefined ? selection.staffIndex : 0;
+        addFromEvent(selection.measureIndex, selection.eventId, staffIndex);
+    }
+    return Array.from(dots);
+  }, [selection, score, editorState]);
+
+  const selectedTies = useMemo(() => {
+    if (editorState !== 'SELECTION_READY') return [];
+
+    const ties = new Set<boolean>();
+    const currentScore = scoreRef.current;
+
+    const addFromNote = (measureIndex: number, eventId: string | number, noteId: string | number | null, staffIndex: number) => {
+        const staff = currentScore.staves[staffIndex] || getActiveStaff(currentScore);
+        const measure = staff.measures[measureIndex];
+        const event = measure?.events.find((e: any) => e.id === eventId);
+        if (event) {
+            if (noteId) {
+                const note = event.notes.find((n: any) => n.id === noteId);
+                if (note) ties.add(!!note.tied);
+            } else {
+                 event.notes.forEach((n: any) => ties.add(!!n.tied));
+            }
+        }
+    };
+
+    if (selection.selectedNotes && selection.selectedNotes.length > 0) {
+        selection.selectedNotes.forEach(n => addFromNote(n.measureIndex, n.eventId, n.noteId, n.staffIndex));
+    } else if (selection.measureIndex !== null && selection.eventId) {
+        const staffIndex = selection.staffIndex !== undefined ? selection.staffIndex : 0;
+        addFromNote(selection.measureIndex, selection.eventId, selection.noteId, staffIndex);
+    }
+    return Array.from(ties);
+  }, [selection, score, editorState]);
+
   // --- WRAPPED HANDLERS ---
   const handleDurationChangeWrapper = useCallback((newDuration: string) => {
       if (editorState === 'SELECTION_READY') {
@@ -238,6 +289,8 @@ export const useScoreLogic = (initialScore: any) => {
     selection,
     editorState,
     selectedDurations, // Expose derived durations
+    selectedDots,
+    selectedTies,
     setSelection,
     previewNote,
     setPreviewNote,
