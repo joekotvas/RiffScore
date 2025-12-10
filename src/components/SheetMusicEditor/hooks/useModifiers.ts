@@ -17,6 +17,9 @@ interface UseModifiersProps {
     handleDotToggle: () => boolean;
     handleAccidentalToggle: (type: 'flat' | 'natural' | 'sharp' | null) => string | null;
     handleTieToggle: () => boolean;
+    isDotted: boolean;
+    activeTie: boolean;
+    activeAccidental: 'flat' | 'natural' | 'sharp' | null;
   };
   dispatch: (command: Command) => void;
 }
@@ -127,17 +130,52 @@ export const useModifiers = ({
   }, [selection, tools, dispatch, scoreRef, currentQuantsPerMeasure]);
 
   const handleDotToggle = useCallback(() => {
-    const newDotted = tools.handleDotToggle();
     const targets = getEventTargets(selection);
+    
+    // Entry Mode / No Selection: Toggle tool state only
+    if (targets.length === 0) {
+        tools.handleDotToggle();
+        return;
+    }
 
-    // Iterate and apply if valid
+    const score = scoreRef.current;
+
+    // 1. Fetch event objects to determine global state
+    const eventObjects = targets.map(t => {
+        const staff = score.staves[t.staffIndex] || getActiveStaff(score);
+        return staff.measures[t.measureIndex]?.events.find((e: any) => e.id === t.eventId);
+    }).filter((e): e is any => !!e);
+
+    if (eventObjects.length === 0) return;
+
+    // 2. Determine consistency
+    // User Request: Turn OFF if heterogeneous.
+    // If ANY are dotted, we turn OFF. Only if NONE are dotted do we turn ON.
+    const hasAnyDotted = eventObjects.some(e => e.dotted);
+    const targetState = !hasAnyDotted; 
+
+    // Update tool state to match target
+    // We can't set directly, but we can try to sync if mismatched (optional)
+    // tools.isDotted is local.
+
+    // 3. Apply to all targets
     targets.forEach(target => {
-        const staff = scoreRef.current.staves[target.staffIndex] || getActiveStaff(scoreRef.current);
+        const staff = score.staves[target.staffIndex] || getActiveStaff(score);
         const measure = staff.measures[target.measureIndex];
-        if (measure && canToggleEventDot(measure.events, target.eventId, currentQuantsPerMeasure)) {
-            dispatch(new UpdateEventCommand(target.measureIndex, target.eventId, { dotted: newDotted }, target.staffIndex));
+        const event = measure?.events.find((e: any) => e.id === target.eventId);
+
+        if (event) {
+            // Skip if already in target state
+            if (!!event.dotted === targetState) return;
+            
+            if (canToggleEventDot(measure.events, target.eventId, currentQuantsPerMeasure)) {
+                dispatch(new UpdateEventCommand(target.measureIndex, target.eventId, { dotted: targetState }, target.staffIndex));
+            }
         }
     });
+    
+    // Sync tool UI (approximate)
+    if (tools.isDotted !== targetState) tools.handleDotToggle();
   }, [selection, tools, dispatch, scoreRef, currentQuantsPerMeasure]);
 
   const handleAccidentalToggle = useCallback((type: 'flat' | 'natural' | 'sharp' | null) => {
@@ -145,6 +183,13 @@ export const useModifiers = ({
 
     // Apply logic to finding target
     const targets = getNoteTargets(selection);
+    
+    // Entry Mode: Toggle tool state
+    if (targets.length === 0) {
+        tools.handleAccidentalToggle(type);
+        return;
+    }
+
     const score = scoreRef.current; // access current ref
 
     // 1. Determine consistency ("Are all selected notes already this type?")
@@ -207,14 +252,42 @@ export const useModifiers = ({
   }, [selection, tools, dispatch, scoreRef]);
 
   const handleTieToggle = useCallback(() => {
-    const newTie = tools.handleTieToggle();
     const targets = getNoteTargets(selection);
 
-    // Apply to all selected notes
+    // Entry Mode
+    if (targets.length === 0) {
+        tools.handleTieToggle();
+        return;
+    }
+
+    const score = scoreRef.current;
+
+    // 1. Fetch note objects
+    const noteObjects = targets.map(t => {
+        const staff = score.staves[t.staffIndex] || getActiveStaff(score);
+        const measure = staff.measures[t.measureIndex];
+        const event = measure?.events.find((e: any) => e.id === t.eventId);
+        return event?.notes.find((n: any) => n.id === t.noteId);
+    }).filter((n): n is any => !!n);
+
+    if (noteObjects.length === 0) return;
+
+    // 2. Determine target state
+    // "Use the same pattern for ties" -> If ANY tied, turn OFF.
+    const hasAnyTied = noteObjects.some(n => n.tied);
+    const targetState = !hasAnyTied;
+
+    // 3. Apply to all targets
     targets.forEach(target => {
-        dispatch(new UpdateNoteCommand(target.measureIndex, target.eventId, target.noteId, { tied: newTie }, target.staffIndex));
+        // We just dispatch. Note updates don't require measure-level validation usually (unless changing pitch/duration invalidates something else?)
+        // Ties don't affect duration. Safe.
+        dispatch(new UpdateNoteCommand(target.measureIndex, target.eventId, target.noteId, { tied: targetState }, target.staffIndex));
     });
-  }, [selection, tools, dispatch]);
+
+    // Sync tool UI
+    if (tools.activeTie !== targetState) tools.handleTieToggle();
+
+  }, [selection, tools, dispatch, scoreRef]);
 
   const checkDurationValidity = useCallback((targetDuration: string) => {
     if (selection.measureIndex === null || !selection.eventId) return true;

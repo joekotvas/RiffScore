@@ -42,7 +42,7 @@ export const calculateBeamingGroups = (events: any[], eventPositions: Record<str
         // 3. Type changes (e.g. 8th to 16th - simple engines often break here, complex ones don't)
         // 4. Rest
         
-        if (!isFlagged || event.dotted || event.isRest) {
+        if (!isFlagged || event.isRest) {
             finalizeGroup();
             currentQuant += durationQuants;
             return;

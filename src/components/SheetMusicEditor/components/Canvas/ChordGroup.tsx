@@ -20,8 +20,11 @@ import { isNoteSelected, areAllNotesSelected } from '../../utils/selection';
  */
 const getAccidentalSymbol = (note, keySignature) => {
   const info = needsAccidental(note.pitch, keySignature);
-  const show = info.show || note.accidental;
-  const type = note.accidental || info.type;
+  // Only show if the KEY requires it (standard notation).
+  // Note: We ignore note.accidental for *visibility* to avoid redundant accidentals (e.g. C# in D Major).
+  // If we want courtesy accidentals in the future, we should add a explicit 'courtesy' flag.
+  const show = info.show; 
+  const type = info.type;
 
   if (!show || !type) return null;
   

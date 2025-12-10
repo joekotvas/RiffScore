@@ -1,6 +1,8 @@
 import { useCallback, RefObject } from 'react';
 import { canAddEventToMeasure } from '../utils/validation';
 import { playNote } from '../engines/toneEngine';
+import { applyKeySignature } from '../services/MusicService';
+import { Note } from 'tonal';
 import { Score, getActiveStaff, createDefaultSelection, Selection } from '../types';
 import { Command } from '../commands/types';
 import { AddNoteCommand } from '../commands/NoteCommands';
@@ -52,19 +54,37 @@ export const useNoteActions = ({
   dispatch
 }: UseNoteActionsProps): UseNoteActionsReturn => {
 
-  const handleMeasureHover = useCallback((measureIndex: number | null, hit: any, pitch: string, staffIndex: number = 0) => {
+  const handleMeasureHover = useCallback((measureIndex: number | null, hit: any, rawPitch: string, staffIndex: number = 0) => {
     if (measureIndex === null || !hit) {
       setPreviewNote(null);
       return;
     }
 
-    // Checking if we should update selection staff index? 
-    // NO. User requested that hovering should NOT change selection.
-    // We only update previewNote.
-
-    const currentStaff = getActiveStaff(scoreRef.current, staffIndex);
+    const currentScore = scoreRef.current;
+    const currentStaff = getActiveStaff(currentScore, staffIndex);
     const measure = currentStaff.measures[measureIndex];
     
+    // --- PITCH CALCULATION ---
+    let finalPitch = rawPitch;
+    const keySig = currentStaff.keySignature || currentScore.keySignature || 'C';
+
+    if (activeAccidental) {
+        // User has explicit tool selected (Flat/Sharp/Natural)
+        // Apply ABSOLUTE accidental to the raw letter.
+        // e.g. "F4" + "flat" -> "Fb4" (Even in Key of G)
+        // e.g. "F4" + "sharp" -> "F#4"
+        const note = Note.get(rawPitch);
+        if (!note.empty && note.letter && note.oct !== undefined) {
+             if (activeAccidental === 'sharp') finalPitch = `${note.letter}#${note.oct}`;
+             else if (activeAccidental === 'flat') finalPitch = `${note.letter}b${note.oct}`;
+             else if (activeAccidental === 'natural') finalPitch = `${note.letter}${note.oct}`;
+        }
+    } else {
+        // Default: Snap to Key Signature
+        // e.g. "F4" in G Major -> "F#4"
+        finalPitch = applyKeySignature(rawPitch, keySig);
+    }
+
     let targetMeasureIndex = measureIndex;
     let targetIndex = hit.index;
     let targetMode = hit.type === 'EVENT' ? 'CHORD' : (hit.type === 'INSERT' ? 'INSERT' : 'APPEND');
@@ -97,16 +117,16 @@ export const useNoteActions = ({
     
     setPreviewNote({
       measureIndex: targetMeasureIndex,
-      staffIndex, // Pass staffIndex to preview note
+      staffIndex,
       quant: 0, 
       visualQuant: 0, 
-      pitch,
+      pitch: finalPitch, // Use calculated pitch
       duration: activeDuration,
       dotted: isDotted,
       mode: targetMode,
       index: targetIndex
     });
-  }, [activeDuration, isDotted, currentQuantsPerMeasure, scoreRef, setPreviewNote]);
+  }, [activeDuration, isDotted, currentQuantsPerMeasure, scoreRef, setPreviewNote, activeAccidental]);
 
   const addNoteToMeasure = useCallback((measureIndex: number, newNote: any, shouldAutoAdvance = false, placementOverride: any = null) => {
     const currentScore = scoreRef.current;
