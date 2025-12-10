@@ -133,8 +133,10 @@ const Measure: React.FC<MeasureProps> = ({
 
     if (hoveredMeasure && onAddNote) {
        // We'll trust the parent's `previewNote` state which serves as the "buffer" for the new note
-       // If previewNote exists and is on this measure, commit it.
-       if (previewNote && previewNote.measureIndex === measureIndex) {
+       // If previewNote exists and is on this measure OR is an overflow for the next measure, commit it.
+       const isOverflow = isLast && previewNote.measureIndex === measureIndex + 1;
+       
+       if (previewNote && (previewNote.measureIndex === measureIndex || isOverflow)) {
            onAddNote(measureIndex, previewNote, true);
        }
     }
