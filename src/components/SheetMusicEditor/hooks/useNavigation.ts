@@ -21,15 +21,12 @@ interface UseNavigationProps {
 }
 
 interface UseNavigationReturn {
-  handleNoteSelection: (measureIndex: number, eventId: string | number, noteId: string | number | null, staffIndex?: number, isMulti?: boolean) => void;
+  handleNoteSelection: (measureIndex: number, eventId: string | number, noteId: string | number | null, staffIndex?: number, isMulti?: boolean, selectAllInEvent?: boolean, isShift?: boolean) => void;
   moveSelection: (direction: string, isShift: boolean) => void;
   transposeSelection: (direction: string, isShift: boolean) => void;
   switchStaff: (direction: 'up' | 'down') => void;
 }
 
-/**
- * Hook for navigation actions: selection, arrow key navigation, and transposition.
- */
 export const useNavigation = ({
   scoreRef,
   selection,
@@ -43,134 +40,216 @@ export const useNavigation = ({
   dispatch
 }: UseNavigationProps): UseNavigationReturn => {
 
-  const handleNoteSelection = useCallback((measureIndex: number, eventId: string | number, noteId: string | number | null, staffIndex: number = 0, isMulti: boolean = false) => {
+  // --- Internal Helpers ---
+
+  /** Plays all notes in a given list or event for auditory feedback. */
+  const playAudioFeedback = useCallback((notes: any[]) => {
+      notes.forEach(n => playNote(n.pitch));
+  }, []);
+
+  /** Handles the logic for Shift+Arrow selection (Range Extension). */
+  const getRangeSelection = (newFocus: Selection, currentSelection: Selection, score: Score): Selection => {
+      // 1. Establish Anchor (default to current selection if none exists)
+      const anchor = currentSelection.anchor || {
+          staffIndex: currentSelection.staffIndex || 0,
+          measureIndex: currentSelection.measureIndex!,
+          eventId: currentSelection.eventId!,
+          noteId: currentSelection.noteId
+      };
+
+      // 2. Define Focus (where the cursor moved to)
+      const focus = {
+          staffIndex: newFocus.staffIndex || 0,
+          measureIndex: newFocus.measureIndex!,
+          eventId: newFocus.eventId!,
+          noteId: newFocus.noteId
+      };
+
+      // 3. Calculate Range (Linearize score to find notes between anchor and focus)
+      const linearNotes = getLinearizedNotes(score);
+      const selectedNotes = calculateNoteRange(anchor, focus, linearNotes);
+
+      return {
+          ...newFocus,
+          anchor, // Anchor persists during shift-selection
+          selectedNotes
+      };
+  };
+
+  /** Handles the logic for Standard Arrow selection (Moving Cursor). */
+  const getStandardSelection = (newFocus: Selection, currentSelection: Selection, score: Score): Selection => {
+      const isSameEvent = newFocus.eventId === currentSelection.eventId &&
+                          newFocus.measureIndex === currentSelection.measureIndex &&
+                          newFocus.staffIndex === currentSelection.staffIndex;
+
+      // Case A: Drill Down (Moving within the same chord) -> Select single note
+      if (isSameEvent && newFocus.noteId) {
+          return {
+              ...newFocus,
+              anchor: null,
+              selectedNotes: [{
+                  staffIndex: newFocus.staffIndex || 0,
+                  measureIndex: newFocus.measureIndex!,
+                  eventId: newFocus.eventId!,
+                  noteId: newFocus.noteId
+              }]
+          };
+      }
+
+      // Case B: Traverse (Moving to new event) -> Select ALL notes in target event
+      const targetStaff = score.staves[newFocus.staffIndex || 0];
+      const targetEvent = targetStaff?.measures[newFocus.measureIndex!]?.events.find(e => e.id === newFocus.eventId);
+      
+      const targetNotes = targetEvent?.notes 
+          ? targetEvent.notes.map(n => ({
+              staffIndex: newFocus.staffIndex || 0,
+              measureIndex: newFocus.measureIndex!,
+              eventId: newFocus.eventId!,
+              noteId: n.id
+            }))
+          : [];
+
+      return {
+          ...newFocus,
+          anchor: null, // Clear anchor on standard move
+          selectedNotes: targetNotes
+      };
+  };
+
+
+  // --- Public Handlers ---
+
+  const handleNoteSelection = useCallback((
+    measureIndex: number, 
+    eventId: string | number, 
+    noteId: string | number | null, 
+    staffIndex: number = 0, 
+    isMulti: boolean = false, 
+    selectAllInEvent: boolean = false,
+    isShift: boolean = false
+  ) => {
+    // 1. Handle Empty Selection
     if (!eventId) { 
        setSelection(prev => ({ ...createDefaultSelection(), staffIndex: prev.staffIndex }));
        syncToolbarState(null, null, null, staffIndex);
        return; 
     }
 
-    setSelection(prev => {
-        return toggleNoteInSelection(prev, { staffIndex, measureIndex, eventId, noteId }, isMulti);
-    });
+    const measure = getActiveStaff(scoreRef.current, staffIndex).measures[measureIndex];
+    const event = measure?.events.find((e: any) => e.id === eventId);
+    if (!event) return;
 
+    // 2. Handle Shift+Click (Range Selection)
+    if (isShift) {
+        const clickedFocus: Selection = {
+            staffIndex,
+            measureIndex,
+            eventId,
+            noteId: noteId || event.notes[0]?.id,
+            selectedNotes: [],
+            anchor: null
+        };
+        
+        const rangeSelection = getRangeSelection(clickedFocus, selection, scoreRef.current);
+        setSelection(rangeSelection);
+        syncToolbarState(measureIndex, eventId, noteId || event.notes[0]?.id, staffIndex);
+        return;
+    }
+
+    // 3. Handle "Select All" (e.g. clicking the event stem/body)
+    if (selectAllInEvent && event.notes?.length > 0) {
+        const allNotes = event.notes.map((n: any) => ({
+            staffIndex, measureIndex, eventId, noteId: n.id
+        }));
+
+        setSelection({
+            staffIndex,
+            measureIndex,
+            eventId,
+            noteId: noteId || event.notes[0].id, // Focus defaults to clicked note or first
+            selectedNotes: allNotes,
+            anchor: null
+        });
+        
+        syncToolbarState(measureIndex, eventId, noteId || event.notes[0].id, staffIndex);
+        playAudioFeedback(event.notes);
+        return;
+    } 
+
+    // 4. Handle Standard Toggle (Single or Multi-select)
+    setSelection(prev => toggleNoteInSelection(prev, { staffIndex, measureIndex, eventId, noteId }, isMulti));
     syncToolbarState(measureIndex, eventId, noteId, staffIndex);
 
-    // Play Selection
-    // Only play if we are adding it (not toggling off, theoretically, but playing on click is good feedback regardless)
-    const measure = getActiveStaff(scoreRef.current, staffIndex).measures[measureIndex];
-    if (measure) {
-        const event = measure.events.find((e: any) => e.id === eventId);
-        if (event) {
-            const keySignature = getActiveStaff(scoreRef.current, staffIndex).keySignature || 'C';
-            if (noteId) {
-                const note = event.notes.find((n: any) => n.id === noteId);
-                if (note) playNote(note.pitch);
-            } else {
-                event.notes.forEach((n: any) => playNote(n.pitch));
-            }
-        }
+    // Audio Feedback
+    if (noteId) {
+        const note = event.notes.find((n: any) => n.id === noteId);
+        if (note) playAudioFeedback([note]);
+    } else {
+        playAudioFeedback(event.notes);
     }
-  }, [setSelection, syncToolbarState, scoreRef]);
+  }, [setSelection, syncToolbarState, scoreRef, playAudioFeedback]);
+
 
   const moveSelection = useCallback((direction: string, isShift: boolean = false) => {
-    // 1. Calculate the new "Focus" point
-    const result = calculateNextSelection(
-        getActiveStaff(scoreRef.current, selection.staffIndex || 0).measures,
+    const activeStaff = getActiveStaff(scoreRef.current, selection.staffIndex || 0);
+
+    // 1. Calculate the hypothetical next position
+    const navResult = calculateNextSelection(
+        activeStaff.measures,
         selection,
         direction,
         previewNote,
         activeDuration,
         isDotted,
         currentQuantsPerMeasure,
-        getActiveStaff(scoreRef.current, selection.staffIndex || 0).clef,
+        activeStaff.clef,
         selection.staffIndex || 0
     );
 
-    if (result) {
-        if (result.selection) {
-            let newSelection = result.selection;
+    if (!navResult) return;
 
-            if (isShift) {
-                // ANCHOR LOGIC
-                // 1. Establish Anchor if not present (using previous selection as anchor)
-                const currentAnchor = selection.anchor || {
-                    staffIndex: selection.staffIndex,
-                    measureIndex: selection.measureIndex!,
-                    eventId: selection.eventId!,
-                    noteId: selection.noteId
-                };
+    // 2. Process Selection Update
+    if (navResult.selection) {
+        const nextSelection = isShift 
+            ? getRangeSelection(navResult.selection, selection, scoreRef.current)
+            : getStandardSelection(navResult.selection, selection, scoreRef.current);
 
-                // 2. Determine Focus (the NEW selection point)
-                const focus = {
-                    staffIndex: newSelection.staffIndex,
-                    measureIndex: newSelection.measureIndex!,
-                    eventId: newSelection.eventId!,
-                    noteId: newSelection.noteId
-                };
-
-                // 3. Calculate Range
-                // We need the WHOLE score to linearize it properly across measures
-                // Note: This could be optimized to not linearize on every keypress if performance is an issue,
-                // but for typical scores it's fine.
-                const linearNotes = getLinearizedNotes(scoreRef.current);
-                const range = calculateNoteRange(currentAnchor, focus, linearNotes);
-
-                // 4. Update Selection
-                // - Cursor stays at Focus (newSelection)
-                // - Anchor persists
-                // - selectedNotes = the calculated range
-                newSelection = {
-                    ...newSelection,
-                    anchor: currentAnchor,
-                    selectedNotes: range
-                };
-            } else {
-                // STANDARD NAVIGATION
-                // Clear anchor and extended selection
-                newSelection = {
-                    ...newSelection,
-                    anchor: null,
-                    selectedNotes: []
-                };
-            }
-
-            setSelection(newSelection);
-            
-            // Sync toolbar with the new "cursor"
-            syncToolbarState(newSelection.measureIndex, newSelection.eventId, newSelection.noteId, newSelection.staffIndex || 0);
-        }
-        
-        if (result.previewNote !== undefined) {
-            setPreviewNote(result.previewNote);
-        }
-
-        if (result.shouldCreateMeasure) {
-             dispatch(new AddMeasureCommand());
-        }
-
-        const audio = result.audio;
-        if (audio) {
-            const keySignature = getActiveStaff(scoreRef.current, selection.staffIndex || 0).keySignature || 'C';
-            audio.notes.forEach((n: any) => playNote(n.pitch));
-        }
+        setSelection(nextSelection);
+        syncToolbarState(
+            nextSelection.measureIndex, 
+            nextSelection.eventId, 
+            nextSelection.noteId, 
+            nextSelection.staffIndex || 0
+        );
     }
-  }, [selection, previewNote, activeDuration, isDotted, currentQuantsPerMeasure, scoreRef, dispatch, setSelection, setPreviewNote, syncToolbarState]);
+    
+    // 3. Process Side Effects (Preview, Measures, Audio)
+    if (navResult.previewNote !== undefined) {
+        setPreviewNote(navResult.previewNote);
+    }
+
+    if (navResult.shouldCreateMeasure) {
+         dispatch(new AddMeasureCommand());
+    }
+
+    if (navResult.audio) {
+        playAudioFeedback(navResult.audio.notes);
+    }
+  }, [selection, previewNote, activeDuration, isDotted, currentQuantsPerMeasure, scoreRef, dispatch, setSelection, setPreviewNote, syncToolbarState, playAudioFeedback]);
+
 
   const transposeSelection = useCallback((direction: string, isShift: boolean) => {
-    // Calculate semitones based on direction and shift
-    // Up = 1, Down = -1. Shift = Octave (12)
+    // 1. Determine Semitone Shift (Up/Down = +/-1, Shift = +/- Octave)
     let semitones = 0;
     if (direction === 'up') semitones = isShift ? 12 : 1;
     if (direction === 'down') semitones = isShift ? -12 : -1;
-
     if (semitones === 0) return;
 
-    // Handle Preview Note Transposition (Ghost Note)
-    // If no selection exists but a preview note does, we adjust the preview note pitch directly
+    const activeStaff = getActiveStaff(scoreRef.current, selection.staffIndex || 0);
+
+    // 2. Scenario A: Transposing a "Ghost Note" (Preview Cursor)
     if (selection.eventId === null && previewNote) {
-        const activeStaff = getActiveStaff(scoreRef.current, selection.staffIndex || 0);
-        const result = calculateTranspositionWithPreview(
+        const previewResult = calculateTranspositionWithPreview(
             activeStaff.measures,
             selection,
             previewNote,
@@ -179,26 +258,21 @@ export const useNavigation = ({
             activeStaff.clef
         );
         
-        if (result && result.previewNote) {
-            setPreviewNote(result.previewNote);
-            
-            if (result.audio) {
-                const keySig = activeStaff.keySignature || 'C';
-                result.audio.notes.forEach((n: any) => playNote(n.pitch));
-            }
+        if (previewResult?.previewNote) {
+            setPreviewNote(previewResult.previewNote);
+            if (previewResult.audio) playAudioFeedback(previewResult.audio.notes);
         }
         return;
     }
 
-    // Dispatch command
-    const keySignature = getActiveStaff(scoreRef.current).keySignature || 'C';
+    // 3. Scenario B: Transposing Real Selection
+    // Dispatch Command
+    const keySignature = activeStaff.keySignature || 'C';
     dispatch(new TransposeSelectionCommand(selection, semitones, keySignature));
 
-    // Preview audio for selection change
-    const activeStaff = getActiveStaff(scoreRef.current, selection.staffIndex || 0);
+    // Calculate Audio Preview
     if (selection.measureIndex !== null && selection.eventId) {
-         // Use the utility just for audio preview
-         const result = calculateTranspositionWithPreview(
+         const audioResult = calculateTranspositionWithPreview(
             activeStaff.measures,
             selection,
             previewNote,
@@ -207,69 +281,56 @@ export const useNavigation = ({
             activeStaff.clef
         );
         
-        if (result && result.audio) {
-            const audio = result.audio;
-            const keySig = activeStaff.keySignature || 'C';
-            audio.notes.forEach((n: any) => playNote(n.pitch));
-        }
+        if (audioResult?.audio) playAudioFeedback(audioResult.audio.notes);
     }
-  }, [selection, previewNote, scoreRef, dispatch, setPreviewNote]);
+  }, [selection, previewNote, scoreRef, dispatch, setPreviewNote, playAudioFeedback]);
+
 
   const switchStaff = useCallback((direction: 'up' | 'down') => {
     const numStaves = scoreRef.current.staves?.length || 1;
-    if (numStaves <= 1) return; // Can't switch if only one staff
+    if (numStaves <= 1) return;
     
-    // Try smart cross-staff selection first
-    // Try smart cross-staff selection first
+    // 1. Attempt Smart Cross-Staff Selection (maintains rhythmic position)
     if (selection.eventId) {
-        const result = calculateCrossStaffSelection(scoreRef.current, selection, direction, activeDuration, isDotted);
-        if (result && result.selection) {
-            setSelection(result.selection);
-            syncToolbarState(result.selection.measureIndex, result.selection.eventId, result.selection.noteId, result.selection.staffIndex);
+        const crossResult = calculateCrossStaffSelection(scoreRef.current, selection, direction, activeDuration, isDotted);
+        
+        if (crossResult && crossResult.selection) {
+            setSelection(crossResult.selection);
+            syncToolbarState(
+                crossResult.selection.measureIndex, 
+                crossResult.selection.eventId, 
+                crossResult.selection.noteId, 
+                crossResult.selection.staffIndex
+            );
             
-            // Set Preview Note (Cursor) logic
-            if (result.previewNote) {
-                setPreviewNote(result.previewNote);
-            } else {
-                setPreviewNote(null);
-            }
-            
-            // Audio Feedback (Only if we selected an actual event)
-            if (result.selection.eventId && result.selection.measureIndex !== null) {
-                const staff = getActiveStaff(scoreRef.current, result.selection.staffIndex);
-                const measure = staff.measures[result.selection.measureIndex];
-                if (measure) {
-                    const event = measure.events.find((e: any) => e.id === result.selection.eventId);
-                    if (event) {
-                        event.notes.forEach((n: any) => playNote(n.pitch));
-                    }
-                }
+            setPreviewNote(crossResult.previewNote || null);
+
+            // Audio Feedback
+            if (crossResult.selection.eventId && crossResult.selection.measureIndex !== null) {
+                const staff = getActiveStaff(scoreRef.current, crossResult.selection.staffIndex);
+                const event = staff.measures[crossResult.selection.measureIndex]?.events.find(e => e.id === crossResult.selection.eventId);
+                if (event) playAudioFeedback(event.notes);
             }
             return;
         }
     }
 
-    // Fallback: Just switch staff index
-    const currentStaffIndex = selection.staffIndex || 0;
-    let newStaffIndex = currentStaffIndex;
+    // 2. Fallback: Simple Staff Index Switch
+    const currentIdx = selection.staffIndex || 0;
+    let newIdx = currentIdx;
     
-    if (direction === 'up' && currentStaffIndex > 0) {
-      newStaffIndex = currentStaffIndex - 1;
-    } else if (direction === 'down' && currentStaffIndex < numStaves - 1) {
-      newStaffIndex = currentStaffIndex + 1;
-    }
+    if (direction === 'up' && currentIdx > 0) newIdx--;
+    else if (direction === 'down' && currentIdx < numStaves - 1) newIdx++;
     
-    if (newStaffIndex !== currentStaffIndex) {
+    if (newIdx !== currentIdx) {
       setSelection({
         ...createDefaultSelection(),
-        staffIndex: newStaffIndex,
-        measureIndex: selection.measureIndex,
-        eventId: null,
-        noteId: null
+        staffIndex: newIdx,
+        measureIndex: selection.measureIndex // Keep measure index if possible
       });
-      syncToolbarState(null, null, null, newStaffIndex);
+      syncToolbarState(null, null, null, newIdx);
     }
-  }, [selection, scoreRef, setSelection, syncToolbarState]);
+  }, [selection, scoreRef, setSelection, syncToolbarState, activeDuration, isDotted, playAudioFeedback, setPreviewNote]);
 
   return {
     handleNoteSelection,

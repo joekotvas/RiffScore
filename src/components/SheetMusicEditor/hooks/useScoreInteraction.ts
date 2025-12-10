@@ -20,7 +20,7 @@ interface UseScoreInteractionProps {
   scoreRef: React.MutableRefObject<any>;
   selection: Selection; 
   onUpdatePitch: (measureIndex: number, eventId: string | number, noteId: string | number, newPitch: string) => void;
-  onSelectNote: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndex?: number, isMulti?: boolean) => void;
+  onSelectNote: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndex?: number, isMulti?: boolean, selectAllInEvent?: boolean, isShift?: boolean) => void;
 }
 
 export const useScoreInteraction = ({ scoreRef, selection, onUpdatePitch, onSelectNote }: UseScoreInteractionProps) => {
@@ -46,9 +46,11 @@ export const useScoreInteraction = ({ scoreRef, selection, onUpdatePitch, onSele
       startPitch: string;
       startY: number;
       isMulti?: boolean;
+      isShift?: boolean;
+      selectAllInEvent?: boolean;
       staffIndex?: number;
     }) => {
-        const { measureIndex, eventId, noteId, startPitch, startY, isMulti = false, staffIndex = 0 } = params;
+        const { measureIndex, eventId, noteId, startPitch, startY, isMulti = false, isShift = false, selectAllInEvent = false, staffIndex = 0 } = params;
         
         mouseDownTime.current = Date.now();
         
@@ -67,12 +69,21 @@ export const useScoreInteraction = ({ scoreRef, selection, onUpdatePitch, onSele
 
         const isNoteInSelection = isNoteSelected(selection, { staffIndex, measureIndex, eventId, noteId });
 
-        if (isNoteInSelection) {
-            // Multi-move
+        if (isNoteInSelection && selection.selectedNotes && selection.selectedNotes.length > 0) {
+            // Multi-move: capture all currently selected notes
             selection.selectedNotes.forEach((n: any) => {
                 const p = getPitch(n.staffIndex, n.measureIndex, n.eventId, n.noteId);
                 if (p) initialPitches.set(String(n.noteId), p);
             });
+        } else if (selectAllInEvent) {
+            // Selecting all notes in event - capture all of them for drag
+            const measure = scoreRef.current.staves[staffIndex]?.measures[measureIndex];
+            const event = measure?.events.find((ev: any) => String(ev.id) === String(eventId));
+            if (event && event.notes) {
+                event.notes.forEach((n: any) => {
+                    if (n.pitch) initialPitches.set(String(n.id), n.pitch);
+                });
+            }
         } else {
             // Single move
             initialPitches.set(String(noteId), startPitch);
@@ -91,8 +102,8 @@ export const useScoreInteraction = ({ scoreRef, selection, onUpdatePitch, onSele
         });
         
         // Optimistic selection update on mouse down
-        onSelectNote(measureIndex, eventId, noteId, staffIndex, isMulti);
-    }, [onSelectNote]);
+        onSelectNote(measureIndex, eventId, noteId, staffIndex, isMulti, selectAllInEvent, isShift);
+    }, [onSelectNote, selection, scoreRef]);
 
     useEffect(() => {
         if (!dragState.active) return;
@@ -111,30 +122,25 @@ export const useScoreInteraction = ({ scoreRef, selection, onUpdatePitch, onSele
             const currentStaff = currentScore?.staves?.[dragState.staffIndex];
             const keySignature = currentStaff?.keySignature || 'C';
     
-            // Perform bulk update
-            dragState.initialPitches.forEach((pStart: string, pUserId: string) => {
+            // Perform bulk update - use dragState context for same-event drags
+            dragState.initialPitches.forEach((pStart: string, noteIdStr: string) => {
                 const newP = movePitchVisual(pStart, steps, keySignature);
                 
-                // Find note context from selection (inefficient look up but okay for small selections)
-                // We stored pUserId = noteId.
-                // But onUpdatePitch needs measureIndex, eventId...
-                // We iterate selection.selectedNotes to match noteId?
-                // Or if single move, we use dragging params.
-                
-                // Better approach: We iterate selection.selectedNotes
-                // But wait, if single move, note wasn't in selection?
-                // If single move, dragged note is in initialPitches.
-                
-                // Let's use selection if available, or fallback to dragged note params.
-                if (selection.selectedNotes && selection.selectedNotes.length > 0 && dragState.initialPitches.size > 1) {
-                     const noteInfo = selection.selectedNotes.find((n: any) => String(n.noteId) === pUserId);
-                     if (noteInfo) {
-                         onUpdatePitch(noteInfo.measureIndex, noteInfo.eventId, noteInfo.noteId, newP);
-                     }
-                } else {
-                     if (dragState.measureIndex !== null && dragState.eventId && dragState.noteId) {
-                        onUpdatePitch(dragState.measureIndex, dragState.eventId, dragState.noteId, newP);
-                     }
+                // Check if this is a multi-event selection by looking at selection state
+                // If selection contains notes from different events, use selection to find context
+                // Otherwise, all notes share the same event as dragState
+                if (selection.selectedNotes && selection.selectedNotes.length > 1) {
+                    // Multi-select: find note in selection for its context
+                    const noteInfo = selection.selectedNotes.find((n: any) => String(n.noteId) === noteIdStr);
+                    if (noteInfo) {
+                        onUpdatePitch(noteInfo.measureIndex, noteInfo.eventId, noteInfo.noteId, newP);
+                    } else if (dragState.measureIndex !== null && dragState.eventId) {
+                        // Fallback: note is in same event as drag target
+                        onUpdatePitch(dragState.measureIndex, dragState.eventId, noteIdStr, newP);
+                    }
+                } else if (dragState.measureIndex !== null && dragState.eventId) {
+                    // Single event: all notes share dragState context
+                    onUpdatePitch(dragState.measureIndex, dragState.eventId, noteIdStr, newP);
                 }
             });
 

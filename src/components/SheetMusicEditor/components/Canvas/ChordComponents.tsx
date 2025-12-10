@@ -32,12 +32,14 @@ export const ChordAccidental = ({ x, y, symbol, color }: { x: number, y: number,
  * Invisible hit area for easier clicking on notes.
  * Placed on top of other elements to capture events.
  */
-export const NoteHitArea = ({ x, y, onClick, onMouseDown, cursor }: { 
+export const NoteHitArea = ({ x, y, onClick, onMouseDown, onDoubleClick, cursor, ...rest }: { 
     x: number, 
     y: number, 
     onClick: (e: React.MouseEvent) => void, 
     onMouseDown: (e: React.MouseEvent) => void, 
-    cursor: string 
+    onDoubleClick?: (e: React.MouseEvent) => void, 
+    cursor: string,
+    'data-testid'?: string
 }) => (
   <rect
     x={x}
@@ -49,5 +51,7 @@ export const NoteHitArea = ({ x, y, onClick, onMouseDown, cursor }: {
     style={{ cursor }}
     onClick={onClick}
     onMouseDown={onMouseDown}
+    onDoubleClick={onDoubleClick}
+    data-testid={rest['data-testid']}
   />
 );

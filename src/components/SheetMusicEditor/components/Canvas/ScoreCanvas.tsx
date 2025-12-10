@@ -76,13 +76,10 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       scoreRef,
       selection,
       onUpdatePitch: (m: number, e: string | number, n: string | number, p: string) => updateNotePitch(m, e, n, p),
-      onSelectNote: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndexParam?: number, isMulti?: boolean) => {
+      onSelectNote: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndexParam?: number, isMulti?: boolean, selectAllInEvent?: boolean, isShift?: boolean) => {
           if (measureIndex !== null && eventId !== null) {
-              // Ensure we use the passed staffIndex if present, otherwise default to 0? 
-              // Actually, useScoreInteraction passes what we give it.
-              // Logic check: useScoreInteraction calls this callback.
               const targetStaff = staffIndexParam !== undefined ? staffIndexParam : 0;
-              handleNoteSelection(measureIndex, eventId, noteId, targetStaff, isMulti);
+              handleNoteSelection(measureIndex, eventId, noteId, targetStaff, isMulti, selectAllInEvent, isShift);
           }
           setPreviewNote(null);
       }

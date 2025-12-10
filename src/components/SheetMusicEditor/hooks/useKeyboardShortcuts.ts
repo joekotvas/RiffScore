@@ -49,9 +49,9 @@ export const useKeyboardShortcuts = (logic: any, playback: any, meta: UIState, h
             }
         }
 
-        // 0. Selection Clearing (Esc) and Playback Pause
         if (e.key === 'Escape') {
             e.preventDefault(); // Prevent default browser behavior for Escape key
+            console.log('ESC Pressed. Focused:', document.activeElement?.getAttribute('data-testid'));
 
             // First priority: Pause playback if playing
             if (playback.isPlaying) {
@@ -72,14 +72,34 @@ export const useKeyboardShortcuts = (logic: any, playback: any, meta: UIState, h
                 const event = measure.events.find((ev: any) => ev.id === selection.eventId);
                 
                 if (event && event.notes.length > 1) {
-                    // If part of a chord, select the whole chord
-                    setSelection({ ...selection, noteId: null });
-                } else {
-                    // If single note (not chord), clear selection entirely
-                    setSelection({ staffIndex: 0, measureIndex: null, eventId: null, noteId: null, selectedNotes: [] });
+                    // Check if we already have ALL notes selected
+                    const allSelected = event.notes.every((n: any) => {
+                         if (String(n.id) === String(selection.noteId)) return true;
+                         return selection.selectedNotes.some((sn: any) => String(sn.noteId) === String(n.id));
+                    });
+
+                    if (!allSelected) {
+                        // Select ALL notes in the chord
+                        // We keep the current focus (noteId) but add everyone else to selectedNotes
+                        const allNoteSelections = event.notes.map((n: any) => ({
+                            staffIndex: selection.staffIndex || 0,
+                            measureIndex: selection.measureIndex!,
+                            eventId: selection.eventId!,
+                            noteId: n.id
+                        }));
+                        
+                        setSelection({
+                            ...selection,
+                            selectedNotes: allNoteSelections
+                        });
+                        return;
+                    }
                 }
+                
+                // If all selected OR single note, clear selection
+                setSelection({ staffIndex: 0, measureIndex: null, eventId: null, noteId: null, selectedNotes: [] });
             } else if (selection.eventId) {
-                // If event is selected, clear selection
+                // If event is selected (fallback for rests), clear selection
                 setSelection({ staffIndex: 0, measureIndex: null, eventId: null, noteId: null, selectedNotes: [] });
             }
             return;

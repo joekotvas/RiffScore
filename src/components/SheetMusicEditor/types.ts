@@ -180,13 +180,13 @@ export interface Selection {
       staffIndex: number;
       measureIndex: number;
       eventId: string | number;
-      noteId: string | number;
+      noteId: string | number | null;
   }>;
   anchor?: {                       // The static "anchor" point for range selection
       staffIndex: number;
       measureIndex: number;
       eventId: string | number;
-      noteId: string | number;
+      noteId: string | number | null;
   } | null;
 }
 

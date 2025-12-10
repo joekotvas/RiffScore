@@ -8,7 +8,7 @@ import { calculateStemGeometry } from '../../engines/layout/stems';
 import { needsAccidental } from '../../services/MusicService';
 import { Note, renderFlags } from './Note';
 import { ChordStem, ChordAccidental, NoteHitArea } from './ChordComponents';
-import { isNoteSelected } from '../../utils/selection';
+import { isNoteSelected, areAllNotesSelected } from '../../utils/selection';
 
 // --- Helper Functions (Pure Logic) ---
 
@@ -82,7 +82,8 @@ const ChordGroup = ({
   const { baseY, clef, keySignature, staffIndex } = layout;
   const { 
     selection, 
-    onDragStart, 
+    onDragStart,
+    onSelectNote, 
     modifierHeld, 
     activeDuration, 
     isDotted: activeDotted, 
@@ -111,7 +112,7 @@ const ChordGroup = ({
 
   // Selection Logic
   const isEventSelected = !isGhost && selection.measureIndex === measureIndex && selection.eventId === eventId;
-  const isWholeChordSelected = isEventSelected && !selection.noteId;
+  const isWholeChordSelected = !isGhost && areAllNotesSelected(selection, staffIndex, measureIndex, eventId, notes);
   const groupColor = isGhost ? theme.accent : (isWholeChordSelected ? theme.accent : theme.score.note);
 
   // Filter Logic
@@ -135,11 +136,13 @@ const ChordGroup = ({
     onNoteHover?.(false);
   }, [onNoteHover]);
 
+  // Single Click: Select ALL notes in the event (whole chord)
+  // Shift+Click: Range select from anchor to clicked note
   const handleNoteMouseDown = useCallback((e, note) => {
-    // onDragStart is now from interaction context
     if (isGhost || !onDragStart) return;
     e.stopPropagation();
     const isModifier = e.metaKey || e.ctrlKey;
+    const isShift = e.shiftKey;
     onDragStart({
         measureIndex, 
         eventId, 
@@ -147,23 +150,37 @@ const ChordGroup = ({
         startPitch: note.pitch, 
         startY: e.clientY, 
         isMulti: isModifier,
-        staffIndex: staffIndex // Pass correct staffIndex
+        isShift: isShift, // For range selection
+        selectAllInEvent: !isModifier && !isShift, // Select all unless modifier or shift held
+        staffIndex: staffIndex
     });
   }, [isGhost, onDragStart, measureIndex, eventId, staffIndex]);
 
+  // Double Click: Select ONLY the clicked note (drill down) - NO drag
+  const handleNoteDoubleClick = useCallback((e, note) => {
+    if (isGhost || !onSelectNote) return;
+    e.stopPropagation();
+    // Use onSelectNote directly to select single note without triggering drag
+    onSelectNote(measureIndex, eventId, note.id, staffIndex, false, false);
+  }, [isGhost, onSelectNote, measureIndex, eventId, staffIndex]);
+
+  // Clicking the chord group background (stem area)
   const handleChordClick = useCallback((e) => {
     if (isGhost || !onDragStart) return;
     e.stopPropagation();
+    const isModifier = e.metaKey || e.ctrlKey;
     onDragStart({
         measureIndex, 
         eventId, 
-        noteId: null, 
+        noteId: notes[0]?.id, 
         startPitch: null, 
         startY: e.clientY, 
-        isMulti: e.metaKey || e.ctrlKey,
-        staffIndex: staffIndex // Pass correct staffIndex
+        isMulti: isModifier,
+        selectAllInEvent: !isModifier, // Select all notes when clicking stem
+        staffIndex: staffIndex
     });
-  }, [isGhost, onDragStart, measureIndex, eventId, staffIndex]);
+  }, [isGhost, onDragStart, measureIndex, eventId, staffIndex, notes]);
+
 
   // 3. Render
   const shouldRenderFlags = renderStem && !beamSpec && ['eighth', 'sixteenth', 'thirtysecond', 'sixtyfourth'].includes(duration);
@@ -266,6 +283,8 @@ const ChordGroup = ({
               cursor={!isGhost ? (modifierHeld ? 'pointer' : 'crosshair') : 'default'}
               onClick={(e) => !isGhost && e.stopPropagation()}
               onMouseDown={(e) => handleNoteMouseDown(e, note)}
+              onDoubleClick={(e) => handleNoteDoubleClick(e, note)}
+              data-testid={`note-${note.id}`}
             />
           </g>
         );

@@ -1,15 +1,6 @@
 
 import { Selection, createDefaultSelection, Score, Staff, Measure } from '../types';
 
-/**
- * Robustly compares two IDs (string or number)
- */
-export const compareIds = (id1: string | number | null | undefined, id2: string | number | null | undefined): boolean => {
-    if (id1 == null && id2 == null) return true; // Both null or undefined
-    if (id1 == null || id2 == null) return false; // One is nullish
-    return String(id1) === String(id2);
-};
-
 interface NoteContext {
     staffIndex: number;
     measureIndex: number;
@@ -18,24 +9,24 @@ interface NoteContext {
 }
 
 /**
+ * Robustly compares two IDs.
+ * Handles loose equality for string/number mismatches, but strict on null/undefined.
+ */
+export const compareIds = (id1: string | number | null | undefined, id2: string | number | null | undefined): boolean => {
+    // Treat null and undefined as equal to each other
+    if (id1 == null && id2 == null) return true;
+    if (id1 == null || id2 == null) return false;
+    return String(id1) === String(id2);
+};
+
+/**
  * Checks if a specific note is currently selected.
- * Handles both primary selection (cursor) and multi-selection list.
+ * Prioritizes the multi-selection list if it exists to ensure visual consistency.
  */
 export const isNoteSelected = (selection: Selection, context: NoteContext): boolean => {
     const { staffIndex, measureIndex, eventId, noteId } = context;
 
-    // 1. Check Primary Selection (Cursor)
-    const isPrimaryEventMatch = 
-        compareIds(selection.eventId, eventId) && 
-        selection.measureIndex === measureIndex &&
-        (selection.staffIndex === undefined || selection.staffIndex === staffIndex);
-
-    if (isPrimaryEventMatch) {
-        if (!selection.noteId) return true; // Whole event selected
-        if (compareIds(selection.noteId, noteId)) return true; // Specific note match
-    }
-
-    // 2. Check Multi-Selection List
+    // 1. Check Multi-Selection List (Source of Truth for Multi)
     if (selection.selectedNotes && selection.selectedNotes.length > 0) {
         return selection.selectedNotes.some(sn => 
             compareIds(sn.noteId, noteId) &&
@@ -45,12 +36,26 @@ export const isNoteSelected = (selection: Selection, context: NoteContext): bool
         );
     }
 
-    return false;
+    // 2. Fallback: Check Primary Selection (Cursor) for Single Select
+    return (
+        compareIds(selection.eventId, eventId) && 
+        compareIds(selection.noteId, noteId) &&
+        selection.measureIndex === measureIndex &&
+        (selection.staffIndex === undefined || selection.staffIndex === staffIndex)
+    );
+};
+
+/**
+ * Checks if all provided notes in an event are selected.
+ */
+export const areAllNotesSelected = (selection: Selection, staffIndex: number, measureIndex: number, eventId: string | number, notes: any[]): boolean => {
+    if (!notes || notes.length === 0) return false;
+    return notes.every(note => isNoteSelected(selection, { staffIndex, measureIndex, eventId, noteId: note.id }));
 };
 
 /**
  * Calculates the new selection state when toggling a note.
- * Handles single-select vs multi-select logic.
+ * FIX: Ensures Event/Measure context updates when focus shifts to a different note.
  */
 export const toggleNoteInSelection = (
     prevSelection: Selection, 
@@ -59,25 +64,38 @@ export const toggleNoteInSelection = (
 ): Selection => {
     const { staffIndex, measureIndex, eventId, noteId } = context;
 
-    if (!eventId) {
+    if (!eventId || !noteId) {
         return { ...createDefaultSelection(), staffIndex };
     }
 
-    // Initialize list: preserve existing if multi, or reset if single
-    let newSelectedNotes = isMulti ? (prevSelection.selectedNotes ? [...prevSelection.selectedNotes] : []) : [];
+    // 1. Single Selection Mode (Simple Replace)
+    if (!isMulti) {
+        return {
+            staffIndex,
+            measureIndex,
+            eventId,
+            noteId,
+            selectedNotes: [{ staffIndex, measureIndex, eventId, noteId }],
+            anchor: null // Reset anchor on single click
+        };
+    }
 
-    // "Promote" existing primary selection to list if starting multi-select
-    if (isMulti && prevSelection.noteId && prevSelection.eventId && prevSelection.measureIndex !== null) {
-        const alreadyInList = newSelectedNotes.some(n => 
+    // 2. Multi-Selection Mode
+    
+    // Copy existing list or initialize
+    const newSelectedNotes = prevSelection.selectedNotes ? [...prevSelection.selectedNotes] : [];
+
+    // "Promote" existing primary selection to list if it wasn't there yet
+    // (This handles the transition from Single -> Multi)
+    if (prevSelection.noteId && prevSelection.eventId && prevSelection.measureIndex != null) {
+        const isPrevInList = newSelectedNotes.some(n => 
             compareIds(n.noteId, prevSelection.noteId) && 
-            compareIds(n.eventId, prevSelection.eventId) &&
-            n.measureIndex === prevSelection.measureIndex &&
-            n.staffIndex === prevSelection.staffIndex
+            compareIds(n.eventId, prevSelection.eventId)
         );
         
-        if (!alreadyInList) {
+        if (!isPrevInList) {
             newSelectedNotes.push({
-                staffIndex: prevSelection.staffIndex,
+                staffIndex: prevSelection.staffIndex ?? 0,
                 measureIndex: prevSelection.measureIndex,
                 eventId: prevSelection.eventId,
                 noteId: prevSelection.noteId
@@ -85,59 +103,50 @@ export const toggleNoteInSelection = (
         }
     }
 
-    // Determine if target is currently in the list
+    // Check if target is currently in the list
     const existingIndex = newSelectedNotes.findIndex(n => 
         compareIds(n.noteId, noteId) && 
-        compareIds(n.eventId, eventId) &&
-        n.measureIndex === measureIndex &&
-        n.staffIndex === staffIndex
+        compareIds(n.eventId, eventId)
     );
 
-    if (isMulti) {
-        if (existingIndex >= 0) {
-            // Toggle OFF
-            newSelectedNotes.splice(existingIndex, 1);
-        } else {
-            // Toggle ON
-            if (noteId) {
-                newSelectedNotes.push({ staffIndex, measureIndex, eventId, noteId });
-            }
-        }
-        
-        return {
-            staffIndex,
-            measureIndex,
-            eventId,
-            noteId, // Set as primary cursor
-            selectedNotes: newSelectedNotes,
-            anchor: prevSelection.anchor // Preserve anchor if it exists
-        };
-
+    // -- Toggle Logic --
+    if (existingIndex >= 0) {
+        // REMOVE from selection
+        newSelectedNotes.splice(existingIndex, 1);
     } else {
-        // Single Selection Mode
-        // Clear list, set this as the only selected item, clear anchor
-        if (noteId) {
-            newSelectedNotes = [{ staffIndex, measureIndex, eventId, noteId }];
-        }
-        
-        return {
-            staffIndex,
-            measureIndex,
-            eventId,
-            noteId,
-            selectedNotes: newSelectedNotes,
-            anchor: null // Clear anchor on single, non-shift selection
-        };
+        // ADD to selection
+        newSelectedNotes.push({ staffIndex, measureIndex, eventId, noteId });
     }
+
+    // -- Calculate New Focus (Cursor) --
+    // If list is empty, reset everything
+    if (newSelectedNotes.length === 0) {
+        return { ...createDefaultSelection(), staffIndex };
+    }
+
+    // We default the new focus to the note we just clicked...
+    let newFocus = { staffIndex, measureIndex, eventId, noteId };
+
+    // ...Unless we just toggled that note OFF. Then we focus the last item in the list.
+    if (existingIndex >= 0) {
+        newFocus = newSelectedNotes[newSelectedNotes.length - 1];
+    }
+
+    return {
+        staffIndex: newFocus.staffIndex,
+        measureIndex: newFocus.measureIndex,
+        eventId: newFocus.eventId,
+        noteId: newFocus.noteId,
+        selectedNotes: newSelectedNotes,
+        anchor: prevSelection.anchor // Preserve anchor for shift-select ranges
+    };
 };
 
 /**
- * Flattens the score into a linear list of note contexts.
- * Useful for range calculations.
+ * Flattens the score into a linear list.
  */
 export const getLinearizedNotes = (score: Score): NoteContext[] => {
     const notes: NoteContext[] = [];
-    
     score.staves.forEach((staff, staffInd) => {
         staff.measures.forEach((measure, measureInd) => {
              measure.events.forEach(event => {
@@ -154,36 +163,43 @@ export const getLinearizedNotes = (score: Score): NoteContext[] => {
              });
         });
     });
-    
     return notes;
 };
 
 /**
- * Calculates the range of selected notes between the anchor and the focus note.
+ * Calculates range. 
+ * Includes logic to select ALL notes in any event touched by the range (Chord selection).
  */
 export const calculateNoteRange = (
     anchor: NoteContext, 
     focus: NoteContext, 
     linearNotes: NoteContext[]
 ): NoteContext[] => {
-    const anchorIndex = linearNotes.findIndex(n => 
-        compareIds(n.noteId, anchor.noteId) && 
-        compareIds(n.eventId, anchor.eventId) &&
-        n.measureIndex === anchor.measureIndex &&
-        n.staffIndex === anchor.staffIndex
+    // Find indices in the linearized score
+    const getIndex = (ctx: NoteContext) => linearNotes.findIndex(n => 
+        compareIds(n.noteId, ctx.noteId) && 
+        compareIds(n.eventId, ctx.eventId)
     );
 
-    const focusIndex = linearNotes.findIndex(n => 
-        compareIds(n.noteId, focus.noteId) && 
-        compareIds(n.eventId, focus.eventId) &&
-        n.measureIndex === focus.measureIndex &&
-        n.staffIndex === focus.staffIndex
-    );
+    const anchorIndex = getIndex(anchor);
+    const focusIndex = getIndex(focus);
     
     if (anchorIndex === -1 || focusIndex === -1) return [];
 
     const start = Math.min(anchorIndex, focusIndex);
     const end = Math.max(anchorIndex, focusIndex);
     
-    return linearNotes.slice(start, end + 1);
+    // Get the raw range of notes
+    const rawSlice = linearNotes.slice(start, end + 1);
+    
+    // Expand: Identify all Event IDs touched by this slice
+    const affectedEventIds = new Set(rawSlice.map(n => n.eventId));
+    
+    // Return all notes (from the linear list) that belong to those events
+    // We filter linearNotes again to ensure we pick up notes in the chords that 
+    // might have been physically "before" the start index in data structure but belong to the same event.
+    return linearNotes.filter(n => 
+        affectedEventIds.has(n.eventId) &&
+        n.staffIndex === anchor.staffIndex // Generally prevent ranges spanning staves
+    );
 };

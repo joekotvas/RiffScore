@@ -210,8 +210,7 @@ describe('ScoreEditor Interactions', () => {
          // How to check? The "ghost-note" element should still be present.
          // And its position should change.
          // Since we can't check position easily, we check presence.
-         // Normally setPreviewNote(null) removes it.
-         
+         // (If logic failed, it would be null).
          const ghost = await screen.findByTestId('ghost-note');
          expect(ghost).toBeInTheDocument();
          
@@ -219,6 +218,23 @@ describe('ScoreEditor Interactions', () => {
          // In a real DOM we'd check style left/top. 
          // Here, we trust the logic if the element exists.
          // (If logic failed, it would be null).
+
+         // 5. Verify: The CHORD GROUP should be selected.
+         // In new logic, we check if the chord visual wrapper has data-selected="true"
+         // This is derived from checking if ALL notes are in the selection.
+         
+         const chordGroup = screen.getAllByTestId(/^chord-/)[0];
+         expect(chordGroup).toBeInTheDocument();
+         
+         // Wait for state update
+         await waitFor(() => {
+             // It should be selected because we selected C4 then E4.
+             // Note: Depending on where C4 click went (toggle vs single), providing metaKey on step 4 ensures accumulation.
+             // But step 3 was a single click. So C4 is focused.
+             // Step 4 is Cmd+Click E4. So C4 should remain in selectedNotes (if implementation promoted it) or...
+             // Wait, `toggleNoteInSelection` handles preserving the previous single selection into the list if isMulti is true.
+             expect(chordGroup).toHaveAttribute('data-selected', 'true');
+         });
     });
 
     test('Cursor does NOT auto-advance after INSERTing a note', async () => {
@@ -250,4 +266,51 @@ describe('ScoreEditor Interactions', () => {
              expect(ghost).not.toBeInTheDocument();
          });
     });
+    
+    test('User can multi-select notes with CMD+Click', async () => {
+        const score = createDefaultScore();
+        render(
+            <ThemeProvider>
+                <ScoreEditor label="Multi Select Test" initialData={score} />
+            </ThemeProvider>
+        );
+
+        const hitArea = screen.getByTestId('measure-hit-area-0-0');
+
+        // 1. Add Note A (C4)
+        fireEvent.mouseMove(hitArea, { clientX: 50, clientY: 110 });
+        await screen.findByTestId('ghost-note');
+        fireEvent.click(hitArea, { clientX: 50, clientY: 110 });
+
+        // 2. Add Note B (E4) to same measure
+        fireEvent.mouseMove(hitArea, { clientX: 150, clientY: 98 });
+        fireEvent.click(hitArea, { clientX: 150, clientY: 98 });
+
+        // Find the specific hit areas for the notes
+        const noteHitAreas = await screen.findAllByTestId(/^note-/);
+        expect(noteHitAreas.length).toBe(2);
+        
+        const noteA = noteHitAreas[0];
+        const noteB = noteHitAreas[1];
+
+        // 3. Select Note A (Normal Click)
+        fireEvent.mouseDown(noteA, { bubbles: true });
+        fireEvent.click(noteA, { bubbles: true });
+
+        // 4. CMD+Click Note B
+        fireEvent.mouseDown(noteB, { metaKey: true, bubbles: true });
+        fireEvent.click(noteB, { metaKey: true, bubbles: true });
+
+        // 5. Verify Selection by ensuring both are deleted
+        const container = screen.getByTestId('score-canvas-container');
+        fireEvent.focus(container);
+        fireEvent.mouseEnter(container);
+        fireEvent.keyDown(window, { key: 'Backspace', code: 'Backspace', keyCode: 8 });
+
+        await waitFor(() => {
+             const remainingNotes = screen.queryAllByTestId(/^note-/);
+             expect(remainingNotes).toHaveLength(0);
+        });
+    });
+
 });
