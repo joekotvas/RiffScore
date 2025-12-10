@@ -10,6 +10,7 @@ interface UseSelectionProps {
 
 export const useSelection = ({ score }: UseSelectionProps) => {
   const [selection, setSelection] = useState<Selection>(createDefaultSelection());
+  const [lastSelection, setLastSelection] = useState<Selection | null>(null);
 
   // --- Helpers ---
   
@@ -20,10 +21,13 @@ export const useSelection = ({ score }: UseSelectionProps) => {
   // --- Actions ---
 
   const clearSelection = useCallback(() => {
-    setSelection(prev => ({
-       ...createDefaultSelection(),
-       staffIndex: prev.staffIndex // Maintain current staff focus
-    }));
+    setSelection(prev => {
+       setLastSelection(prev);
+       return {
+           ...createDefaultSelection(),
+           staffIndex: prev.staffIndex // Maintain current staff focus
+       };
+    });
   }, []);
 
   const select = useCallback((
@@ -34,20 +38,21 @@ export const useSelection = ({ score }: UseSelectionProps) => {
     options: { 
         isMulti?: boolean; 
         isShift?: boolean; 
-        selectAllInEvent?: boolean; 
+        selectAllInEvent?: boolean;
+        onlyHistory?: boolean;
     } = {}
   ) => {
-    const { isMulti = false, isShift = false, selectAllInEvent = false } = options;
+    const { isMulti = false, isShift = false, selectAllInEvent = false, onlyHistory = false } = options;
 
     if (!eventId || measureIndex === null) {
-        clearSelection();
+        if (!onlyHistory) clearSelection();
         return;
     }
 
     const startStaffIndex = staffIndex !== undefined ? staffIndex : (selection.staffIndex || 0);
 
     // 1. Handle Shift+Click (Range Selection)
-    if (isShift) {
+    if (isShift && !onlyHistory) {
         // ... (Logic from useNavigation)
         const anchor = selection.anchor || {
             staffIndex: selection.staffIndex || 0,
@@ -122,17 +127,14 @@ export const useSelection = ({ score }: UseSelectionProps) => {
         }
     }
 
+    // Capture the selection object that WOULD be set
+    let nextSelection: Selection | null = null;
+
     // 3. Update State
     if (notesToSelect.length > 0) {
-        // Case: Selecting whole event (or adding whole event to multi-select?)
-        // Implicit behavior: If I Cmd+Click a stem, I want to add that whole chord to selection.
-        
-        if (isMulti) {
+        if (isMulti && !onlyHistory) {
              setSelection(prev => {
                 const newSelectedNotes = prev.selectedNotes ? [...prev.selectedNotes] : [];
-                // naive merge for now: add all notesToSelect that aren't already there
-                // remove if they are ALL already there? (Toggle behavior for groups is complex)
-                // Let's just ADD for now.
                 notesToSelect.forEach(n => {
                     if (!newSelectedNotes.some(ex => ex.noteId === n.noteId)) {
                         newSelectedNotes.push(n);
@@ -148,42 +150,65 @@ export const useSelection = ({ score }: UseSelectionProps) => {
                     anchor: prev.anchor // Maintain anchor? Or reset?
                 };
              });
+             playAudioFeedback(event?.notes || []);
+             return; // Multi-select handled directly via setSelection
         } else {
              // Single Select of Event -> Replace selection
-             setSelection({
+             nextSelection = {
                  staffIndex: startStaffIndex,
                  measureIndex,
                  eventId,
                  noteId: targetNoteId,
                  selectedNotes: notesToSelect,
                  anchor: { staffIndex: startStaffIndex, measureIndex, eventId, noteId: targetNoteId } // New Anchor
-             });
+             };
         }
-        playAudioFeedback(event?.notes || []);
-        return;
+    } else {
+        // 4. Standard Note Toggle (Single Note)
+        if (onlyHistory) {
+             nextSelection = {
+                 staffIndex: startStaffIndex,
+                 measureIndex,
+                 eventId,
+                 noteId: targetNoteId,
+                 selectedNotes: [{ staffIndex: startStaffIndex, measureIndex, eventId, noteId: targetNoteId }], // Mimic standard selection structure
+                 anchor: { staffIndex: startStaffIndex, measureIndex, eventId, noteId: targetNoteId }
+             } as Selection;
+        } else {
+             // Standard Toggle Behavior (defer to functional update)
+            setSelection(prev => {
+                const emptySelection = { ...createDefaultSelection(), staffIndex: startStaffIndex };
+                const base = prev || emptySelection;
+                
+                const newSel = toggleNoteInSelection(base, { 
+                    staffIndex: startStaffIndex, 
+                    measureIndex, 
+                    eventId, 
+                    noteId: targetNoteId 
+                }, isMulti);
+                return newSel;
+            });
+            
+            // Audio Feedback (Early return for toggle path)
+            if (targetNoteId) {
+                const note = event?.notes.find((n: any) => n.id === targetNoteId);
+                if (note) playAudioFeedback([note]);
+            }
+            return;
+        }
     }
 
-    // 4. Standard Note Toggle (Single Note)
-    // Delegate to existing utility, but ensure we don't end up with noteId: null
-    setSelection(prev => {
-         const emptySelection = { ...createDefaultSelection(), staffIndex: startStaffIndex };
-         // If prev was undefined/null, use valid default
-         const base = prev || emptySelection;
-         
-         const newSel = toggleNoteInSelection(base, { 
-             staffIndex: startStaffIndex, 
-             measureIndex, 
-             eventId, 
-             noteId: targetNoteId 
-         }, isMulti);
-         
-         return newSel;
-    });
-
-    // Audio
-    if (targetNoteId) {
-         const note = event?.notes.find((n: any) => n.id === targetNoteId);
-         if (note) playAudioFeedback([note]);
+    // Apply Logic
+    if (onlyHistory && nextSelection) {
+        setLastSelection(nextSelection);
+        // Ensure visual selection is cleared
+        setSelection(prev => ({
+            ...createDefaultSelection(),
+            staffIndex: startStaffIndex
+        }));
+    } else if (nextSelection) {
+        setSelection(nextSelection);
+        playAudioFeedback(event?.notes || []);
     }
 
   }, [selection, score, playAudioFeedback, clearSelection]);
@@ -229,6 +254,7 @@ export const useSelection = ({ score }: UseSelectionProps) => {
     select,
     clearSelection,
     updateSelection,
-    selectAllInMeasure
+    selectAllInMeasure,
+    lastSelection
   };
 };

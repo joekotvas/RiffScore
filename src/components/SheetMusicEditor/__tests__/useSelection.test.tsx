@@ -37,6 +37,21 @@ describe('useSelection', () => {
         expect(result.current.selection.selectedNotes).toHaveLength(1);
     });
 
+    it('should update lastSelection but not selection when onlyHistory is true', () => {
+      const { result } = renderHook(() => useSelection({ score: mockScore }));
+
+      act(() => {
+        // Mock event exists
+        result.current.select(0, 'e1', 'n1', 0, { onlyHistory: true });
+      });
+
+      // Visual selection should be default/cleared
+      expect(result.current.selection.noteId).toBeNull();
+      // lastSelection should act as memory
+      expect(result.current.lastSelection).not.toBeNull();
+      expect(result.current.lastSelection?.noteId).toBe('n1');
+    });
+
     it('handles event selection (all notes)', () => {
         const { result } = renderHook(() => useSelection({ score: mockScore }));
         

@@ -46,7 +46,7 @@ export const useScoreLogic = (initialScore: any) => {
   } = tools;
 
   // --- SELECTION & PREVIEW STATE ---
-  const { selection, setSelection, select, clearSelection, updateSelection, selectAllInMeasure } = useSelection({ score });
+  const { selection, setSelection, select, clearSelection, updateSelection, selectAllInMeasure, lastSelection } = useSelection({ score });
   const [previewNote, setPreviewNote] = useState<any>(null);
 
   // --- COMPUTED VALUES ---
@@ -141,7 +141,8 @@ export const useScoreLogic = (initialScore: any) => {
   const navigation = useNavigation({
     scoreRef,
     selection,
-    setSelection, // Still passed
+    lastSelection, // Pass history
+    setSelection, 
     select,
     previewNote,
     setPreviewNote,

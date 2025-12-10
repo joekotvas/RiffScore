@@ -180,8 +180,8 @@ export const useNoteActions = ({
             currentStaffIndex
         ));
 
-        // Update selection to the new note
-        select(measureIndex, eventId, noteToAdd.id, currentStaffIndex);
+        // Update selection history (so navigation resumes from here) but do NOT visually select
+        select(measureIndex, eventId, noteToAdd.id, currentStaffIndex, { onlyHistory: true });
         setPreviewNote(null);
     }
 
@@ -193,7 +193,7 @@ export const useNoteActions = ({
             id: 'sim-event',
             duration: activeDuration, 
             dotted: isDotted, 
-            notes: [{ id: 9999, pitch: newNote.pitch, duration: activeDuration, dotted: isDotted, tied: false }] 
+            notes: [{ id: 9999, pitch: newNote.pitch, tied: false }] 
         });
         
         const simulatedMeasure = { ...targetMeasure, events: simulatedEvents };

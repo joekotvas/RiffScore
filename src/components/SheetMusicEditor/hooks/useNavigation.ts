@@ -9,6 +9,7 @@ import { TransposeSelectionCommand } from '../commands/TransposeSelectionCommand
 interface UseNavigationProps {
   scoreRef: RefObject<Score>;
   selection: Selection;
+  lastSelection?: Selection | null; // Optional history for navigation resume
   setSelection: React.Dispatch<React.SetStateAction<Selection>>;
   select: (measureIndex: number | null, eventId: string | number | null, noteId: string | number | null, staffIndex?: number, options?: any) => void;
   previewNote: any;
@@ -29,6 +30,7 @@ interface UseNavigationReturn {
 export const useNavigation = ({
   scoreRef,
   selection,
+  lastSelection,
   setSelection,
   select,
   previewNote,
@@ -63,19 +65,25 @@ export const useNavigation = ({
 
 
   const moveSelection = useCallback((direction: string, isShift: boolean = false) => {
-    const activeStaff = getActiveStaff(scoreRef.current, selection.staffIndex || 0);
+    // If no active selection, try to resume from history
+    let activeSel = selection;
+    if ((!selection.eventId || selection.measureIndex === null) && lastSelection && lastSelection.eventId) {
+        activeSel = lastSelection;
+    }
+
+    const activeStaff = getActiveStaff(scoreRef.current, activeSel.staffIndex || 0);
 
     // 1. Calculate the hypothetical next position
     const navResult = calculateNextSelection(
         activeStaff.measures,
-        selection,
+        activeSel,
         direction,
         previewNote,
         activeDuration,
         isDotted,
         currentQuantsPerMeasure,
         activeStaff.clef,
-        selection.staffIndex || 0
+        activeSel.staffIndex || 0
     );
 
     if (!navResult) return;
