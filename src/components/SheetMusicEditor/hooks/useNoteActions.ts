@@ -124,7 +124,8 @@ export const useNoteActions = ({
       duration: activeDuration,
       dotted: isDotted,
       mode: targetMode,
-      index: targetIndex
+      index: targetIndex,
+      eventId: hit.type === 'EVENT' ? hit.eventId : undefined // Pass Event ID for CHORD mode
     });
   }, [activeDuration, isDotted, currentQuantsPerMeasure, scoreRef, setPreviewNote, activeAccidental]);
 
@@ -167,7 +168,10 @@ export const useNoteActions = ({
         }
     }
 
-    if (mode === 'CHORD' && placementOverride?.eventId) {
+    // Resolve Event ID for CHORD mode
+    const targetEventId = placementOverride?.eventId || newNote.eventId || (mode === 'CHORD' && targetMeasure.events[insertIndex]?.id);
+
+    if (mode === 'CHORD' && targetEventId) {
         // Add note to existing event
         const noteToAdd = {
             id: Date.now() + 1,
@@ -175,10 +179,10 @@ export const useNoteActions = ({
             accidental: activeAccidental,
             tied: activeTie
         };
-        dispatch(new AddNoteToEventCommand(measureIndex, placementOverride.eventId, noteToAdd, currentStaffIndex));
+        dispatch(new AddNoteToEventCommand(measureIndex, targetEventId, noteToAdd, currentStaffIndex));
         
         // Update selection to the new note
-        select(measureIndex, placementOverride.eventId, noteToAdd.id, currentStaffIndex);
+        select(measureIndex, targetEventId, noteToAdd.id, currentStaffIndex);
         setPreviewNote(null);
     } else {
         // Create new event
