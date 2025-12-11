@@ -1,6 +1,28 @@
 import { CONFIG } from './config';
 import { Key } from 'tonal';
 
+// Core spacing constant (derived from CONFIG.lineHeight for scalability)
+const SPACE = CONFIG.lineHeight;  // 12px - distance between staff lines
+
+// Staff positions (Y offset from baseY/top line of staff)
+// Lines are numbered 1-5 from bottom to top (standard notation)
+// Spaces are numbered 1-4 from bottom to top
+const STAFF_POSITION = {
+  aboveStaff: -0.5 * SPACE,      // Ledger space above
+  line5: 0,                       // Top line
+  space4: 0.5 * SPACE,           // Space between lines 4 & 5
+  line4: 1 * SPACE,              // 4th line from bottom
+  space3: 1.5 * SPACE,           // Space between lines 3 & 4
+  line3: 2 * SPACE,              // Middle line (3rd from bottom)
+  space2: 2.5 * SPACE,           // Space between lines 2 & 3
+  line2: 3 * SPACE,              // 2nd line from bottom
+  space1: 3.5 * SPACE,           // Space between lines 1 & 2
+  line1: 4 * SPACE,              // Bottom line
+  belowStaff: 4.5 * SPACE,       // Ledger space below
+};
+
+// For backward compatibility
+const HALF_SPACE = 0.5 * SPACE;
 
 export const TIME_SIGNATURES: Record<string, number> = {
   '4/4': 64,
@@ -74,21 +96,46 @@ export interface KeySignatureOffsets {
   };
 }
 
+// Key signature accidental positions using semantic staff positions
 export const KEY_SIGNATURE_OFFSETS: KeySignatureOffsets = {
   treble: {
     sharp: {
-      'F': 2, 'C': 20, 'G': -4, 'D': 14, 'A': 32, 'E': 8, 'B': 26
+      'F': STAFF_POSITION.line5,       // F# on top line
+      'C': STAFF_POSITION.space3,      // C# in space between lines 3 & 4
+      'G': STAFF_POSITION.aboveStaff,  // G# above staff
+      'D': STAFF_POSITION.line4,       // D# on 4th line
+      'A': STAFF_POSITION.space2,      // A# in space between lines 2 & 3
+      'E': STAFF_POSITION.space4,      // E# in space between lines 4 & 5
+      'B': STAFF_POSITION.line3        // B# on middle line
     },
     flat: {
-      'B': 24, 'E': 6, 'A': 30, 'D': 12, 'G': 36, 'C': 18, 'F': 42
+      'B': STAFF_POSITION.line3,       // Bb on middle line
+      'E': STAFF_POSITION.space4,      // Eb in space between lines 4 & 5
+      'A': STAFF_POSITION.space2,      // Ab in space between lines 2 & 3
+      'D': STAFF_POSITION.line4,       // Db on 4th line
+      'G': STAFF_POSITION.line2,       // Gb on 2nd line
+      'C': STAFF_POSITION.space3,      // Cb in space between lines 3 & 4
+      'F': STAFF_POSITION.space1       // Fb in space between lines 1 & 2
     }
   },
   bass: {
     sharp: {
-      'F': 14, 'C': 32, 'G': 8, 'D': 26, 'A': 2, 'E': 20, 'B': -4
+      'F': STAFF_POSITION.line4,       // F# on 4th line
+      'C': STAFF_POSITION.space2,      // C# in space between lines 2 & 3
+      'G': STAFF_POSITION.space4,      // G# in space between lines 4 & 5
+      'D': STAFF_POSITION.line3,       // D# on middle line
+      'A': STAFF_POSITION.line5,       // A# on top line
+      'E': STAFF_POSITION.space3,      // E# in space between lines 3 & 4
+      'B': STAFF_POSITION.aboveStaff   // B# above staff
     },
     flat: {
-      'B': 36, 'E': 18, 'A': 42, 'D': 24, 'G': 48, 'C': 30, 'F': 54
+      'B': STAFF_POSITION.line2,       // Bb on 2nd line
+      'E': STAFF_POSITION.space3,      // Eb in space between lines 3 & 4
+      'A': STAFF_POSITION.space1,      // Ab in space between lines 1 & 2
+      'D': STAFF_POSITION.line3,       // Db on middle line
+      'G': STAFF_POSITION.line1,       // Gb on bottom line
+      'C': STAFF_POSITION.space2,      // Cb in space between lines 2 & 3
+      'F': STAFF_POSITION.belowStaff   // Fb below staff
     }
   }
 };
@@ -141,9 +188,6 @@ export const NOTE_TYPES: Record<string, NoteType> = {
 
 // ========== LAYOUT CONSTANTS ==========
 // Derived from CONFIG.lineHeight for consistency and scalability
-
-const HALF_SPACE = CONFIG.lineHeight / 2;  // 6
-const SPACE = CONFIG.lineHeight;           // 12
 
 export const LAYOUT = {
   // Core Primitives
