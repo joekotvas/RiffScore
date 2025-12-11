@@ -4,7 +4,7 @@ import { NOTE_TYPES, LAYOUT } from '../../constants';
 import { CONFIG } from '../../config';
 import { useTheme } from '../../context/ThemeContext';
 import { getOffsetForPitch } from '../../engines/layout';
-import { NOTEHEADS, BRAVURA_FONT, getFontSize, FLAGS as SMUFL_FLAGS } from '../../constants/SMuFL';
+import { NOTEHEADS, BRAVURA_FONT, getFontSize, FLAGS as SMUFL_FLAGS, DOTS } from '../../constants/SMuFL';
 
 /**
  * Helper to render flags for notes (eighth, sixteenth, etc.) using Bravura font glyphs.
@@ -109,10 +109,23 @@ const Note = ({
     let dotY = y;
     const relativeY = y - baseY;
     if (relativeY % 12 === 0) {
-        dotY -= 6; // Move up to space
+        dotY -= 6; // Move up to space when on a line
     }
     const dotX = x + dotShift + LAYOUT.DOT_OFFSET_X;
-    return <circle cx={dotX} cy={dotY} r={LAYOUT.DOT_RADIUS} fill={color} />;
+    const fontSize = getFontSize(CONFIG.lineHeight);
+    return (
+      <text
+        x={dotX}
+        y={dotY}
+        fontFamily={BRAVURA_FONT}
+        fontSize={fontSize}
+        fill={color}
+        textAnchor="start"
+        style={{ userSelect: 'none' }}
+      >
+        {DOTS.augmentationDot}
+      </text>
+    );
   };
 
   // Get the appropriate notehead glyph based on duration

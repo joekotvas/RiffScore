@@ -166,14 +166,14 @@ export const STEM = {
     thirtysecond: 45,
     sixtyfourth: 55,
   } as Record<string, number>,
-  OFFSET_X: HALF_SPACE + .22,  // 7 - Horizontal offset for Bravura notehead width
+  OFFSET_X: HALF_SPACE + .25,  // 6.25 - Horizontal offset for Bravura notehead width
 };
 
 export const BEAMING = {
   THICKNESS: 5,
   SPACING: 8,
   MAX_SLOPE: 1.0,
-  EXTENSION_PX: 1,
+  EXTENSION_PX: .625,
 };
 
 export const TUPLET = {
