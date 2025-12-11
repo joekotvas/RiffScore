@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { THEMES, Theme, ThemeName, DEFAULT_THEME } from '../config';
+import { DEFAULT_SCALE } from '../constants';
 
 interface ThemeContextType {
   theme: Theme;
@@ -13,7 +14,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [themeName, setThemeName] = useState<ThemeName>(DEFAULT_THEME);
-  const [zoom, setZoom] = useState(1.0);
+  const [zoom, setZoom] = useState(DEFAULT_SCALE);
 
   const theme = THEMES[themeName];
 

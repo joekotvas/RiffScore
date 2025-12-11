@@ -67,6 +67,7 @@ export const KEY_SIGNATURE_OFFSETS: KeySignatureOffsets = {
 
 export const NOTE_SPACING_BASE_UNIT = 16;
 export const WHOLE_REST_WIDTH = 12;
+export const DEFAULT_SCALE = 0.8;
 
 export const MIDDLE_LINE_Y = CONFIG.baseY + 24;
 
@@ -141,9 +142,9 @@ export const LAYOUT = {
   // Hit Detection
   HIT_AREA: {
     WIDTH: 20,
-    HEIGHT: 16,
+    HEIGHT: 12,
     OFFSET_X: -10,
-    OFFSET_Y: -8,
+    OFFSET_Y: -6 ,
   },
   HIT_ZONE_RADIUS: 14,
   APPEND_ZONE_WIDTH: 2000,
