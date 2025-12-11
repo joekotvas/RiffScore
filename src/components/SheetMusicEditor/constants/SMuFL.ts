@@ -86,6 +86,29 @@ export const FLAGS = {
   oneHundredTwentyEighthDown: '\uE249',
 } as const;
 
+// ========== PRECOMPOSED NOTES (notehead + stem + flags) ==========
+// Stem up versions - keys match duration names for direct lookup
+export const PRECOMPOSED_NOTES_UP = {
+  whole: '\uE1D2',        // noteWhole (no stem)
+  half: '\uE1D3',         // noteHalfUp
+  quarter: '\uE1D5',      // noteQuarterUp
+  eighth: '\uE1D7',       // note8thUp
+  sixteenth: '\uE1D9',    // note16thUp
+  thirtysecond: '\uE1DB', // note32ndUp
+  sixtyfourth: '\uE1DD',  // note64thUp
+} as const;
+
+// Stem down versions
+export const PRECOMPOSED_NOTES_DOWN = {
+  whole: '\uE1D2',        // noteWhole (same, no stem)
+  half: '\uE1D4',         // noteHalfDown
+  quarter: '\uE1D6',      // noteQuarterDown
+  eighth: '\uE1D8',       // note8thDown
+  sixteenth: '\uE1DA',    // note16thDown
+  thirtysecond: '\uE1DC', // note32ndDown
+  sixtyfourth: '\uE1DE',  // note64thDown
+} as const;
+
 // ========== TIME SIGNATURES ==========
 export const TIME_SIG_DIGITS = {
   0: '\uE080',
