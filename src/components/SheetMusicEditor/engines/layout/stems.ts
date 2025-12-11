@@ -6,6 +6,7 @@ import { STEM } from '../../constants';
 
 // Re-export for backwards compatibility
 export const STEM_LENGTHS = STEM.LENGTHS;
+export const STEM_BEAMED_LENGTHS = STEM.BEAMED_LENGTHS;
 
 /**
  * Calculates stem geometry based on beam specifications or default layout.

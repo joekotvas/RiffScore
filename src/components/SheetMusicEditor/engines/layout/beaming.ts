@@ -73,7 +73,7 @@ export const calculateBeamingGroups = (events: any[], eventPositions: Record<str
     return groups;
 };
 
-import { STEM_LENGTHS } from './stems';
+import { STEM_LENGTHS, STEM_BEAMED_LENGTHS } from './stems';
 
 /**
  * Calculates the geometry for a single beam group.
@@ -85,7 +85,15 @@ const processBeamGroup = (groupEvents: any[], eventPositions: Record<string, num
     
     // Determine minimum stem length based on the note type with the most beams in the group
     // 32nd notes need longer stems to accommodate 3 beams, 64th for 4 beams
-    const minStemLength = STEM_LENGTHS[startEvent.duration] || STEM_LENGTHS.default;
+    let minStemLength = STEM_BEAMED_LENGTHS.default;
+    
+    // Check if group contains shorter durations that require more beam space
+    const uniqueDurations = new Set(groupEvents.map(e => e.duration));
+    if (uniqueDurations.has('sixtyfourth')) {
+        minStemLength = STEM_BEAMED_LENGTHS.sixtyfourth;
+    } else if (uniqueDurations.has('thirtysecond')) {
+        minStemLength = STEM_BEAMED_LENGTHS.thirtysecond;
+    }
     
     // First pass: collect note data to determine direction
     const noteData = groupEvents.map(e => {

@@ -234,9 +234,14 @@ export const LAYOUT = {
 
 export const STEM = {
   LENGTHS: {
-    default: 35,
-    thirtysecond: 45,
-    sixtyfourth: 55,
+    default: 44,
+    thirtysecond: 44,
+    sixtyfourth: 44,
+  } as Record<string, number>,
+  BEAMED_LENGTHS: {
+    default: 44,
+    thirtysecond: 48,
+    sixtyfourth: 56,
   } as Record<string, number>,
   OFFSET_X: HALF_SPACE + .25,  // 6.25 - Horizontal offset for Bravura notehead width
 };

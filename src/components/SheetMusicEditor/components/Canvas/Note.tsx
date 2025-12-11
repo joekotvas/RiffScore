@@ -46,7 +46,7 @@ const renderFlags = (stemX: number, stemTipY: number, type: string, direction: '
   return (
     <text
       key="flag"
-      x={stemX}
+      x={stemX - 0.75}
       y={stemTipY}
       fontFamily={BRAVURA_FONT}
       fontSize={fontSize}
