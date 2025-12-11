@@ -78,6 +78,7 @@ const ChordGroup = ({
   renderStem = true,
   filterNote = null,
   onNoteHover = null, // Local callback
+  accidentalOverrides = null // New Prop
 }) => {
   const { theme } = useTheme();
   
@@ -219,7 +220,17 @@ const ChordGroup = ({
       {notesToRender.map((note, idx) => {
         const xShift = noteOffsets[note.id] || 0;
         const noteY = baseY + getOffsetForPitch(note.pitch, clef);
-        const accidentalSymbol = getAccidentalSymbol(note, keySignature);
+        
+        // Determine accidental symbol using override IF available
+        let accidentalSymbol = null;
+        if (accidentalOverrides && accidentalOverrides.hasOwnProperty(note.id)) {
+            accidentalSymbol = accidentalOverrides[note.id]; 
+            // Note: If null was explicitly passed in override, it means force HIDDEN.
+        } else {
+            // Fallback to legacy logic (e.g. for Ghosts or if override missing)
+            accidentalSymbol = getAccidentalSymbol(note, keySignature);
+        }
+
         const noteSelected = isNoteSelected(selection, { 
             staffIndex, // Use the actual staffIndex from layout, not selection.staffIndex
             measureIndex,

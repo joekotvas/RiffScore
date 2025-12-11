@@ -91,9 +91,22 @@ export const generateABC = (score: any, bpm: number) => {
                     // Notes/Chords
                     const formatNote = (n: any) => {
                         let acc = '';
+                        // 1. Check explicit property
                         if (n.accidental === 'sharp') acc = '^';
                         else if (n.accidental === 'flat') acc = '_';
                         else if (n.accidental === 'natural') acc = '=';
+                        else if (n.accidental === 'double-sharp') acc = '^^';
+                        else if (n.accidental === 'double-flat') acc = '__';
+                        
+                        // 2. Fallback: Check Pitch String
+                        // If no explicit accidental property, parse from "F#4", "Bb4", etc.
+                        if (!acc) {
+                            // Match accidentals: #, ##, b, bb anywhere in string
+                            if (n.pitch.includes('##')) acc = '^^';
+                            else if (n.pitch.includes('#')) acc = '^';
+                            else if (n.pitch.includes('bb')) acc = '__';
+                            else if (n.pitch.includes('b')) acc = '_'; // Note: Be careful with 'b' vs flat symbol if stored as unicode, but usually it's 'b'. Tonal uses 'b'.
+                        }
                         
                         const pitch = toAbcPitch(n.pitch, clef);
                         const tie = n.tied ? '-' : '';

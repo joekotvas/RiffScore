@@ -11,6 +11,7 @@ import { Rest } from './Rest';
 import Beam from './Beam';
 import TupletBracket from './TupletBracket';
 import { MeasureProps } from '../../componentTypes';
+import { getEffectiveAccidental, getKeyAccidental, getDiatonicPitch } from '../../utils/accidentalContext';
 
 /**
  * Renders a single measure of the score.
@@ -57,6 +58,65 @@ const Measure: React.FC<MeasureProps> = ({
   }, [events, clef, measureData.isPickup, forcedEventPositions]);
 
   const { hitZones, eventPositions, totalWidth, processedEvents } = measureLayout;
+
+  // --- Accidental Context Calculation ---
+  const accidentalOverrides = useMemo(() => {
+    const overrides: Record<string, string | null> = {};
+    const pitchHistory: Record<string, 'sharp' | 'flat' | 'natural'> = {}; // Key: "C4", "F#5" -> stores effective accidental
+    const alteredLetters = new Set<string>(); // Tracks if "A", "B" etc has been altered from key
+
+    // Sort events by time (quant) just in case, though they should be sorted
+    const sortedEvents = [...events].sort((a,b) => (a.quant || 0) - (b.quant || 0));
+
+    sortedEvents.forEach(event => {
+        if (!event.notes) return;
+        event.notes.forEach((note: any) => {
+             const effective = getEffectiveAccidental(note.pitch, keySignature);
+             const keyAccidental = getKeyAccidental(note.pitch.charAt(0), keySignature);
+             const diatonicPitch = getDiatonicPitch(note.pitch);
+             
+             let showSymbol: string | null = null;
+             
+             const prev = pitchHistory[diatonicPitch];
+             
+             if (prev) {
+                 // Rule: If repeated pitch (same line), only show if it CHANGES.
+                 if (prev !== effective) {
+                     showSymbol = effective; 
+                 } else {
+                     showSymbol = null; // Hide
+                 }
+             } else {
+                 // First time on this line
+                 if (effective !== keyAccidental) {
+                     // Deviation from key -> Show
+                     showSymbol = effective;
+                     alteredLetters.add(note.pitch.charAt(0));
+                 } else {
+                     // Matches key... BUT check if letter was altered elsewhere
+                     if (alteredLetters.has(note.pitch.charAt(0))) {
+                         // Cautionary -> Show
+                         showSymbol = effective;
+                     } else {
+                         showSymbol = null;
+                     }
+                 }
+             }
+             
+             // Update History
+             pitchHistory[diatonicPitch] = effective;
+             
+             // Store result
+             if (showSymbol) {
+                 const map = { sharp: '♯', flat: '♭', natural: '♮' };
+                 overrides[note.id] = map[showSymbol] || null;
+             } else {
+                 overrides[note.id] = null; // Explicitly hide
+             }
+        });
+    });
+    return overrides;
+  }, [events, keySignature]);
 
   // Use forced width if provided (Grand Staff sync), otherwise calculated width
   const effectiveWidth = forcedWidth || totalWidth;
@@ -304,6 +364,7 @@ const Measure: React.FC<MeasureProps> = ({
               // Local Options
               measureIndex={measureIndex}
               onNoteHover={(isHovering) => setIsNoteHovered(isHovering)}
+              accidentalOverrides={accidentalOverrides}
             />
         );
       })}
