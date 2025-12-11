@@ -133,8 +133,8 @@ export const LAYOUT = {
   // Accidentals
   ACCIDENTAL: {
     OFFSET_X: -16,
-    OFFSET_Y: 6,
-    FONT_SIZE: 22,
+    OFFSET_Y: 0,  // No offset needed for Bravura glyphs (origin at staff line)
+    FONT_SIZE: 22,  // Legacy, now using getFontSize() from SMuFL
     SPACING: HALF_SPACE + 2,  // 8
   },
   
