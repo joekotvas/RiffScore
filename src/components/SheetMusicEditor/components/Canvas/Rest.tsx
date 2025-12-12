@@ -66,9 +66,11 @@ export const Rest: React.FC<RestProps> = ({
   const restY = getRestY(duration, baseY);
   const fontSize = getFontSize(CONFIG.lineHeight);
   
-  // Hit area dimensions - larger than notes since rest glyphs are taller
-  const hitAreaWidth = 24;  // Slightly wider than notes
-  const hitAreaHeight = 36; // Taller to cover rest glyph height
+  // Hit area dimensions - span full staff height for easier clicking
+  const hitAreaWidth = 30;  // Wide enough to cover rest glyph
+  const staffHeight = CONFIG.lineHeight * 4; // 5 lines = 4 gaps
+  const hitAreaTop = baseY;  // Start at first staff line
+  const hitAreaHeight = staffHeight;
   
   const renderDot = () => {
     if (!dotted) return null;
@@ -100,7 +102,7 @@ export const Rest: React.FC<RestProps> = ({
       {onClick && (
         <rect
           x={finalX - hitAreaWidth / 2}
-          y={restY - hitAreaHeight / 2}
+          y={hitAreaTop}
           width={hitAreaWidth}
           height={hitAreaHeight}
           fill="white"
@@ -118,7 +120,7 @@ export const Rest: React.FC<RestProps> = ({
         fontSize={fontSize}
         textAnchor="middle"
         fill={color}
-        style={{ userSelect: 'none', pointerEvents: (isGhost || !onClick) ? 'none' : 'auto' }}
+        style={{ userSelect: 'none', pointerEvents: 'none' }}
       >
         {glyph}
       </text>

@@ -312,7 +312,7 @@ export const useNoteActions = ({
     }
     
     setPreviewNote(null);
-  }, [activeDuration, isDotted, currentQuantsPerMeasure, scoreRef, setPreviewNote, activeAccidental, activeTie, dispatch, selection, select]);
+  }, [activeDuration, isDotted, currentQuantsPerMeasure, scoreRef, setPreviewNote, activeAccidental, activeTie, dispatch, selection, select, inputMode]);
 
   const deleteSelected = useCallback(() => {
     // 1. Delete Multi-Selection
