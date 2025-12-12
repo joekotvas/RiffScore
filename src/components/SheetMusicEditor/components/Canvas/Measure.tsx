@@ -1,11 +1,12 @@
 // @ts-nocheck
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { CONFIG } from '../../config';
+import { ScoreEvent, KeySignatureConfig } from '../../types';
+import { CONFIG, STEM, LAYOUT } from '../../config';
 import { NOTE_TYPES } from '../../constants';
 import { useTheme } from '../../context/ThemeContext';
 import { calculateMeasureLayout, getOffsetForPitch, calculateChordLayout, calculateBeamingGroups, getPitchForOffset, applyMeasureCentering } from '../../engines/layout';
 import { calculateTupletBrackets } from '../../engines/layout/tuplets'; // Restore tuplets import
-import { getNoteDuration } from '../../utils/core';
+import { getNoteDuration, isRestEvent, getFirstNoteId } from '../../utils/core';
 import ChordGroup from './ChordGroup';
 import { Rest } from './Rest';
 import Beam from './Beam';
@@ -373,8 +374,10 @@ const Measure: React.FC<MeasureProps> = ({
             // Placeholder rests (for empty measures) should be non-interactive
             const isPlaceholder = event.id === 'rest-placeholder';
             
+
+
             // Get the rest note ID for selection checks
-            const restNoteId = event.notes?.[0]?.id ?? null;
+            const restNoteId = getFirstNoteId(event);
             
             // Check if this rest is selected (check both primary selection and multi-selection list)
             const isPrimarySelected = 
@@ -395,7 +398,7 @@ const Measure: React.FC<MeasureProps> = ({
             const handleRestClick = isPlaceholder ? undefined : (e: React.MouseEvent) => {
                 e.stopPropagation();
                 // Get the rest note ID (rests now have a single pitchless note entry)
-                const restNoteId = event.notes?.[0]?.id ?? null;
+                const restNoteId = getFirstNoteId(event);
                 interaction.onSelectNote(
                     measureIndex, 
                     event.id, 

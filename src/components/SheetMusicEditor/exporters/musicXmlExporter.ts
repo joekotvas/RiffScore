@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { NOTE_TYPES, KEY_SIGNATURES } from '../constants';
 import { getActiveStaff } from '../types';
+import { isRestEvent } from '../utils/core';
 
 export const generateMusicXML = (score: any) => {
     // Phase 2: Iterate over all staves
@@ -79,7 +80,7 @@ export const generateMusicXML = (score: any) => {
 
                 const xmlType = NOTE_TYPES[event.duration].xmlType;
 
-                if (event.notes.length === 0 || event.isRest || (event.notes.length === 1 && event.notes[0].pitch === null)) {
+                if (isRestEvent(event)) {
                     // REST
                     xml += `
     <note>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { CONFIG } from '../../config';
 import { useTheme } from '../../context/ThemeContext';
 import { calculateHeaderLayout, getNoteWidth, getOffsetForPitch } from '../../engines/layout';
+import { isRestEvent, getFirstNoteId } from '../../utils/core';
 import Staff, { calculateStaffWidth } from './Staff';
 import { getActiveStaff, createDefaultSelection } from '../../types';
 import { useScoreContext } from '../../context/ScoreContext';
@@ -181,12 +182,12 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
           const eventX = measureX + (layout.eventPositions?.[event.id] || 0);
           
           // Handle rest events (isRest flag set)
-          if (event.isRest) {
+          if (isRestEvent(event)) {
             // Skip placeholder rests for empty measures
             if (event.id === 'rest-placeholder') return;
             
             // Get the rest note ID (rests now have a single note entry)
-            const restNoteId = event.notes?.[0]?.id ?? null;
+            const restNoteId = getFirstNoteId(event);
             
             // Add rest hit area - centered on event, spanning full staff height
             const staffHeight = CONFIG.lineHeight * 4;

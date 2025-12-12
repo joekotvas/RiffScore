@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { NOTE_TYPES } from '../constants';
 import { getActiveStaff } from '../types';
+import { isRestEvent } from '../utils/core';
 
 // ABC notation pitch mapping - Algorithmic
 const toAbcPitch = (pitch: string, clef: string = 'treble'): string => {
@@ -84,7 +85,7 @@ export const generateABC = (score: any, bpm: number) => {
                      prefix += `(${event.tuplet.ratio[0]}`;
                 }
 
-                if (event.notes.length === 0 || event.isRest || (event.notes.length === 1 && event.notes[0].pitch === null)) {
+                if (isRestEvent(event)) {
                     // Rest
                     abc += `${prefix}z${durationString} `;
                 } else {

@@ -295,6 +295,32 @@ export const reflowScore = (measures: any[], newTimeSignature: string) => {
  * @param {string} direction - 'left', 'right', 'up', 'down'
  * @returns {Object} New selection object
  */
+/**
+ * Helper: Robust check for rest event
+ */
+export const isRestEvent = (event: any): boolean => {
+    return !!(event.isRest || 
+           !event.notes?.length || 
+           (event.notes?.length === 1 && event.notes[0].pitch === null));
+};
+
+/**
+ * Helper: Robust check for note event (has at least one pitch)
+ */
+export const isNoteEvent = (event: any): boolean => {
+    return !isRestEvent(event) && event.notes?.length > 0;
+};
+
+/**
+ * Helper to get noteId for an event.
+ * Returns ID for first note (pitch or rest).
+ */
+export const getFirstNoteId = (event: any): string | number | null => {
+    if (!event.notes?.length) return null;
+    return event.notes[0].id; // Rests now have notes, so this works for both
+};
+
+
 export const navigateSelection = (measures: any[], selection: any, direction: string, clef: string = 'treble') => {
     const { measureIndex, eventId, noteId } = selection;
     if (measureIndex === null || !eventId) return selection;
@@ -305,35 +331,26 @@ export const navigateSelection = (measures: any[], selection: any, direction: st
     const eventIdx = measure.events.findIndex((e: any) => e.id === eventId);
     if (eventIdx === -1) return selection;
 
-    /**
-     * Helper to get noteId for an event.
-     * Returns null for rests or empty events, first note id otherwise.
-     */
-    const getNoteId = (event: any): string | number | null => {
-        if (event.isRest || !event.notes?.length) return null;
-        return event.notes[0].id;
-    };
-
     if (direction === 'left') {
         if (eventIdx > 0) {
             const prevEvent = measure.events[eventIdx - 1];
-            return { ...selection, eventId: prevEvent.id, noteId: getNoteId(prevEvent) };
+            return { ...selection, eventId: prevEvent.id, noteId: getFirstNoteId(prevEvent) };
         } else if (measureIndex > 0) {
             const prevMeasure = measures[measureIndex - 1];
             if (prevMeasure.events.length > 0) {
                 const prevEvent = prevMeasure.events[prevMeasure.events.length - 1];
-                return { ...selection, measureIndex: measureIndex - 1, eventId: prevEvent.id, noteId: getNoteId(prevEvent) };
+                return { ...selection, measureIndex: measureIndex - 1, eventId: prevEvent.id, noteId: getFirstNoteId(prevEvent) };
             }
         }
     } else if (direction === 'right') {
         if (eventIdx < measure.events.length - 1) {
             const nextEvent = measure.events[eventIdx + 1];
-            return { ...selection, eventId: nextEvent.id, noteId: getNoteId(nextEvent) };
+            return { ...selection, eventId: nextEvent.id, noteId: getFirstNoteId(nextEvent) };
         } else if (measureIndex < measures.length - 1) {
             const nextMeasure = measures[measureIndex + 1];
             if (nextMeasure.events.length > 0) {
                 const nextEvent = nextMeasure.events[0];
-                return { ...selection, measureIndex: measureIndex + 1, eventId: nextEvent.id, noteId: getNoteId(nextEvent) };
+                return { ...selection, measureIndex: measureIndex + 1, eventId: nextEvent.id, noteId: getFirstNoteId(nextEvent) };
             }
         }
     } else if (direction === 'up' || direction === 'down') {
