@@ -1,6 +1,10 @@
+[← Back to README](../README.md)
+
 # RiffScore Interaction Design Guide
 
-> **Objective**: To provide an intuitive, embeddable sheet music editor that covers the most essential notation features. The interface is designed to be accessible for common tasks without the complexity of professional engraving software.
+> An intuitive, embeddable sheet music editor for common notation tasks—without the complexity of professional engraving software.
+
+> **See also**: [Architecture](./ARCHITECTURE.md) • [Configuration](./CONFIGURATION.md)
 
 ---
 

@@ -1,6 +1,10 @@
+[← Back to README](../README.md)
+
 # RiffScore Configuration Guide
 
 Complete reference for configuring the `<RiffScore />` component.
+
+> **See also**: [Architecture](./ARCHITECTURE.md) • [Interaction Design](./INTERACTION.md)
 
 ## Basic Usage
 

@@ -1,3 +1,5 @@
+[← Back to README](../README.md)
+
 # RiffScore Architecture Guide
 
 > A configurable, embeddable sheet music editor for React. Focuses on common notation needs and platform independence.
