@@ -32,11 +32,30 @@ Mutations to the score—from adding notes to changing time signatures—are exe
 *   `MusicService` (via TonalJS) calculates context.
 *   *Example*: In G Major, `"F#4"` renders as a natural F with a sharp in the key signature. In C Major, it renders with an explicit accidental. The underlying data remains `"F#4"`.
 
-### Rendering & Typography
-**Bravura** (SMuFL reference font) is used for rendering.
-*   **Vector Glyphs**: Musical symbols are rendered as text elements using Bravura.
-*   **Precision**: Standardized SMuFL code points ensure correct typography.
-*   **Optimization**: Font is loaded locally for performance.
+### 🎨 Standards-Based Notation
+All musical symbols are rendered using the **SMuFL** (Standard Music Font Layout) specification.
+*   **Font as Truth**: Glyphs come from Bravura, the reference SMuFL font—no custom SVG paths or raster images.
+*   **Precision**: Standardized Unicode code points ensure consistent, professional-quality engraving.
+*   **Portability**: Any SMuFL-compliant font can be swapped in without code changes.
+
+### 🔧 Flexibility
+The component adapts to diverse use cases through configuration.
+*   **Config-Driven**: A single `config` prop controls UI, interaction, and score options.
+*   **Partial Overrides**: Pass only what you need; defaults handle the rest via deep merge.
+*   **Two Modes**: Generate blank scores from templates, or load existing compositions directly.
+
+### ✨ Ease of Use
+Drop-in integration with minimal boilerplate.
+*   **Zero Config**: `<RiffScore />` renders a working editor with sensible defaults.
+*   **Self-Contained**: No required providers or context wrappers—ThemeProvider and ScoreProvider are internal.
+*   **Batteries Included**: Playback, MIDI input, keyboard shortcuts, and undo/redo work out of the box.
+
+### 🔄 Compatibility
+Export to industry-standard formats for interoperability with other notation tools.
+*   **JSON**: Native format for storage and API integration.
+*   **MusicXML**: Universal exchange format supported by Finale, Sibelius, MuseScore, and more.
+*   **ABC Notation**: Lightweight text format popular for folk and traditional music.
+*   **Import (Roadmap)**: MusicXML and ABC import support is planned for future releases.
 
 </details>
 
