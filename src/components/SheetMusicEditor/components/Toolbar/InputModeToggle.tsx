@@ -133,8 +133,8 @@ const InputModeToggle: React.FC<InputModeToggleProps> = ({ mode, onToggle }) => 
       title={isActive ? "Switch to Note Mode (R)" : "Switch to Rest Mode (R)"}
       preventFocus={true}
       icon={isActive 
-        ? <NoteGroupIcon color={theme.text} /> 
-        : <RestGroupIcon color={theme.text} />
+        ? <NoteGroupIcon color={theme.secondaryText} /> 
+        : <RestGroupIcon color={theme.secondaryText} />
       }
     />
   );

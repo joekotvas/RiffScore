@@ -58,7 +58,7 @@ const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
                 style={{
                     backgroundColor: theme.buttonBackground,
                     borderColor: isOpen ? theme.accent : theme.border,
-                    color: theme.text
+                    color: theme.secondaryText
                 }}
             >
                 <Volume2 size={12} />
