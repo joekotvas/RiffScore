@@ -267,6 +267,6 @@ export const DEFAULT_RIFF_CONFIG: RiffScoreConfig = {
     timeSignature: '4/4',
     keySignature: 'C',
     staff: 'grand',
-    measureCount: 2,
+    measureCount: 4,
   },
 };

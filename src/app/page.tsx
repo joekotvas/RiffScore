@@ -38,15 +38,8 @@ function CopyButton({ text }: { text: string }) {
 
 const examples = [
   {
-    title: "Grand Staff (Default)",
-    description: "A standard grand staff with treble and bass clefs, 4 measures",
-    config: {
-      score: { 
-        title: "Grand Staff Example",
-        staff: 'grand' as const, 
-        measureCount: 4 
-      }
-    }
+    title: "Default (No Props)",
+    description: "Using <RiffScore /> with no configuration renders an interactive grand staff with 4 measures"
   },
   {
     title: "Treble Clef Only",
@@ -120,7 +113,9 @@ function ExamplesContent() {
 
       <main className="max-w-6xl mx-auto space-y-16 pb-24">
         {examples.map((example, index) => {
-          const codeSnippet = `<RiffScore config={${JSON.stringify(example.config, null, 2)}} />`;
+          const codeSnippet = example.config 
+            ? `<RiffScore config={${JSON.stringify(example.config, null, 2)}} />`
+            : `<RiffScore />`;
           return (
             <section key={index} className="space-y-4">
               <div className="border-l-4 pl-4" style={{ borderColor: theme.accent }}>
