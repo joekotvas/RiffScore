@@ -54,6 +54,7 @@ See the [Configuration Guide](./docs/CONFIGURATION.md) for all available options
 | 📖 [Configuration Guide](./docs/CONFIGURATION.md) | Complete API reference for config options |
 | 📘 [Architecture Guide](./docs/ARCHITECTURE.md) | Technical reference for developers |
 | 🎨 [Interaction Design Guide](./docs/INTERACTION.md) | Guide to the intuitive editing behavior |
+| 🤝 [Contributing Guide](./docs/CONTRIBUTING.md) | How to set up and contribute to the project |
 
 ---
 
