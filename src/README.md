@@ -1,13 +1,19 @@
 # RiffScore
 
-**RiffScore** is a self-hostable, embeddable sheet music editor designed to liberate your music from third-party walled gardens.
+**RiffScore** is a self-hostable, embeddable sheet music editor for React.
 
-Unlike commercial platforms that require users to leave your site or pay subscription fees, RiffScore allows you to embed interactive, editable scores directly into your application. It focuses on delivering the most essential music notation features with a lightweight, independent engine.
+Unlike commercial platforms that require users to leave your site or pay subscription fees, RiffScore allows you to embed interactive, editable scores directly into your application.
+
+## Installation
+
+```bash
+npm install riffscore
+```
 
 ## Quick Start
 
 ```tsx
-import { RiffScore } from '@/components/SheetMusicEditor';
+import { RiffScore } from 'riffscore';
 
 function App() {
   return <RiffScore />;
@@ -60,8 +66,36 @@ See the [Configuration Guide](./docs/CONFIGURATION.md) for all available options
 *   **Interactive**: Full editing capabilities right in the browser.
 *   **Audio Engine**: Playback via [Tone.js](https://tonejs.github.io/).
 
+---
+
+## Repository Structure
+
+```
+riffscore/
+├── src/        ← Library source
+├── demo/       ← Next.js demo app
+├── dist/       ← Built library (ESM/CJS/DTS)
+└── tsup.config.ts
+```
+
+### Development
+
+```bash
+# Install dependencies
+npm install
+cd demo && npm install
+
+# Build library
+npm run build
+
+# Run demo
+npm run demo:dev
+```
+
+---
+
 ## Coming Soon
 
-*   **Imperative API**: Programmatically control the score (e.g., `score.addNote(...)`) for real-time app integration.
-*   **Chord Symbols**: Input and playback for lead sheets.
-*   **Export Options**: MusicXML and MIDI export.
+*   **Imperative API**: Programmatically control the score (e.g., `score.addNote(...)`)
+*   **Chord Symbols**: Input and playback for lead sheets
+*   **Import**: MusicXML import

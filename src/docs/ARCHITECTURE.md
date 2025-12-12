@@ -61,7 +61,7 @@ Export to JSON, MusicXML, or ABC notation.
 <summary><strong>View examples</strong></summary>
 
 ```tsx
-import { RiffScore } from '@/components/SheetMusicEditor';
+import { RiffScore } from 'riffscore';
 
 // Defaults: grand staff, 4 measures
 <RiffScore />
@@ -103,14 +103,15 @@ Organized in layers: services → engines → hooks → components.
 <summary><strong>View tree</strong></summary>
 
 ```
-SheetMusicEditor/
-├── index.tsx                 # Exports RiffScore & ScoreEditor
-├── RiffScore.tsx             # Config wrapper
-├── ScoreEditor.tsx           # Main editor
-├── types.ts                  # Score, RiffScoreConfig, DeepPartial
-├── config.ts                 # Layout constants
-├── themes.ts                 # Theme definitions
-├── constants.ts              # Music constants
+riffscore/
+├── src/                      # Library source
+│   ├── index.tsx             # Exports RiffScore & ScoreEditor
+│   ├── RiffScore.tsx         # Config wrapper
+│   ├── ScoreEditor.tsx       # Main editor
+│   ├── types.ts              # Score, RiffScoreConfig, DeepPartial
+│   ├── config.ts             # Layout constants
+│   ├── themes.ts             # Theme definitions
+│   ├── constants.ts          # Music constants
 │
 ├── services/                 # Business logic
 │   ├── MusicService.ts       # TonalJS wrapper
