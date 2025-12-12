@@ -299,9 +299,7 @@ export const reflowScore = (measures: any[], newTimeSignature: string) => {
  * Helper: Robust check for rest event
  */
 export const isRestEvent = (event: any): boolean => {
-    return !!(event.isRest || 
-           !event.notes?.length || 
-           (event.notes?.length === 1 && event.notes[0].pitch === null));
+    return !!event.isRest;
 };
 
 /**

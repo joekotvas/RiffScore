@@ -389,7 +389,7 @@ const Measure: React.FC<MeasureProps> = ({
                 sn.measureIndex === measureIndex &&
                 String(sn.eventId) === String(event.id) &&
                 sn.staffIndex === layout.staffIndex &&
-                (sn.noteId === restNoteId || (sn.noteId == null && restNoteId == null))
+                (sn.noteId === restNoteId)
             ) ?? false;
             
             const isRestSelected = isPrimarySelected || isInMultiSelection;

@@ -114,22 +114,18 @@ export const useSelection = ({ score }: UseSelectionProps) => {
     const measure = getActiveStaff(score, startStaffIndex).measures[measureIndex];
     const event = measure?.events.find((e: any) => e.id === eventId);
 
-    // Handle REST selection (events with no notes)
-    const isRestEvent = event?.isRest || (event && (!event.notes || event.notes.length === 0));
+    // Handle REST selection
+    // Previously, we treated rests as having NO notes (noteId: null).
+    // Now, rests are "pitchless notes", so they DO have a noteId.
+    // We only fallback to null if the event truly has no notes array (legacy).
     
-    if (isRestEvent) {
-        // For rests, we select at event level with noteId: null
-        // Create a special selectedNotes entry for the rest
-        notesToSelect = [{
-            staffIndex: startStaffIndex,
-            measureIndex,
-            eventId,
-            noteId: null  // Rests don't have notes
-        }];
-        targetNoteId = null;
-    } else if (selectAllInEvent || !noteId) {
-        if (event && event.notes.length > 0) {
-            notesToSelect = event.notes.map((n: any) => ({
+    // Check if we can use existing notes
+    const hasNotes = event && event.notes && event.notes.length > 0;
+    
+    if (hasNotes) {
+        // Standard handling for both Notes and Rests (pitchless notes)
+        if (selectAllInEvent || !noteId) {
+             notesToSelect = event.notes.map((n: any) => ({
                 staffIndex: startStaffIndex,
                 measureIndex,
                 eventId,
@@ -137,6 +133,13 @@ export const useSelection = ({ score }: UseSelectionProps) => {
             }));
             // Set cursor to first note if not specified
             if (!targetNoteId) targetNoteId = event.notes[0].id;
+        } else {
+             // Specific note selected (handled by toggleNoteInSelection or generic flow below)
+             // But if we are here in "Resolve Event Selection", we are building the list for a "Replace" or "Add" op?
+             // Actually, if noteId is provided and selectAllInEvent is false, we might skip this block 
+             // and let step 4 handle it... UNLESS it's a rest and we need to ensure it works?
+             
+             // If we have a specific noteId (even for rest), we're good.
         }
     }
 
@@ -149,10 +152,16 @@ export const useSelection = ({ score }: UseSelectionProps) => {
              setSelection(prev => {
                 const newSelectedNotes = prev.selectedNotes ? [...prev.selectedNotes] : [];
                 notesToSelect.forEach(n => {
-                    // For rests, compare by eventId only since noteId is null
-                    const exists = isRestEvent 
-                        ? newSelectedNotes.some(ex => ex.eventId === n.eventId && ex.noteId === null)
-                        : newSelectedNotes.some(ex => ex.noteId === n.noteId);
+                    // Standard existence check (works for notes and pitchless rests)
+                    const exists = newSelectedNotes.some(ex => {
+                        if (n.noteId) {
+                            return ex.noteId === n.noteId;
+                        } else {
+                            // Fallback for null noteId (legacy rests)
+                            return ex.eventId === n.eventId && ex.noteId === null;
+                        }
+                    });
+                    
                     if (!exists) {
                         newSelectedNotes.push(n);
                     }
@@ -167,7 +176,9 @@ export const useSelection = ({ score }: UseSelectionProps) => {
                     anchor: prev.anchor // Maintain anchor? Or reset?
                 };
              });
-             if (!isRestEvent) playAudioFeedback(event?.notes || []);
+             
+             // Only play audio if not a rest
+             if (!event?.isRest) playAudioFeedback(event?.notes || []);
              return; // Multi-select handled directly via setSelection
         } else {
              // Single Select of Event -> Replace selection
