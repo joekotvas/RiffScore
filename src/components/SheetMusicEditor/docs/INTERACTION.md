@@ -153,7 +153,30 @@ The editor transitions between the following states:
 
 ---
 
-### 6. Glossary of Key Terms
+## 6. Toolbar Focus Management
+
+The toolbar implements a **focus trap** to support keyboard-only navigation without losing context.
+
+### Behavior
+
+1. **Entering the Toolbar**: Clicking or tabbing to any toolbar button activates the focus trap.
+2. **Tab Cycling**: Pressing `Tab` cycles forward through all focusable toolbar buttons. `Shift+Tab` cycles backward.
+3. **Escape to Exit**: Pressing `Esc` exits the toolbar and returns focus to the score canvas.
+4. **Focus Restoration**: If a note was previously selected, it remains selected. If no selection exists, the cursor moves to the end of the score.
+
+### Dropdown Menus
+
+When a dropdown menu opens (File Menu, Melody Library, etc.):
+- The dropdown captures focus with its own trap
+- `Tab` cycles within the dropdown
+- `Esc` closes the dropdown and returns focus to its trigger button
+- Arrow keys navigate menu items
+
+> **Design Rationale**: Focus traps ensure keyboard users can fully navigate the UI without accidentally tabbing out of context, while `Esc` provides a consistent escape hatch back to the primary editing surface.
+
+---
+
+### 7. Glossary of Key Terms
 
 | Term | Definition |
 | :--- | :--- |
