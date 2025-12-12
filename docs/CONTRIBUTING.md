@@ -1,3 +1,5 @@
+[← Back to README](../README.md)
+
 # Contributing to RiffScore
 
 Thank you for your interest in contributing to RiffScore!
@@ -16,11 +18,16 @@ Thank you for your interest in contributing to RiffScore!
     ```
     This starts the Next.js demo app which consumes the library code.
 
+## Documentation
+
+-   [**Configuration Guide**](./CONFIGURATION.md): Complete API reference for config options.
+-   [**Architecture Guide**](./ARCHITECTURE.md): Technical reference for developers.
+-   [**Interaction Design**](./INTERACTION.md): Guide to the intuitive editing behavior.
+
 ## Development Workflow
 
 -   **Library Code**: Located in `src/`. This is the core component library.
 -   **Demo App**: Located in `demo/`. Used for testing and verifying changes.
--   **Architecture**: See [ARCHITECTURE.md](./ARCHITECTURE.md) for a technical overview.
 
 ## Branching
 
