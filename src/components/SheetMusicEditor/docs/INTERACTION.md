@@ -1,143 +1,162 @@
-# PianoRiffs Editor - Interaction Design Specification
+# PianoRiffs Interaction Design Guide
 
-## Overview
-This document defines the interaction model for the PianoRiffs Sheet Music Editor. It is designed to be **fluid**, **context-aware**, and **forgiving**, bridging the gap between a text editor's precision and a creative canvas's freedom.
+> **Objective**: To provide a sheet music editor that balances the fluidity of a text editor with the intuitive nature of a creative canvas. The interface is designed to be unobtrusive, placing the focus on the music.
 
 ---
 
-## 1. Core Philosophy
-The editor operates on a "State of Intent" model. It always tries to guess whether you are trying to *create* something new or *modify* something that exists, adapting its interface accordingly.
+## 1. Core Design Philosophy
 
-### The Three States
-At any given moment, the editor is in one of three logical states:
+Our interaction model minimizes cognitive load through four key principles.
 
-| State | Name | Intent | Visual Indicator |
-| :--- | :--- | :--- | :--- |
-| **IDLE** | **Navigation** | Exploring or reading the score. | No specific focus. Mouse cursor is a standard pointer. |
-| **ENTRY** | **Entry Ready** | Preparing to add new notes. | A semi-transparent **"Ghost Note"** follows your mouse or cursor, showing exactly where a note will be placed. |
-| **SELECTION** | **Selection Ready** | Modifying existing music. | One or more notes are **highlighted in the primary accent color**. The "Ghost Note" disappears. |
+### 🏛️ 1. Context-Aware Intent
+The editor infers whether the user intends to **Create** or **Modify** based on context.
+
+-   **The "Ghost" Indicator**: Moving through empty space displays a semi-transparent preview (Ghost Note or Rest), indicating readiness to place a new event.
+-   **The "Selection" Highlight**: Interacting with existing music removes the Ghost and highlights objects, indicating readiness to edit.
+
+> **Design Rationale**: By making these states visually distinct but automatically switched, we remove the need for explicit "Mode Switching" tools (e.g., separate Pencil vs. Selection tools).
+
+### 🌊 2. Iterative Flow
+Composition is an iterative process. The system supports this by being forgiving and maintaining momentum.
+
+-   **Non-Blocking Actions**: If a requested duration change is invalid for a specific note context, the system fails silently for that instance while continuing to process valid changes in the selection.
+-   **Smart Snap**: Input is quantized to valid rhythmic lines and spaces, ensuring the score remains syntactically valid.
+
+### 🎹 3. Input Modalities
+The system treats both mouse and keyboard as primary input methods.
+
+-   **Mouse**: Efficient for discovery, non-linear editing, and selection.
+-   **Keyboard**: Optimized for speed and linear, rhythmic entry.
+-   **Hybrid**: Allows clicking to set position, then typing to continue entry.
+
+### 😶 4. Rest Handling
+Rests are treated as rhythmic events with interactions parallel to notes.
+
+-   **Parity**: Actions available for notes (select, delete, change duration, copy) are available for rests.
+-   **Toggle-Based**: Switching between Note and Rest modes is a simple toggle (`R`), preserving rhythmic values while changing the event type.
 
 ---
 
 ## 2. Visual Language
-The interface uses color and style to communicate status instantly.
 
-### Cursors & Focus
-*   **Ghost Note**: A shadow of a note that appears when hovering over empty space or moving the insertion cursor. It indicates "If you click now, this appears."
-*   **Accent Color Highlight**: Indicates a selected element that will be affected by your next command (delete, pitch change, duration change).
-*   **Focus Memory**: If you click away or stop editing, the editor remembers your last position. Pressing an arrow key will instantly snap focus back to where you left off.
-
-### Duration Buttons (Toolbar)
-The duration buttons (Whole, Half, Quarter, etc.) change appearance based on context:
-*   **Solid Filled**: The current input duration is active (Entry Mode) OR all selected notes share this duration (Selection Mode).
-*   **Dashed Outline**: You have selected multiple notes with **different** durations. This indicates a "Mixed State". (Clicking it creates uniformity).
-*   **Standard/Outline**: Available but not active.
-
-### Beams
-*   **Standard**: Beams in the default note color connect notes rhythmically.
-*   **Highlighted**: A beam turns to the **accent color only if every note in the beamed group is selected**. Partial selection leaves the beam neutral to avoid visual clutter.
+| Element | Visual Style | Meaning |
+| :--- | :--- | :--- |
+| **Ghost Event** | Semi-transparent (50% opacity) | **Prediction**. Indicates what will be added upon commit. Adapts to Note or Rest mode. |
+| **Selection** | **Highlighted** (Theme Accent) | **Target**. Indicates items affected by commands (transpose, delete, etc.). |
+| **Input Mode** | Cursor Icon / Toolbar State | **Context**. Determines if the Ghost Event creates a Note or a Rest. |
+| **Hit Zone** | (Invisible) Vertical measure slices | **Fuzziness**. Allows clicking near a beat to select it, improving usability. |
 
 ---
 
-## 3. Navigation & Focus
-The editor treats music like a document. You can navigate spatially (Mouse) or structurally (Keyboard).
+## 3. Editor States
 
-### Mouse Interaction
-*   **Hover**: Hovering over a measure activates **Entry Mode**, showing a Ghost Note.
-*   **Click (Empty Space)**: Commits the Ghost Note to the score.
-*   **Click (Existing Note)**: Enters **Selection Mode** for that note.
-*   **Click (Background)**: Deselects everything and returns to **Idle Mode**, but remembers your position.
+The editor transitions between the following states:
 
-### Keyboard Interaction
-*   **Left / Right Arrows**: Move selection to the previous/next note or rest.
-    *   *Smart Resume*: If you have no selection (Idle), pressing a **Left or Right** arrow key restores selection to your last active note.
-*   **Shift + Arrows**: Extends selection to multiple notes.
-*   **Up / Down Arrows**: Transposes the selected note(s) by semitone.
-*   **Enter**: In Entry Mode, commits the Ghost Note.
-*   **Duration Shortcuts**:
-    *   `1`: Sixty-fourth Note
-    *   `2`: Thirty-second Note
-    *   `3`: Sixteenth Note
-    *   `4`: Eighth Note
-    *   `5`: Quarter Note
-    *   `6`: Half Note
-    *   `7`: Whole Note
+### 1. IDLE (Navigation)
+-   **Trigger**: Click background or press `Esc`.
+-   **Behavior**: No active focus. Safe for viewing layout.
+-   **Visuals**: Standard cursor.
+
+### 2. ENTRY READY (Creation)
+-   **Trigger**: Hover over measures or press Enter in input mode.
+-   **Behavior**: The **Ghost Event** tracks the cursor position.
+-   **Input Modes**:
+    -   **NOTE Mode**: Ghost is a pitched note (Y-position dependent).
+    -   **REST Mode**: Ghost is a rest (Y-position independent).
+-   **Action**: Clicking or pressing Enter **commits** the ghost to the score and **auto-advances** to the next rhythmic slot.
+
+### 3. SELECTION READY (Modification)
+-   **Trigger**: Click an existing note/rest or navigate via keyboard.
+-   **Behavior**: One or more elements are highlighted.
+-   **Action**: Commands (Delete, Transpose, Duration) affect the current selection.
 
 ---
 
-## 4. Note Entry
-The goal is "What You See Is What You Get".
+## 4. Interaction Specifications
 
-### Mouse Entry
-1.  Select a duration from the toolbar (e.g., Quarter Note).
-2.  Move your mouse over a measure. A **Ghost Note** appears, snapping to valid rhythmic lines.
-3.  **Click** to place the note.
-    *   *Behavior*: The note is added, but **not selected**. This allows you to immediately click again to add more notes without needing to deselect the previous one. Focus Memory is updated so you can switch to keyboard navigation immediately.
+### A. Mouse Workflow
+*Designed for discoverability and random access.*
 
-### Keyboard Entry
-1.  Navigate to a position (Cursor/Ghost Note is visible).
-2.  Press **Enter** to place a note at the cursor's pitch.
-3.  Auto-advance: The cursor automatically moves to the next rhythmic slot.
+1.  **Hover**: Calculates the nearest **Hit Zone** (Event, Insert, or Append).
+    -   *Feedback*: Ghost Event appears at the calculated pitch/time.
+2.  **Click (Empty Space)**:
+    -   **Commits** the Ghost Event.
+    -   **Audio**: Plays the note (rests are silent).
+    -   **Post-Action**: Remains in **Entry State** without selecting the new note.
+    -   *Rationale*: Facilitates rapid, sequential note entry.
+3.  **Click (Existing Event)**:
+    -   **Selects** the event.
+    -   **Audio**: Plays the note(s).
+    -   **Modifier**: `Cmd/Ctrl+Click` toggles multi-selection.
+    -   **Modifier**: `Shift+Click` selects a range.
 
----
+### B. Keyboard Workflow
+*Designed for eficiency.*
 
-## 5. Selection & Transformation
-Modifying music should feel safe and predictable.
+1.  **Navigation**: `Left/Right` arrows move the selection (or cursor) through the timeline.
+2.  **Entry (`Enter`)**:
+    -   Inserts event at cursor position.
+    -   **Auto-Advance**: Cursor moves to the next rhythmic slot.
+    -   **Pitch Memory**: Cursor retains the previous pitch (Note Mode) or stays neutral (Rest Mode).
+3.  **Pitch Adjustment**: `Up/Down` arrows move the ghost (in Entry) or transposed selection (during Selection).
+4.  **Duration**: Number keys `1-8` set duration for *next* entry (Entry) or *transform* current selection (Selection).
 
-### Selection Rules
-*   **Single Click**: Selects a note.
-*   **Cmd/Ctrl + Click**: Adds/Removes a note from the selection (Multi-Select).
-*   **Shift + Click**: Selects a range of notes.
-*   **Drag Selection**: Click and drag to draw a box around multiple notes.
+### C. Rest Entry System
+*Treating silence as a core structural element.*
 
-### Transformation Logic
-When you have a selection and click a **Duration Button**:
-1.  **Uniform Selection**: If all instances validly fit the new duration, they update.
-2.  **Mixed Selection (Dashed Outline)**: If notes differ, clicking a duration attempts to force them all to the target duration.
-3.  **Safety Check**: If expanding a note (e.g., 16th to Quarter) would overlap specifically locked elements or exceed the measure, that specific note **fails silently**, while others in the selection still update. This ensures one error doesn't block the entire batch operation.
+-   **Toggle**: Press `R` to switch Input Mode (Note ↔ Rest).
+-   **The Ghost Rest**: In Rest Mode, the ghost ignores vertical mouse position, representing purely rhythmic duration.
+-   **Silent Feedback**: Rests do not trigger audio feedback on entry or selection.
+-   **Conversion**: Selecting notes and pressing `R` converts them to rests of the same duration (and vice versa).
 
-### Beam Logic
-*   Selecting a single note in a beamed group highlights *that note*, not the beam.
-*   Selecting *all* notes in the group highlights the *beam* as well, indicating the entire structure is selected.
-
----
-
-## 6. Definitions
-*   **Hit Zone**: An invisible vertical slice of a measure that detects where your mouse is.
-*   **Flow**: The editor allows seamless switching between Mouse and Keyboard. You can click to place a note, then immediately use Arrow keys to correct its pitch.
+> **Design Rationale**: Reusing interaction patterns for rests reduces the learning curve; users modify the material (sound vs. silence) rather than the interaction method.
 
 ---
 
-## 7. Keyboard Shortcuts Reference
+## 5. Keyboard Shortcuts Reference
 
-### General
-| Key | Action |
-| --- | --- |
-| `Space` | Play / Pause (from selection or start) |
-| `Shift + Space` | Play from last start position |
-| `Cmd/Ctrl + Shift + Space` | Play from Beginning |
-| `P` | Play from selection |
-| `Esc` | Deselect All / Close Menus / Stop Playback |
-| `Cmd/Ctrl + Z` | Undo |
-| `Cmd/Ctrl + Shift + Z` (or `Y`) | Redo |
+### 🛠 Tools, Modes & Playback
+| Key | Action | Context |
+| :--- | :--- | :--- |
+| `R` | **Toggle Note/Rest Mode** | Entry |
+| `R` | **Convert Selection** | Selection |
+| `Esc` | Clear Selection / Menu | Global |
+| `Space` | Play / Pause | Global |
+| `Shift + Space` | Play from Last Start | Global |
+| `Cmd + Z` | Undo | Global |
+| `Cmd + Shift + Z` | Redo | Global |
 
-### Navigation & Selection
-| Key | Action |
-| --- | --- |
-| `←` / `→` | Select Previous / Next Note |
-| `Shift + ←` / `→` | Extend Selection |
-| `Cmd/Ctrl + ↑` / `↓` | Select Note within Chord (Intra-chord navigation) |
-| `Alt + ↑` / `↓` | Switch Staff (Grand Staff) |
+### 🎵 Pitch & Duration
+| Key | Action | Notes |
+| :--- | :--- | :--- |
+| `1` - `8` | Set Duration | 1=32nd ... 5=Quarter ... 8=Whole |
+| `.` | Toggle Dotted | Adds 50% duration |
+| `T` | Toggle Tie | Connects note to next |
+| `↑` / `↓` | Transpose (Step) | Semitone shift |
+| `Shift + ↑` / `↓` | Transpose (Octave) | Octave shift |
+| `-` / `_` | Flat (b) | |
+| `=` / `+` | Sharp (#) | |
+| `0` | Natural (♮) | |
 
-### Note Entry & Modification
-| Key | Action |
-| --- | --- |
-| `Enter` | Insert Note (at Cursor) |
-| `Delete` / `Backspace` | Delete Selection |
-| `↑` / `↓` | Transpose Selection (Semitone) |
-| `Shift + ↑` / `↓` | Transpose Selection (Octave) |
-| `1` - `7` | Select Duration (64th to Whole) |
-| `-` / `_` | Flat |
-| `=` / `+` | Sharp |
-| `0` | Natural |
-| `T` | Toggle Tie |
+### 🧭 Navigation & Editing
+| Key | Action | Behavior |
+| :--- | :--- | :--- |
+| `Enter` | **Insert (Commit)** | Adds Note/Rest at cursor & auto-advances |
+| `←` / `→` | Previous/Next | Navigates through timeline |
+| `Shift + ←` / `→` | Extend Selection | Multi-select range |
+| `Cmd + ↑` / `↓` | Intra-chord | Navigates notes within a single chord |
+| `Delete` | Remove | Deletes selection |
+
+---
+
+### 6. Glossary of Key Terms
+
+| Term | Definition |
+| :--- | :--- |
+| **Ghost Event** | Semi-transparent preview tracking the mouse/cursor. Represents a *prediction* of the item to be added. |
+| **Focus Memory** | System behavior that retains the last editing position, allowing focus restoration via arrow keys after UI interaction. |
+| **Cursor** | In keyboard navigation, the specific *position* on the staff where the Ghost Event is located. |
+| **Hit Zone** | Invisible vertical slices of a measure used to calculate quantized rhythmic placement from mouse coordinates. |
+| **Smart Snap** | Logic enforcing alignment with valid rhythmic intervals and staff positions. |
+| **Commit** | action (Click or Enter) that converts a Ghost Event into a permanent Score Event. |
+| **Input Mode** | Global switch (toggled by `R`) determining creation of Notes or Rests. |
