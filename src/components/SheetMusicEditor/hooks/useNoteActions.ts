@@ -242,8 +242,8 @@ export const useNoteActions = ({
             currentStaffIndex
         ));
 
-        // Select the rest note (rests now have a selectable noteId)
-        select(measureIndex, eventId, restNoteId, currentStaffIndex);
+        // Select the rest note history only (mimicking note behavior) to allow auto-advance
+        select(measureIndex, eventId, restNoteId, currentStaffIndex, { onlyHistory: true });
         setPreviewNote(null);
     } else {
         // Create new note event
