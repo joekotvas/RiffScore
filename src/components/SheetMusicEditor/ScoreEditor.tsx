@@ -14,7 +14,6 @@ import ScoreCanvas from './components/Canvas/ScoreCanvas';
 // Components - Panels
 import ScoreHeader from './components/Panels/ScoreHeader';
 import ConfigMenu from './components/Panels/ConfigMenu';
-import OutputPanel from './components/Panels/OutputPanel';
 
 // Components - Overlays
 import ShortcutsOverlay from './components/Overlays/ShortcutsOverlay';
@@ -277,13 +276,13 @@ const ScoreEditorContent = ({
                     style={{ color: theme.text, borderColor: theme.border, borderWidth: '1px' }}
                 />
             ) : (
-                <h1 
+                <h2 
                     onClick={() => setIsEditingTitle(true)}
                     className="font-bold font-serif text-3xl px-2 py-0 rounded hover:bg-white/10 cursor-pointer transition-colors inline-block"
                     style={{ color: theme.text }}
                 >
                     {score.title}
-                </h1>
+                </h2>
             )}
         </div>
 
@@ -309,8 +308,6 @@ const ScoreEditorContent = ({
             }}
         />
       </div>
-
-      <OutputPanel score={score} bpm={bpm} />
 
       {scoreLogic.pendingClefChange && (
         <Portal>
