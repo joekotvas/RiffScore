@@ -1,29 +1,33 @@
 # RiffScore Architecture Guide
 
-> **Overview**: A lightweight, embeddable notation engine designed for self-hosting. It prioritizes common notation needs and platform independence, treating music theory as a foundational data structure.
+> **Overview**: A configurable, embeddable sheet music editor for React. It prioritizes common notation needs and platform independence, treating music theory as a foundational data structure.
 
 > **Additional Documentation**:
+> *   [Configuration Guide](./CONFIGURATION.md) - Complete API reference for `<RiffScore />` config options.
 > *   [Interaction Design Guide](./INTERACTION.md) - Covers intent, states, and user flow.
 
 ---
 
 ## 1. Core Architectural Pillars
 
-The editor is structured on distinct layers to separate business logic from UI concerns.
+The editor separates business logic from UI through four foundational patterns.
 
-### 🏛️ 1. Single Source of Truth
+<details>
+<summary><strong>View architectural principles</strong></summary>
+
+### 🏛️ Single Source of Truth
 The `Score` object defines the state. Derived states (like accidental visibility or beam angles) are not stored in the database.
 *   **Serialized**: `Score` is pure JSON.
 *   **Calculated**: Rendering properties are derived at runtime by the Layout Engine.
 *   **Consistency**: Ensures that loaded data exactly matches saved data.
 
-### ⚡ 2. Command Pattern
+### ⚡ Command Pattern
 Mutations to the score—from adding notes to changing time signatures—are executed via `ScoreEngine.dispatch()`.
 *   **Traceability**: Provides a log of all state changes.
 *   **Undo/Redo**: Supported natively via command history.
 *   **Encapsulation**: Complex operations are contained within single commands.
 
-### 🎼 3. Theory-First Data Model
+### 🎼 Theory-First Data Model
 **Absolute Pitch** (e.g., `"F#4"`) is used for storage.
 *   `MusicService` (via TonalJS) calculates context.
 *   *Example*: In G Major, `"F#4"` renders as a natural F with a sharp in the key signature. In C Major, it renders with an explicit accidental. The underlying data remains `"F#4"`.
@@ -34,17 +38,68 @@ Mutations to the score—from adding notes to changing time signatures—are exe
 *   **Precision**: Standardized SMuFL code points ensure correct typography.
 *   **Optimization**: Font is loaded locally for performance.
 
+</details>
+
 ---
 
-## 2. Directory Structure
+## 2. Component Entry Point
+
+`<RiffScore />` is the primary public API. Pass a config prop to customize initialization, or use defaults.
+
+<details>
+<summary><strong>View usage examples</strong></summary>
+
+```tsx
+import { RiffScore } from '@/components/SheetMusicEditor';
+
+// Default: Grand staff, 4 measures, full editing
+<RiffScore />
+
+// With configuration
+<RiffScore config={{
+  ui: { showToolbar: false, scale: 0.75 },
+  interaction: { isEnabled: false },
+  score: { staff: 'treble', measureCount: 8, keySignature: 'G' }
+}} />
+```
+
+### Config Resolution Flow
+
+```
+RiffScoreConfig (Partial)
+    ↓
+useRiffScore() hook
+    ├── mergeConfig() → Merge with defaults
+    ├── If staves provided → Use directly (Render Mode)
+    └── Else generateStaves() → Create from template (Generator Mode)
+    ↓
+ScoreProvider (initialScore)
+    ↓
+ScoreEditorContent
+```
+
+See [Configuration Guide](./CONFIGURATION.md) for complete API reference.
+
+</details>
+
+---
+
+## 3. Directory Structure
+
+Layered architecture: services → engines → hooks → components.
+
+<details>
+<summary><strong>View full directory tree</strong></summary>
 
 ```
 SheetMusicEditor/
-├── index.tsx                 # Main entry point
-├── ScoreEditor.tsx           # Core editor component
-├── types.ts                  # Type definitions (Score, Staff, Measure, Event, Note)
-├── config.ts                 # Configuration constants
-├── constants.ts              # Music constants (NOTE_TYPES, etc.)
+├── index.tsx                 # Module entry, exports RiffScore & ScoreEditor
+├── RiffScore.tsx             # Config-driven wrapper component
+├── ScoreEditor.tsx           # Core editor implementation
+├── types.ts                  # Types (Score, RiffScoreConfig, DeepPartial)
+├── config.ts                 # Layout configuration constants
+├── themes.ts                 # Theme definitions (DARK, COOL, WARM, LIGHT)
+├── constants.ts              # Music constants (NOTE_TYPES, TIME_SIGNATURES)
 │
 ├── services/                 # Business logic services
 │   ├── MusicService.ts       # TonalJS wrapper - pitch, key, transposition
@@ -67,41 +122,32 @@ SheetMusicEditor/
 ├── commands/                 # Command pattern for undo/redo
 │   ├── types.ts              # Command interface
 │   ├── AddEventCommand.ts    # Unified note/rest creation
-│   ├── AddNoteToEventCommand.ts
 │   ├── ChangePitchCommand.ts
-│   ├── DeleteEventCommand.ts
 │   ├── DeleteNoteCommand.ts
 │   ├── MeasureCommands.ts
-│   ├── ToggleRestCommand.ts  # Convert note ↔ rest
-│   ├── TransposeSelectionCommand.ts
-│   ├── TupletCommands.ts
 │   ├── SetKeySignatureCommand.ts
 │   ├── SetTimeSignatureCommand.ts
 │   ├── SetGrandStaffCommand.ts
-│   ├── SetSingleStaffCommand.ts
-│   ├── TogglePickupCommand.ts
-│   └── ...
+│   └── ...                   # Additional commands
 │
 ├── hooks/                    # React hooks
+│   ├── useRiffScore.ts       # Config normalization & score generation
 │   ├── useScoreLogic.ts      # Main score state management  
+│   ├── useScoreEngine.ts     # ScoreEngine integration
+│   ├── useSelection.ts       # Selection state management
 │   ├── useNavigation.ts      # Keyboard navigation
-│   ├── usePlayback.ts        # Audio playback control
-│   ├── useModifiers.ts       # Duration/accidental toggles
-│   ├── useNoteActions.ts     # Note manipulation (Unified)
+│   ├── useNoteActions.ts     # Note manipulation
 │   ├── useMeasureActions.ts  # Measure manipulation
 │   ├── useTupletActions.ts   # Tuplet creation/management
+│   ├── useModifiers.ts       # Duration/accidental toggles
+│   ├── usePlayback.ts        # Audio playback control
 │   ├── useAutoScroll.ts      # Canvas auto-scrolling
-│   ├── useGrandStaffLayout.ts # Grand staff layout calculation
-│   ├── useKeyboardShortcuts.ts # Keyboard shortcut handling
-│   ├── useScoreInteraction.ts # Mouse/click interaction
-│   ├── useSelection.ts      # Selection state management
-│   ├── useDragToSelect.ts   # Drag selection for multi-select
-│   ├── useEditorTools.ts    # Input mode (NOTE/REST), duration tools
-│   ├── useMIDI.ts            # MIDI input handling
+│   ├── useGrandStaffLayout.ts # Grand staff layout
+│   ├── useKeyboardShortcuts.ts # Keyboard handling
+│   ├── useScoreInteraction.ts # Mouse handling
+│   ├── useDragToSelect.ts    # Box selection
+│   ├── useMIDI.ts            # MIDI input
 │   └── handlers/             # Event handlers
-│       ├── handleNavigation.ts
-│       ├── handleMutation.ts # Keyboard input for transposition, deletion
-│       └── handlePlayback.ts
 │
 ├── components/               # UI components
 │   ├── Canvas/               # SVG score rendering
@@ -109,39 +155,60 @@ SheetMusicEditor/
 │   │   ├── Staff.tsx         # Staff lines and clef
 │   │   ├── Measure.tsx       # Measure container
 │   │   ├── ChordGroup.tsx    # Note grouping with stems
-│   │   ├── ChordComponents.tsx # Extracted chord parts (stem, accidental, hit area)
 │   │   ├── Note.tsx          # Individual note rendering
+│   │   ├── Stem.tsx          # Stem line rendering
+│   │   ├── Flags.tsx         # Eighth/sixteenth note flags
 │   │   ├── Beam.tsx          # Beam rendering (angled)
 │   │   ├── Rest.tsx          # Rest symbol rendering
 │   │   ├── Tie.tsx           # Tie arc rendering
-│   │   └── TupletBracket.tsx # Tuplet bracket rendering
-│   ├── Assets/               # Visual assets (SVG icons, clefs)
-│   │   ├── ClefIcon.tsx
-│   │   └── GrandStaffBracket.tsx
+│   │   ├── TupletBracket.tsx # Tuplet bracket rendering
+│   │   └── GhostPreview.tsx  # Note/rest preview on hover
+│   ├── Assets/               # Visual assets for toolbar/UI
+│   │   ├── ClefIcon.tsx      # Clef glyphs
+│   │   ├── GrandStaffBracket.tsx # Grand staff bracket
+│   │   ├── NoteIcon.tsx      # Note glyphs for toolbar
+│   │   └── RestIcon.tsx      # Rest glyphs for toolbar
 │   ├── Toolbar/              # Toolbar controls
-│   ├── Panels/               # Side panels
+│   ├── Panels/               # Side panels (ConfigMenu)
 │   ├── Overlays/             # Modal overlays
 │   └── Portal.tsx            # React portal wrapper
 │
 ├── exporters/                # Export functionality
+│   ├── musicXmlExporter.ts   # MusicXML export
+│   ├── abcExporter.ts        # ABC notation export
+│   └── jsonExporter.ts       # JSON export
 │
 ├── context/                  # React context
 │   ├── ScoreContext.tsx      # Score state provider
-│   ├── ThemeContext.tsx      # Theme provider
+│   └── ThemeContext.tsx      # Theme provider
 │
 ├── utils/                    # Utility functions
 │   ├── core.ts               # Duration calculations, reflow
+│   ├── generateScore.ts      # Score generation from templates
+│   ├── mergeConfig.ts        # Deep merge for partial configs
+│   ├── selection.ts          # Selection utilities
+│   ├── interaction.ts        # Navigation/interaction helpers
 │   ├── validation.ts         # Input validation
-│   └── interaction.ts        # Selection/navigation helpers
+│   └── debug.ts              # Debug logging
 │
-└── __tests__/                # Consolidated test files
+├── docs/                     # Documentation
+│   ├── ARCHITECTURE.md       # This file
+│   ├── CONFIGURATION.md      # RiffScore config API reference
+│   └── INTERACTION.md        # Interaction design guide
+│
+└── __tests__/                # Consolidated test files (34 test suites)
 ```
+
+</details>
 
 ---
 
-## 3. Data Model
+## 4. Data Model
 
-The schema supports advanced features such as Grand Staff, polyrhythms, and mixed note/rest events.
+`Score` → `Staff[]` → `Measure[]` → `ScoreEvent[]` → `Note[]`. Supports grand staff, tuplets, and mixed note/rest events.
+
+<details>
+<summary><strong>View schema</strong></summary>
 
 ```typescript
 Score
@@ -170,9 +237,16 @@ Score
                           └── tied?: boolean
 ```
 
+</details>
+
 ---
 
-## 4. Key Systems & Decisions
+## 5. Key Systems & Decisions
+
+Unified event model, grand staff sync, and consolidated testing.
+
+<details>
+<summary><strong>View design decisions</strong></summary>
 
 ### 🔄 Unified Event Model (DRY)
 **Notes** and **Rests** are treated as sibling "ScoreEvent" types.
@@ -193,11 +267,16 @@ Testing is consolidated in `src/components/SheetMusicEditor/__tests__/`.
 *   **Commands**: 79% coverage (State mutations)
 *   **Hooks**: 62% coverage (Component integration)
 
+</details>
+
 ---
 
-## 5. Layout Engine
+## 6. Layout Engine
 
-Modules are scoped to specific layout responsibilities.
+Six modules calculate note positions, beaming, stems, and tuplet brackets.
+
+<details>
+<summary><strong>View modules and pipeline</strong></summary>
 
 ### Module Overview
 
@@ -227,14 +306,22 @@ Measure.tsx (Render)
         └── TupletBracket
 ```
 
+</details>
+
 ---
 
-## 6. Hook Architecture
+## 7. Hook Architecture
+
+Core hooks manage state; UI hooks handle input and layout.
+
+<details>
+<summary><strong>View hook tables</strong></summary>
 
 ### Core Hooks
 
 | Hook | Purpose |
 |------|---------|
+| `useRiffScore` | Config normalization & score generation |
 | `useScoreLogic` | Main state orchestration |
 | `useScoreEngine` | ScoreEngine integration |
 | `useSelection` | Selection state management |
@@ -258,9 +345,14 @@ Measure.tsx (Render)
 | `useScoreInteraction` | Mouse handling |
 | `useMIDI` | MIDI input |
 
+</details>
+
 ---
 
-## 7. Dependencies
+## 8. Dependencies
+
+<details>
+<summary><strong>View package list</strong></summary>
 
 | Package | Purpose |
 |---------|---------|
@@ -269,3 +361,5 @@ Measure.tsx (Render)
 | `react` | UI framework |
 | `lucide-react` | Icons |
 | **Bravura** | SMuFL-compliant music font |
+
+</details>
