@@ -1,4 +1,6 @@
 import { Score, Selection, getActiveStaff } from '../types';
+import { calculateTotalQuants } from './core';
+import { TIME_SIGNATURES } from '../constants';
 
 /**
  * Calculates the selection state for focusing the score.
@@ -6,7 +8,7 @@ import { Score, Selection, getActiveStaff } from '../types';
  * Priority:
  * 1. If existingSelection has an eventId, validate it still exists in the score
  * 2. If valid, keep the existing selection (focus memory)
- * 3. Otherwise, position at the end of the first staff for keyboard entry
+ * 3. Otherwise, position at the first available entry point (first empty or incomplete measure)
  * 
  * @param score - The current score
  * @param existingSelection - The current selection state
@@ -36,13 +38,58 @@ export function calculateFocusSelection(
     // Selection was stale, fall through to default positioning
   }
 
-  // No valid selection - position cursor at end of first staff
+  // No valid selection - find first empty or incomplete measure
   const activeStaff = getActiveStaff(score, 0);
+  
+  // Guard: handle empty staves (no measures)
+  if (!activeStaff.measures || activeStaff.measures.length === 0) {
+    return {
+      staffIndex: 0,
+      measureIndex: null,
+      eventId: null,
+      noteId: null,
+      selectedNotes: []
+    };
+  }
+
+  // Get quants per measure based on time signature
+  const quantsPerMeasure = TIME_SIGNATURES[score.timeSignature as keyof typeof TIME_SIGNATURES] || 64;
+  
+  // Find first measure that isn't full
+  for (let i = 0; i < activeStaff.measures.length; i++) {
+    const measure = activeStaff.measures[i];
+    
+    // Empty measure - position here
+    if (!measure.events || measure.events.length === 0) {
+      return {
+        staffIndex: 0,
+        measureIndex: i,
+        eventId: null,
+        noteId: null,
+        selectedNotes: []
+      };
+    }
+    
+    // Check if measure is incomplete (has room for more notes)
+    const totalQuants = calculateTotalQuants(measure.events);
+    if (totalQuants < quantsPerMeasure) {
+      // Incomplete measure - select the last event (cursor will be after it)
+      const lastEvent = measure.events[measure.events.length - 1];
+      return {
+        staffIndex: 0,
+        measureIndex: i,
+        eventId: lastEvent.id,
+        noteId: lastEvent.notes?.[0]?.id || null,
+        selectedNotes: []
+      };
+    }
+  }
+
+  // All measures are full - position at the last measure's last event
   const lastMeasureIndex = activeStaff.measures.length - 1;
   const lastMeasure = activeStaff.measures[lastMeasureIndex];
-
-  if (lastMeasure && lastMeasure.events.length > 0) {
-    // Select the last event
+  
+  if (lastMeasure.events && lastMeasure.events.length > 0) {
     const lastEvent = lastMeasure.events[lastMeasure.events.length - 1];
     return {
       staffIndex: 0,
@@ -53,7 +100,7 @@ export function calculateFocusSelection(
     };
   }
 
-  // Empty measure - set measure position only (ready for append)
+  // Empty last measure
   return {
     staffIndex: 0,
     measureIndex: lastMeasureIndex,

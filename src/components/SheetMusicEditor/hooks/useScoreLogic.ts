@@ -345,7 +345,27 @@ export const useScoreLogic = (initialScore: any) => {
   const focusScore = useCallback(() => {
     const newSelection = calculateFocusSelection(score, selection);
     setSelection(newSelection);
-  }, [score, selection, setSelection]);
+    
+    // If focusing on an empty position (no eventId), create a preview note for ghost cursor
+    if (!newSelection.eventId && newSelection.measureIndex !== null) {
+      const staff = score.staves[newSelection.staffIndex || 0];
+      const measure = staff?.measures[newSelection.measureIndex];
+      if (measure) {
+        const clef = staff.clef || 'treble';
+        const defaultPitch = clef === 'bass' ? 'D3' : 'B4';
+        const preview = getAppendPreviewNote(
+          measure,
+          newSelection.measureIndex,
+          newSelection.staffIndex || 0,
+          activeDuration,
+          isDotted,
+          defaultPitch,
+          inputMode === 'REST'
+        );
+        setPreviewNote(preview);
+      }
+    }
+  }, [score, selection, setSelection, setPreviewNote, activeDuration, isDotted, inputMode]);
 
 
   // --- EXPORTS ---
