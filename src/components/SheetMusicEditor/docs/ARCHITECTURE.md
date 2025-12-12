@@ -1,9 +1,9 @@
-# PianoRiffs Architecture Guide
+# RiffScore Architecture Guide
 
-> **Overview**: professional-grade, web-based notation engine prioritizing correctness, performance, and developer experience. Music theory is treated as a foundational data structure.
+> **Overview**: A lightweight, embeddable notation engine designed for self-hosting. It prioritizes common notation needs and platform independence, treating music theory as a foundational data structure.
 
 > **Additional Documentation**:
-> *   [Interaction Design System](./INTERACTION.md) - Covers intent, states, and user flow.
+> *   [Interaction Design Guide](./INTERACTION.md) - Covers intent, states, and user flow.
 
 ---
 
@@ -264,8 +264,8 @@ Measure.tsx (Render)
 
 | Package | Purpose |
 |---------|---------|
-| `tonal` | Music theory (pitch, key, intervals) |
-| `tone` | Audio playback |
+| [`tonal`](https://github.com/tonaljs/tonal) | Music theory (pitch, key, intervals) |
+| [`tone`](https://tonejs.github.io/) | Audio playback |
 | `react` | UI framework |
 | `lucide-react` | Icons |
 | **Bravura** | SMuFL-compliant music font |

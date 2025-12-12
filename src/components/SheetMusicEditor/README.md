@@ -1,43 +1,45 @@
-# PianoRiffs Sheet Music Editor
+# RiffScore
 
-The **SheetMusicEditor** is a professional-grade, web-based music notation engine built with React and SVG. It is designed to provide a fluid, correct, and performant editing experience for musicians and engravers.
+**RiffScore** is a self-hostable, embeddable sheet music editor designed to liberate your music from third-party walled gardens.
+
+Unlike commercial platforms that require users to leave your site or pay subscription fees, RiffScore allows you to embed interactive, editable scores directly into your application. It focuses on delivering the most essential music notation features with a lightweight, independent engine.
 
 ## Documentation
 
-We maintain detailed documentation for both the technical architecture and the user interaction model.
-
 ### 📘 [Architecture Guide](./docs/ARCHITECTURE.md)
-**For Developers:** A comprehensive technical reference covering the codebase structure, data models, rendering pipeline, and core systems.
-*   **Core Systems**: Command pattern, Layout Engine, State Management.
-*   **Data Model**: Theory-first approach using absolute pitch.
-*   **Rendering**: SMuFL-compliant rendering with Bravura.
+**For Developers:** Technical reference for the lightweight, embeddable engine.
 
 ### 🎨 [Interaction Design Guide](./docs/INTERACTION.md)
-**For Designers & Product:** The definitive guide to how the editor behaves, feels, and responds to user input.
-*   **Philosophy**: Context-aware intent, flow, and forgiveness.
-*   **Input Systems**: Detailed mouse and keyboard workflows.
-*   **Rest Handling**: "Silence as a First-Class Citizen".
+**For Designers:** Guide to the intuitive editing behavior.
 
 ---
 
 ## Features
 
-*   **SMuFL Compliance**: High-quality engraving using the [Bravura](https://github.com/steinbergmedia/bravura) font.
-*   **Grand Staff Support**: Fully synchronized multi-staff editing.
-*   **Polyphonic Input**: Robust support for chords and voices.
-*   **Keyboard-First**: Optimized for rapid entry without leaving the keyboard.
-*   **Theory Integration**: Powered by `tonal` for correct musical context.
+*   **Self-Hostable**: No external dependencies or platform lock-in.
+*   **Embeddable**: Drop it into any React application.
+*   **SMuFL Compliance**: Beautiful engraving using the [Bravura](https://github.com/steinbergmedia/bravura) font.
+*   **Interactive**: Full editing capabilities right in the browser.
+*   **Audio Engine**: Playback via [Tone.js](https://tonejs.github.io/).
+
+## Coming Soon
+
+*   **Read-Only Mode**: Lightweight player for embedding static scores.
+*   **Improved Toolbar**: More intuitive controls for common notation tasks.
+*   **Imperative API**: Programmatically control the score (e.g., `score.addNote(...)`) for real-time app integration.
+*   **Chord Symbols**: Input and playback for lead sheets.
+*   **Export Options**: MusicXML and MIDI export.
 
 ## Quick Start
 
 ```tsx
-import ScoreEditor from './ScoreEditor';
+import RiffScore from './ScoreEditor'; // Component name may vary in source
 import { ScoreProvider } from './context/ScoreContext';
 
 function App() {
   return (
     <ScoreProvider>
-      <ScoreEditor />
+      <RiffScore />
     </ScoreProvider>
   );
 }

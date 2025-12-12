@@ -1,6 +1,6 @@
-# PianoRiffs Interaction Design Guide
+# RiffScore Interaction Design Guide
 
-> **Objective**: To provide a sheet music editor that balances the fluidity of a text editor with the intuitive nature of a creative canvas. The interface is designed to be unobtrusive, placing the focus on the music.
+> **Objective**: To provide an intuitive, embeddable sheet music editor that covers the most essential notation features. The interface is designed to be accessible for common tasks without the complexity of professional engraving software.
 
 ---
 
