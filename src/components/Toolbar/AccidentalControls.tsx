@@ -6,13 +6,15 @@ interface AccidentalControlsProps {
   onToggleAccidental: (accidental: 'flat' | 'natural' | 'sharp') => void;
   selectedAccidentals?: (string | null)[];
   editorState?: string;
+  variant?: 'default' | 'ghost';
 }
 
 const AccidentalControls: React.FC<AccidentalControlsProps> = ({
   activeAccidental,
   onToggleAccidental,
   selectedAccidentals = [],
-  editorState = 'IDLE'
+  editorState = 'IDLE',
+  variant = 'default'
 }) => {
   // Logic: 
   // If SELECTION_READY:
@@ -62,6 +64,7 @@ const AccidentalControls: React.FC<AccidentalControlsProps> = ({
           className="text-xl pb-1"
           icon="♭"
           preventFocus={true}
+          variant={variant}
         />
         <ToolbarButton
           onClick={() => onToggleAccidental('natural')} 
@@ -72,6 +75,7 @@ const AccidentalControls: React.FC<AccidentalControlsProps> = ({
           className="text-xl pb-1"
           icon="♮"
           preventFocus={true}
+          variant={variant}
         />
         <ToolbarButton
           onClick={() => onToggleAccidental('sharp')} 
@@ -82,6 +86,7 @@ const AccidentalControls: React.FC<AccidentalControlsProps> = ({
           className="text-xl pb-1"
           icon="♯"
           preventFocus={true}
+          variant={variant}
         />
     </div>
   );

@@ -13,6 +13,7 @@ interface DurationControlsProps {
   editorState?: 'SELECTION_READY' | 'ENTRY_READY' | 'IDLE';
   /** Current input mode - shows rest icons when 'REST' */
   inputMode?: InputMode;
+  variant?: 'default' | 'ghost';
 }
 
 /**
@@ -27,7 +28,8 @@ const DurationControls: React.FC<DurationControlsProps> = ({
   isDurationValid,
   selectedDurations = [],
   editorState = 'IDLE',
-  inputMode = 'NOTE'
+  inputMode = 'NOTE',
+  variant = 'default'
 }) => {
   return (
     <div className="flex gap-1">
@@ -74,6 +76,7 @@ const DurationControls: React.FC<DurationControlsProps> = ({
             icon={<IconComponent type={type} color={isActive ? "white" : "currentColor"} />}
             preventFocus={true}
             disabled={!isDurationValid(type)}
+            variant={variant}
           />
         );
       })}

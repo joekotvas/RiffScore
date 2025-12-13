@@ -11,10 +11,12 @@ interface ToolbarButtonProps {
   disabled?: boolean;
   title?: string;
   ref?: React.Ref<HTMLButtonElement>;
+
   preventFocus?: boolean;
   isEmphasized?: boolean;
   isDashed?: boolean;
   height?: string;
+  variant?: 'default' | 'ghost';
 }
 
 const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(({
@@ -29,13 +31,44 @@ const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(({
   preventFocus = false,
   isEmphasized = false,
   isDashed = false,
-  height = "h-9"
+  height = "h-9",
+  variant = 'default'
 }, ref) => {
   const { theme } = useTheme();
   const baseStyles = "flex items-center justify-center rounded border transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
   const sizeStyles = showLabel ? "min-w-9 px-3" : "w-9";
   const borderStyle = isDashed ? "border-dashed" : "border-solid";
   const [isHovered, setIsHovered] = React.useState(false);
+
+  // Ghost variant styles
+  const isGhost = variant === 'ghost';
+  
+  const getBackgroundColor = () => {
+    if (isActive) return theme.accent;
+    if (isHovered) return theme.buttonHoverBackground;
+    // Ghost variant: Always transparent unless Active or Hovered
+    // This allows the border (mixed state) to show without a solid background
+    if (isGhost) return 'transparent';
+    
+    if (isEmphasized) return theme.buttonBackground;
+    return theme.buttonBackground;
+  };
+
+  const getBorderColor = () => {
+    if (isActive) return theme.accent;
+    if (isEmphasized) return theme.accent;
+    // Ensure dashed border is visible even if not emphasized (fallback)
+    if (isDashed) return theme.secondaryText;
+    
+    if (isGhost && !isHovered) return 'transparent';
+    return theme.border;
+  };
+
+  const getColor = () => {
+    if (isActive) return '#ffffff';
+    if (isEmphasized) return theme.accent;
+    return theme.secondaryText;
+  };
 
   return (
     <button
@@ -57,17 +90,9 @@ const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(({
         ${className}
       `}
       style={{
-        backgroundColor: isActive 
-          ? theme.accent 
-          : (isHovered 
-              ? theme.buttonHoverBackground 
-              : (isEmphasized ? theme.buttonBackground : theme.buttonBackground)),
-        borderColor: isActive 
-          ? theme.accent 
-          : (isEmphasized ? theme.accent : theme.border),
-        color: isActive 
-          ? '#ffffff' 
-          : (isEmphasized ? theme.accent : theme.secondaryText),
+        backgroundColor: getBackgroundColor(),
+        borderColor: getBorderColor(),
+        color: getColor(),
       }}
       title={title || label}
       aria-label={label}

@@ -12,6 +12,7 @@ interface ModifierControlsProps {
   selectedDots?: boolean[];
   selectedTies?: boolean[];
   editorState?: string;
+  variant?: 'default' | 'ghost';
 }
 
 const ModifierControls: React.FC<ModifierControlsProps> = ({
@@ -22,7 +23,8 @@ const ModifierControls: React.FC<ModifierControlsProps> = ({
   isDotValid,
   selectedDots = [],
   selectedTies = [],
-  editorState = 'IDLE'
+  editorState = 'IDLE',
+  variant = 'default'
 }) => {
     
     // Calculate visual states
@@ -71,6 +73,7 @@ const ModifierControls: React.FC<ModifierControlsProps> = ({
         icon={<Circle size={8} fill="currentColor" />}
         preventFocus={true}
         disabled={!isDotValid}
+        variant={variant}
       />
 
       <ToolbarButton
@@ -81,6 +84,7 @@ const ModifierControls: React.FC<ModifierControlsProps> = ({
         isEmphasized={tieEmphasized}
         icon={<TieIcon size={16} />}
         preventFocus={true}
+        variant={variant}
       />
     </div>
   );

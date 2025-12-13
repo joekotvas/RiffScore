@@ -8,6 +8,7 @@ interface TupletControlsProps {
   canApplyTriplet: boolean;
   canApplyQuintuplet: boolean;
   activeTupletRatio: [number, number] | null;
+  variant?: 'default' | 'ghost';
 }
 
 /**
@@ -19,7 +20,8 @@ const TupletControls: React.FC<TupletControlsProps> = ({
   onRemoveTuplet,
   canApplyTriplet,
   canApplyQuintuplet,
-  activeTupletRatio
+  activeTupletRatio,
+  variant = 'default'
 }) => {
   const { theme } = useTheme();
 
@@ -61,6 +63,7 @@ const TupletControls: React.FC<TupletControlsProps> = ({
             </div>
           </div>
         }
+        variant={variant}
       />
 
       {/* Quintuplet Button */}
@@ -82,6 +85,7 @@ const TupletControls: React.FC<TupletControlsProps> = ({
             </div>
           </div>
         }
+        variant={variant}
       />
 
       {/* Remove Tuplet Button */}

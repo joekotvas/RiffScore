@@ -60,6 +60,8 @@ export interface ToolbarHandle {
  * Toolbar component for the Sheet Music Editor.
  * Contains controls for playback, duration selection, BPM, title editing, and history (undo/redo).
  */
+const TOP_ROW_HEIGHT = "h-9";
+
 const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
   scoreTitle,
   label,
@@ -176,7 +178,8 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
         onInstrumentChange={onInstrumentChange}
         samplerLoaded={samplerLoaded}
         score={score}
-        rowHeight="h-7"
+        rowHeight={TOP_ROW_HEIGHT}
+        buttonVariant="ghost"
       >
         <div className="flex gap-1 relative">
           <ToolbarButton 
@@ -188,7 +191,8 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
             preventFocus={true}
             showLabel={true}
             isEmphasized={!showLibrary}
-            height="h-7"
+            height={TOP_ROW_HEIGHT}
+            variant="ghost"
           />
           {showLibrary && (
             <MelodyLibrary 
@@ -205,6 +209,8 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
         </div>
       </MainControls>
 
+      <div className="w-full h-px mb-2" style={{ backgroundColor: theme.border }}></div>
+
       {/* Row 2: Note Durations, Modifiers, Accidentals, Undo/Redo, Measure Tools */}
       <div className="flex items-center gap-4 flex-wrap">
         {/* Staff Selection & Signatures */}
@@ -216,6 +222,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
           onKeySignatureChange={handleKeySignatureChange}
           timeSignature={score.timeSignature}
           onTimeSignatureChange={handleTimeSignatureChange}
+          variant="ghost"
         />
 
         <div className="w-px h-6" style={{ backgroundColor: theme.border }}></div>
@@ -224,6 +231,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
         <InputModeToggle 
           mode={inputMode} 
           onToggle={handleInputModeClick} 
+          variant="ghost"
         />
 
         {/* Duration Buttons */}
@@ -234,6 +242,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
           selectedDurations={selectedDurations}
           editorState={editorState}
           inputMode={inputMode}
+          variant="ghost"
         />
 
         <div className="w-px h-6" style={{ backgroundColor: theme.border }}></div>
@@ -248,6 +257,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
           selectedDots={selectedDots}
           selectedTies={selectedTies}
           editorState={editorState}
+          variant="ghost"
         />
 
         <div className="w-px h-6" style={{ backgroundColor: theme.border }}></div>
@@ -258,6 +268,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
           onToggleAccidental={handleAccidentalToggle}
           selectedAccidentals={selectedAccidentals}
           editorState={editorState}
+          variant="ghost"
         />
 
         <div className="w-px h-6" style={{ backgroundColor: theme.border }}></div>
@@ -269,6 +280,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
           canApplyTriplet={canApplyTuplet(3)}
           canApplyQuintuplet={canApplyTuplet(5)}
           activeTupletRatio={activeTupletRatio}
+          variant="ghost"
         />
 
         <div className="flex-1"></div>
@@ -278,6 +290,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
           onRemoveMeasure={removeMeasure}
           onTogglePickup={togglePickup}
           isPickup={activeStaff.measures[0]?.isPickup}
+          variant="ghost"
         />
       </div>
       

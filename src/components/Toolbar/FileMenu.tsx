@@ -10,6 +10,7 @@ interface FileMenuProps {
   score: Score;
   bpm: number;
   height?: string;
+  variant?: 'default' | 'ghost';
 }
 
 // Reusable export action button with hover effect
@@ -99,7 +100,7 @@ const ExportRow: React.FC<ExportRowProps> = ({
   );
 };
 
-const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = "h-9" }) => {
+const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = "h-9", variant = "default" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -138,6 +139,7 @@ const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = "h-9" }) => {
         isActive={isOpen}
         preventFocus={true}
         height={height}
+        variant={variant}
       />
       
       {isOpen && (

@@ -14,6 +14,7 @@ interface InputModeToggleProps {
   mode: InputMode;
   /** Callback when mode is toggled */
   onToggle: () => void;
+  variant?: 'default' | 'ghost';
 }
 
 /**
@@ -116,11 +117,7 @@ const NoteGroupIcon = ({ color }: { color: string }) => (
 
 import ToolbarButton from './ToolbarButton';
 
-// ... (InputModeToggleProps interface remains same)
-
-// ... (RestGroupIcon and NoteGroupIcon remain same)
-
-const InputModeToggle: React.FC<InputModeToggleProps> = ({ mode, onToggle }) => {
+const InputModeToggle: React.FC<InputModeToggleProps> = ({ mode, onToggle, variant = 'default' }) => {
   const { theme } = useTheme();
   
   const isActive = mode === 'REST';
@@ -136,6 +133,7 @@ const InputModeToggle: React.FC<InputModeToggleProps> = ({ mode, onToggle }) => 
         ? <NoteGroupIcon color={theme.secondaryText} /> 
         : <RestGroupIcon color={theme.secondaryText} />
       }
+      variant={variant}
     />
   );
 };

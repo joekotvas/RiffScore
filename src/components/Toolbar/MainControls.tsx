@@ -27,6 +27,7 @@ interface MainControlsProps {
   samplerLoaded: boolean;
   score: Score;
   rowHeight?: string;
+  buttonVariant?: 'default' | 'ghost';
 }
 
 const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }> = ({
@@ -49,7 +50,8 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
   samplerLoaded,
   score,
   children,
-  rowHeight = "h-9"
+  rowHeight = "h-9",
+  buttonVariant = "default"
 }) => {
   const { theme } = useTheme();
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +59,8 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
   const [bpmBuffer, setBpmBuffer] = useState(String(bpm));
 
   const [isFocused, setIsFocused] = useState(false);
+  const [isBpmHovered, setIsBpmHovered] = useState(false);
+  const [isMidiHovered, setIsMidiHovered] = useState(false);
 
   useEffect(() => {
     setBpmBuffer(String(bpm));
@@ -90,11 +94,13 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
     }
   };
 
+  const isGhost = buttonVariant === 'ghost';
+
   return (
     <div className="flex items-center gap-4">
 
       {/* File Menu */}
-      <FileMenu score={score} bpm={bpm} height={rowHeight} />
+      <FileMenu score={score} bpm={bpm} height={rowHeight} variant={buttonVariant} />
 
       <div className="w-px h-6" style={{ backgroundColor: theme.border }}></div>
 
@@ -106,6 +112,7 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
           onClick={onUndo}
           disabled={!canUndo}
           height={rowHeight}
+          variant={buttonVariant}
         />
         <ToolbarButton
           icon={<RotateCw size={18} />}
@@ -113,6 +120,7 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
           onClick={onRedo}
           disabled={!canRedo}
           height={rowHeight}
+          variant={buttonVariant}
         />
       </div>
 
@@ -127,13 +135,19 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
           onClick={onPlayToggle}
           isEmphasized={true}
           height={rowHeight}
+          variant={buttonVariant}
         />
 
         <div 
           className={`flex items-center gap-0 px-2 rounded border ${rowHeight} transition-colors`}
           style={{ 
-            borderColor: isFocused ? theme.accent : theme.border,
+            borderColor: isFocused 
+              ? theme.accent 
+              : ((isGhost && !isBpmHovered) ? 'transparent' : theme.border),
+            backgroundColor: (isGhost && !isBpmHovered && !isFocused) ? 'transparent' : 'transparent'
           }}
+          onMouseEnter={() => setIsBpmHovered(true)}
+          onMouseLeave={() => setIsBpmHovered(false)}
         >
             <span 
               className="text-xs font-bold uppercase tracking-wider"
@@ -162,6 +176,15 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
             ? 'bg-[#0ac5b20f] border-[#507d7d] text-[#4f9e9e]' 
             : 'bg-slate-800/50 border-white/10 text-slate-400'
         }`}
+        style={{
+          borderColor: (isGhost && !isMidiHovered && !midiStatus.connected) 
+            ? 'transparent' 
+            : (midiStatus.connected ? '#507d7d' : (isMidiHovered ? theme.border : (isGhost? 'transparent' : theme.border))),
+            // Note: Keep MIDI status distinct if connected, otherwise follow ghost rules
+            backgroundColor: (isGhost && !midiStatus.connected) ? 'transparent' : undefined
+        }}
+        onMouseEnter={() => setIsMidiHovered(true)}
+        onMouseLeave={() => setIsMidiHovered(false)}
         title={midiStatus.connected ? `MIDI: ${midiStatus.deviceName}` : (midiStatus.error || 'No MIDI device connected')}
       >
         <Music2 size={12} />
@@ -174,6 +197,7 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
         onInstrumentChange={onInstrumentChange}
         samplerLoaded={samplerLoaded}
         height={rowHeight}
+        variant={buttonVariant}
       />
 
       <div className="flex-1"></div>
@@ -188,6 +212,7 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
         icon={<HelpCircle size={18} />}
         preventFocus={true}
         height={rowHeight}
+        variant={buttonVariant}
       />
     </div>
   );

@@ -13,6 +13,7 @@ interface StaffControlsProps {
   onKeySignatureChange: (key: string) => void;
   timeSignature: string;
   onTimeSignatureChange: (time: string) => void;
+  variant?: 'default' | 'ghost';
 }
 
 export interface StaffControlsHandle {
@@ -28,7 +29,8 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(({
   keySignature,
   onKeySignatureChange,
   timeSignature,
-  onTimeSignatureChange
+  onTimeSignatureChange,
+  variant = "default"
 }, ref) => {
   const [showClefMenu, setShowClefMenu] = useState(false);
   const [showKeySig, setShowKeySig] = useState(false);
@@ -58,6 +60,7 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(({
             icon={
               <ClefIcon clef={clef || 'treble'} className="w-6 h-6" />
             }
+            variant={variant}
         />
         {showClefMenu && (
             <ClefOverlay
@@ -82,6 +85,7 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(({
             showLabel={true}
             onClick={() => setShowKeySig(!showKeySig)}
             className="text-xs font-bold"
+            variant={variant}
         />
         {showKeySig && (
             <KeySignatureOverlay
@@ -107,6 +111,7 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(({
             showLabel={true}
             onClick={() => setShowTimeSig(!showTimeSig)}
             className="text-xs font-bold"
+            variant={variant}
         />
         {showTimeSig && (
             <TimeSignatureOverlay

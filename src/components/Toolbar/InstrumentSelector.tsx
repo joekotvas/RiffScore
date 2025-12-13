@@ -8,16 +8,19 @@ interface InstrumentSelectorProps {
     onInstrumentChange: (instrument: InstrumentType) => void;
     samplerLoaded: boolean;
     height?: string;
+    variant?: 'default' | 'ghost';
 }
 
 const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
     selectedInstrument,
     onInstrumentChange,
     samplerLoaded,
-    height = "h-9"
+    height = "h-9",
+    variant = "default"
 }) => {
     const { theme } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const options = [
@@ -52,14 +55,20 @@ const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
         setIsOpen(false);
     };
 
+    const isGhost = variant === 'ghost';
+    const borderColor = isOpen ? theme.accent : ((isGhost && !isHovered) ? 'transparent' : theme.border);
+    const bgColor = (isGhost && !isHovered && !isOpen) ? 'transparent' : theme.buttonBackground;
+
     return (
         <div ref={containerRef} className="relative">
             <button
                 onClick={() => setIsOpen(!isOpen)}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
                 className={`flex items-center gap-1.5 px-3 ${height} rounded border text-xs font-medium transition-colors`}
                 style={{
-                    backgroundColor: theme.buttonBackground,
-                    borderColor: isOpen ? theme.accent : theme.border,
+                    backgroundColor: bgColor,
+                    borderColor: borderColor,
                     color: theme.secondaryText
                 }}
             >

@@ -7,13 +7,15 @@ interface MeasureControlsProps {
   onRemoveMeasure: () => void;
   onTogglePickup: () => void;
   isPickup?: boolean;
+  variant?: 'default' | 'ghost';
 }
 
 const MeasureControls: React.FC<MeasureControlsProps> = ({
   onAddMeasure,
   onRemoveMeasure,
   onTogglePickup,
-  isPickup
+  isPickup,
+  variant = 'default'
 }) => {
   return (
     <div className="flex gap-1">
@@ -21,17 +23,20 @@ const MeasureControls: React.FC<MeasureControlsProps> = ({
         onClick={onAddMeasure} 
         label="Add Measure"
         icon={<SquarePlus size={16} />}
+        variant={variant}
       />
       <ToolbarButton 
         onClick={onRemoveMeasure} 
         label="Remove Measure"
         icon={<SquareMinus size={16} />}
+        variant={variant}
       />
       <ToolbarButton
         onClick={onTogglePickup}
         isActive={isPickup}
         label="Toggle Pickup"
         icon={<span className="text-xs font-bold">PK</span>}
+        variant={variant}
       />
     </div>
   );
