@@ -1,7 +1,6 @@
-// @ts-nocheck
 import React, { useEffect } from 'react';
 import { X, Keyboard } from 'lucide-react';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '@context/ThemeContext';
 
 const ShortcutGroup = ({ title, shortcuts, theme }) => (
   <div className="mb-6">

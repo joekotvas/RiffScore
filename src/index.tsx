@@ -10,7 +10,7 @@ export { ThemeProvider, useTheme } from './context/ThemeContext';
 export { ScoreProvider, useScoreContext } from './context/ScoreContext';
 
 // UI Components
-export { default as ConfigMenu } from './components/Panels/ConfigMenu';
+export { default as ConfigMenu } from '../demo/app/ConfigMenu';
 
 // Types
 export type { Score, Selection, ScoreEvent, Note, Measure, Staff, RiffScoreConfig } from './types';

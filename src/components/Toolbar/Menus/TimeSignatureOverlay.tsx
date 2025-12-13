@@ -1,10 +1,17 @@
-// @ts-nocheck
 import React from 'react';
-import { TIME_SIGNATURES } from '../../constants';
-import { useTheme } from '../../context/ThemeContext';
+import { TIME_SIGNATURES } from '../../../constants';
+import { useTheme } from '../../../context/ThemeContext';
 import DropdownOverlay from './DropdownOverlay';
 
-const TimeSignatureOverlay = ({ current, onSelect, onClose, position, triggerRef }) => {
+interface TimeSignatureOverlayProps {
+  current: string;
+  onSelect: (timeSig: string) => void;
+  onClose: () => void;
+  position: { x: number; y: number };
+  triggerRef: React.RefObject<HTMLElement>;
+}
+
+const TimeSignatureOverlay: React.FC<TimeSignatureOverlayProps> = ({ current, onSelect, onClose, position, triggerRef }) => {
   const { theme } = useTheme();
 
   return (

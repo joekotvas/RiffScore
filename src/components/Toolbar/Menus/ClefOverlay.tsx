@@ -1,11 +1,18 @@
-// @ts-nocheck
 import React from 'react';
-import ClefIcon from '../Assets/ClefIcon';
-import { CLEF_TYPES } from '../../constants';
-import { useTheme } from '../../context/ThemeContext';
+import ClefIcon from '@assets/ClefIcon';
+import { CLEF_TYPES } from '@/constants';
+import { useTheme } from '@context/ThemeContext';
 import DropdownOverlay from './DropdownOverlay';
 
-const ClefOverlay = ({ current, onSelect, onClose, position, triggerRef }) => {
+interface ClefOverlayProps {
+  current: string;
+  onSelect: (clef: string) => void;
+  onClose: () => void;
+  position: { x: number; y: number };
+  triggerRef: React.RefObject<HTMLElement>;
+}
+
+const ClefOverlay: React.FC<ClefOverlayProps> = ({ current, onSelect, onClose, position, triggerRef }) => {
   const { theme } = useTheme();
 
   return (

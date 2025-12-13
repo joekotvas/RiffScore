@@ -17,10 +17,10 @@ import { useTitleEditor } from './hooks/useTitleEditor';
 // Components
 import ScoreCanvas from './components/Canvas/ScoreCanvas';
 import Toolbar from './components/Toolbar/Toolbar';
-import { ScoreTitleField } from './components/Panels/ScoreTitleField';
-import ShortcutsOverlay from './components/Overlays/ShortcutsOverlay';
-import ConfirmDialog from './components/Overlays/ConfirmDialog';
-import Portal from './components/Portal';
+import { ScoreTitleField } from './components/Layout/ScoreTitleField';
+import ShortcutsOverlay from './components/Layout/Overlays/ShortcutsOverlay';
+import ConfirmDialog from './components/Layout/Overlays/ConfirmDialog';
+import Portal from './components/Layout/Portal';
 
 // Commands
 import { SetSingleStaffCommand } from './commands/SetSingleStaffCommand';
@@ -136,8 +136,9 @@ const ScoreEditorContent = ({
   // --- Render ---
   return (
     <div 
-      className="backdrop-blur-md p-4 rounded-lg shadow-xl mb-8"
+      className="ScoreEditor backdrop-blur-md rounded-lg shadow-xl mb-8"
       style={{
+        padding: '.5rem',
         backgroundColor: theme.panelBackground,
         borderColor: theme.border,
         borderWidth: '1px',

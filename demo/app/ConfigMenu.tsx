@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Settings, X } from 'lucide-react';
-import { useTheme } from '../../context/ThemeContext';
-import { THEMES, ThemeName } from '../../config';
+import { useTheme } from '../../src/context/ThemeContext';
+import { THEMES, ThemeName } from '../../src/config';
 
 const ConfigMenu = () => {
   const { theme, themeName, setTheme, zoom, setZoom } = useTheme();
@@ -25,7 +25,7 @@ const ConfigMenu = () => {
   }, [isOpen]);
 
   return (
-    <div className="fixed top-4 right-4 z-50" ref={menuRef}>
+    <div className="ConfigMenu fixed top-4 right-4 z-50" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="p-2 rounded-full shadow-lg transition-colors"

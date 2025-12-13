@@ -123,7 +123,7 @@ const Measure: React.FC<MeasureProps> = ({
   }, [beamGroups]);
 
   return (
-    <g transform={`translate(${startX}, 0)`}>
+    <g className="Measure" transform={`translate(${startX}, 0)`}>
       {/* LAYER 1: Background & Hit Area */}
       <rect
         data-testid={`measure-hit-area-${layout.staffIndex}-${measureIndex}`}

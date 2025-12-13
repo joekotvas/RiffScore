@@ -33,7 +33,7 @@ const RiffScoreInner: React.FC<RiffScoreProps> = ({ config: userConfig }) => {
   }), [config.interaction.isEnabled]);
 
   return (
-    <div style={containerStyle}>
+    <div className="RiffScore" style={containerStyle}>
       <ScoreProvider initialScore={initialScore}>
         <ScoreEditorContent 
           scale={config.ui.scale}

@@ -1,9 +1,9 @@
 import React, { useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import ClefIcon from '../Assets/ClefIcon';
 import { CLEF_TYPES, KEY_SIGNATURES } from '../../constants';
-import ClefOverlay from '../Overlays/ClefOverlay';
-import KeySignatureOverlay from '../Overlays/KeySignatureOverlay';
-import TimeSignatureOverlay from '../Overlays/TimeSignatureOverlay';
+import ClefOverlay from './Menus/ClefOverlay';
+import KeySignatureOverlay from './Menus/KeySignatureOverlay';
+import TimeSignatureOverlay from './Menus/TimeSignatureOverlay';
 import ToolbarButton from './ToolbarButton';
 
 interface StaffControlsProps {

@@ -6,7 +6,7 @@ import { getNoteDuration } from '../../utils/core';
 import { isNoteSelected } from '../../utils/selection';
 import Measure from './Measure';
 import Tie from './Tie';
-import ScoreHeader from '../Panels/ScoreHeader';
+import ScoreHeader from './ScoreHeader';
 
 import { InteractionState } from '../../componentTypes';
 import { Measure as MeasureData } from '../../types';

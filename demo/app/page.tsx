@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { RiffScore } from "@riffscore/RiffScore";
 import { ThemeProvider, useTheme } from "@riffscore/context/ThemeContext";
-import ConfigMenu from "@riffscore/components/Panels/ConfigMenu";
+import ConfigMenu from "demo/app/ConfigMenu";
 
 // Copy to clipboard button component
 function CopyButton({ text }: { text: string }) {

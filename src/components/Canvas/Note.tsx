@@ -24,6 +24,7 @@ const NoteHead = ({ x, y, duration, color }) => {
 
   return (
     <text
+      className="NoteHead"
       x={x}
       y={y}
       fontFamily={BRAVURA_FONT}

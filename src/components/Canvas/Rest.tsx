@@ -96,7 +96,7 @@ export const Rest: React.FC<RestProps> = ({
   
   return (
     <g 
-      className="rest-group" 
+      className="Rest rest-group" 
       data-selected={isSelected}
       data-testid={eventId ? `rest-${eventId}` : undefined}
       style={{ opacity: isGhost ? 0.5 : 1 }}

@@ -34,7 +34,7 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
   const CLEF_WIDTH = 40;
 
   return (
-    <g>
+    <g className="ScoreHeader">
       {/* Staff Lines for Clef Area - Extended to start of measures */}
       {[0, 1, 2, 3, 4].map(i => (
         <line key={`staff-head-${i}`} x1={0} y1={baseY + (i * CONFIG.lineHeight)} x2={startOfMeasures} y2={baseY + (i * CONFIG.lineHeight)} stroke={theme.score.line} strokeWidth="1"/>
