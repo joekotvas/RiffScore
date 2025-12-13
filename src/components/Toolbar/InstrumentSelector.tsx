@@ -7,12 +7,14 @@ interface InstrumentSelectorProps {
     selectedInstrument: InstrumentType;
     onInstrumentChange: (instrument: InstrumentType) => void;
     samplerLoaded: boolean;
+    height?: string;
 }
 
 const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
     selectedInstrument,
     onInstrumentChange,
-    samplerLoaded
+    samplerLoaded,
+    height = "h-9"
 }) => {
     const { theme } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
@@ -54,7 +56,7 @@ const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
         <div ref={containerRef} className="relative">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded border text-xs font-medium transition-colors"
+                className={`flex items-center gap-1.5 px-3 ${height} rounded border text-xs font-medium transition-colors`}
                 style={{
                     backgroundColor: theme.buttonBackground,
                     borderColor: isOpen ? theme.accent : theme.border,

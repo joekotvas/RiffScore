@@ -26,6 +26,7 @@ interface MainControlsProps {
   onInstrumentChange: (instrument: InstrumentType) => void;
   samplerLoaded: boolean;
   score: Score;
+  rowHeight?: string;
 }
 
 const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }> = ({
@@ -47,7 +48,8 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
   onInstrumentChange,
   samplerLoaded,
   score,
-  children
+  children,
+  rowHeight = "h-9"
 }) => {
   const { theme } = useTheme();
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -92,7 +94,7 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
     <div className="flex items-center gap-4">
 
       {/* File Menu */}
-      <FileMenu score={score} bpm={bpm} />
+      <FileMenu score={score} bpm={bpm} height={rowHeight} />
 
       <div className="w-px h-6" style={{ backgroundColor: theme.border }}></div>
 
@@ -103,12 +105,14 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
           label="Undo"
           onClick={onUndo}
           disabled={!canUndo}
+          height={rowHeight}
         />
         <ToolbarButton
           icon={<RotateCw size={18} />}
           label="Redo"
           onClick={onRedo}
           disabled={!canRedo}
+          height={rowHeight}
         />
       </div>
 
@@ -122,17 +126,17 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
           showLabel={true}
           onClick={onPlayToggle}
           isEmphasized={true}
+          height={rowHeight}
         />
 
         <div 
-          className="flex items-center gap-0 px-2 rounded border h-9 transition-colors"
+          className={`flex items-center gap-0 px-2 rounded border ${rowHeight} transition-colors`}
           style={{ 
-            borderColor: isFocused ? theme.accent : theme.secondaryText,
-            opacity: isFocused ? 1 : 0.8
+            borderColor: isFocused ? theme.accent : theme.border,
           }}
         >
             <span 
-              className="text-sm font-bold uppercase tracking-wider"
+              className="text-xs font-bold uppercase tracking-wider"
               style={{ color: theme.secondaryText }}
             >
               BPM
@@ -153,7 +157,7 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
 
       {/* MIDI Status Indicator */}
       <div 
-        className={`flex items-center gap-1.5 px-2 py-1 rounded border text-xs font-medium ${
+        className={`flex items-center gap-1.5 px-3 ${rowHeight} rounded border text-xs font-medium ${
           midiStatus.connected 
             ? 'bg-[#0ac5b20f] border-[#507d7d] text-[#4f9e9e]' 
             : 'bg-slate-800/50 border-white/10 text-slate-400'
@@ -169,6 +173,7 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
         selectedInstrument={selectedInstrument}
         onInstrumentChange={onInstrumentChange}
         samplerLoaded={samplerLoaded}
+        height={rowHeight}
       />
 
       <div className="flex-1"></div>
@@ -182,6 +187,7 @@ const MainControls: React.FC<MainControlsProps & { children?: React.ReactNode }>
         label="Keyboard Shortcuts"
         icon={<HelpCircle size={18} />}
         preventFocus={true}
+        height={rowHeight}
       />
     </div>
   );

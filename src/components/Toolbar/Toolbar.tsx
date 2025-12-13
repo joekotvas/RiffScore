@@ -176,6 +176,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
         onInstrumentChange={onInstrumentChange}
         samplerLoaded={samplerLoaded}
         score={score}
+        rowHeight="h-7"
       >
         <div className="flex gap-1 relative">
           <ToolbarButton 
@@ -187,6 +188,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
             preventFocus={true}
             showLabel={true}
             isEmphasized={!showLibrary}
+            height="h-7"
           />
           {showLibrary && (
             <MelodyLibrary 
