@@ -2,33 +2,33 @@
 import React, { useRef, useState, useCallback } from 'react';
 
 // Contexts
-import { ScoreProvider, useScoreContext } from './context/ScoreContext';
-import { useTheme } from './context/ThemeContext';
+import { ScoreProvider, useScoreContext } from '@context/ScoreContext';
+import { useTheme } from '@context/ThemeContext';
 
 // Hooks
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { usePlayback } from './hooks/usePlayback';
-import { useMIDI } from './hooks/useMIDI';
-import { useScoreInteraction } from './hooks/useScoreInteraction';
-import { useSamplerStatus } from './hooks/useSamplerStatus';
-import { useModifierKeys } from './hooks/useModifierKeys';
-import { useTitleEditor } from './hooks/useTitleEditor';
+import { useKeyboardShortcuts } from '@hooks/useKeyboardShortcuts';
+import { usePlayback } from '@hooks/usePlayback';
+import { useMIDI } from '@hooks/useMIDI';
+import { useScoreInteraction } from '@hooks/useScoreInteraction';
+import { useSamplerStatus } from '@hooks/useSamplerStatus';
+import { useModifierKeys } from '@hooks/useModifierKeys';
+import { useTitleEditor } from '@hooks/useTitleEditor';
 
 // Components
-import ScoreCanvas from './components/Canvas/ScoreCanvas';
-import Toolbar from './components/Toolbar/Toolbar';
-import { ScoreTitleField } from './components/Layout/ScoreTitleField';
-import ShortcutsOverlay from './components/Layout/Overlays/ShortcutsOverlay';
-import ConfirmDialog from './components/Layout/Overlays/ConfirmDialog';
-import Portal from './components/Layout/Portal';
+import ScoreCanvas from '@components/Canvas/ScoreCanvas';
+import Toolbar from '@components/Toolbar/Toolbar';
+import { ScoreTitleField } from '@components/Layout/ScoreTitleField';
+import ShortcutsOverlay from '@components/Layout/Overlays/ShortcutsOverlay';
+import ConfirmDialog from '@components/Layout/Overlays/ConfirmDialog';
+import Portal from '@components/Layout/Portal';
 
 // Commands
-import { SetSingleStaffCommand } from './commands/SetSingleStaffCommand';
-import { UpdateTitleCommand } from './commands/UpdateTitleCommand';
+import { SetSingleStaffCommand } from '@commands/SetSingleStaffCommand';
+import { UpdateTitleCommand } from '@commands/UpdateTitleCommand';
 
 // Engines & Data
-import { setInstrument, InstrumentType } from './engines/toneEngine';
-import { MELODIES } from './data/melodies';
+import { setInstrument, InstrumentType } from '@engines/toneEngine';
+import { MELODIES } from '@/data/melodies';
 
 // ------------------------------------------------------------------
 // Props Interface

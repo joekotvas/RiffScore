@@ -13,7 +13,7 @@ import { DeepPartial, RiffScoreConfig } from './types';
 import { useRiffScore } from './hooks/useRiffScore';
 import { ScoreProvider } from './context/ScoreContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { ScoreEditorContent } from './ScoreEditor';
+import { ScoreEditorContent } from './components/Layout/ScoreEditor';
 
 interface RiffScoreProps {
   config?: DeepPartial<RiffScoreConfig>;

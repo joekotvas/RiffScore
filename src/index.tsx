@@ -3,7 +3,7 @@
 
 // Core components
 export { RiffScore } from './RiffScore';
-export { default as ScoreEditor, ScoreEditorContent } from './ScoreEditor';
+export { default as ScoreEditor, ScoreEditorContent } from './components/Layout/ScoreEditor';
 
 // Context providers and hooks
 export { ThemeProvider, useTheme } from './context/ThemeContext';
