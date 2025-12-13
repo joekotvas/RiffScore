@@ -7789,7 +7789,7 @@ var ScoreCanvas = ({
     {
       ref: containerRef,
       "data-testid": "score-canvas-container",
-      className: "ScoreCanvas overflow-x-auto relative outline-none z-10 pl-12 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600/50",
+      className: "ScoreCanvas overflow-x-auto relative outline-none z-10 pl-8 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600/50",
       style: { marginTop: "-30px", backgroundColor: theme.background },
       onClick: handleBackgroundClick,
       tabIndex: 0,
@@ -7968,96 +7968,6 @@ var ToolbarButton = React3__default.default.forwardRef(({
 });
 ToolbarButton.displayName = "ToolbarButton";
 var ToolbarButton_default = ToolbarButton;
-var InstrumentSelector = ({
-  selectedInstrument,
-  onInstrumentChange,
-  samplerLoaded,
-  height = "h-9",
-  variant = "default"
-}) => {
-  const { theme } = useTheme();
-  const [isOpen, setIsOpen] = React3.useState(false);
-  const [isHovered, setIsHovered] = React3.useState(false);
-  const containerRef = React3.useRef(null);
-  const options = [
-    { id: "bright", name: "Bright Synth" },
-    { id: "mellow", name: "Mellow Synth" },
-    { id: "organ", name: "Organ Synth" },
-    {
-      id: "piano",
-      name: samplerLoaded ? "Piano Samples" : "Piano (Loading...)",
-      loading: !samplerLoaded
-    }
-  ];
-  const selectedOption = options.find((o) => o.id === selectedInstrument) || options[0];
-  React3.useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
-  const handleSelect = (id) => {
-    onInstrumentChange(id);
-    setInstrument(id);
-    setIsOpen(false);
-  };
-  const isGhost = variant === "ghost";
-  const borderColor = isOpen ? theme.accent : isGhost && !isHovered ? "transparent" : theme.border;
-  const bgColor = isGhost && !isHovered && !isOpen ? "transparent" : theme.buttonBackground;
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { ref: containerRef, className: "relative", children: [
-    /* @__PURE__ */ jsxRuntime.jsxs(
-      "button",
-      {
-        onClick: () => setIsOpen(!isOpen),
-        onMouseEnter: () => setIsHovered(true),
-        onMouseLeave: () => setIsHovered(false),
-        className: `flex items-center gap-1.5 px-3 ${height} rounded border text-xs font-medium transition-colors`,
-        style: {
-          backgroundColor: bgColor,
-          borderColor,
-          color: theme.secondaryText
-        },
-        children: [
-          /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Volume2, { size: 12 }),
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "max-w-24 truncate", children: selectedOption.name }),
-          /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ChevronDown, { size: 12, className: `transition-transform ${isOpen ? "rotate-180" : ""}` })
-        ]
-      }
-    ),
-    isOpen && /* @__PURE__ */ jsxRuntime.jsx(
-      "div",
-      {
-        className: "absolute top-full left-0 mt-1 w-44 rounded border shadow-lg z-50",
-        style: {
-          backgroundColor: theme.panelBackground,
-          borderColor: theme.border
-        },
-        children: options.map((option) => /* @__PURE__ */ jsxRuntime.jsxs(
-          "button",
-          {
-            onClick: () => handleSelect(option.id),
-            className: `w-full px-3 py-2 text-left text-xs font-medium transition-colors flex items-center justify-between ${option.id === selectedInstrument ? "opacity-100" : "opacity-70 hover:opacity-100"}`,
-            style: {
-              backgroundColor: option.id === selectedInstrument ? theme.buttonHoverBackground : "transparent",
-              color: theme.text
-            },
-            children: [
-              /* @__PURE__ */ jsxRuntime.jsx("span", { children: option.name }),
-              option.id === selectedInstrument && /* @__PURE__ */ jsxRuntime.jsx("span", { style: { color: theme.accent }, children: "\u2713" })
-            ]
-          },
-          option.id
-        ))
-      }
-    )
-  ] });
-};
-var InstrumentSelector_default = InstrumentSelector;
 function useFocusTrap({
   containerRef,
   isActive,
@@ -8141,6 +8051,38 @@ var Portal = ({ children }) => {
   return mounted ? reactDom.createPortal(children, document.body) : null;
 };
 var Portal_default = Portal;
+var DropdownTrigger = React3.forwardRef(({
+  label,
+  icon,
+  isOpen,
+  onClick,
+  height = "h-9"
+}, ref) => {
+  const { theme } = useTheme();
+  const [isHovered, setIsHovered] = React3__default.default.useState(false);
+  const borderColor = isOpen ? theme.accent : isHovered ? theme.border : "transparent";
+  const bgColor = isHovered || isOpen ? theme.buttonBackground : "transparent";
+  return /* @__PURE__ */ jsxRuntime.jsxs(
+    "button",
+    {
+      ref,
+      onClick,
+      onMouseEnter: () => setIsHovered(true),
+      onMouseLeave: () => setIsHovered(false),
+      className: `flex items-center gap-1.5 px-3 ${height} rounded border text-sm font-medium tracking-wide transition-colors`,
+      style: {
+        backgroundColor: bgColor,
+        borderColor,
+        color: theme.secondaryText
+      },
+      children: [
+        icon,
+        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "truncate", children: label }),
+        /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ChevronDown, { size: 14, className: `transition-transform ${isOpen ? "rotate-180" : ""}` })
+      ]
+    }
+  );
+});
 var DropdownOverlay = ({
   onClose,
   triggerRef,
@@ -8209,6 +8151,36 @@ var DropdownOverlay = ({
       }
     )
   ] });
+};
+var DropdownItem = ({
+  onClick,
+  children,
+  isSelected = false,
+  className = ""
+}) => {
+  const { theme } = useTheme();
+  const [isHovered, setIsHovered] = React3__default.default.useState(false);
+  return /* @__PURE__ */ jsxRuntime.jsx(
+    "button",
+    {
+      onClick,
+      onMouseEnter: () => setIsHovered(true),
+      onMouseLeave: () => setIsHovered(false),
+      className: `
+        w-full text-left px-3 py-2 rounded-md 
+        text-sm font-medium 
+        cursor-pointer
+        transition-colors
+        ${className}
+      `,
+      style: {
+        backgroundColor: isSelected ? theme.buttonHoverBackground : isHovered ? theme.buttonHoverBackground : "transparent",
+        color: theme.secondaryText
+      },
+      role: "menuitem",
+      children
+    }
+  );
 };
 var DropdownOverlay_default = DropdownOverlay;
 
@@ -8706,11 +8678,236 @@ var FileMenu = ({ score, bpm, height = "h-9", variant = "default" }) => {
   ] });
 };
 var FileMenu_default = FileMenu;
+var HistoryControls = ({
+  canUndo,
+  onUndo,
+  canRedo,
+  onRedo,
+  height = "h-9",
+  variant = "default"
+}) => {
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex gap-1", children: [
+    /* @__PURE__ */ jsxRuntime.jsx(
+      ToolbarButton_default,
+      {
+        icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.RotateCcw, { size: 18 }),
+        label: "Undo",
+        onClick: onUndo,
+        disabled: !canUndo,
+        height,
+        variant
+      }
+    ),
+    /* @__PURE__ */ jsxRuntime.jsx(
+      ToolbarButton_default,
+      {
+        icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.RotateCw, { size: 18 }),
+        label: "Redo",
+        onClick: onRedo,
+        disabled: !canRedo,
+        height,
+        variant
+      }
+    )
+  ] });
+};
+var HistoryControls_default = HistoryControls;
+init_SMuFL();
+var PlaybackControls = ({
+  isPlaying,
+  onPlayToggle,
+  bpm,
+  onBpmChange,
+  height = "h-9",
+  variant = "default"
+}) => {
+  const { theme } = useTheme();
+  const [bpmBuffer, setBpmBuffer] = React3.useState(String(bpm));
+  const [isFocused, setIsFocused] = React3.useState(false);
+  const [isBpmHovered, setIsBpmHovered] = React3.useState(false);
+  React3.useEffect(() => {
+    setBpmBuffer(String(bpm));
+  }, [bpm]);
+  const handleBpmBlur = () => {
+    setIsFocused(false);
+    const value = Number(bpmBuffer);
+    if (!bpmBuffer || isNaN(value) || value <= 0) {
+      setBpmBuffer("120");
+      onBpmChange(120);
+    } else {
+      const clamped = Math.max(1, Math.min(300, value));
+      setBpmBuffer(String(clamped));
+      onBpmChange(clamped);
+    }
+  };
+  const isGhost = variant === "ghost";
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
+    /* @__PURE__ */ jsxRuntime.jsx(
+      ToolbarButton_default,
+      {
+        icon: isPlaying ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Pause, { size: 14, fill: "currentColor" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Play, { size: 14, fill: "currentColor" }),
+        label: isPlaying ? "Pause" : "Play",
+        showLabel: true,
+        onClick: onPlayToggle,
+        isEmphasized: true,
+        height,
+        variant
+      }
+    ),
+    /* @__PURE__ */ jsxRuntime.jsxs(
+      "div",
+      {
+        className: `flex items-center gap-0 px-2 rounded border ${height} transition-colors`,
+        style: {
+          borderColor: isFocused ? theme.accent : isGhost && !isBpmHovered ? "transparent" : theme.border,
+          backgroundColor: isGhost && !isBpmHovered && !isFocused ? "transparent" : "transparent"
+        },
+        onMouseEnter: () => setIsBpmHovered(true),
+        onMouseLeave: () => setIsBpmHovered(false),
+        children: [
+          /* @__PURE__ */ jsxRuntime.jsxs(
+            "span",
+            {
+              className: "flex items-center gap-0.5",
+              style: { color: theme.secondaryText },
+              children: [
+                /* @__PURE__ */ jsxRuntime.jsx("span", { style: {
+                  fontFamily: BRAVURA_FONT,
+                  fontSize: "1.5rem",
+                  lineHeight: 1,
+                  marginBottom: "-1rem",
+                  marginRight: ".75rem",
+                  marginLeft: ".5rem"
+                }, children: PRECOMPOSED_NOTES_UP.quarter }),
+                /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-xs font-bold", children: "=" })
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsxRuntime.jsx(
+            "input",
+            {
+              type: "text",
+              value: bpmBuffer,
+              onChange: (e) => setBpmBuffer(e.target.value),
+              onFocus: () => setIsFocused(true),
+              onBlur: handleBpmBlur,
+              className: "w-12 bg-transparent text-sm font-bold text-center outline-none",
+              style: { color: theme.accent }
+            }
+          )
+        ]
+      }
+    )
+  ] });
+};
+var PlaybackControls_default = PlaybackControls;
+var InstrumentSelector = ({
+  selectedInstrument,
+  onInstrumentChange,
+  samplerLoaded,
+  height = "h-9"
+}) => {
+  const [isOpen, setIsOpen] = React3.useState(false);
+  const buttonRef = React3.useRef(null);
+  const options = [
+    { id: "bright", name: "Bright Synth" },
+    { id: "mellow", name: "Mellow Synth" },
+    { id: "organ", name: "Organ Synth" },
+    {
+      id: "piano",
+      name: samplerLoaded ? "Piano Samples" : "Piano (Loading...)",
+      loading: !samplerLoaded
+    }
+  ];
+  const selectedOption = options.find((o) => o.id === selectedInstrument) || options[0];
+  const handleSelect = (id) => {
+    onInstrumentChange(id);
+    setInstrument(id);
+    setIsOpen(false);
+  };
+  const getPosition = () => {
+    if (!buttonRef.current) return { x: 0, y: 0 };
+    const rect = buttonRef.current.getBoundingClientRect();
+    return { x: rect.left, y: rect.bottom + 4 };
+  };
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "relative", children: [
+    /* @__PURE__ */ jsxRuntime.jsx(
+      DropdownTrigger,
+      {
+        ref: buttonRef,
+        label: selectedOption.name,
+        icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.AudioWaveform, { size: 14 }),
+        isOpen,
+        onClick: () => setIsOpen(!isOpen),
+        height
+      }
+    ),
+    isOpen && /* @__PURE__ */ jsxRuntime.jsx(
+      DropdownOverlay_default,
+      {
+        onClose: () => setIsOpen(false),
+        position: getPosition(),
+        triggerRef: buttonRef,
+        width: 176,
+        children: /* @__PURE__ */ jsxRuntime.jsx("div", { className: "p-1", children: options.map((option) => /* @__PURE__ */ jsxRuntime.jsx(
+          DropdownItem,
+          {
+            onClick: () => handleSelect(option.id),
+            isSelected: option.id === selectedInstrument,
+            children: /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "flex items-center justify-between w-full", children: [
+              /* @__PURE__ */ jsxRuntime.jsx("span", { children: option.name }),
+              option.id === selectedInstrument && /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Check, { size: 12, className: "text-green-600" })
+            ] })
+          },
+          option.id
+        )) })
+      }
+    )
+  ] });
+};
+var InstrumentSelector_default = InstrumentSelector;
+var MidiControls = ({
+  midiStatus,
+  selectedInstrument,
+  onInstrumentChange,
+  samplerLoaded,
+  height = "h-9",
+  variant = "default"
+}) => {
+  const { theme } = useTheme();
+  const [isMidiHovered, setIsMidiHovered] = React3.useState(false);
+  const isGhost = variant === "ghost";
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
+    /* @__PURE__ */ jsxRuntime.jsxs(
+      "div",
+      {
+        className: `flex items-center gap-1.5 px-3 ${height} rounded border text-xs font-medium ${midiStatus.connected ? "bg-[#0ac5b20f] border-[#507d7d] text-[#4f9e9e]" : "bg-slate-800/50 border-white/10 text-slate-400"}`,
+        style: {
+          borderColor: isGhost && !isMidiHovered && !midiStatus.connected ? "transparent" : midiStatus.connected ? "#507d7d" : isMidiHovered ? theme.border : isGhost ? "transparent" : theme.border,
+          backgroundColor: isGhost && !midiStatus.connected ? "transparent" : void 0
+        },
+        onMouseEnter: () => setIsMidiHovered(true),
+        onMouseLeave: () => setIsMidiHovered(false),
+        title: midiStatus.connected ? `MIDI: ${midiStatus.deviceName}` : midiStatus.error || "No MIDI device connected",
+        children: [
+          /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Piano, { size: 12 }),
+          /* @__PURE__ */ jsxRuntime.jsx("span", { children: midiStatus.connected ? "MIDI" : "No MIDI" })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntime.jsx(
+      InstrumentSelector_default,
+      {
+        selectedInstrument,
+        onInstrumentChange,
+        samplerLoaded,
+        height
+      }
+    )
+  ] });
+};
+var MidiControls_default = MidiControls;
 var MainControls = ({
-  scoreTitle,
-  isEditingTitle,
-  onEditingChange,
-  onTitleChange,
   isPlaying,
   onPlayToggle,
   bpm,
@@ -8730,133 +8927,37 @@ var MainControls = ({
   buttonVariant = "default"
 }) => {
   const { theme } = useTheme();
-  const titleInputRef = React3.useRef(null);
-  const [titleBuffer, setTitleBuffer] = React3.useState("");
-  const [bpmBuffer, setBpmBuffer] = React3.useState(String(bpm));
-  const [isFocused, setIsFocused] = React3.useState(false);
-  const [isBpmHovered, setIsBpmHovered] = React3.useState(false);
-  const [isMidiHovered, setIsMidiHovered] = React3.useState(false);
-  React3.useEffect(() => {
-    setBpmBuffer(String(bpm));
-  }, [bpm]);
-  React3.useEffect(() => {
-    if (isEditingTitle && titleInputRef.current) {
-      setTitleBuffer(scoreTitle);
-      titleInputRef.current.focus();
-      titleInputRef.current.select();
-    }
-  }, [isEditingTitle, scoreTitle]);
-  const handleBpmBlur = () => {
-    setIsFocused(false);
-    const value = Number(bpmBuffer);
-    if (!bpmBuffer || isNaN(value) || value <= 0) {
-      setBpmBuffer("120");
-      onBpmChange(120);
-    } else {
-      const clamped = Math.max(1, Math.min(300, value));
-      setBpmBuffer(String(clamped));
-      onBpmChange(clamped);
-    }
-  };
-  const isGhost = buttonVariant === "ghost";
   return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-4", children: [
     /* @__PURE__ */ jsxRuntime.jsx(FileMenu_default, { score, bpm, height: rowHeight, variant: buttonVariant }),
     /* @__PURE__ */ jsxRuntime.jsx("div", { className: "w-px h-6", style: { backgroundColor: theme.border } }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex gap-1", children: [
-      /* @__PURE__ */ jsxRuntime.jsx(
-        ToolbarButton_default,
-        {
-          icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.RotateCcw, { size: 18 }),
-          label: "Undo",
-          onClick: onUndo,
-          disabled: !canUndo,
-          height: rowHeight,
-          variant: buttonVariant
-        }
-      ),
-      /* @__PURE__ */ jsxRuntime.jsx(
-        ToolbarButton_default,
-        {
-          icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.RotateCw, { size: 18 }),
-          label: "Redo",
-          onClick: onRedo,
-          disabled: !canRedo,
-          height: rowHeight,
-          variant: buttonVariant
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "w-px h-6", style: { backgroundColor: theme.border } }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
-      /* @__PURE__ */ jsxRuntime.jsx(
-        ToolbarButton_default,
-        {
-          icon: isPlaying ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Pause, { size: 14, fill: "currentColor" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Play, { size: 14, fill: "currentColor" }),
-          label: isPlaying ? "Pause" : "Play",
-          showLabel: true,
-          onClick: onPlayToggle,
-          isEmphasized: true,
-          height: rowHeight,
-          variant: buttonVariant
-        }
-      ),
-      /* @__PURE__ */ jsxRuntime.jsxs(
-        "div",
-        {
-          className: `flex items-center gap-0 px-2 rounded border ${rowHeight} transition-colors`,
-          style: {
-            borderColor: isFocused ? theme.accent : isGhost && !isBpmHovered ? "transparent" : theme.border,
-            backgroundColor: isGhost && !isBpmHovered && !isFocused ? "transparent" : "transparent"
-          },
-          onMouseEnter: () => setIsBpmHovered(true),
-          onMouseLeave: () => setIsBpmHovered(false),
-          children: [
-            /* @__PURE__ */ jsxRuntime.jsx(
-              "span",
-              {
-                className: "text-xs font-bold uppercase tracking-wider",
-                style: { color: theme.secondaryText },
-                children: "BPM"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntime.jsx(
-              "input",
-              {
-                type: "text",
-                value: bpmBuffer,
-                onChange: (e) => setBpmBuffer(e.target.value),
-                onFocus: () => setIsFocused(true),
-                onBlur: handleBpmBlur,
-                className: "w-12 bg-transparent text-sm font-bold text-center outline-none",
-                style: { color: theme.accent }
-              }
-            )
-          ]
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "w-px h-6", style: { backgroundColor: theme.border } }),
-    /* @__PURE__ */ jsxRuntime.jsxs(
-      "div",
+    /* @__PURE__ */ jsxRuntime.jsx(
+      HistoryControls_default,
       {
-        className: `flex items-center gap-1.5 px-3 ${rowHeight} rounded border text-xs font-medium ${midiStatus.connected ? "bg-[#0ac5b20f] border-[#507d7d] text-[#4f9e9e]" : "bg-slate-800/50 border-white/10 text-slate-400"}`,
-        style: {
-          borderColor: isGhost && !isMidiHovered && !midiStatus.connected ? "transparent" : midiStatus.connected ? "#507d7d" : isMidiHovered ? theme.border : isGhost ? "transparent" : theme.border,
-          // Note: Keep MIDI status distinct if connected, otherwise follow ghost rules
-          backgroundColor: isGhost && !midiStatus.connected ? "transparent" : void 0
-        },
-        onMouseEnter: () => setIsMidiHovered(true),
-        onMouseLeave: () => setIsMidiHovered(false),
-        title: midiStatus.connected ? `MIDI: ${midiStatus.deviceName}` : midiStatus.error || "No MIDI device connected",
-        children: [
-          /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Music2, { size: 12 }),
-          /* @__PURE__ */ jsxRuntime.jsx("span", { children: midiStatus.connected ? "MIDI" : "No MIDI" })
-        ]
+        canUndo,
+        onUndo,
+        canRedo,
+        onRedo,
+        height: rowHeight,
+        variant: buttonVariant
       }
     ),
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "w-px h-6", style: { backgroundColor: theme.border } }),
     /* @__PURE__ */ jsxRuntime.jsx(
-      InstrumentSelector_default,
+      PlaybackControls_default,
       {
+        isPlaying,
+        onPlayToggle,
+        bpm,
+        onBpmChange,
+        height: rowHeight,
+        variant: buttonVariant
+      }
+    ),
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "w-px h-6", style: { backgroundColor: theme.border } }),
+    /* @__PURE__ */ jsxRuntime.jsx(
+      MidiControls_default,
+      {
+        midiStatus,
         selectedInstrument,
         onInstrumentChange,
         samplerLoaded,
@@ -9753,21 +9854,9 @@ var MelodyLibrary = ({ melodies, onSelectMelody, onClose, position, triggerRef }
           }
         ),
         /* @__PURE__ */ jsxRuntime.jsx("div", { className: "overflow-y-auto p-2 dropdown-scroll", style: { maxHeight: "320px" }, children: melodies.map((melody) => /* @__PURE__ */ jsxRuntime.jsx(
-          "button",
+          DropdownItem,
           {
             onClick: () => onSelectMelody(melody),
-            className: "w-full text-left px-3 py-2 rounded-md transition-colors text-sm mb-1",
-            style: {
-              color: theme.text
-            },
-            onMouseEnter: (e) => {
-              e.currentTarget.style.backgroundColor = theme.buttonHoverBackground;
-              e.currentTarget.style.color = theme.accent;
-            },
-            onMouseLeave: (e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.color = theme.text;
-            },
             children: melody.title
           },
           melody.id
@@ -10025,10 +10114,6 @@ var Toolbar = React3.forwardRef(({
         /* @__PURE__ */ jsxRuntime.jsx(
           MainControls_default,
           {
-            scoreTitle,
-            isEditingTitle,
-            onEditingChange,
-            onTitleChange,
             isPlaying,
             onPlayToggle,
             bpm,
@@ -10047,18 +10132,14 @@ var Toolbar = React3.forwardRef(({
             buttonVariant: "ghost",
             children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex gap-1 relative", children: [
               /* @__PURE__ */ jsxRuntime.jsx(
-                ToolbarButton_default,
+                DropdownTrigger,
                 {
                   ref: melodyLibBtnRef,
+                  label: "Library",
+                  icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.BookOpen, { size: 14 }),
+                  isOpen: showLibrary,
                   onClick: () => setShowLibrary(!showLibrary),
-                  label: "Melody Library",
-                  icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.BookOpen, { size: 18 }),
-                  isActive: showLibrary,
-                  preventFocus: true,
-                  showLabel: true,
-                  isEmphasized: !showLibrary,
-                  height: TOP_ROW_HEIGHT,
-                  variant: "ghost"
+                  height: TOP_ROW_HEIGHT
                 }
               ),
               showLibrary && /* @__PURE__ */ jsxRuntime.jsx(
@@ -10078,7 +10159,7 @@ var Toolbar = React3.forwardRef(({
             ] })
           }
         ),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "w-full h-px mb-2", style: { backgroundColor: theme.border } }),
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "w-full h-px", style: { backgroundColor: theme.border } }),
         /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-4 flex-wrap", children: [
           /* @__PURE__ */ jsxRuntime.jsx(
             StaffControls_default,
@@ -10193,7 +10274,7 @@ function ScoreTitleField({
         onChange: (e) => setBuffer(e.target.value),
         onBlur: commit,
         onKeyDown: (e) => e.key === "Enter" && commit(),
-        className: "ScoreTitleFieldInput font-bold font-serif text-3xl px-1 mx-[2.5rem] py-0 rounded outline-none bg-transparent",
+        className: "ScoreTitleFieldInput font-bold font-serif text-3xl px-1 mx-[1.5rem] py-0 rounded outline-none bg-transparent",
         style: { color: theme.text, borderColor: theme.border, borderWidth: "1px" }
       }
     );
@@ -10202,7 +10283,7 @@ function ScoreTitleField({
     "h2",
     {
       onClick: () => setIsEditing(true),
-      className: "ScoreTitleField font-bold font-serif text-3xl px-[2.75rem] py-0 rounded hover:bg-white/10 cursor-pointer transition-colors inline-block",
+      className: "ScoreTitleField font-bold font-serif text-3xl px-[1.75rem] py-0 rounded hover:bg-white/10 cursor-pointer transition-colors inline-block",
       style: { color: theme.text, borderColor: "transparent", borderWidth: "1px" },
       children: title
     }
@@ -11375,43 +11456,54 @@ var ScoreEditorContent = ({
           }
         ),
         showHelp && /* @__PURE__ */ jsxRuntime.jsx(Portal_default, { children: /* @__PURE__ */ jsxRuntime.jsx(ShortcutsOverlay_default, { onClose: () => setShowHelp(false) }) }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "score-editor-content", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "relative z-20", children: /* @__PURE__ */ jsxRuntime.jsx(
-            ScoreTitleField,
-            {
-              title: score.title,
-              isEditing: titleEditor.isEditing,
-              setIsEditing: titleEditor.setIsEditing,
-              buffer: titleEditor.buffer,
-              setBuffer: titleEditor.setBuffer,
-              commit: titleEditor.commit,
-              inputRef: titleEditor.inputRef,
-              theme
-            }
-          ) }),
-          /* @__PURE__ */ jsxRuntime.jsx(
-            ScoreCanvas_default,
-            {
-              scale,
-              playbackPosition: playback.playbackPosition,
-              containerRef: scoreContainerRef,
-              onHoverChange: handleHoverChange,
-              onBackgroundClick: handleBackgroundClick,
-              onKeySigClick: () => {
-                var _a;
-                return (_a = toolbarRef.current) == null ? void 0 : _a.openKeySigMenu();
-              },
-              onTimeSigClick: () => {
-                var _a;
-                return (_a = toolbarRef.current) == null ? void 0 : _a.openTimeSigMenu();
-              },
-              onClefClick: () => {
-                var _a;
-                return (_a = toolbarRef.current) == null ? void 0 : _a.openClefMenu();
-              }
-            }
-          )
-        ] }),
+        /* @__PURE__ */ jsxRuntime.jsxs(
+          "div",
+          {
+            className: "score-editor-content",
+            style: {
+              backgroundColor: theme.background,
+              borderRadius: "1rem",
+              paddingTop: "1rem"
+            },
+            children: [
+              /* @__PURE__ */ jsxRuntime.jsx("div", { className: "relative z-20", children: /* @__PURE__ */ jsxRuntime.jsx(
+                ScoreTitleField,
+                {
+                  title: score.title,
+                  isEditing: titleEditor.isEditing,
+                  setIsEditing: titleEditor.setIsEditing,
+                  buffer: titleEditor.buffer,
+                  setBuffer: titleEditor.setBuffer,
+                  commit: titleEditor.commit,
+                  inputRef: titleEditor.inputRef,
+                  theme
+                }
+              ) }),
+              /* @__PURE__ */ jsxRuntime.jsx(
+                ScoreCanvas_default,
+                {
+                  scale,
+                  playbackPosition: playback.playbackPosition,
+                  containerRef: scoreContainerRef,
+                  onHoverChange: handleHoverChange,
+                  onBackgroundClick: handleBackgroundClick,
+                  onKeySigClick: () => {
+                    var _a;
+                    return (_a = toolbarRef.current) == null ? void 0 : _a.openKeySigMenu();
+                  },
+                  onTimeSigClick: () => {
+                    var _a;
+                    return (_a = toolbarRef.current) == null ? void 0 : _a.openTimeSigMenu();
+                  },
+                  onClefClick: () => {
+                    var _a;
+                    return (_a = toolbarRef.current) == null ? void 0 : _a.openClefMenu();
+                  }
+                }
+              )
+            ]
+          }
+        ),
         pendingClefChange && /* @__PURE__ */ jsxRuntime.jsx(Portal_default, { children: /* @__PURE__ */ jsxRuntime.jsx(
           ConfirmDialog_default,
           {

@@ -1,27 +1,23 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Volume2, ChevronDown } from 'lucide-react';
-import { useTheme } from '@/context/ThemeContext';
-import { InstrumentType, getInstrumentOptions, setInstrument, getSelectedInstrument } from '@/engines/toneEngine';
+import React, { useState, useRef } from 'react';
+import { AudioWaveform, Check } from 'lucide-react';
+import { InstrumentType, setInstrument } from '@/engines/toneEngine';
+import DropdownOverlay, { DropdownItem, DropdownTrigger } from './Menus/DropdownOverlay';
 
 interface InstrumentSelectorProps {
     selectedInstrument: InstrumentType;
     onInstrumentChange: (instrument: InstrumentType) => void;
     samplerLoaded: boolean;
     height?: string;
-    variant?: 'default' | 'ghost';
 }
 
 const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
     selectedInstrument,
     onInstrumentChange,
     samplerLoaded,
-    height = "h-9",
-    variant = "default"
+    height = "h-9"
 }) => {
-    const { theme } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
-    const [isHovered, setIsHovered] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
 
     const options = [
         { id: 'bright' as InstrumentType, name: 'Bright Synth' },
@@ -36,74 +32,54 @@ const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
 
     const selectedOption = options.find(o => o.id === selectedInstrument) || options[0];
 
-    // Close on click outside
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-        if (isOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isOpen]);
-
     const handleSelect = (id: InstrumentType) => {
         onInstrumentChange(id);
         setInstrument(id);
         setIsOpen(false);
     };
 
-    const isGhost = variant === 'ghost';
-    const borderColor = isOpen ? theme.accent : ((isGhost && !isHovered) ? 'transparent' : theme.border);
-    const bgColor = (isGhost && !isHovered && !isOpen) ? 'transparent' : theme.buttonBackground;
+    // Calculate dropdown position
+    const getPosition = () => {
+        if (!buttonRef.current) return { x: 0, y: 0 };
+        const rect = buttonRef.current.getBoundingClientRect();
+        return { x: rect.left, y: rect.bottom + 4 };
+    };
 
     return (
-        <div ref={containerRef} className="relative">
-            <button
+        <div className="relative">
+            <DropdownTrigger
+                ref={buttonRef}
+                label={selectedOption.name}
+                icon={<AudioWaveform size={14} />}
+                isOpen={isOpen}
                 onClick={() => setIsOpen(!isOpen)}
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
-                className={`flex items-center gap-1.5 px-3 ${height} rounded border text-xs font-medium transition-colors`}
-                style={{
-                    backgroundColor: bgColor,
-                    borderColor: borderColor,
-                    color: theme.secondaryText
-                }}
-            >
-                <Volume2 size={12} />
-                <span className="max-w-24 truncate">{selectedOption.name}</span>
-                <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-            </button>
+                height={height}
+            />
 
             {isOpen && (
-                <div 
-                    className="absolute top-full left-0 mt-1 w-44 rounded border shadow-lg z-50"
-                    style={{
-                        backgroundColor: theme.panelBackground,
-                        borderColor: theme.border
-                    }}
+                <DropdownOverlay
+                    onClose={() => setIsOpen(false)}
+                    position={getPosition()}
+                    triggerRef={buttonRef as React.RefObject<HTMLElement>}
+                    width={176}
                 >
-                    {options.map((option) => (
-                        <button
-                            key={option.id}
-                            onClick={() => handleSelect(option.id)}
-                            className={`w-full px-3 py-2 text-left text-xs font-medium transition-colors flex items-center justify-between ${
-                                option.id === selectedInstrument ? 'opacity-100' : 'opacity-70 hover:opacity-100'
-                            }`}
-                            style={{
-                                backgroundColor: option.id === selectedInstrument ? theme.buttonHoverBackground : 'transparent',
-                                color: theme.text
-                            }}
-                        >
-                            <span>{option.name}</span>
-                            {option.id === selectedInstrument && (
-                                <span style={{ color: theme.accent }}>✓</span>
-                            )}
-                        </button>
-                    ))}
-                </div>
+                    <div className="p-1">
+                        {options.map((option) => (
+                            <DropdownItem
+                                key={option.id}
+                                onClick={() => handleSelect(option.id)}
+                                isSelected={option.id === selectedInstrument}
+                            >
+                                <span className="flex items-center justify-between w-full">
+                                    <span>{option.name}</span>
+                                    {option.id === selectedInstrument && (
+                                        <Check size={12} className="text-green-600" />
+                                    )}
+                                </span>
+                            </DropdownItem>
+                        ))}
+                    </div>
+                </DropdownOverlay>
             )}
         </div>
     );

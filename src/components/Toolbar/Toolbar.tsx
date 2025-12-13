@@ -10,6 +10,7 @@ import TupletControls from './TupletControls';
 import MelodyLibrary from './MelodyLibrary';
 import ToolbarButton from './ToolbarButton';
 import InputModeToggle from './InputModeToggle';
+import { DropdownTrigger } from './Menus/DropdownOverlay';
 import { Melody, getActiveStaff } from '@/types';
 import { useTheme } from '@/context/ThemeContext';
 import { BookOpen } from 'lucide-react';
@@ -160,10 +161,6 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
     >
       {/* Row 1: Play, Undo/Redo, BPM, MIDI, Melody Library, Help */}
       <MainControls 
-        scoreTitle={scoreTitle}
-        isEditingTitle={isEditingTitle}
-        onEditingChange={onEditingChange}
-        onTitleChange={onTitleChange}
         isPlaying={isPlaying}
         onPlayToggle={onPlayToggle}
         bpm={bpm}
@@ -182,17 +179,13 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(({
         buttonVariant="ghost"
       >
         <div className="flex gap-1 relative">
-          <ToolbarButton 
+          <DropdownTrigger
             ref={melodyLibBtnRef}
+            label="Library"
+            icon={<BookOpen size={14} />}
+            isOpen={showLibrary}
             onClick={() => setShowLibrary(!showLibrary)}
-            label="Melody Library"
-            icon={<BookOpen size={18} />}
-            isActive={showLibrary}
-            preventFocus={true}
-            showLabel={true}
-            isEmphasized={!showLibrary}
             height={TOP_ROW_HEIGHT}
-            variant="ghost"
           />
           {showLibrary && (
             <MelodyLibrary 

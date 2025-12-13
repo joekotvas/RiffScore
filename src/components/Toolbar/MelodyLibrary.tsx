@@ -1,7 +1,7 @@
 import React from 'react';
 import { Melody } from '@/types';
 import { BookOpen } from 'lucide-react';
-import DropdownOverlay from './Menus/DropdownOverlay';
+import DropdownOverlay, { DropdownItem } from './Menus/DropdownOverlay';
 import { useTheme } from '@/context/ThemeContext';
 
 interface MelodyLibraryProps {
@@ -36,24 +36,12 @@ const MelodyLibrary: React.FC<MelodyLibraryProps> = ({ melodies, onSelectMelody,
       
       <div className="overflow-y-auto p-2 dropdown-scroll" style={{ maxHeight: '320px' }}>
         {melodies.map((melody) => (
-          <button
+          <DropdownItem
             key={melody.id}
             onClick={() => onSelectMelody(melody)}
-            className="w-full text-left px-3 py-2 rounded-md transition-colors text-sm mb-1"
-            style={{
-              color: theme.text
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = theme.buttonHoverBackground;
-              e.currentTarget.style.color = theme.accent;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = theme.text;
-            }}
           >
             {melody.title}
-          </button>
+          </DropdownItem>
         ))}
       </div>
     </DropdownOverlay>
