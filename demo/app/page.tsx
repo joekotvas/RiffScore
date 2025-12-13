@@ -93,7 +93,7 @@ const examples = [
 ];
 
 function ExamplesContent() {
-  const { theme, themeName } = useTheme();
+  const { theme, themeName, zoom } = useTheme();
   
   return (
     <div 
@@ -141,6 +141,7 @@ function ExamplesContent() {
                 ...example.config,
                 ui: {
                   ...example.config?.ui,
+                  scale: example.config?.ui?.scale ?? zoom,
                   theme: themeName // Pass currently active theme
                 }
               }} />
