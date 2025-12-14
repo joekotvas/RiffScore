@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
 import { CONFIG } from '@/config';
 import { calculateMeasureWidth, calculateMeasureLayout, calculateHeaderLayout } from '@/engines/layout';
 import { getActiveStaff, Score, Selection } from '@/types';
@@ -39,7 +39,7 @@ export const useAutoScroll = ({
   scale
 }: UseAutoScrollProps) => {
 
-  // 1. Memoize Derived State
+  // 1. Memoize Derived Data
   const activeStaff = useMemo(() => getActiveStaff(score), [score]);
   
   const keySignature = useMemo(() => 
@@ -50,7 +50,7 @@ export const useAutoScroll = ({
     score.staves.length >= 2 ? 'grand' : (activeStaff.clef || 'treble'), 
   [score.staves.length, activeStaff.clef]);
 
-  // 2. Memoized Cumulative Measure Widths (O(1) lookup during playback)
+  // 2. Measure Start X Cache (O(1) lookup during playback)
   // Cache invalidates when measures or keySignature changes
   const measureStartXCache = useMemo(() => {
     const { startOfMeasures } = calculateHeaderLayout(keySignature);
@@ -64,13 +64,19 @@ export const useAutoScroll = ({
     return cache;
   }, [activeStaff.measures, keySignature]);
 
-  // O(1) lookup instead of O(n) loop
-  const getMeasureStartX = useCallback((targetIndex: number) => {
-    return measureStartXCache[targetIndex] ?? measureStartXCache[0] ?? 0;
-  }, [measureStartXCache]);
+  // 3. Helper: Calculate Layout for a specific measure
+  const getMeasureData = useCallback((measureIndex: number) => {
+    const measure = activeStaff.measures[measureIndex];
+    if (!measure) return null;
 
-  // 3. Helper: Unified Scroll Executor
-  const performScroll = useCallback((targetX: number, strategy: ScrollStrategy = 'keep-in-view') => {
+    const layout = calculateMeasureLayout(measure.events, undefined, clef);
+    const startX = measureStartXCache[measureIndex] ?? measureStartXCache[0] ?? 0;
+
+    return { measure, layout, startX };
+  }, [activeStaff.measures, clef, measureStartXCache]);
+
+  // 4. Unified Scroll Function
+  const performScroll = useCallback((targetX: number, strategy: ScrollStrategy) => {
     const container = containerRef.current;
     if (!container) return;
 
@@ -78,22 +84,17 @@ export const useAutoScroll = ({
     const scaledTargetX = targetX * scale;
     const padding = 100;
 
-    let newScrollLeft = null;
+    let newScrollLeft: number | null = null;
+    const rightEdge = scrollLeft + clientWidth - padding;
+    const leftEdge = scrollLeft + padding;
 
     if (strategy === 'scroll-to-start') {
-      // Place target at left edge of viewport (for playback)
-      // Scroll if target is off-screen (left or right)
-      const rightEdge = scrollLeft + clientWidth - padding;
-      const leftEdge = scrollLeft + padding;
-      
+      // If target is OFF SCREEN, bring it to the left edge
       if (scaledTargetX > rightEdge || scaledTargetX < leftEdge) {
         newScrollLeft = Math.max(0, scaledTargetX - padding);
       }
     } else {
-      // 'keep-in-view': Only scroll if target is outside visible area
-      const rightEdge = scrollLeft + clientWidth - padding;
-      const leftEdge = scrollLeft + padding;
-
+      // 'keep-in-view'
       if (scaledTargetX > rightEdge) {
         newScrollLeft = scaledTargetX - clientWidth + padding + 200; 
       } else if (scaledTargetX < leftEdge) {
@@ -106,62 +107,63 @@ export const useAutoScroll = ({
     }
   }, [containerRef, scale]);
 
-  // 4. Effect: Auto-Scroll for Selection
+  // ------------------------------------------------------------------
+  // Effects
+  // ------------------------------------------------------------------
+
+  // Effect: Handle Selection
   useEffect(() => {
     if (selection.measureIndex === null || !selection.eventId) return;
 
-    const measure = activeStaff.measures[selection.measureIndex];
-    if (!measure) return;
+    const data = getMeasureData(selection.measureIndex);
+    if (!data) return;
 
-    const measureStartX = getMeasureStartX(selection.measureIndex);
-    const layout = calculateMeasureLayout(measure.events, undefined, clef);
-    const eventOffset = layout.eventPositions[selection.eventId] || 0;
-    
-    performScroll(measureStartX + eventOffset, 'keep-in-view');
+    const eventOffset = data.layout.eventPositions[selection.eventId] || 0;
+    performScroll(data.startX + eventOffset, 'keep-in-view');
 
-  }, [selection.measureIndex, selection.eventId, activeStaff, clef, getMeasureStartX, performScroll]);
+  }, [selection.measureIndex, selection.eventId, getMeasureData, performScroll]);
 
-  // 5. Effect: Auto-Scroll for Preview Note (Keyboard Only)
+  // Effect: Handle Preview (Keyboard only)
   useEffect(() => {
     if (!previewNote || previewNote.source === 'hover' || previewNote.measureIndex === null) return;
 
-    const measure = activeStaff.measures[previewNote.measureIndex];
-    if (!measure) return;
+    const data = getMeasureData(previewNote.measureIndex);
+    if (!data) return;
 
-    const measureStartX = getMeasureStartX(previewNote.measureIndex);
-    const layout = calculateMeasureLayout(measure.events, undefined, clef);
-    
     let localOffsetX = CONFIG.measurePaddingLeft;
 
     if (previewNote.mode === 'APPEND') {
-      localOffsetX = layout.totalWidth - CONFIG.measurePaddingRight;
+      localOffsetX = data.layout.totalWidth - CONFIG.measurePaddingRight;
     } else if (previewNote.mode === 'INSERT' && previewNote.index > 0) {
-      const prevEvent = measure.events[previewNote.index - 1];
+      const prevEvent = data.measure.events[previewNote.index - 1];
       const GAP_SPACING = 30; 
-      localOffsetX = (layout.eventPositions[prevEvent?.id] || 0) + GAP_SPACING;
+      localOffsetX = (data.layout.eventPositions[prevEvent?.id] || 0) + GAP_SPACING;
     }
 
-    performScroll(measureStartX + localOffsetX, 'keep-in-view');
+    performScroll(data.startX + localOffsetX, 'keep-in-view');
 
-  }, [previewNote, activeStaff, clef, getMeasureStartX, performScroll]);
+  }, [previewNote, getMeasureData, performScroll]);
 
-  // 6. Effect: Auto-Scroll for Playback
+  // Effect: Handle Playback
+  const lastScrolledMeasureRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (playbackPosition.measureIndex === null || playbackPosition.quant === null) return;
+    if (playbackPosition.measureIndex === null || playbackPosition.quant === null) {
+      lastScrolledMeasureRef.current = null;
+      return;
+    }
 
-    const measure = activeStaff.measures[playbackPosition.measureIndex];
-    if (!measure) return; 
+    const data = getMeasureData(playbackPosition.measureIndex);
+    if (!data) return;
 
-    const measureStartX = getMeasureStartX(playbackPosition.measureIndex);
-    const layout = calculateMeasureLayout(measure.events, undefined, clef);
-
+    // Find offset based on quant
     let localOffsetX = CONFIG.measurePaddingLeft;
     let currentQuant = 0;
     let found = false;
     
-    for (const event of measure.events) {
+    for (const event of data.measure.events) {
       if (currentQuant >= playbackPosition.quant) {
-        localOffsetX = layout.eventPositions[event.id] || CONFIG.measurePaddingLeft;
+        localOffsetX = data.layout.eventPositions[event.id] || CONFIG.measurePaddingLeft;
         found = true;
         break;
       }
@@ -169,11 +171,10 @@ export const useAutoScroll = ({
     }
 
     if (!found && currentQuant < playbackPosition.quant) {
-      localOffsetX = layout.totalWidth - CONFIG.measurePaddingRight;
+      localOffsetX = data.layout.totalWidth - CONFIG.measurePaddingRight;
     }
 
-    // Use 'scroll-to-start' strategy: scroll target to left edge when it goes off-screen
-    performScroll(measureStartX + localOffsetX, 'scroll-to-start');
+    performScroll(data.startX + localOffsetX, 'scroll-to-start');
 
-  }, [playbackPosition, activeStaff, clef, getMeasureStartX, performScroll]);
+  }, [playbackPosition, getMeasureData, performScroll]);
 };
