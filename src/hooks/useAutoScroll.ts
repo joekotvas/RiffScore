@@ -65,6 +65,9 @@ export const useAutoScroll = ({
   }, [activeStaff.measures, keySignature]);
 
   // 3. Helper: Calculate Layout for a specific measure
+  // Performance Note: If playback stutters on large scores (300+ measures) or
+  // many instruments, consider pre-computing all measure layouts into a memoized
+  // cache (like measureStartXCache) rather than calculating on each lookup.
   const getMeasureData = useCallback((measureIndex: number) => {
     const measure = activeStaff.measures[measureIndex];
     if (!measure) return null;
