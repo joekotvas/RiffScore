@@ -101,8 +101,11 @@ export const useScoreInteraction = ({ scoreRef, selection, onUpdatePitch, onSele
             initialPitches
         });
         
-        // Optimistic selection update on mouse down
-        onSelectNote(measureIndex, eventId, noteId, staffIndex, isMulti, selectAllInEvent, isShift);
+        // Only update selection if note is NOT already selected
+        // (dragging an already-selected note should preserve the current selection)
+        if (!isNoteInSelection) {
+            onSelectNote(measureIndex, eventId, noteId, staffIndex, isMulti, selectAllInEvent, isShift);
+        }
     }, [onSelectNote, selection, scoreRef]);
 
     useEffect(() => {
