@@ -2,7 +2,7 @@ import { Key, Note } from 'tonal';
 import React3, { createContext, forwardRef, useState, useRef, useImperativeHandle, useContext, useCallback, useEffect, useMemo } from 'react';
 import * as Tone from 'tone';
 import { jsxs, jsx, Fragment } from 'react/jsx-runtime';
-import { ChevronDown, BookOpen, HelpCircle, Menu, FileJson, Music, FileCode, RotateCcw, RotateCw, Pause, Play, Piano, Circle, SquarePlus, SquareMinus, Copy, Download, AudioWaveform, Check, X, Settings, Keyboard } from 'lucide-react';
+import { ChevronDown, BookOpen, HelpCircle, Menu, FileJson, Music, FileCode, RotateCcw, RotateCw, Pause, Play, Circle, SquarePlus, SquareMinus, Copy, Download, AudioWaveform, Check, X, Settings, Keyboard } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 var __defProp = Object.defineProperty;
@@ -9796,8 +9796,8 @@ var PlaybackControls = ({
       ToolbarButton_default,
       {
         icon: isPlaying ? /* @__PURE__ */ jsx(Pause, { size: 14, fill: "currentColor" }) : /* @__PURE__ */ jsx(Play, { size: 14, fill: "currentColor" }),
-        label: isPlaying ? "Pause" : "Play",
         showLabel: true,
+        label: isPlaying ? "Pause" : "Play",
         onClick: onPlayToggle,
         isEmphasized: true,
         height,
@@ -9826,10 +9826,10 @@ var PlaybackControls = ({
                   fontSize: "1.5rem",
                   lineHeight: 1,
                   marginBottom: "-1rem",
-                  marginRight: ".75rem",
-                  marginLeft: ".5rem"
+                  marginRight: ".25rem",
+                  marginLeft: ".25rem"
                 }, children: PRECOMPOSED_NOTES_UP.quarter }),
-                /* @__PURE__ */ jsx("span", { className: "text-xs font-bold", children: "=" })
+                /* @__PURE__ */ jsx("span", { className: "text-xs font-bold px-2", children: " = " })
               ]
             }
           ),
@@ -9841,7 +9841,7 @@ var PlaybackControls = ({
               onChange: (e) => setBpmBuffer(e.target.value),
               onFocus: () => setIsFocused(true),
               onBlur: handleBpmBlur,
-              className: "w-12 bg-transparent text-sm font-bold text-center outline-none",
+              className: "w-8 bg-transparent text-sm font-bold text-center outline-none",
               style: { color: theme.accent }
             }
           )
@@ -9860,33 +9860,6 @@ var PlaybackControls = ({
   ] });
 };
 var PlaybackControls_default = PlaybackControls;
-var MidiControls = ({
-  midiStatus,
-  height = "h-9",
-  variant = "default"
-}) => {
-  const { theme } = useTheme();
-  const [isMidiHovered, setIsMidiHovered] = useState(false);
-  const isGhost = variant === "ghost";
-  return /* @__PURE__ */ jsx("div", { className: "flex items-center gap-2", children: /* @__PURE__ */ jsxs(
-    "div",
-    {
-      className: `flex items-center gap-1.5 px-3 ${height} rounded border text-xs font-medium ${midiStatus.connected ? "bg-[#0ac5b20f] border-[#507d7d] text-[#4f9e9e]" : "bg-slate-800/50 border-white/10 text-slate-400"}`,
-      style: {
-        borderColor: isGhost && !isMidiHovered && !midiStatus.connected ? "transparent" : midiStatus.connected ? "#507d7d" : isMidiHovered ? theme.border : isGhost ? "transparent" : theme.border,
-        backgroundColor: isGhost && !midiStatus.connected ? "transparent" : void 0
-      },
-      onMouseEnter: () => setIsMidiHovered(true),
-      onMouseLeave: () => setIsMidiHovered(false),
-      title: midiStatus.connected ? `MIDI: ${midiStatus.deviceName}` : midiStatus.error || "No MIDI device connected",
-      children: [
-        /* @__PURE__ */ jsx(Piano, { size: 12 }),
-        /* @__PURE__ */ jsx("span", { children: midiStatus.connected ? "MIDI" : "No MIDI" })
-      ]
-    }
-  ) });
-};
-var MidiControls_default = MidiControls;
 var Divider = ({
   orientation = "vertical",
   className = ""
@@ -10058,7 +10031,6 @@ var Toolbar = forwardRef(({
             }
           ),
           /* @__PURE__ */ jsx(Divider_default, {}),
-          /* @__PURE__ */ jsx("div", { className: "flex-1" }),
           /* @__PURE__ */ jsxs("div", { className: "flex gap-1 relative", children: [
             /* @__PURE__ */ jsx(
               DropdownTrigger,
@@ -10085,19 +10057,7 @@ var Toolbar = forwardRef(({
               }
             )
           ] }),
-          /* @__PURE__ */ jsx(Divider_default, {}),
-          /* @__PURE__ */ jsx(
-            MidiControls_default,
-            {
-              midiStatus,
-              selectedInstrument,
-              onInstrumentChange,
-              samplerLoaded,
-              height: TOP_ROW_HEIGHT,
-              variant: "ghost"
-            }
-          ),
-          /* @__PURE__ */ jsx(Divider_default, {}),
+          /* @__PURE__ */ jsx("div", { className: "flex-1" }),
           /* @__PURE__ */ jsx(
             ToolbarButton_default,
             {
@@ -10184,7 +10144,6 @@ var Toolbar = forwardRef(({
               variant: "ghost"
             }
           ),
-          /* @__PURE__ */ jsx("div", { className: "flex-1" }),
           /* @__PURE__ */ jsx(
             MeasureControls_default,
             {
