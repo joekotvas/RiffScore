@@ -113,14 +113,15 @@ export class ToggleRestCommand implements Command {
       
       // Apply change
       if (allRests) {
-        // Convert to notes
+        // Convert to notes - keep existing ID for selection continuity
         const clef = staff.clef;
         const centeredPitch = getCenterPitch(clef);
+        const firstNoteId = event.notes[0]?.id || `note-${Date.now()}`;
         
         newScore = updateEvent(newScore, staffIndex, measureIndex, eventId, (e) => {
           e.isRest = false;
           e.notes = [{
-            id: `note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: firstNoteId,
             pitch: centeredPitch
           }];
           return true;
