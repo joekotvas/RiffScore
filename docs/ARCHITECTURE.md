@@ -105,79 +105,120 @@ Organized in layers: services → engines → hooks → components.
 ```
 riffscore/
 ├── src/                      # Library source
-│   ├── index.tsx             # Exports RiffScore & ScoreEditor
+│   ├── index.tsx             # Exports RiffScore
 │   ├── RiffScore.tsx         # Config wrapper
-│   ├── ScoreEditor.tsx       # Main editor
 │   ├── types.ts              # Score, RiffScoreConfig, DeepPartial
 │   ├── config.ts             # Layout constants
 │   ├── themes.ts             # Theme definitions
 │   ├── constants.ts          # Music constants
 │
-├── services/                 # Business logic
-│   ├── MusicService.ts       # TonalJS wrapper
-│   └── TimelineService.ts    # Playback timing
+│   ├── components/
+│   │   ├── Assets/           # Visual assets
+│   │   │   ├── ClefIcon.tsx
+│   │   │   ├── GrandStaffBracket.tsx
+│   │   │   ├── NoteIcon.tsx
+│   │   │   └── RestIcon.tsx
+│   │   │
+│   │   ├── Canvas/           # SVG rendering
+│   │   │   ├── ScoreCanvas.tsx
+│   │   │   ├── ScoreHeader.tsx
+│   │   │   ├── Staff.tsx
+│   │   │   ├── Measure.tsx
+│   │   │   ├── ChordGroup.tsx
+│   │   │   ├── Note.tsx
+│   │   │   ├── Rest.tsx
+│   │   │   ├── Stem.tsx
+│   │   │   ├── Flags.tsx
+│   │   │   ├── Beam.tsx
+│   │   │   ├── Tie.tsx
+│   │   │   ├── TupletBracket.tsx
+│   │   │   └── GhostPreview.tsx
+│   │   │
+│   │   ├── Layout/           # Editor layout
+│   │   │   ├── ScoreEditor.tsx
+│   │   │   ├── ScoreTitleField.tsx
+│   │   │   ├── Portal.tsx
+│   │   │   └── Overlays/
+│   │   │       ├── ConfirmDialog.tsx
+│   │   │       └── ShortcutsOverlay.tsx
+│   │   │
+│   │   └── Toolbar/          # Toolbar controls
+│   │       ├── Toolbar.tsx
+│   │       ├── ToolbarButton.tsx
+│   │       ├── Divider.tsx
+│   │       ├── PlaybackControls.tsx
+│   │       ├── HistoryControls.tsx
+│   │       ├── MidiControls.tsx
+│   │       ├── FileMenu.tsx
+│   │       ├── InstrumentSelector.tsx
+│   │       ├── InputModeToggle.tsx
+│   │       ├── StaffControls.tsx
+│   │       ├── DurationControls.tsx
+│   │       ├── ModifierControls.tsx
+│   │       ├── AccidentalControls.tsx
+│   │       ├── TupletControls.tsx
+│   │       ├── MeasureControls.tsx
+│   │       ├── MelodyLibrary.tsx
+│   │       └── Menus/
+│   │           ├── DropdownOverlay.tsx
+│   │           ├── ClefOverlay.tsx
+│   │           ├── KeySignatureOverlay.tsx
+│   │           └── TimeSignatureOverlay.tsx
+│   │
+│   ├── services/             # Business logic
+│   │   ├── MusicService.ts   # TonalJS wrapper
+│   │   └── TimelineService.ts# Playback timing
+│   │
+│   ├── engines/
+│   │   ├── ScoreEngine.ts    # Command dispatch
+│   │   ├── toneEngine.ts     # Audio
+│   │   ├── midiEngine.ts     # MIDI input
+│   │   └── layout/           # Layout calculation
+│   │       ├── positioning.ts# Pitch → Y
+│   │       ├── measure.ts    # Event positions, hit zones
+│   │       ├── beaming.ts    # Beam groups
+│   │       ├── tuplets.ts    # Tuplet brackets
+│   │       ├── stems.ts      # Stem lengths
+│   │       └── system.ts     # Multi-staff sync
+│   │
+│   ├── commands/             # Undo/redo commands
+│   │   ├── AddEventCommand.ts
+│   │   ├── ChangePitchCommand.ts
+│   │   ├── MeasureCommands.ts
+│   │   └── ...
+│   │
+│   ├── hooks/
+│   │   ├── useRiffScore.ts   # Config → initial score
+│   │   ├── useScoreLogic.ts  # Main state
+│   │   ├── useSelection.ts   # Selection
+│   │   ├── useNavigation.ts  # Arrow keys
+│   │   ├── usePlayback.ts    # Play/pause
+│   │   └── handlers/         # Event handlers
+│   │
+│   ├── exporters/
+│   │   ├── musicXmlExporter.ts
+│   │   ├── abcExporter.ts
+│   │   └── jsonExporter.ts
+│   │
+│   ├── context/
+│   │   ├── ScoreContext.tsx
+│   │   └── ThemeContext.tsx
+│   │
+│   ├── utils/
+│   │   ├── core.ts           # Duration math
+│   │   ├── generateScore.ts  # Template → staves
+│   │   ├── mergeConfig.ts    # Deep merge
+│   │   └── ...
+│   │
+│   └── __tests__/            # All tests
 │
-├── engines/
-│   ├── ScoreEngine.ts        # Command dispatch
-│   ├── toneEngine.ts         # Audio
-│   ├── midiEngine.ts         # MIDI input
-│   └── layout/               # Layout calculation
-│       ├── positioning.ts    # Pitch → Y
-│       ├── measure.ts        # Event positions, hit zones
-│       ├── beaming.ts        # Beam groups
-│       ├── tuplets.ts        # Tuplet brackets
-│       └── stems.ts          # Stem lengths
-│
-├── commands/                 # Undo/redo commands
-│   ├── AddEventCommand.ts
-│   ├── ChangePitchCommand.ts
-│   ├── MeasureCommands.ts
+├── demo/                     # Demo Next.js app
+│   ├── app/
+│   │   ├── page.tsx
+│   │   └── ConfigMenu.tsx
 │   └── ...
 │
-├── hooks/
-│   ├── useRiffScore.ts       # Config → initial score
-│   ├── useScoreLogic.ts      # Main state
-│   ├── useSelection.ts       # Selection
-│   ├── useNavigation.ts      # Arrow keys
-│   ├── usePlayback.ts        # Play/pause
-│   └── ...
-│
-├── components/
-│   ├── Canvas/               # SVG rendering
-│   │   ├── ScoreCanvas.tsx
-│   │   ├── Staff.tsx
-│   │   ├── Measure.tsx
-│   │   ├── ChordGroup.tsx
-│   │   ├── Note.tsx
-│   │   ├── Stem.tsx
-│   │   ├── Flags.tsx
-│   │   ├── Beam.tsx
-│   │   ├── Rest.tsx
-│   │   ├── Tie.tsx
-│   │   ├── TupletBracket.tsx
-│   │   └── GhostPreview.tsx
-│   ├── Assets/
-│   ├── Toolbar/
-│   ├── Panels/
-│   └── Overlays/
-│
-├── exporters/
-│   ├── musicXmlExporter.ts
-│   ├── abcExporter.ts
-│   └── jsonExporter.ts
-│
-├── context/
-│   ├── ScoreContext.tsx
-│   └── ThemeContext.tsx
-│
-├── utils/
-│   ├── core.ts               # Duration math
-│   ├── generateScore.ts      # Template → staves
-│   ├── mergeConfig.ts        # Deep merge
-│   └── ...
-│
-├── docs/
-└── __tests__/                # 34 test suites
+└── docs/
 ```
 
 </details>
