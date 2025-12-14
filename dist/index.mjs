@@ -26,12 +26,6 @@ var __spreadValues = (a, b) => {
   return a;
 };
 var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
-var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
-  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
-}) : x)(function(x) {
-  if (typeof require !== "undefined") return require.apply(this, arguments);
-  throw Error('Dynamic require of "' + x + '" is not supported');
-});
 var __objRest = (source, exclude) => {
   var target = {};
   for (var prop in source)
@@ -181,10 +175,6 @@ var init_config = __esm({
       scoreMarginLeft: 60,
       headerWidth: 60,
       staffSpacing: 120,
-      pitchRange: {
-        treble: { min: "G3", max: "E6" },
-        bass: { min: "E1", max: "F4" }
-      },
       debug: {
         enabled: true,
         logCommands: true,
@@ -194,7 +184,7 @@ var init_config = __esm({
     };
   }
 });
-var SPACE, HALF_SPACE, STAFF_POSITION, MIDDLE_LINE_Y, TIME_SIGNATURES, SHARPS, FLATS, MAJOR_ROOTS, KEY_SIGNATURES, KEY_SIGNATURE_OFFSETS, CLEF_TYPES, NOTE_TYPES, NOTE_SPACING_BASE_UNIT, WHOLE_REST_WIDTH, DEFAULT_SCALE, LAYOUT, STEM, BEAMING, TUPLET, TIE;
+var SPACE, HALF_SPACE, STAFF_POSITION, MIDDLE_LINE_Y, TIME_SIGNATURES, SHARPS, FLATS, MAJOR_ROOTS, KEY_SIGNATURES, KEY_SIGNATURE_OFFSETS, CLEF_TYPES, NOTE_TYPES, NOTE_SPACING_BASE_UNIT, WHOLE_REST_WIDTH, DEFAULT_SCALE, LAYOUT, STEM, BEAMING, TUPLET, TIE, STAFF_LINES_COUNT, STAFF_HEIGHT, LEDGER_LINE_STEP, INNER_ZONE_LINES, OUTER_ZONE_LINES, CLAMP_LIMITS, MOUSE_OFFSET_SNAP, PIANO_RANGE;
 var init_constants = __esm({
   "src/constants.ts"() {
     init_config();
@@ -385,6 +375,27 @@ var init_constants = __esm({
       VERTICAL_OFFSET: 8,
       MID_THICKNESS: 4,
       TIP_THICKNESS: 1.2
+    };
+    STAFF_LINES_COUNT = 5;
+    STAFF_HEIGHT = (STAFF_LINES_COUNT - 1) * SPACE;
+    LEDGER_LINE_STEP = SPACE;
+    INNER_ZONE_LINES = 1.6;
+    OUTER_ZONE_LINES = 4.6;
+    CLAMP_LIMITS = {
+      // Inner zone (gap) limit: 2 ledger lines (24px)
+      INNER_OFFSET: INNER_ZONE_LINES * LEDGER_LINE_STEP,
+      // Outer zone (top of system) limit: 4 ledger lines up (-48px)
+      OUTER_TOP: -(OUTER_ZONE_LINES * LEDGER_LINE_STEP),
+      // Outer zone (bottom of system) limit: User preference (90px)
+      // Accommodates 4 ledger lines down + breathing room
+      OUTER_BOTTOM: 90
+    };
+    MOUSE_OFFSET_SNAP = HALF_SPACE;
+    PIANO_RANGE = {
+      min: "A0",
+      // MIDI 21
+      max: "C8"
+      // MIDI 108
     };
   }
 });
@@ -784,7 +795,7 @@ var init_types = __esm({
 });
 
 // src/engines/layout/positioning.ts
-var HEADER_LAYOUT_CONSTANTS, calculateHeaderLayout, HEADER_CONSTANTS, PITCH_TO_OFFSET, Y_TO_PITCH, BASS_PITCH_TO_OFFSET, BASS_Y_TO_PITCH, getPitchToOffset, getYToPitch, STAFF_LETTERS2, CLEF_REFERENCE, getOffsetForPitch, isPitchInRange, getPitchForOffset, getNoteWidth, calculateChordLayout, getStemOffset;
+var HEADER_LAYOUT_CONSTANTS, calculateHeaderLayout, HEADER_CONSTANTS, PITCH_TO_OFFSET, Y_TO_PITCH, BASS_PITCH_TO_OFFSET, BASS_Y_TO_PITCH, getPitchToOffset, getYToPitch, CLEF_REFERENCE, getOffsetForPitch, getPitchForOffset, getNoteWidth, calculateChordLayout, getStemOffset;
 var init_positioning = __esm({
   "src/engines/layout/positioning.ts"() {
     init_constants();
@@ -881,7 +892,6 @@ var init_positioning = __esm({
     getYToPitch = (clef = "treble") => {
       return clef === "bass" ? BASS_Y_TO_PITCH : Y_TO_PITCH;
     };
-    STAFF_LETTERS2 = ["C", "D", "E", "F", "G", "A", "B"];
     CLEF_REFERENCE = {
       treble: { pitch: "C4", offset: 60 },
       // Middle C on treble
@@ -903,18 +913,10 @@ var init_positioning = __esm({
       if (!refMatch) return ref.offset;
       const [, refLetter, refOctStr] = refMatch;
       const refOctave = parseInt(refOctStr, 10);
-      const letterIdx = STAFF_LETTERS2.indexOf(letter);
-      const refLetterIdx = STAFF_LETTERS2.indexOf(refLetter);
+      const letterIdx = STAFF_LETTERS.indexOf(letter);
+      const refLetterIdx = STAFF_LETTERS.indexOf(refLetter);
       const stepsFromRef = (octave - refOctave) * 7 + (letterIdx - refLetterIdx);
       return ref.offset - stepsFromRef * 6;
-    };
-    isPitchInRange = (pitch, pitchRange) => {
-      const { Note: Note6 } = __require("tonal");
-      const midi = Note6.midi(pitch);
-      const minMidi = Note6.midi(pitchRange.min);
-      const maxMidi = Note6.midi(pitchRange.max);
-      if (midi === null || minMidi === null || maxMidi === null) return true;
-      return midi >= minMidi && midi <= maxMidi;
     };
     getPitchForOffset = (offset, clef = "treble") => {
       const mapping = getYToPitch(clef);
@@ -1684,8 +1686,7 @@ __export(layout_exports, {
   getPitchToOffset: () => getPitchToOffset,
   getStemOffset: () => getStemOffset,
   getTupletGroup: () => getTupletGroup,
-  getYToPitch: () => getYToPitch,
-  isPitchInRange: () => isPitchInRange
+  getYToPitch: () => getYToPitch
 });
 var init_layout = __esm({
   "src/engines/layout/index.ts"() {
@@ -2381,6 +2382,7 @@ var useMeasureActions = ({
 init_core();
 init_MusicService();
 init_config();
+init_constants();
 var getAppendPreviewNote = (measure, measureIndex, staffIndex, activeDuration, isDotted, pitch, isRest = false) => {
   var _a;
   const totalQuants = calculateTotalQuants(measure.events || []);
@@ -2498,10 +2500,9 @@ var calculateNextSelection = (measures, selection, direction, previewNote, activ
   }
   return null;
 };
-var calculateTransposition = (measures, selection, steps, keySignature = "C", clef = "treble") => {
+var calculateTransposition = (measures, selection, steps, keySignature = "C") => {
   const { measureIndex, eventId, noteId } = selection;
   if (measureIndex === null || !eventId) return null;
-  const pitchRange = CONFIG.pitchRange[clef] || CONFIG.pitchRange.treble;
   const newMeasures = [...measures];
   const measure = __spreadValues({}, newMeasures[measureIndex]);
   const events = [...measure.events];
@@ -2510,7 +2511,7 @@ var calculateTransposition = (measures, selection, steps, keySignature = "C", cl
   const event = __spreadValues({}, events[eventIdx]);
   const notes = [...event.notes];
   const modifyNote = (note) => {
-    const newPitch = movePitchVisual(note.pitch, steps, keySignature, pitchRange);
+    const newPitch = movePitchVisual(note.pitch, steps, keySignature, PIANO_RANGE);
     return __spreadProps(__spreadValues({}, note), { pitch: newPitch });
   };
   if (noteId) {
@@ -2529,12 +2530,11 @@ var calculateTransposition = (measures, selection, steps, keySignature = "C", cl
   newMeasures[measureIndex] = measure;
   return { measures: newMeasures, event };
 };
-var calculateTranspositionWithPreview = (measures, selection, previewNote, direction, isShift, keySignature = "C", clef = "treble") => {
+var calculateTranspositionWithPreview = (measures, selection, previewNote, direction, isShift, keySignature = "C") => {
   let steps = direction === "up" ? 1 : -1;
   if (isShift) steps *= 7;
-  const pitchRange = CONFIG.pitchRange[clef] || CONFIG.pitchRange.treble;
   if (selection.eventId === null && previewNote) {
-    const newPitch = movePitchVisual(previewNote.pitch, steps, keySignature, pitchRange);
+    const newPitch = movePitchVisual(previewNote.pitch, steps, keySignature, PIANO_RANGE);
     if (newPitch !== previewNote.pitch) {
       return {
         previewNote: __spreadProps(__spreadValues({}, previewNote), { pitch: newPitch }),
@@ -2543,7 +2543,7 @@ var calculateTranspositionWithPreview = (measures, selection, previewNote, direc
     }
     return null;
   }
-  const result = calculateTransposition(measures, selection, steps, keySignature, clef);
+  const result = calculateTransposition(measures, selection, steps, keySignature);
   if (result) {
     const { measures: newMeasures, event } = result;
     let audio = null;
@@ -3690,7 +3690,7 @@ var useModifiers = ({
 
 // src/commands/TransposeSelectionCommand.ts
 init_MusicService();
-init_config();
+init_constants();
 var TransposeSelectionCommand = class _TransposeSelectionCommand {
   constructor(selection, semitones, keySignature = "C") {
     this.selection = selection;
@@ -3704,8 +3704,6 @@ var TransposeSelectionCommand = class _TransposeSelectionCommand {
     const staffIndex = (_a = this.selection.staffIndex) != null ? _a : 0;
     const activeStaff = getActiveStaff(score, staffIndex);
     const keySig = activeStaff.keySignature || this.keySignature || "C";
-    const clef = activeStaff.clef || "treble";
-    const pitchRange = CONFIG.pitchRange[clef] || CONFIG.pitchRange.treble;
     const newMeasures = [...activeStaff.measures];
     if (!newMeasures[this.selection.measureIndex]) return score;
     const measure = __spreadValues({}, newMeasures[this.selection.measureIndex]);
@@ -3714,7 +3712,7 @@ var TransposeSelectionCommand = class _TransposeSelectionCommand {
       steps = steps > 0 ? 7 : -7;
     }
     const idsMatch = (a, b) => String(a) === String(b);
-    const transposeFn = (pitch) => movePitchVisual(pitch, steps, keySig, pitchRange);
+    const transposeFn = (pitch) => movePitchVisual(pitch, steps, keySig, PIANO_RANGE);
     if (this.selection.selectedNotes && this.selection.selectedNotes.length > 0) {
       const newStaves2 = [...score.staves];
       const staffMap = /* @__PURE__ */ new Map();
@@ -3902,15 +3900,13 @@ var useNavigation = ({
     if (semitones === 0) return;
     const activeStaff = getActiveStaff(scoreRef.current, selection.staffIndex || 0);
     if (selection.eventId === null && previewNote) {
-      const clef2 = activeStaff.clef || "treble";
       const previewResult = calculateTranspositionWithPreview(
         activeStaff.measures,
         selection,
         previewNote,
         direction,
         isShift,
-        activeStaff.keySignature || "C",
-        clef2
+        activeStaff.keySignature || "C"
       );
       if (previewResult == null ? void 0 : previewResult.previewNote) {
         setPreviewNote(__spreadProps(__spreadValues({}, previewResult.previewNote), { source: "keyboard" }));
@@ -3919,7 +3915,6 @@ var useNavigation = ({
       return;
     }
     const keySignature = activeStaff.keySignature || "C";
-    const clef = activeStaff.clef || "treble";
     dispatch(new TransposeSelectionCommand(selection, semitones, keySignature));
     if (selection.measureIndex !== null && selection.eventId) {
       const audioResult = calculateTranspositionWithPreview(
@@ -3928,8 +3923,7 @@ var useNavigation = ({
         previewNote,
         direction,
         isShift,
-        keySignature,
-        clef
+        keySignature
       );
       if (audioResult == null ? void 0 : audioResult.audio) playAudioFeedback(audioResult.audio.notes);
     }
@@ -5623,6 +5617,7 @@ var useMIDI = (addChordCallback, activeDuration, isDotted, activeAccidental, sco
 // src/hooks/useScoreInteraction.ts
 init_MusicService();
 init_config();
+init_constants();
 var useScoreInteraction = ({ scoreRef, selection, onUpdatePitch, onSelectNote }) => {
   const [dragState, setDragState] = useState({
     active: false,
@@ -5694,10 +5689,8 @@ var useScoreInteraction = ({ scoreRef, selection, onUpdatePitch, onSelectNote })
       const currentScore = scoreRef.current;
       const currentStaff = (_a = currentScore == null ? void 0 : currentScore.staves) == null ? void 0 : _a[dragState.staffIndex];
       const keySignature = (currentStaff == null ? void 0 : currentStaff.keySignature) || "C";
-      const clef = (currentStaff == null ? void 0 : currentStaff.clef) || "treble";
-      const pitchRange = CONFIG.pitchRange[clef] || CONFIG.pitchRange.treble;
       dragState.initialPitches.forEach((pStart, noteIdStr) => {
-        const newP = movePitchVisual(pStart, steps, keySignature, pitchRange);
+        const newP = movePitchVisual(pStart, steps, keySignature, PIANO_RANGE);
         if (selection.selectedNotes && selection.selectedNotes.length > 1) {
           const noteInfo = selection.selectedNotes.find((n) => String(n.noteId) === noteIdStr);
           if (noteInfo && noteInfo.noteId !== null) {
@@ -5711,7 +5704,7 @@ var useScoreInteraction = ({ scoreRef, selection, onUpdatePitch, onSelectNote })
       });
       if (dragState.initialPitches.size > 0) {
         const primaryStart = dragState.initialPitches.get(String(dragState.noteId)) || dragState.startPitch;
-        const newPrimary = movePitchVisual(primaryStart, steps, keySignature, pitchRange);
+        const newPrimary = movePitchVisual(primaryStart, steps, keySignature, PIANO_RANGE);
         if (newPrimary !== dragState.currentPitch) {
           setDragState((prev) => __spreadProps(__spreadValues({}, prev), { currentPitch: newPrimary }));
         }
@@ -5925,28 +5918,27 @@ function useMeasureLayout(events, clef, isPickup, forcedEventPositions, forcedWi
 
 // src/hooks/useMeasureInteraction.ts
 init_layout();
+init_constants();
 function useMeasureInteraction({
   hitZones,
   clef,
   scale,
+  baseY,
+  topMargin,
+  mouseLimits,
   measureIndex,
   isLast,
   activeDuration,
   previewNote,
   selection,
-  pitchRange,
   onHover,
   onAddNote
 }) {
   const [hoveredMeasure, setHoveredMeasure] = useState(false);
   const [cursorStyle, setCursorStyle] = useState("crosshair");
   const [isNoteHovered, setIsNoteHovered] = useState(false);
-  const { minOffset, maxOffset } = useMemo(() => {
-    const minOff = getOffsetForPitch(pitchRange.max, clef);
-    const maxOff = getOffsetForPitch(pitchRange.min, clef);
-    return { minOffset: minOff, maxOffset: maxOff };
-  }, [clef, pitchRange]);
   const handleMeasureMouseMove = useCallback((e) => {
+    var _a, _b;
     if (isNoteHovered) {
       onHover == null ? void 0 : onHover(null, null, null);
       return;
@@ -5955,8 +5947,17 @@ function useMeasureInteraction({
     const x = (e.clientX - rect.left) / scale;
     const y = (e.clientY - rect.top) / scale;
     const hit = hitZones.find((zone) => x >= zone.startX && x < zone.endX);
-    let yOffset = Math.round((y - 50) / 6) * 6;
-    yOffset = Math.max(minOffset, Math.min(maxOffset, yOffset));
+    let yOffset = Math.round((y - (baseY - topMargin)) / MOUSE_OFFSET_SNAP) * MOUSE_OFFSET_SNAP;
+    const minLimit = (_a = mouseLimits == null ? void 0 : mouseLimits.min) != null ? _a : CLAMP_LIMITS.OUTER_TOP;
+    const maxLimit = (_b = mouseLimits == null ? void 0 : mouseLimits.max) != null ? _b : CLAMP_LIMITS.OUTER_BOTTOM;
+    if (yOffset < minLimit || yOffset > maxLimit) {
+      if (hoveredMeasure) {
+        setHoveredMeasure(false);
+        onHover == null ? void 0 : onHover(null, null, null);
+        setCursorStyle("crosshair");
+      }
+      return;
+    }
     const pitch = getPitchForOffset(yOffset, clef) || null;
     setHoveredMeasure(true);
     if (hit) {
@@ -5966,7 +5967,7 @@ function useMeasureInteraction({
       onHover == null ? void 0 : onHover(measureIndex, { x, quant: 0, duration: activeDuration }, pitch);
       setCursorStyle("crosshair");
     }
-  }, [isNoteHovered, hitZones, clef, scale, measureIndex, activeDuration, onHover, minOffset, maxOffset]);
+  }, [isNoteHovered, hitZones, clef, scale, baseY, topMargin, mouseLimits, measureIndex, activeDuration, onHover]);
   const handleMeasureMouseLeave = useCallback(() => {
     setHoveredMeasure(false);
     onHover == null ? void 0 : onHover(null, null, null);
@@ -6215,8 +6216,6 @@ var Note5 = React3.memo(({
   isGhost = false,
   accidentalGlyph = null,
   color: overrideColor = null,
-  pitchRange = null,
-  // For out-of-range note transparency
   // Interaction handlers (optional for interactive notes)
   handlers = null
   // { onMouseEnter, onMouseLeave, onMouseDown, onDoubleClick }
@@ -6224,8 +6223,6 @@ var Note5 = React3.memo(({
   const { theme } = useTheme();
   const effectivePitch = pitch || (note == null ? void 0 : note.pitch);
   if (!effectivePitch) return null;
-  const isInRange = !pitchRange || isPitchInRange(effectivePitch, pitchRange);
-  const outOfRangeOpacity = 0.4;
   const noteX = x + xShift;
   const noteY = baseY + getOffsetForPitch(effectivePitch, clef);
   const color = overrideColor || (isGhost ? theme.accent : isSelected ? theme.accent : theme.score.note);
@@ -6246,7 +6243,6 @@ var Note5 = React3.memo(({
         return (_a = handlers == null ? void 0 : handlers.onMouseEnter) == null ? void 0 : _a.call(handlers, note == null ? void 0 : note.id);
       },
       onMouseLeave: handlers == null ? void 0 : handlers.onMouseLeave,
-      style: { opacity: isInRange ? 1 : outOfRangeOpacity },
       children: [
         /* @__PURE__ */ jsx(LedgerLines, { x: noteX, y: noteY, baseY, color }),
         /* @__PURE__ */ jsx(Accidental, { x: accidentalX, y: accidentalY, symbol: accidentalGlyph, color }),
@@ -6485,7 +6481,6 @@ var ChordGroup = ({
               isSelected: isSelected || isAnyNoteHovered,
               isGhost,
               accidentalGlyph,
-              pitchRange: layout.pitchRange,
               handlers
             },
             note.id
@@ -6789,12 +6784,14 @@ var Measure2 = ({
     hitZones,
     clef,
     scale,
+    baseY: layout.baseY,
+    topMargin: CONFIG.topMargin,
+    mouseLimits: layout.mouseLimits,
     measureIndex,
     isLast,
     activeDuration,
     previewNote,
     selection,
-    pitchRange: layout.pitchRange,
     onHover,
     onAddNote
   });
@@ -7052,13 +7049,13 @@ var Staff3 = ({
   keySignature,
   timeSignature,
   measures,
-  pitchRange,
   baseY = CONFIG.baseY,
   measureLayouts,
   scale,
   interaction,
   playbackPosition,
   hidePlaybackCursor = false,
+  mouseLimits,
   onClefClick,
   onKeySigClick,
   onTimeSigClick
@@ -7090,8 +7087,10 @@ var Staff3 = ({
           clef,
           keySignature,
           staffIndex,
-          verticalOffset,
-          pitchRange
+          verticalOffset: 0,
+          // Staff is at 0 relative to itself (positioned by parent)
+          mouseLimits
+          // Pass clamping limits
         },
         interaction: scopedInteraction
       },
@@ -7871,6 +7870,12 @@ var ScoreCanvas = ({
                 onDragStart: memoizedOnDragStart,
                 onHover: getHoverHandler(staffIndex)
               };
+              const isTop = staffIndex === 0;
+              const isBottom = staffIndex === score.staves.length - 1;
+              const mouseLimits = {
+                min: isTop ? CLAMP_LIMITS.OUTER_TOP : -CLAMP_LIMITS.INNER_OFFSET,
+                max: isBottom ? CLAMP_LIMITS.OUTER_BOTTOM : STAFF_HEIGHT + CLAMP_LIMITS.INNER_OFFSET
+              };
               return /* @__PURE__ */ jsx(
                 Staff_default,
                 {
@@ -7879,7 +7884,6 @@ var ScoreCanvas = ({
                   keySignature: staff.keySignature || keySignature,
                   timeSignature,
                   measures: staff.measures,
-                  pitchRange: CONFIG.pitchRange[staff.clef || (staffIndex === 0 ? "treble" : "bass")] || CONFIG.pitchRange.treble,
                   measureLayouts: synchronizedLayoutData,
                   baseY: staffBaseY,
                   scale,
@@ -7888,7 +7892,8 @@ var ScoreCanvas = ({
                   onClefClick,
                   onKeySigClick,
                   onTimeSigClick,
-                  hidePlaybackCursor: isGrandStaff
+                  hidePlaybackCursor: isGrandStaff,
+                  mouseLimits
                 },
                 staff.id || staffIndex
               );

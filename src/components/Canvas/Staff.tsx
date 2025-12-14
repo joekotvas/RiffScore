@@ -22,7 +22,6 @@ export interface StaffProps {
   keySignature: string;
   timeSignature: string;
   measures: MeasureData[];
-  pitchRange: { min: string; max: string }; // Allowed pitch range for this staff
   
   // Layout
   baseY?: number; // Y offset for stacking staves (default: CONFIG.baseY)
@@ -35,6 +34,7 @@ export interface StaffProps {
   // Playback
   playbackPosition: { measureIndex: number | null; quant: number | null; duration: number };
   hidePlaybackCursor?: boolean; // Hide cursor when rendered by parent (Grand Staff)
+  mouseLimits?: { min: number; max: number }; // For Grand Staff clamping
   
   // Header click callbacks (Panel/Menu interactions)
   onClefClick?: () => void;
@@ -56,13 +56,13 @@ const Staff: React.FC<StaffProps> = ({
   keySignature,
   timeSignature,
   measures,
-  pitchRange,
   baseY = CONFIG.baseY,
   measureLayouts,
   scale,
   interaction,
   playbackPosition,
   hidePlaybackCursor = false,
+  mouseLimits,
   onClefClick,
   onKeySigClick,
   onTimeSigClick,
@@ -109,8 +109,8 @@ const Staff: React.FC<StaffProps> = ({
           clef,
           keySignature,
           staffIndex,
-          verticalOffset,
-          pitchRange
+          verticalOffset: 0, // Staff is at 0 relative to itself (positioned by parent)
+          mouseLimits // Pass clamping limits
         }}
         interaction={scopedInteraction}
       />

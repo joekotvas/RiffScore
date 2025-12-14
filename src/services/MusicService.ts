@@ -11,7 +11,7 @@ import { ACCIDENTALS } from '@/constants/SMuFL';
 
 // --- Constants ---
 
-const STAFF_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+export const STAFF_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
 // ============================================================================
 // 1. ANALYSIS (Audio & Midi)

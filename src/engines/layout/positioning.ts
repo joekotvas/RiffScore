@@ -2,7 +2,7 @@ import { NOTE_TYPES, MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT, KEY_SIGNATURES, LAYO
 import { CONFIG } from '@/config';
 import { getNoteDuration } from '@/utils/core';
 import { Note, ChordLayout, HeaderLayout } from './types';
-import { getStaffPitch } from '@/services/MusicService';
+import { getStaffPitch, STAFF_LETTERS } from '@/services/MusicService';
 
 // ========== HEADER LAYOUT (SSOT) ==========
 
@@ -82,13 +82,9 @@ export const getYToPitch = (clef: string = 'treble'): Record<number, string> => 
   return clef === 'bass' ? BASS_Y_TO_PITCH : Y_TO_PITCH;
 };
 
-/**
- * Staff letter order for offset calculation
- */
-const STAFF_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
 /**
- * Reference points for each clef (a known pitch -> offset mapping)
+ * Reference points for each clef
  */
 const CLEF_REFERENCE: Record<string, { pitch: string; offset: number }> = {
   treble: { pitch: 'C4', offset: 60 },  // Middle C on treble
@@ -141,26 +137,6 @@ export const getOffsetForPitch = (pitch: string, clef: string = 'treble'): numbe
   
   // Each step up = 6px lower offset (going up on staff)
   return ref.offset - (stepsFromRef * 6);
-};
-
-/**
- * Checks if a pitch is within the given range.
- * Uses MIDI comparison for accurate pitch ordering.
- * 
- * @param pitch - Pitch to check
- * @param pitchRange - Range with min and max pitches
- * @returns true if pitch is within range (inclusive)
- */
-export const isPitchInRange = (pitch: string, pitchRange: { min: string; max: string }): boolean => {
-  // Import Note from tonal for MIDI comparison
-  const { Note } = require('tonal');
-  const midi = Note.midi(pitch);
-  const minMidi = Note.midi(pitchRange.min);
-  const maxMidi = Note.midi(pitchRange.max);
-  
-  if (midi === null || minMidi === null || maxMidi === null) return true; // Assume valid if can't parse
-  
-  return midi >= minMidi && midi <= maxMidi;
 };
 
 /**

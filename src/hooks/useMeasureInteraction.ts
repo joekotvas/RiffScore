@@ -1,17 +1,20 @@
-import { useState, useCallback, useMemo } from 'react';
-import { getPitchForOffset, getOffsetForPitch } from '@/engines/layout';
+import { useState, useCallback } from 'react';
+import { getPitchForOffset } from '@/engines/layout';
 import { HitZone } from '@/engines/layout/types';
+import { CLAMP_LIMITS, MOUSE_OFFSET_SNAP } from '@/constants';
 
 interface UseMeasureInteractionParams {
   hitZones: HitZone[];
   clef: string;
   scale: number;
+  baseY: number;
+  topMargin: number;
+  mouseLimits?: { min: number; max: number };
   measureIndex: number;
   isLast: boolean;
   activeDuration: string;
   previewNote: any;
   selection: { selectedNotes?: any[] };
-  pitchRange: { min: string; max: string };
   onHover?: (measureIndex: number | null, hit: any, pitch: string | null) => void;
   onAddNote?: (measureIndex: number, note: any, autoAdvance: boolean) => void;
 }
@@ -38,27 +41,20 @@ export function useMeasureInteraction({
   hitZones,
   clef,
   scale,
+  baseY,
+  topMargin,
+  mouseLimits,
   measureIndex,
   isLast,
   activeDuration,
   previewNote,
   selection,
-  pitchRange,
   onHover,
   onAddNote
 }: UseMeasureInteractionParams): UseMeasureInteractionReturn {
   const [hoveredMeasure, setHoveredMeasure] = useState(false);
   const [cursorStyle, setCursorStyle] = useState<string>('crosshair');
   const [isNoteHovered, setIsNoteHovered] = useState(false);
-
-  // Calculate offset limits from pitch range passed in
-  const { minOffset, maxOffset } = useMemo(() => {
-    // Min pitch = higher on staff = lower offset (negative)
-    // Max pitch = lower on staff = higher offset (positive)
-    const minOff = getOffsetForPitch(pitchRange.max, clef); // max pitch = lowest offset
-    const maxOff = getOffsetForPitch(pitchRange.min, clef); // min pitch = highest offset
-    return { minOffset: minOff, maxOffset: maxOff };
-  }, [clef, pitchRange]);
 
   const handleMeasureMouseMove = useCallback((e: React.MouseEvent) => {
     if (isNoteHovered) {
@@ -75,10 +71,28 @@ export function useMeasureInteraction({
 
     // Calculate pitch from Y position
     // Snap to nearest half-line (6px) for staff positioning
-    let yOffset = Math.round((y - 50) / 6) * 6;
+    // Y is relative to measure bounding box.
+    // Original working logic was y - 50.
+    // 50 = CONFIG.baseY (70) - CONFIG.topMargin (20).
+    // So currentY (relative to box) needs to be adjusted by (baseY - topMargin).
+    let yOffset = Math.round((y - (baseY - topMargin)) / MOUSE_OFFSET_SNAP) * MOUSE_OFFSET_SNAP;
 
-    // Clamp to valid pitch range from config
-    yOffset = Math.max(minOffset, Math.min(maxOffset, yOffset));
+    // Check visual limits
+    // Default: 4 ledger lines above/below. 
+    // Props can restrict this (e.g. Grand Staff inner zones).
+    const minLimit = mouseLimits?.min ?? CLAMP_LIMITS.OUTER_TOP;
+    const maxLimit = mouseLimits?.max ?? CLAMP_LIMITS.OUTER_BOTTOM;
+
+    // Strict bounds check: If outside, ignore interaction (allows other staves to handle, or shows nothing)
+    if (yOffset < minLimit || yOffset > maxLimit) {
+      if (hoveredMeasure) {
+        setHoveredMeasure(false);
+        onHover?.(null, null, null);
+        setCursorStyle('crosshair');
+      }
+      return;
+    }
+
     const pitch = getPitchForOffset(yOffset, clef) || null;
 
     setHoveredMeasure(true);
@@ -91,7 +105,7 @@ export function useMeasureInteraction({
       onHover?.(measureIndex, { x, quant: 0, duration: activeDuration }, pitch);
       setCursorStyle('crosshair');
     }
-  }, [isNoteHovered, hitZones, clef, scale, measureIndex, activeDuration, onHover, minOffset, maxOffset]);
+  }, [isNoteHovered, hitZones, clef, scale, baseY, topMargin, mouseLimits, measureIndex, activeDuration, onHover]);
 
   const handleMeasureMouseLeave = useCallback(() => {
     setHoveredMeasure(false);
