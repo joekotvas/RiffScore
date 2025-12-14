@@ -107,7 +107,7 @@ const ShortcutsOverlay: React.FC<ShortcutsOverlayProps> = ({ onClose }) => {
         </div>
 
         {/* Content */}
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
+        <div className="p-6 max-h-[70vh] overflow-y-auto shortcuts-scroll">
           
           {/* Welcome & Instructions */}
           <div className="mb-8 p-4 rounded-lg border" style={{ backgroundColor: `${theme.accent}10`, borderColor: `${theme.accent}30` }}>
@@ -148,6 +148,22 @@ const ShortcutsOverlay: React.FC<ShortcutsOverlayProps> = ({ onClose }) => {
               <ShortcutGroup title="Durations" shortcuts={shortcuts.durations} theme={theme} />
             </div>
           </div>
+
+          <style>{`
+            .shortcuts-scroll::-webkit-scrollbar {
+              width: 8px;
+            }
+            .shortcuts-scroll::-webkit-scrollbar-track {
+              background: transparent;
+            }
+            .shortcuts-scroll::-webkit-scrollbar-thumb {
+              background-color: ${theme.border};
+              border-radius: 4px;
+            }
+            .shortcuts-scroll::-webkit-scrollbar-thumb:hover {
+              background-color: ${theme.secondaryText};
+            }
+          `}</style>
         </div>
 
         {/* Footer */}
