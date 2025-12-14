@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, RefObject } from 'react';
+import { useState, useCallback, useEffect, useMemo, RefObject } from 'react';
 
 interface DragSelectState {
     isDragging: boolean;
@@ -38,6 +38,7 @@ interface UseDragToSelectReturn {
     isDragging: boolean;
     justFinishedDrag: boolean;  // True for a brief moment after drag ends, to prevent click from clearing selection
     selectionRect: { x: number; y: number; width: number; height: number } | null;
+    previewNoteIds: Set<string>;  // Composite keys for O(1) lookup: "staffIndex-measureIndex-eventId-noteId"
     handleMouseDown: (e: React.MouseEvent) => void;
 }
 
@@ -90,6 +91,17 @@ export const useDragToSelect = ({
                 eventId: note.eventId,
                 noteId: note.noteId
             }));
+    }, [selectionRect, notePositions, noteIntersectsRect]);
+
+    // Compute preview note IDs as a Set for O(1) lookup during render
+    const previewNoteIds = useMemo((): Set<string> => {
+        if (!selectionRect) return new Set();
+        
+        return new Set(
+            notePositions
+                .filter(note => noteIntersectsRect(note, selectionRect))
+                .map(note => `${note.staffIndex}-${note.measureIndex}-${note.eventId}-${note.noteId}`)
+        );
     }, [selectionRect, notePositions, noteIntersectsRect]);
 
     // Start drag on mouseDown on empty space
@@ -173,6 +185,7 @@ export const useDragToSelect = ({
         isDragging: dragState.isDragging,
         justFinishedDrag,
         selectionRect,
+        previewNoteIds,
         handleMouseDown
     };
 };

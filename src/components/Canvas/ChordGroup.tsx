@@ -188,6 +188,10 @@ const ChordGroup = ({
           noteId: note.id,
         });
 
+        // Check if note is in lasso preview (O(1) Set lookup)
+        const noteKey = `${staffIndex}-${measureIndex}-${eventId}-${note.id}`;
+        const isInLassoPreview = interaction.lassoPreviewIds?.has(noteKey) ?? false;
+
         return (
           <Note
             key={note.id}
@@ -200,6 +204,7 @@ const ChordGroup = ({
             xShift={noteOffsets[note.id] || 0}
             dotShift={maxNoteShift}
             isSelected={isSelected || isAnyNoteHovered}
+            isPreview={isInLassoPreview}
             isGhost={isGhost}
             accidentalGlyph={accidentalGlyph}
             handlers={handlers}

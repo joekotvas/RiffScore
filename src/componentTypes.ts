@@ -26,6 +26,7 @@ export interface InteractionState {
   isDotted: boolean;
   modifierHeld: boolean;
   isDragging: boolean;
+  lassoPreviewIds?: Set<string>;  // Composite keys for O(1) lasso preview lookup
   
   // Actions
   onAddNote: (measureIndex: number, note: any, shouldAutoAdvance?: boolean, placementOverride?: any) => void;

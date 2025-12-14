@@ -175,6 +175,7 @@ const Note = React.memo(({
   
   // Appearance
   isSelected = false,
+  isPreview = false,  // Lasso preview state (shows semi-transparent accent)
   isGhost = false,
   accidentalGlyph = null,
   color: overrideColor = null,
@@ -192,8 +193,16 @@ const Note = React.memo(({
   const noteX = x + xShift;
   const noteY = baseY + getOffsetForPitch(effectivePitch, clef);
   
-  // Determine color
-  const color = overrideColor || (isGhost ? theme.accent : (isSelected ? theme.accent : theme.score.note));
+  // Determine color (preview uses accent color, opacity applied via style)
+  const color = overrideColor || (
+    isGhost ? theme.accent :
+    isSelected ? theme.accent :
+    isPreview ? theme.accent :
+    theme.score.note
+  );
+  
+  // Preview notes get 50% opacity
+  const groupOpacity = isPreview && !isSelected && !isGhost ? 0.5 : 1;
   
   // Dot Y position (move up if on a line)
   const relativeY = noteY - baseY;
@@ -214,6 +223,7 @@ const Note = React.memo(({
   return (
     <g
       className={!isGhost ? "note-group-container" : ""}
+      style={{ opacity: groupOpacity }}
       onMouseEnter={() => handlers?.onMouseEnter?.(note?.id)}
       onMouseLeave={handlers?.onMouseLeave}
     >
