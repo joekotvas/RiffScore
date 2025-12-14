@@ -175,6 +175,7 @@ const Note = React.memo(({
   
   // Appearance
   isSelected = false,
+  isPreview = false,  // Lasso preview state (shows semi-transparent accent)
   isGhost = false,
   accidentalGlyph = null,
   color: overrideColor = null,
@@ -192,8 +193,13 @@ const Note = React.memo(({
   const noteX = x + xShift;
   const noteY = baseY + getOffsetForPitch(effectivePitch, clef);
   
-  // Determine color
-  const color = overrideColor || (isGhost ? theme.accent : (isSelected ? theme.accent : theme.score.note));
+  // Determine color (preview uses accent color, same as selection)
+  const color = overrideColor || (
+    isGhost ? theme.accent :
+    isSelected ? theme.accent :
+    isPreview ? theme.accent :
+    theme.score.note
+  );
   
   // Dot Y position (move up if on a line)
   const relativeY = noteY - baseY;

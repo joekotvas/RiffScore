@@ -227,7 +227,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   }, [score.staves, synchronizedLayoutData, keySignature]);
 
   // Drag to select hook
-  const { isDragging, justFinishedDrag, selectionRect, handleMouseDown: handleDragSelectMouseDown } = useDragToSelect({
+  const { isDragging, justFinishedDrag, selectionRect, previewNoteIds, handleMouseDown: handleDragSelectMouseDown } = useDragToSelect({
     svgRef,
     notePositions,
     onSelectionComplete: (notes, isAdditive) => {
@@ -364,6 +364,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 isDotted,
                 modifierHeld,
                 isDragging: dragState.active,
+                lassoPreviewIds: previewNoteIds, // Set<string> for O(1) lasso preview lookup
                 onAddNote: addNoteToMeasure,
                 onSelectNote: memoizedOnSelectNote,
                 onDragStart: memoizedOnDragStart,
