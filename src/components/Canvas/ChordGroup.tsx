@@ -202,7 +202,6 @@ const ChordGroup = ({
             isSelected={isSelected || isAnyNoteHovered}
             isGhost={isGhost}
             accidentalGlyph={accidentalGlyph}
-            color={groupColor}
             handlers={handlers}
           />
         );
