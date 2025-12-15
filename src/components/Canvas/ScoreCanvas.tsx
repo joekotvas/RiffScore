@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
-import { calculateHeaderLayout, getOffsetForPitch } from '@/engines/layout';
+import { calculateHeaderLayout, getOffsetForPitch, calculateMeasureLayout } from '@/engines/layout';
 import { isRestEvent, getFirstNoteId } from '@/utils/core';
 import Staff, { calculateStaffWidth } from './Staff';
 import { getActiveStaff, createDefaultSelection } from '@/types';
@@ -196,7 +196,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
         const forcedPositions = synchronizedLayoutData?.[measureIdx]?.forcedPositions;
 
         // Calculate actual layout to get event positions
-        const { calculateMeasureLayout } = require('../../engines/layout');
+
         const layout = calculateMeasureLayout(
           measure.events,
           undefined,
