@@ -2,6 +2,7 @@ import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
+import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
   // Ignore patterns
@@ -12,6 +13,7 @@ export default tseslint.config(
   // Base recommended configs
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
+  prettier,  // Disable ESLint rules that conflict with Prettier
 
   // TypeScript + React configuration for source files
   {
