@@ -4,6 +4,14 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import prettier from "eslint-config-prettier";
 
+// Shared rule configurations to avoid duplication
+const sharedRules = {
+  "@typescript-eslint/no-unused-vars": ["warn", { 
+    argsIgnorePattern: "^_",
+    varsIgnorePattern: "^_"
+  }]
+};
+
 export default tseslint.config(
   // Ignore patterns
   {
@@ -29,15 +37,11 @@ export default tseslint.config(
       "react-hooks": reactHooks
     },
     rules: {
-      // React Hooks
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
+      // React Hooks - use recommended rules
+      ...reactHooks.configs.recommended.rules,
       
       // Custom overrides
-      "@typescript-eslint/no-unused-vars": ["warn", { 
-        argsIgnorePattern: "^_",
-        varsIgnorePattern: "^_"
-      }],
+      ...sharedRules,
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/ban-ts-comment": "off",
       "no-console": ["warn", { allow: ["warn", "error"] }]
@@ -56,10 +60,7 @@ export default tseslint.config(
     },
     rules: {
       // Relaxed rules for tests
-      "@typescript-eslint/no-unused-vars": ["warn", { 
-        argsIgnorePattern: "^_",
-        varsIgnorePattern: "^_"
-      }],
+      ...sharedRules,
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off"
     }
