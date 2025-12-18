@@ -234,14 +234,27 @@ export const calculateNextSelection = (
 
     if (nextMeasureIndex < measures.length) {
       const nextMeasure = measures[nextMeasureIndex];
+
+      // First, check if next measure has events - select first event
+      if (nextMeasure.events.length > 0) {
+        const firstEvent = nextMeasure.events[0];
+        const noteId = firstEvent.isRest || !firstEvent.notes?.length ? null : firstEvent.notes[0].id;
+        const audio = firstEvent.isRest
+          ? null
+          : { notes: firstEvent.notes, duration: firstEvent.duration, dotted: firstEvent.dotted };
+        return {
+          selection: { staffIndex, measureIndex: nextMeasureIndex, eventId: firstEvent.id, noteId },
+          previewNote: null,
+          audio,
+        };
+      }
+
+      // Next measure is empty - show ghost cursor with adjusted duration
       const totalQuants = calculateTotalQuants(nextMeasure.events);
       const availableQuants = currentQuantsPerMeasure - totalQuants;
-
-      // Try to get an adjusted duration that fits
       const adjusted = getAdjustedDuration(availableQuants, activeDuration, isDotted);
 
       if (adjusted) {
-        // Move ghost cursor to next measure with adjusted duration
         const pitch = previewNote.pitch || getDefaultPitchForClef(clef);
         return {
           selection: { staffIndex, measureIndex: null, eventId: null, noteId: null },
@@ -255,18 +268,6 @@ export const calculateNextSelection = (
             inputMode === 'REST'
           ),
           audio: null,
-        };
-      } else if (nextMeasure.events.length > 0) {
-        // No space - select first event in next measure
-        const firstEvent = nextMeasure.events[0];
-        const noteId = firstEvent.isRest || !firstEvent.notes?.length ? null : firstEvent.notes[0].id;
-        const audio = firstEvent.isRest
-          ? null
-          : { notes: firstEvent.notes, duration: firstEvent.duration, dotted: firstEvent.dotted };
-        return {
-          selection: { staffIndex, measureIndex: nextMeasureIndex, eventId: firstEvent.id, noteId },
-          previewNote: null,
-          audio,
         };
       }
     }
@@ -306,6 +307,46 @@ export const calculateNextSelection = (
       }
       // If no space or empty measure with no space, fall through to standard navigation
       // (which selects last note of previous measure)
+    }
+  }
+
+  // 2b. Handle Right from Last Event (selected note → ghost cursor in current measure)
+  // This MUST come before navigateSelection so we don't skip to next measure
+  if (direction === 'right' && selection.measureIndex !== null && selection.eventId) {
+    const currentMeasure = measures[selection.measureIndex];
+    const eventIdx = currentMeasure?.events.findIndex((e: any) => e.id === selection.eventId);
+
+    if (eventIdx === currentMeasure?.events.length - 1) {
+      // At last event - check if current measure has space for ghost cursor
+      const totalQuants = calculateTotalQuants(currentMeasure.events);
+      const availableQuants = currentQuantsPerMeasure - totalQuants;
+
+      if (availableQuants > 0) {
+        const adjusted = getAdjustedDuration(availableQuants, activeDuration, isDotted);
+
+        if (adjusted) {
+          const currentEvent = currentMeasure.events[eventIdx];
+          const pitch =
+            !currentEvent?.isRest && currentEvent?.notes?.length > 0
+              ? currentEvent.notes[0].pitch
+              : getDefaultPitchForClef(clef);
+
+          return {
+            selection: { staffIndex, measureIndex: null, eventId: null, noteId: null },
+            previewNote: getAppendPreviewNote(
+              currentMeasure,
+              selection.measureIndex,
+              staffIndex,
+              adjusted.duration,
+              adjusted.dotted,
+              pitch,
+              inputMode === 'REST'
+            ),
+            audio: null,
+          };
+        }
+      }
+      // No space or no fitting duration - fall through to standard navigation
     }
   }
 
@@ -372,31 +413,30 @@ export const calculateNextSelection = (
             audio: null,
           };
         }
-        // If no duration fits, fall through to next measure
-      } else {
-        // Move to next measure
-        const nextMeasureIndex = selection.measureIndex + 1;
-        // Check if next measure exists, if not we signal to create it
-        const shouldCreateMeasure = nextMeasureIndex >= measures.length;
-
-        return {
-          selection: { staffIndex, measureIndex: null, eventId: null, noteId: null },
-          previewNote: {
-            measureIndex: nextMeasureIndex,
-            staffIndex,
-            quant: 0,
-            visualQuant: 0,
-            pitch: pitch,
-            duration: activeDuration,
-            dotted: isDotted,
-            mode: 'APPEND',
-            index: 0,
-            isRest: inputMode === 'REST',
-          },
-          shouldCreateMeasure,
-          audio: null,
-        };
+        // If no duration fits, fall through to next measure below
       }
+
+      // Move to next measure (either measure is full or no duration fits)
+      const nextMeasureIndex = selection.measureIndex + 1;
+      const shouldCreateMeasure = nextMeasureIndex >= measures.length;
+
+      return {
+        selection: { staffIndex, measureIndex: null, eventId: null, noteId: null },
+        previewNote: {
+          measureIndex: nextMeasureIndex,
+          staffIndex,
+          quant: 0,
+          visualQuant: 0,
+          pitch: pitch,
+          duration: activeDuration,
+          dotted: isDotted,
+          mode: 'APPEND',
+          index: 0,
+          isRest: inputMode === 'REST',
+        },
+        shouldCreateMeasure,
+        audio: null,
+      };
     }
   }
 
