@@ -116,7 +116,8 @@ export const useNavigation = ({
           direction as 'up' | 'down',
           activeDuration,
           isDotted,
-          previewNote
+          previewNote,
+          currentQuantsPerMeasure
         );
 
         if (vertResult) {

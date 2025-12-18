@@ -242,9 +242,9 @@ Finds an event that overlaps a given quant position in a measure.
 
 ### `selectNoteInEventByDirection(event, direction)`
 
-Selects the appropriate note within a chord:
-- **Up**: Highest note
-- **Down**: Lowest note
+Selects the entry-point note within a chord for cross-staff navigation:
+- **Up**: Lowest note (to continue upward from)
+- **Down**: Highest note (to continue downward from)
 
 ### `calculateTotalQuants(events)`
 

@@ -119,19 +119,6 @@ export const getAdjustedDuration = (
 };
 
 /**
- * Creates a navigation result for selecting a ghost cursor position.
- */
-const createGhostResult = (
-  staffIndex: number,
-  previewNote: any
-): { selection: any; previewNote: any; audio: null; shouldCreateMeasure: false } => ({
-  selection: { staffIndex, measureIndex: null, eventId: null, noteId: null },
-  previewNote,
-  audio: null,
-  shouldCreateMeasure: false,
-});
-
-/**
  * Creates a navigation result for selecting an event.
  */
 const createEventResult = (
@@ -715,7 +702,8 @@ export const calculateVerticalNavigation = (
   direction: 'up' | 'down',
   activeDuration: string = 'quarter',
   isDotted: boolean = false,
-  previewNote: any = null
+  previewNote: any = null,
+  currentQuantsPerMeasure: number = CONFIG.quantsPerMeasure
 ) => {
   const { staffIndex = 0, measureIndex, eventId } = selection;
 
@@ -909,9 +897,7 @@ export const calculateVerticalNavigation = (
       } else {
         // No event at this quant - show ghost cursor with adjusted duration
         const totalQuants = calculateTotalQuants(targetMeasure.events);
-        // TODO: Pass currentQuantsPerMeasure to handle non-4/4 time signatures
-        const availableQuants =
-          getNoteDuration('whole', false) * (4 / 4) - totalQuants;
+        const availableQuants = currentQuantsPerMeasure - totalQuants;
         const adjusted = getAdjustedDuration(
           Math.max(1, availableQuants),
           activeDuration,
@@ -977,9 +963,7 @@ export const calculateVerticalNavigation = (
     } else {
       // No event - show ghost cursor with adjusted duration
       const totalQuants = calculateTotalQuants(cycleMeasure.events);
-      // TODO: Pass currentQuantsPerMeasure to handle non-4/4 time signatures
-      const availableQuants =
-        getNoteDuration('whole', false) * (4 / 4) - totalQuants;
+      const availableQuants = currentQuantsPerMeasure - totalQuants;
       const adjusted = getAdjustedDuration(
         Math.max(1, availableQuants),
         activeDuration,
