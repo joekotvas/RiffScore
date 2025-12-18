@@ -134,26 +134,59 @@ export const calculateNextSelection = (
   if (selection.eventId === null && previewNote && direction === 'left') {
     const measureIndex = previewNote.measureIndex;
     const measure = measures[measureIndex];
-    // Use previewNote.index - 1 to handle stale measure state after note entry.
-    // After adding a note, the measures array may not yet reflect the new event,
-    // but previewNote.index is correctly updated by addNoteToMeasure.
-    const targetEventIndex =
-      previewNote.index > 0 ? previewNote.index - 1 : (measure?.events?.length ?? 1) - 1;
 
-    if (measure && targetEventIndex >= 0 && measure.events[targetEventIndex]) {
-      const targetEvent = measure.events[targetEventIndex];
-      // For rests, use first note's id; for notes, use first note
-      const noteId =
-        targetEvent.isRest || !targetEvent.notes?.length ? null : targetEvent.notes[0].id;
-      const audio = targetEvent.isRest
-        ? null
-        : { notes: targetEvent.notes, duration: targetEvent.duration, dotted: targetEvent.dotted };
-      return {
-        selection: { staffIndex, measureIndex, eventId: targetEvent.id, noteId },
-        previewNote: null,
-        audio,
-      };
-    } else if (measureIndex > 0) {
+    // For APPEND mode, quant represents the append position (after all events)
+    // If quant is missing, calculate it from measure events
+    const totalMeasureQuants = measure ? calculateTotalQuants(measure.events) : 0;
+    const ghostQuant =
+      previewNote.quant != null
+        ? previewNote.quant
+        : previewNote.mode === 'APPEND'
+          ? totalMeasureQuants
+          : 0;
+
+    if (measure && measure.events.length > 0) {
+      // Find the last event that ends at or before the ghost cursor's quant position
+      let lastEventBeforeGhost = null;
+      let eventQuant = 0;
+
+      for (const e of measure.events) {
+        const eventDuration = getNoteDuration(e.duration, e.dotted, e.tuplet);
+        const eventEnd = eventQuant + eventDuration;
+
+        // Check if this event ends at or before the ghost position
+        if (eventEnd <= ghostQuant) {
+          lastEventBeforeGhost = e;
+        } else if (eventQuant < ghostQuant && ghostQuant < eventEnd) {
+          // Ghost is in the middle of this event - select it
+          lastEventBeforeGhost = e;
+          break;
+        }
+        eventQuant += eventDuration;
+      }
+
+      if (lastEventBeforeGhost) {
+        const noteId =
+          lastEventBeforeGhost.isRest || !lastEventBeforeGhost.notes?.length
+            ? null
+            : lastEventBeforeGhost.notes[0].id;
+        const audio = lastEventBeforeGhost.isRest
+          ? null
+          : {
+              notes: lastEventBeforeGhost.notes,
+              duration: lastEventBeforeGhost.duration,
+              dotted: lastEventBeforeGhost.dotted,
+            };
+        return {
+          selection: { staffIndex, measureIndex, eventId: lastEventBeforeGhost.id, noteId },
+          previewNote: null,
+          audio,
+        };
+      }
+    }
+
+    // No events before ghost in current measure - go to previous measure
+    if (measureIndex > 0) {
       // Navigate to previous measure
       const prevMeasure = measures[measureIndex - 1];
       const totalQuants = calculateTotalQuants(prevMeasure.events);
