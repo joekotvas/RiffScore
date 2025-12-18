@@ -154,9 +154,32 @@ export const calculateNextSelection = (
         audio,
       };
     } else if (measureIndex > 0) {
-      // Select last event of previous measure
+      // Navigate to previous measure
       const prevMeasure = measures[measureIndex - 1];
-      if (prevMeasure && prevMeasure.events.length > 0) {
+      const totalQuants = calculateTotalQuants(prevMeasure.events);
+      const availableQuants = currentQuantsPerMeasure - totalQuants;
+
+      // Try to get an adjusted duration that fits
+      const adjusted = getAdjustedDuration(availableQuants, activeDuration, isDotted);
+
+      if (adjusted && availableQuants > 0) {
+        // Move ghost cursor to append position in previous measure
+        const pitch = previewNote.pitch || getDefaultPitchForClef(clef);
+        return {
+          selection: { staffIndex, measureIndex: null, eventId: null, noteId: null },
+          previewNote: getAppendPreviewNote(
+            prevMeasure,
+            measureIndex - 1,
+            staffIndex,
+            adjusted.duration,
+            adjusted.dotted,
+            pitch,
+            inputMode === 'REST'
+          ),
+          audio: null,
+        };
+      } else if (prevMeasure.events.length > 0) {
+        // No space - select last event in previous measure
         const lastEvent = prevMeasure.events[prevMeasure.events.length - 1];
         const noteId = lastEvent.isRest || !lastEvent.notes?.length ? null : lastEvent.notes[0].id;
         const audio = lastEvent.isRest
@@ -164,6 +187,51 @@ export const calculateNextSelection = (
           : { notes: lastEvent.notes, duration: lastEvent.duration, dotted: lastEvent.dotted };
         return {
           selection: { staffIndex, measureIndex: measureIndex - 1, eventId: lastEvent.id, noteId },
+          previewNote: null,
+          audio,
+        };
+      }
+    }
+  }
+
+  // 1b. Handle Navigation from Ghost Note (Right Arrow - to next measure)
+  if (selection.eventId === null && previewNote && direction === 'right') {
+    const currentMeasureIndex = previewNote.measureIndex;
+    const nextMeasureIndex = currentMeasureIndex + 1;
+
+    if (nextMeasureIndex < measures.length) {
+      const nextMeasure = measures[nextMeasureIndex];
+      const totalQuants = calculateTotalQuants(nextMeasure.events);
+      const availableQuants = currentQuantsPerMeasure - totalQuants;
+
+      // Try to get an adjusted duration that fits
+      const adjusted = getAdjustedDuration(availableQuants, activeDuration, isDotted);
+
+      if (adjusted) {
+        // Move ghost cursor to next measure with adjusted duration
+        const pitch = previewNote.pitch || getDefaultPitchForClef(clef);
+        return {
+          selection: { staffIndex, measureIndex: null, eventId: null, noteId: null },
+          previewNote: getAppendPreviewNote(
+            nextMeasure,
+            nextMeasureIndex,
+            staffIndex,
+            adjusted.duration,
+            adjusted.dotted,
+            pitch,
+            inputMode === 'REST'
+          ),
+          audio: null,
+        };
+      } else if (nextMeasure.events.length > 0) {
+        // No space - select first event in next measure
+        const firstEvent = nextMeasure.events[0];
+        const noteId = firstEvent.isRest || !firstEvent.notes?.length ? null : firstEvent.notes[0].id;
+        const audio = firstEvent.isRest
+          ? null
+          : { notes: firstEvent.notes, duration: firstEvent.duration, dotted: firstEvent.dotted };
+        return {
+          selection: { staffIndex, measureIndex: nextMeasureIndex, eventId: firstEvent.id, noteId },
           previewNote: null,
           audio,
         };
