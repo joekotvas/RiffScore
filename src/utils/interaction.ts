@@ -60,6 +60,63 @@ export const getAppendPreviewNote = (
   };
 };
 
+// ========== HELPER FUNCTIONS (Phase 1 DRY Refactoring) ==========
+
+/**
+ * Returns default pitch for a given clef.
+ */
+export const getDefaultPitchForClef = (clef: string): string =>
+  clef === 'bass' ? 'C3' : 'C4';
+
+/**
+ * Finds an event at a specific quant position in a measure.
+ * Returns the event that overlaps with the target quant, or null if none found.
+ */
+export const findEventAtQuantPosition = (measure: any, targetQuant: number): any | null => {
+  if (!measure?.events?.length) return null;
+  let quant = 0;
+  for (const e of measure.events) {
+    const dur = getNoteDuration(e.duration, e.dotted, e.tuplet);
+    if (targetQuant >= quant && targetQuant < quant + dur) return e;
+    quant += dur;
+  }
+  return null;
+};
+
+/**
+ * Selects the appropriate note ID from an event based on direction.
+ * Up = lowest note (bottom of chord), Down = highest note (top of chord).
+ */
+export const selectNoteInEventByDirection = (event: any, direction: 'up' | 'down'): string | null => {
+  if (!event?.notes?.length) return null;
+  const sorted = [...event.notes].sort((a: any, b: any) => getMidi(a.pitch) - getMidi(b.pitch));
+  return direction === 'down' ? sorted[sorted.length - 1].id : sorted[0].id;
+};
+
+/**
+ * Adjusts duration to fit available space in a measure.
+ * Returns the largest duration that fits, or null if no duration fits.
+ */
+export const getAdjustedDuration = (
+  availableQuants: number,
+  requestedDuration: string,
+  isDotted: boolean
+): { duration: string; dotted: boolean } | null => {
+  // If requested duration fits, use it
+  if (getNoteDuration(requestedDuration, isDotted) <= availableQuants) {
+    return { duration: requestedDuration, dotted: isDotted };
+  }
+
+  // Find largest duration that fits
+  const durations = ['whole', 'half', 'quarter', 'eighth', 'sixteenth', 'thirtysecond'];
+  for (const dur of durations) {
+    if (getNoteDuration(dur, true) <= availableQuants) return { duration: dur, dotted: true };
+    if (getNoteDuration(dur, false) <= availableQuants) return { duration: dur, dotted: false };
+  }
+
+  return null; // No duration fits
+};
+
 export const calculateNextSelection = (
   measures: any[],
   selection: any,
