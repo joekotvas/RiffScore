@@ -1,5 +1,5 @@
 import { navigateSelection, calculateTotalQuants, getNoteDuration } from './core';
-import { movePitchVisual } from '@/services/MusicService';
+import { movePitchVisual, getMidi } from '@/services/MusicService';
 import { CONFIG } from '@/config';
 import { PIANO_RANGE } from '@/constants';
 
@@ -421,4 +421,214 @@ export const calculateCrossStaffSelection = (
       previewNote,
     };
   }
+};
+
+/**
+ * Unified vertical navigation for CMD+Up/Down.
+ * Handles: 1) Chord traversal, 2) Cross-staff switching, 3) Cycling at boundaries.
+ *
+ * @param score - The complete score object
+ * @param selection - The current selection state
+ * @param direction - 'up' or 'down'
+ * @param activeDuration - Active note duration for ghost cursor
+ * @param isDotted - Whether note is dotted
+ * @returns Navigation result with selection/previewNote, or null if no change
+ */
+export const calculateVerticalNavigation = (
+  score: any,
+  selection: any,
+  direction: 'up' | 'down',
+  activeDuration: string = 'quarter',
+  isDotted: boolean = false
+) => {
+  const { staffIndex = 0, measureIndex, eventId } = selection;
+  if (measureIndex === null || !eventId) return null;
+
+  const currentStaff = score.staves[staffIndex];
+  if (!currentStaff) return null;
+
+  const measures = currentStaff.measures;
+  const measure = measures[measureIndex];
+  if (!measure) return null;
+
+  // Find current event and its quant position
+  let currentQuantStart = 0;
+  const eventIdx = measure.events.findIndex((e: any) => {
+    if (e.id === eventId) return true;
+    currentQuantStart += getNoteDuration(e.duration, e.dotted, e.tuplet);
+    return false;
+  });
+
+  if (eventIdx === -1) return null;
+
+  const currentEvent = measure.events[eventIdx];
+  const sortedNotes = currentEvent.notes?.length
+    ? [...currentEvent.notes].sort((a: any, b: any) => getMidi(a.pitch) - getMidi(b.pitch))
+    : [];
+
+  // 1. Try chord navigation first
+  if (sortedNotes.length > 1 && selection.noteId) {
+    const currentNoteIdx = sortedNotes.findIndex((n: any) => n.id === selection.noteId);
+    if (currentNoteIdx !== -1) {
+      const newIdx = direction === 'up' ? currentNoteIdx + 1 : currentNoteIdx - 1;
+      if (newIdx >= 0 && newIdx < sortedNotes.length) {
+        // Navigate within chord
+        return {
+          selection: { ...selection, noteId: sortedNotes[newIdx].id },
+          previewNote: null,
+        };
+      }
+    }
+  }
+
+  // 2. At chord boundary - try cross-staff navigation
+  const targetStaffIndex = direction === 'up' ? staffIndex - 1 : staffIndex + 1;
+  const canSwitchStaff = targetStaffIndex >= 0 && targetStaffIndex < score.staves.length;
+
+  if (canSwitchStaff) {
+    const targetStaff = score.staves[targetStaffIndex];
+    const targetMeasure = targetStaff.measures[measureIndex];
+
+    if (targetMeasure) {
+      // Find event that overlaps with current quant position
+      let targetEvent = null;
+      let targetQuant = 0;
+
+      for (const e of targetMeasure.events) {
+        const duration = getNoteDuration(e.duration, e.dotted, e.tuplet);
+        const start = targetQuant;
+        const end = targetQuant + duration;
+
+        if (currentQuantStart >= start && currentQuantStart < end) {
+          targetEvent = e;
+          break;
+        }
+        targetQuant += duration;
+      }
+
+      if (targetEvent) {
+        // Select appropriate note in target chord based on direction
+        const targetSortedNotes = targetEvent.notes?.length
+          ? [...targetEvent.notes].sort((a: any, b: any) => getMidi(a.pitch) - getMidi(b.pitch))
+          : [];
+
+        // Down = start from top note of target staff, Up = start from bottom note
+        const noteId =
+          targetSortedNotes.length > 0
+            ? direction === 'down'
+              ? targetSortedNotes[targetSortedNotes.length - 1].id // Top note
+              : targetSortedNotes[0].id // Bottom note
+            : null;
+
+        return {
+          selection: {
+            staffIndex: targetStaffIndex,
+            measureIndex,
+            eventId: targetEvent.id,
+            noteId,
+            selectedNotes: [],
+            anchor: null,
+          },
+          previewNote: null,
+        };
+      } else {
+        // No event at this quant - show ghost cursor
+        const clef = targetStaff.clef || 'treble';
+        const defaultPitch = clef === 'bass' ? 'C3' : 'C4';
+
+        return {
+          selection: {
+            staffIndex: targetStaffIndex,
+            measureIndex,
+            eventId: null,
+            noteId: null,
+            selectedNotes: [],
+            anchor: null,
+          },
+          previewNote: getAppendPreviewNote(
+            targetMeasure,
+            measureIndex,
+            targetStaffIndex,
+            activeDuration,
+            isDotted,
+            defaultPitch
+          ),
+        };
+      }
+    }
+  }
+
+  // 3. At staff boundary (top or bottom) - cycle to opposite staff
+  const cycleStaffIndex = direction === 'up' ? score.staves.length - 1 : 0;
+  const cycleStaff = score.staves[cycleStaffIndex];
+  const cycleMeasure = cycleStaff?.measures[measureIndex];
+
+  if (cycleMeasure) {
+    // Find event at current quant in cycle target
+    let cycleEvent = null;
+    let cycleQuant = 0;
+
+    for (const e of cycleMeasure.events) {
+      const duration = getNoteDuration(e.duration, e.dotted, e.tuplet);
+      const start = cycleQuant;
+      const end = cycleQuant + duration;
+
+      if (currentQuantStart >= start && currentQuantStart < end) {
+        cycleEvent = e;
+        break;
+      }
+      cycleQuant += duration;
+    }
+
+    if (cycleEvent) {
+      const cycleSortedNotes = cycleEvent.notes?.length
+        ? [...cycleEvent.notes].sort((a: any, b: any) => getMidi(a.pitch) - getMidi(b.pitch))
+        : [];
+
+      // Cycling: Down goes to top of top staff, Up goes to bottom of bottom staff
+      const noteId =
+        cycleSortedNotes.length > 0
+          ? direction === 'down'
+            ? cycleSortedNotes[cycleSortedNotes.length - 1].id // Top note (cycling down from bottom)
+            : cycleSortedNotes[0].id // Bottom note (cycling up from top)
+          : null;
+
+      return {
+        selection: {
+          staffIndex: cycleStaffIndex,
+          measureIndex,
+          eventId: cycleEvent.id,
+          noteId,
+          selectedNotes: [],
+          anchor: null,
+        },
+        previewNote: null,
+      };
+    } else {
+      // No event - show ghost cursor
+      const clef = cycleStaff.clef || 'treble';
+      const defaultPitch = clef === 'bass' ? 'C3' : 'C4';
+
+      return {
+        selection: {
+          staffIndex: cycleStaffIndex,
+          measureIndex,
+          eventId: null,
+          noteId: null,
+          selectedNotes: [],
+          anchor: null,
+        },
+        previewNote: getAppendPreviewNote(
+          cycleMeasure,
+          measureIndex,
+          cycleStaffIndex,
+          activeDuration,
+          isDotted,
+          defaultPitch
+        ),
+      };
+    }
+  }
+
+  return null;
 };
