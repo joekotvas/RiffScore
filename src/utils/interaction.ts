@@ -795,6 +795,7 @@ export const calculateVerticalNavigation = (
     const cycleStaff = score.staves[cycleStaffIndex];
     const cycleMeasure = cycleStaff?.measures[ghostMeasureIndex];
 
+    // Cycle ghost cursor to opposite staff if measure exists and we're not already there
     if (cycleMeasure && cycleStaffIndex !== ghostStaffIndex) {
       const defaultPitch = getDefaultPitchForClef(cycleStaff.clef || 'treble');
 
@@ -899,7 +900,7 @@ export const calculateVerticalNavigation = (
         const totalQuants = calculateTotalQuants(targetMeasure.events);
         const availableQuants = currentQuantsPerMeasure - totalQuants;
         const adjusted = getAdjustedDuration(
-          Math.max(1, availableQuants),
+          availableQuants,
           activeDuration,
           isDotted
         );
@@ -965,7 +966,7 @@ export const calculateVerticalNavigation = (
       const totalQuants = calculateTotalQuants(cycleMeasure.events);
       const availableQuants = currentQuantsPerMeasure - totalQuants;
       const adjusted = getAdjustedDuration(
-        Math.max(1, availableQuants),
+        availableQuants,
         activeDuration,
         isDotted
       );
