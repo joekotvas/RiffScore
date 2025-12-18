@@ -535,25 +535,12 @@ export const calculateVerticalNavigation = (
         }
 
         if (targetEvent) {
-          const targetSortedNotes = targetEvent.notes?.length
-            ? [...targetEvent.notes].sort((a: any, b: any) =>
-                getMidi(a.pitch) - getMidi(b.pitch)
-              )
-            : [];
-
-          const noteId =
-            targetSortedNotes.length > 0
-              ? direction === 'down'
-                ? targetSortedNotes[targetSortedNotes.length - 1].id
-                : targetSortedNotes[0].id
-              : null;
-
           return {
             selection: {
               staffIndex: targetStaffIndex,
               measureIndex: ghostMeasureIndex,
               eventId: targetEvent.id,
-              noteId,
+              noteId: selectNoteInEventByDirection(targetEvent, direction),
               selectedNotes: [],
               anchor: null,
             },
@@ -562,25 +549,12 @@ export const calculateVerticalNavigation = (
         } else if (targetMeasure.events.length > 0) {
           // No overlapping event, but measure has events - select first event
           const firstEvent = targetMeasure.events[0];
-          const sortedNotes = firstEvent.notes?.length
-            ? [...firstEvent.notes].sort((a: any, b: any) =>
-                getMidi(a.pitch) - getMidi(b.pitch)
-              )
-            : [];
-
-          const noteId =
-            sortedNotes.length > 0
-              ? direction === 'down'
-                ? sortedNotes[sortedNotes.length - 1].id
-                : sortedNotes[0].id
-              : null;
-
           return {
             selection: {
               staffIndex: targetStaffIndex,
               measureIndex: ghostMeasureIndex,
               eventId: firstEvent.id,
-              noteId,
+              noteId: selectNoteInEventByDirection(firstEvent, direction),
               selectedNotes: [],
               anchor: null,
             },
@@ -588,8 +562,7 @@ export const calculateVerticalNavigation = (
           };
         } else {
           // No events - move ghost cursor to target staff
-          const clef = targetStaff.clef || 'treble';
-          const defaultPitch = clef === 'bass' ? 'C3' : 'C4';
+          const defaultPitch = getDefaultPitchForClef(targetStaff.clef || 'treble');
 
           return {
             selection: {
@@ -611,13 +584,15 @@ export const calculateVerticalNavigation = (
     }
 
     // At boundary - cycle to opposite staff (ghost cursor)
+    // Guard: single-staff scores can't cycle
+    if (score.staves.length <= 1) return null;
+
     const cycleStaffIndex = direction === 'up' ? score.staves.length - 1 : 0;
     const cycleStaff = score.staves[cycleStaffIndex];
     const cycleMeasure = cycleStaff?.measures[ghostMeasureIndex];
 
     if (cycleMeasure && cycleStaffIndex !== ghostStaffIndex) {
-      const clef = cycleStaff.clef || 'treble';
-      const defaultPitch = clef === 'bass' ? 'C3' : 'C4';
+      const defaultPitch = getDefaultPitchForClef(cycleStaff.clef || 'treble');
 
       return {
         selection: {
@@ -704,25 +679,12 @@ export const calculateVerticalNavigation = (
       }
 
       if (targetEvent) {
-        // Select appropriate note in target chord based on direction
-        const targetSortedNotes = targetEvent.notes?.length
-          ? [...targetEvent.notes].sort((a: any, b: any) => getMidi(a.pitch) - getMidi(b.pitch))
-          : [];
-
-        // Down = start from top note of target staff, Up = start from bottom note
-        const noteId =
-          targetSortedNotes.length > 0
-            ? direction === 'down'
-              ? targetSortedNotes[targetSortedNotes.length - 1].id // Top note
-              : targetSortedNotes[0].id // Bottom note
-            : null;
-
         return {
           selection: {
             staffIndex: targetStaffIndex,
             measureIndex,
             eventId: targetEvent.id,
-            noteId,
+            noteId: selectNoteInEventByDirection(targetEvent, direction),
             selectedNotes: [],
             anchor: null,
           },
@@ -730,8 +692,7 @@ export const calculateVerticalNavigation = (
         };
       } else {
         // No event at this quant - show ghost cursor
-        const clef = targetStaff.clef || 'treble';
-        const defaultPitch = clef === 'bass' ? 'C3' : 'C4';
+        const defaultPitch = getDefaultPitchForClef(targetStaff.clef || 'treble');
 
         return {
           selection: {
@@ -756,46 +717,26 @@ export const calculateVerticalNavigation = (
   }
 
   // 3. At staff boundary (top or bottom) - cycle to opposite staff
+  // Guard: single-staff scores can't cycle
+  if (score.staves.length <= 1) return null;
+
   const cycleStaffIndex = direction === 'up' ? score.staves.length - 1 : 0;
+  if (cycleStaffIndex === staffIndex) return null; // Already on this staff
+
   const cycleStaff = score.staves[cycleStaffIndex];
   const cycleMeasure = cycleStaff?.measures[measureIndex];
 
   if (cycleMeasure) {
     // Find event at current quant in cycle target
-    let cycleEvent = null;
-    let cycleQuant = 0;
-
-    for (const e of cycleMeasure.events) {
-      const duration = getNoteDuration(e.duration, e.dotted, e.tuplet);
-      const start = cycleQuant;
-      const end = cycleQuant + duration;
-
-      if (currentQuantStart >= start && currentQuantStart < end) {
-        cycleEvent = e;
-        break;
-      }
-      cycleQuant += duration;
-    }
+    const cycleEvent = findEventAtQuantPosition(cycleMeasure, currentQuantStart);
 
     if (cycleEvent) {
-      const cycleSortedNotes = cycleEvent.notes?.length
-        ? [...cycleEvent.notes].sort((a: any, b: any) => getMidi(a.pitch) - getMidi(b.pitch))
-        : [];
-
-      // Cycling: Down goes to top of top staff, Up goes to bottom of bottom staff
-      const noteId =
-        cycleSortedNotes.length > 0
-          ? direction === 'down'
-            ? cycleSortedNotes[cycleSortedNotes.length - 1].id // Top note (cycling down from bottom)
-            : cycleSortedNotes[0].id // Bottom note (cycling up from top)
-          : null;
-
       return {
         selection: {
           staffIndex: cycleStaffIndex,
           measureIndex,
           eventId: cycleEvent.id,
-          noteId,
+          noteId: selectNoteInEventByDirection(cycleEvent, direction),
           selectedNotes: [],
           anchor: null,
         },
@@ -803,8 +744,7 @@ export const calculateVerticalNavigation = (
       };
     } else {
       // No event - show ghost cursor
-      const clef = cycleStaff.clef || 'treble';
-      const defaultPitch = clef === 'bass' ? 'C3' : 'C4';
+      const defaultPitch = getDefaultPitchForClef(cycleStaff.clef || 'treble');
 
       return {
         selection: {
