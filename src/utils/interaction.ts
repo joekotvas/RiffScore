@@ -264,7 +264,7 @@ export const calculateNextSelection = (
   staffIndex: number = 0,
   inputMode: 'NOTE' | 'REST' = 'NOTE'
 ): HorizontalNavigationResult | null => {
-  // 1. Handle Navigation from Preview Note (Ghost Note)
+  // 1a. Ghost Left: Navigate left from ghost cursor
   if (selection.eventId === null && previewNote && direction === 'left') {
     const measureIndex = previewNote.measureIndex;
     const measure = measures[measureIndex];
@@ -364,7 +364,7 @@ export const calculateNextSelection = (
     }
   }
 
-  // 1b. Handle Navigation from Ghost Note (Right Arrow - to next measure)
+  // 1b. Ghost Right: Navigate right from ghost cursor to next measure
   if (selection.eventId === null && previewNote && direction === 'right') {
     const currentMeasureIndex = previewNote.measureIndex;
     const nextMeasureIndex = currentMeasureIndex + 1;
@@ -400,7 +400,7 @@ export const calculateNextSelection = (
     }
   }
 
-  // 2. Handle Left from First Event (selected note → ghost cursor in previous measure)
+  // 2a. Boundary Left: At first event → ghost cursor in previous measure
   if (direction === 'left' && selection.measureIndex !== null && selection.measureIndex > 0) {
     const currentMeasure = measures[selection.measureIndex];
     const eventIdx = currentMeasure?.events.findIndex((e: ScoreEvent) => e.id === selection.eventId);
@@ -436,7 +436,7 @@ export const calculateNextSelection = (
     }
   }
 
-  // 2b. Handle Right from Last Event (selected note → ghost cursor in current measure)
+  // 2b. Boundary Right: At last event → ghost cursor in current measure
   // This MUST come before navigateSelection so we don't skip to next measure
   if (direction === 'right' && selection.measureIndex !== null && selection.eventId) {
     const currentMeasure = measures[selection.measureIndex];
@@ -501,7 +501,7 @@ export const calculateNextSelection = (
     return { selection: { ...newSelection, staffIndex }, previewNote: null, audio, shouldCreateMeasure: false };
   }
 
-  // 3. Handle Navigation Beyond Last Event (to Ghost Note or New Measure)
+  // 4. End of Score: Navigate right past last event → ghost or new measure
   if (direction === 'right' && selection.measureIndex !== null) {
     const currentMeasure = measures[selection.measureIndex];
     const eventIdx = currentMeasure.events.findIndex((e: ScoreEvent) => e.id === selection.eventId);
