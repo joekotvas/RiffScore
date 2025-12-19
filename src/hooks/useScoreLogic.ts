@@ -64,6 +64,7 @@ export const useScoreLogic = (initialScore: any) => {
     updateSelection,
     selectAllInMeasure,
     lastSelection,
+    engine: selectionEngine,
   } = useSelection({ score });
   const [previewNote, setPreviewNote] = useState<any>(null);
 
@@ -456,5 +457,8 @@ export const useScoreLogic = (initialScore: any) => {
     moveSelection: navigation.moveSelection,
     switchStaff: navigation.switchStaff,
     focusScore,
+    // Selection Engine (for dispatch-based selection changes)
+    selectionEngine,
+    clearSelection,
   };
 };

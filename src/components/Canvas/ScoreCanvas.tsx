@@ -45,6 +45,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     score,
     selection,
     setSelection,
+    clearSelection,
     handleNoteSelection,
     addNoteToMeasure,
     activeDuration,
@@ -309,8 +310,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     if (isDragging || justFinishedDrag) return;
 
     onBackgroundClick?.();
-    // Default: deselect
-    setSelection(createDefaultSelection());
+    // Default: deselect via dispatch
+    clearSelection();
     containerRef.current?.focus();
   };
 
