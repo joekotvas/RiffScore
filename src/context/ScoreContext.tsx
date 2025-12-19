@@ -35,20 +35,23 @@ export const ScoreProvider: React.FC<ScoreProviderProps> = ({ children, initialS
     targetClef: 'treble' | 'bass';
   } | null>(null);
 
+  const { setGrandStaff, dispatch, score } = logic;
+  const staffCount = score.staves.length;
+
   const handleClefChange = React.useCallback(
     (val: string) => {
       const newClef = String(val).trim();
       if (newClef === 'grand') {
-        logic.setGrandStaff();
-      } else if (logic.score.staves.length >= 2) {
+        setGrandStaff();
+      } else if (staffCount >= 2) {
         // Switching from grand staff to single clef - show confirmation
         setPendingClefChange({ targetClef: newClef as 'treble' | 'bass' });
       } else {
         // Single staff - use SetClefCommand to change the clef
-        logic.dispatch(new SetClefCommand(newClef as 'treble' | 'bass'));
+        dispatch(new SetClefCommand(newClef as 'treble' | 'bass'));
       }
     },
-    [logic.score.staves.length, logic.setGrandStaff, logic.dispatch]
+    [staffCount, setGrandStaff, dispatch]
   );
 
   const contextValue = React.useMemo(
