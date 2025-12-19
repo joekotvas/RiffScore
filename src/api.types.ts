@@ -178,5 +178,8 @@ export interface MusicEditorAPI {
    * Subscribe to state changes.
    * @returns Unsubscribe function
    */
+  on(event: 'score', callback: (state: Score) => void): Unsubscribe;
+  on(event: 'selection', callback: (state: Selection) => void): Unsubscribe;
+  on(event: 'playback', callback: (state: unknown) => void): Unsubscribe;
   on(event: APIEventType, callback: (state: unknown) => void): Unsubscribe;
 }
