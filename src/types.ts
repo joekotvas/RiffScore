@@ -105,6 +105,7 @@ export const getActiveStaff = (score: Score, staffIndex: number = 0): Staff => {
  * Migrates an old-format score to the new staves model
  * Also syncs top-level legacy fields (measures, keySignature, clef) back to staves[0]
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Accepts unknown legacy score formats
 export const migrateScore = (oldScore: any): Score => {
   // If already in new format with staves
   if (oldScore.staves && Array.isArray(oldScore.staves)) {
@@ -168,7 +169,7 @@ export const migrateScore = (oldScore: any): Score => {
 export interface Melody {
   id: string;
   title: string;
-  score: any;
+  score: Score;
 }
 
 // ========== SELECTION ==========
