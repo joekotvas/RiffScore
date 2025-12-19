@@ -10,13 +10,21 @@
  * @see docs/migration/api_reference_draft.md
  */
 
-import { useRef, useMemo, useCallback } from 'react';
-import type { MusicEditorAPI, Unsubscribe } from '../api.types';
+import { useRef, useMemo, useCallback, useEffect } from 'react';
+import type { MusicEditorAPI, RiffScoreRegistry, Unsubscribe } from '../api.types';
 import type { Score, Selection, RiffScoreConfig, Note } from '../types';
+import type { Command } from '../commands/types';
 import { AddEventCommand } from '../commands/AddEventCommand';
 import { AddNoteToEventCommand } from '../commands/AddNoteToEventCommand';
 import { navigateSelection, getFirstNoteId } from '../utils/core';
 import { canAddEventToMeasure } from '../utils/validation';
+
+// Extend Window interface for TypeScript
+declare global {
+  interface Window {
+    riffScore: RiffScoreRegistry;
+  }
+}
 
 const generateId = (): string =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -27,6 +35,8 @@ const generateId = (): string =>
  * Props for the useScoreAPI hook
  */
 export interface UseScoreAPIProps {
+  /** Unique instance ID for registry */
+  instanceId: string;
   /** Current score state */
   score: Score;
   /** Current selection state */
@@ -34,10 +44,24 @@ export interface UseScoreAPIProps {
   /** Current config */
   config: RiffScoreConfig;
   /** Dispatch function for score commands */
-  dispatch: (command: unknown) => void;
+  dispatch: (command: Command) => void;
   /** Selection setter */
   setSelection: (selection: Selection) => void;
 }
+
+/**
+ * Initialize the global registry if it doesn't exist
+ */
+const initRegistry = (): void => {
+  if (typeof window === 'undefined') return;
+  if (!window.riffScore) {
+    window.riffScore = {
+      instances: new Map<string, MusicEditorAPI>(),
+      active: null,
+      get: (id: string) => window.riffScore.instances.get(id),
+    };
+  }
+};
 
 /**
  * Creates a MusicEditorAPI instance for external script control.
@@ -49,6 +73,7 @@ export interface UseScoreAPIProps {
  * ```
  */
 export function useScoreAPI({
+  instanceId,
   score,
   selection,
   config,
@@ -58,6 +83,7 @@ export function useScoreAPI({
   // Synchronous state refs (authoritative for chaining)
   const scoreRef = useRef(score);
   const selectionRef = useRef(selection);
+  const apiRef = useRef<MusicEditorAPI | null>(null);
 
   // Keep refs in sync with React state
   scoreRef.current = score;
@@ -583,6 +609,26 @@ export function useScoreAPI({
 
     return instance;
   }, [config, dispatch, syncSelection]);
+
+  // Keep apiRef in sync for registry
+  apiRef.current = api;
+
+  // Registry registration/cleanup
+  useEffect(() => {
+    initRegistry();
+    
+    // Register this instance
+    window.riffScore.instances.set(instanceId, api);
+    window.riffScore.active = api;
+
+    // Cleanup on unmount
+    return () => {
+      window.riffScore.instances.delete(instanceId);
+      if (window.riffScore.active === api) {
+        window.riffScore.active = null;
+      }
+    };
+  }, [instanceId, api]);
 
   return api;
 }

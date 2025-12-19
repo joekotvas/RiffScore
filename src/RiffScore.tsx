@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * RiffScore Component
  *
@@ -10,14 +9,13 @@
  * Exposes an imperative API via `window.riffScore` registry for external script control.
  */
 
-import React, { useMemo, useEffect, useRef, useId } from 'react';
+import React, { useMemo, useId } from 'react';
 import { DeepPartial, RiffScoreConfig } from './types';
 import { useRiffScore } from './hooks/useRiffScore';
 import { ScoreProvider, useScoreContext } from './context/ScoreContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ScoreEditorContent } from './components/Layout/ScoreEditor';
 import { useScoreAPI } from './hooks/useScoreAPI';
-import type { MusicEditorAPI, RiffScoreRegistry } from './api.types';
 
 interface RiffScoreProps {
   /** Unique identifier for this RiffScore instance (auto-generated if not provided) */
@@ -25,17 +23,9 @@ interface RiffScoreProps {
   config?: DeepPartial<RiffScoreConfig>;
 }
 
-// Extend Window interface for TypeScript
-declare global {
-  interface Window {
-    riffScore: RiffScoreRegistry;
-  }
-}
-
-// Note: generateInstanceId is no longer used - we use React's useId() for SSR compatibility
-
 /**
- * Inner component that has access to ScoreContext and sets up the API
+ * Bridge component that connects ScoreContext to the API hook.
+ * The API hook handles registry registration internally.
  */
 const RiffScoreAPIBridge: React.FC<{
   instanceId: string;
@@ -44,54 +34,15 @@ const RiffScoreAPIBridge: React.FC<{
 }> = ({ instanceId, config, children }) => {
   const { score, selection, dispatch, setSelection } = useScoreContext();
 
-  // Create API instance
-  const api = useScoreAPI({
+  // API hook handles registry registration/cleanup internally
+  useScoreAPI({
+    instanceId,
     score,
     selection,
     config,
     dispatch,
     setSelection,
   });
-
-  // Store stable reference - use useEffect to avoid updating ref during render
-  const apiRef = useRef<MusicEditorAPI | null>(null);
-
-  useEffect(() => {
-    apiRef.current = api;
-  }, [api]);
-
-  // Register/unregister with global registry
-  useEffect(() => {
-    // Initialize registry if needed
-    if (!window.riffScore) {
-      window.riffScore = {
-        instances: new Map<string, MusicEditorAPI>(),
-        active: null,
-        get: (id: string) => window.riffScore.instances.get(id),
-      };
-    }
-
-    // Register this instance
-    window.riffScore.instances.set(instanceId, apiRef.current);
-    window.riffScore.active = apiRef.current;
-
-    // Cleanup on unmount
-    return () => {
-      window.riffScore.instances.delete(instanceId);
-      // If this was the active instance, clear it
-      if (window.riffScore.active === apiRef.current) {
-        window.riffScore.active = null;
-      }
-    };
-  }, [instanceId]);
-
-  // Update registry reference when API changes
-  useEffect(() => {
-    if (window.riffScore) {
-      window.riffScore.instances.set(instanceId, apiRef.current);
-      window.riffScore.active = apiRef.current;
-    }
-  }, [api, instanceId]);
 
   return <>{children}</>;
 };
@@ -101,16 +52,16 @@ const RiffScoreAPIBridge: React.FC<{
  */
 const RiffScoreInner: React.FC<RiffScoreProps> = ({ id, config: userConfig }) => {
   const { config, initialScore } = useRiffScore(userConfig);
-  const { theme } = useTheme();
+  const { theme: _theme } = useTheme();
 
   // Use React's useId() for SSR-compatible auto-generated IDs
   const reactId = useId();
   const instanceId = id || `riffScore${reactId}`;
 
   // Container style for interaction master switch
-  const containerStyle = useMemo(
+  const containerStyle: React.CSSProperties = useMemo(
     () => ({
-      pointerEvents: config.interaction.isEnabled ? 'auto' : 'none',
+      pointerEvents: config.interaction.isEnabled ? 'auto' as const : 'none' as const,
       userSelect: 'none' as const,
     }),
     [config.interaction.isEnabled]
