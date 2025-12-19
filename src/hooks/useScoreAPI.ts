@@ -238,51 +238,29 @@ export function useScoreAPI({
         let staffIndex = sel.staffIndex;
         let measureIndex = sel.measureIndex;
 
-        // If no measure is selected, default to first staff
+        // If no measure is selected, default to first measure
         if (measureIndex === null) {
           staffIndex = 0;
+          measureIndex = 0;
         }
 
         const staff = scoreRef.current.staves[staffIndex];
         if (!staff || staff.measures.length === 0) {
-          // Cannot add note - no measures exist
+          console.warn('[RiffScore API] addNote failed: No measures exist in the score');
           return this;
         }
 
-        // Find first measure that can accept this note (by capacity)
-        // Start from current measure or first measure if none selected
-        const startMeasure = measureIndex ?? 0;
-        let targetMeasure = startMeasure;
-        let foundSpace = false;
-
-        for (let i = startMeasure; i < staff.measures.length; i++) {
-          const measure = staff.measures[i];
-          if (canAddEventToMeasure(measure.events, duration, dotted)) {
-            targetMeasure = i;
-            foundSpace = true;
-            break;
-          }
-        }
-
-        // If no space found from current position, try from beginning
-        if (!foundSpace && startMeasure > 0) {
-          for (let i = 0; i < startMeasure; i++) {
-            const measure = staff.measures[i];
-            if (canAddEventToMeasure(measure.events, duration, dotted)) {
-              targetMeasure = i;
-              foundSpace = true;
-              break;
-            }
-          }
-        }
-
-        // If still no space, cannot add (all measures full)
-        if (!foundSpace) {
-          // All measures are full - note cannot be added
+        const measure = staff.measures[measureIndex];
+        if (!measure) {
+          console.warn(`[RiffScore API] addNote failed: Measure ${measureIndex + 1} does not exist`);
           return this;
         }
 
-        measureIndex = targetMeasure;
+        // Check if measure has capacity for this note
+        if (!canAddEventToMeasure(measure.events, duration, dotted)) {
+          console.warn(`[RiffScore API] addNote failed: Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} note.`);
+          return this;
+        }
 
         // Create note payload
         const noteId = generateId();
@@ -315,48 +293,29 @@ export function useScoreAPI({
         let staffIndex = sel.staffIndex;
         let measureIndex = sel.measureIndex;
 
-        // If no measure is selected, default to first staff
+        // If no measure is selected, default to first measure
         if (measureIndex === null) {
           staffIndex = 0;
+          measureIndex = 0;
         }
 
         const staff = scoreRef.current.staves[staffIndex];
         if (!staff || staff.measures.length === 0) {
+          console.warn('[RiffScore API] addRest failed: No measures exist in the score');
           return this;
         }
 
-        // Find first measure that can accept this rest (by capacity)
-        const startMeasure = measureIndex ?? 0;
-        let targetMeasure = startMeasure;
-        let foundSpace = false;
-
-        for (let i = startMeasure; i < staff.measures.length; i++) {
-          const measure = staff.measures[i];
-          if (canAddEventToMeasure(measure.events, duration, dotted)) {
-            targetMeasure = i;
-            foundSpace = true;
-            break;
-          }
-        }
-
-        // If no space found from current position, try from beginning
-        if (!foundSpace && startMeasure > 0) {
-          for (let i = 0; i < startMeasure; i++) {
-            const measure = staff.measures[i];
-            if (canAddEventToMeasure(measure.events, duration, dotted)) {
-              targetMeasure = i;
-              foundSpace = true;
-              break;
-            }
-          }
-        }
-
-        // If still no space, cannot add
-        if (!foundSpace) {
+        const measure = staff.measures[measureIndex];
+        if (!measure) {
+          console.warn(`[RiffScore API] addRest failed: Measure ${measureIndex + 1} does not exist`);
           return this;
         }
 
-        measureIndex = targetMeasure;
+        // Check if measure has capacity for this rest
+        if (!canAddEventToMeasure(measure.events, duration, dotted)) {
+          console.warn(`[RiffScore API] addRest failed: Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} rest.`);
+          return this;
+        }
 
         // Dispatch AddEventCommand with isRest=true
         const eventId = generateId();
