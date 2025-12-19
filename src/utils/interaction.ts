@@ -2,6 +2,18 @@ import { navigateSelection, calculateTotalQuants, getNoteDuration } from './core
 import { movePitchVisual, getMidi } from '@/services/MusicService';
 import { CONFIG } from '@/config';
 import { PIANO_RANGE } from '@/constants';
+import {
+  Measure,
+  Note,
+  Score,
+  ScoreEvent,
+  PreviewNote,
+  AudioFeedback,
+  NavigationSelection,
+  HorizontalNavigationResult,
+  VerticalNavigationResult,
+  TranspositionResult,
+} from '@/types';
 
 /**
  * Calculates the next selection state based on navigation direction.
@@ -21,14 +33,14 @@ import { PIANO_RANGE } from '@/constants';
  * Helper to generate the preview note state for appending to a measure.
  */
 export const getAppendPreviewNote = (
-  measure: any,
+  measure: Measure,
   measureIndex: number,
   staffIndex: number,
   activeDuration: string,
   isDotted: boolean,
   pitch?: string,
   isRest: boolean = false
-) => {
+): PreviewNote => {
   const totalQuants = calculateTotalQuants(measure.events || []);
   // Default pitch logic: try to use last event's pitch, or fallback
   let defaultPitch = pitch;
@@ -37,7 +49,7 @@ export const getAppendPreviewNote = (
       const lastEvent = measure.events[measure.events.length - 1];
       // Skip rests when determining pitch
       if (!lastEvent.isRest && lastEvent.notes?.length > 0) {
-        defaultPitch = lastEvent.notes[0].pitch;
+        defaultPitch = lastEvent.notes[0].pitch || 'C4';
       } else {
         defaultPitch = 'C4'; // Fallback for rests
       }
@@ -69,10 +81,26 @@ export const getDefaultPitchForClef = (clef: string): string =>
   clef === 'bass' ? 'C3' : 'C4';
 
 /**
+ * Converts Note[] to AudioFeedback-compatible notes array.
+ * Filters out notes with null pitches (rests shouldn't have audio).
+ */
+const notesToAudioNotes = (
+  notes: Note[] | undefined
+): Array<{ pitch: string; id?: string | number }> => {
+  if (!notes) return [];
+  return notes
+    .filter((n): n is Note & { pitch: string } => n.pitch !== null)
+    .map((n) => ({ pitch: n.pitch, id: n.id }));
+};
+
+/**
  * Finds an event at a specific quant position in a measure.
  * Returns the event that overlaps with the target quant, or null if none found.
  */
-export const findEventAtQuantPosition = (measure: any, targetQuant: number): any | null => {
+export const findEventAtQuantPosition = (
+  measure: Measure | null | undefined,
+  targetQuant: number
+): ScoreEvent | null => {
   if (!measure?.events?.length) return null;
   let quant = 0;
   for (const e of measure.events) {
@@ -88,9 +116,14 @@ export const findEventAtQuantPosition = (measure: any, targetQuant: number): any
  * When moving UP to a higher staff, selects the lowest note (to continue upward).
  * When moving DOWN to a lower staff, selects the highest note (to continue downward).
  */
-export const selectNoteInEventByDirection = (event: any, direction: 'up' | 'down'): string | null => {
+export const selectNoteInEventByDirection = (
+  event: ScoreEvent | null | undefined,
+  direction: 'up' | 'down'
+): string | number | null => {
   if (!event?.notes?.length || event.isRest) return null;
-  const sorted = [...event.notes].sort((a: any, b: any) => getMidi(a.pitch) - getMidi(b.pitch));
+  const sorted = [...event.notes].sort(
+    (a: Note, b: Note) => getMidi(a.pitch || 'C4') - getMidi(b.pitch || 'C4')
+  );
   return direction === 'down' ? sorted[sorted.length - 1].id : sorted[0].id;
 };
 
@@ -124,12 +157,16 @@ export const getAdjustedDuration = (
 const createEventResult = (
   staffIndex: number,
   measureIndex: number,
-  event: any
-): { selection: any; previewNote: null; audio: any; shouldCreateMeasure: false } => {
+  event: ScoreEvent
+): HorizontalNavigationResult => {
   const noteId = event.isRest || !event.notes?.length ? null : event.notes[0].id;
-  const audio = event.isRest
+  // Map notes to AudioFeedback format, filtering out notes with null pitches
+  const audioNotes = event.notes
+    ?.filter((n: Note) => n.pitch !== null)
+    .map((n: Note) => ({ pitch: n.pitch as string, id: n.id })) || [];
+  const audio: AudioFeedback | null = event.isRest || audioNotes.length === 0
     ? null
-    : { notes: event.notes, duration: event.duration, dotted: event.dotted };
+    : { notes: audioNotes, duration: event.duration, dotted: event.dotted };
   return {
     selection: { staffIndex, measureIndex, eventId: event.id, noteId },
     previewNote: null,
@@ -139,18 +176,17 @@ const createEventResult = (
 };
 
 export const calculateNextSelection = (
-  measures: any[],
-  selection: any,
-  direction: string,
-  previewNote: any,
+  measures: Measure[],
+  selection: NavigationSelection,
+  direction: 'left' | 'right',
+  previewNote: PreviewNote | null,
   activeDuration: string,
   isDotted: boolean,
   currentQuantsPerMeasure: number = CONFIG.quantsPerMeasure,
   clef: string = 'treble',
-
   staffIndex: number = 0,
   inputMode: 'NOTE' | 'REST' = 'NOTE'
-) => {
+): HorizontalNavigationResult | null => {
   // 1. Handle Navigation from Preview Note (Ghost Note)
   if (selection.eventId === null && previewNote && direction === 'left') {
     const measureIndex = previewNote.measureIndex;
@@ -191,10 +227,11 @@ export const calculateNextSelection = (
           lastEventBeforeGhost.isRest || !lastEventBeforeGhost.notes?.length
             ? null
             : lastEventBeforeGhost.notes[0].id;
-        const audio = lastEventBeforeGhost.isRest
+        const audioNotes = notesToAudioNotes(lastEventBeforeGhost.notes);
+        const audio: AudioFeedback | null = lastEventBeforeGhost.isRest || audioNotes.length === 0
           ? null
           : {
-              notes: lastEventBeforeGhost.notes,
+              notes: audioNotes,
               duration: lastEventBeforeGhost.duration,
               dotted: lastEventBeforeGhost.dotted,
             };
@@ -238,9 +275,10 @@ export const calculateNextSelection = (
         // No space - select last event in previous measure
         const lastEvent = prevMeasure.events[prevMeasure.events.length - 1];
         const noteId = lastEvent.isRest || !lastEvent.notes?.length ? null : lastEvent.notes[0].id;
-        const audio = lastEvent.isRest
+        const audioNotes = notesToAudioNotes(lastEvent.notes);
+        const audio: AudioFeedback | null = lastEvent.isRest || audioNotes.length === 0
           ? null
-          : { notes: lastEvent.notes, duration: lastEvent.duration, dotted: lastEvent.dotted };
+          : { notes: audioNotes, duration: lastEvent.duration, dotted: lastEvent.dotted };
         return {
           selection: { staffIndex, measureIndex: measureIndex - 1, eventId: lastEvent.id, noteId },
           previewNote: null,
@@ -356,7 +394,7 @@ export const calculateNextSelection = (
               staffIndex,
               adjusted.duration,
               adjusted.dotted,
-              pitch,
+              pitch || getDefaultPitchForClef(clef),
               inputMode === 'REST'
             ),
             audio: null,
@@ -374,15 +412,20 @@ export const calculateNextSelection = (
   if (newSelection !== selection) {
     // Find the event to play audio
     const measure = measures[newSelection.measureIndex];
-    let audio = null;
+    let audio: AudioFeedback | null = null;
     if (measure) {
-      const event = measure.events.find((e: any) => e.id === newSelection.eventId);
+      const event = measure.events.find((e: ScoreEvent) => e.id === newSelection.eventId);
       if (event) {
         if (newSelection.noteId) {
-          const note = event.notes.find((n: any) => n.id === newSelection.noteId);
-          if (note) audio = { notes: [note], duration: event.duration, dotted: event.dotted };
+          const note = event.notes.find((n: Note) => n.id === newSelection.noteId);
+          if (note && note.pitch) {
+            audio = { notes: [{ pitch: note.pitch, id: note.id }], duration: event.duration, dotted: event.dotted };
+          }
         } else {
-          audio = { notes: event.notes, duration: event.duration, dotted: event.dotted };
+          const audioNotes = notesToAudioNotes(event.notes);
+          if (audioNotes.length > 0) {
+            audio = { notes: audioNotes, duration: event.duration, dotted: event.dotted };
+          }
         }
       }
     }
@@ -392,7 +435,7 @@ export const calculateNextSelection = (
   // 3. Handle Navigation Beyond Last Event (to Ghost Note or New Measure)
   if (direction === 'right' && selection.measureIndex !== null) {
     const currentMeasure = measures[selection.measureIndex];
-    const eventIdx = currentMeasure.events.findIndex((e: any) => e.id === selection.eventId);
+    const eventIdx = currentMeasure.events.findIndex((e: ScoreEvent) => e.id === selection.eventId);
 
     if (eventIdx === currentMeasure.events.length - 1) {
       // We are at the last event, try to move to ghost note
@@ -406,8 +449,8 @@ export const calculateNextSelection = (
 
       // Get pitch: from note if available, else default based on clef
       const defaultPitch = clef === 'bass' ? 'D3' : 'B4';
-      const pitch =
-        !currentEvent.isRest && currentEvent.notes?.length > 0
+      const pitch: string =
+        !currentEvent.isRest && currentEvent.notes?.length > 0 && currentEvent.notes[0].pitch
           ? currentEvent.notes[0].pitch
           : defaultPitch;
 
@@ -472,18 +515,18 @@ export const calculateNextSelection = (
  * @returns {Object|null} Object containing new measures and the modified event, or null if no change
  */
 export const calculateTransposition = (
-  measures: any[],
-  selection: any,
+  measures: Measure[],
+  selection: NavigationSelection,
   steps: number,
   keySignature: string = 'C'
-) => {
+): { measures: Measure[]; event: ScoreEvent } | null => {
   const { measureIndex, eventId, noteId } = selection;
   if (measureIndex === null || !eventId) return null;
 
   const newMeasures = [...measures];
   const measure = { ...newMeasures[measureIndex] };
   const events = [...measure.events];
-  const eventIdx = events.findIndex((e: any) => e.id === eventId);
+  const eventIdx = events.findIndex((e: ScoreEvent) => e.id === eventId);
 
   if (eventIdx === -1) return null;
 
@@ -527,13 +570,13 @@ export const calculateTransposition = (
  * @returns An object containing the new measures (if changed), new previewNote (if changed), and audio feedback
  */
 export const calculateTranspositionWithPreview = (
-  measures: any[],
-  selection: any,
-  previewNote: any,
-  direction: string,
+  measures: Measure[],
+  selection: NavigationSelection,
+  previewNote: PreviewNote | null,
+  direction: 'up' | 'down',
   isShift: boolean,
   keySignature: string = 'C'
-) => {
+): TranspositionResult | null => {
   // Determine steps (Visual Movement)
   // Up = 1, Down = -1. Shift = 7 (Octave)
   let steps = direction === 'up' ? 1 : -1;
@@ -560,12 +603,17 @@ export const calculateTranspositionWithPreview = (
 
   if (result) {
     const { measures: newMeasures, event } = result;
-    let audio = null;
+    let audio: AudioFeedback | null = null;
     if (selection.noteId) {
-      const note = event.notes.find((n: any) => n.id === selection.noteId);
-      if (note) audio = { notes: [note], duration: event.duration, dotted: event.dotted };
+      const note = event.notes.find((n: Note) => n.id === selection.noteId);
+      if (note && note.pitch) {
+        audio = { notes: [{ pitch: note.pitch, id: note.id }], duration: event.duration, dotted: event.dotted };
+      }
     } else {
-      audio = { notes: event.notes, duration: event.duration, dotted: event.dotted };
+      const audioNotes = notesToAudioNotes(event.notes);
+      if (audioNotes.length > 0) {
+        audio = { notes: audioNotes, duration: event.duration, dotted: event.dotted };
+      }
     }
     return { measures: newMeasures, audio };
   }
@@ -583,12 +631,12 @@ export const calculateTranspositionWithPreview = (
  * @returns {Object|null} New selection object or null if invalid move
  */
 export const calculateCrossStaffSelection = (
-  score: any,
-  selection: any,
-  direction: string,
+  score: Score,
+  selection: NavigationSelection,
+  direction: 'up' | 'down',
   activeDuration: string = 'quarter',
   isDotted: boolean = false
-) => {
+): VerticalNavigationResult | null => {
   const { staffIndex, measureIndex, eventId } = selection;
   if (staffIndex === undefined || measureIndex === null || !eventId) return null;
 
@@ -656,9 +704,7 @@ export const calculateCrossStaffSelection = (
 
     // Determine Pitch: Default to a "middle" note for the staff clef.
     const clef = targetStaff.clef || 'treble';
-    let defaultPitch = 'C4';
-    if (clef === 'bass') defaultPitch = 'C3';
-    if (clef === 'alto') defaultPitch = 'C4';
+    const defaultPitch = clef === 'bass' ? 'C3' : 'C4';
 
     const previewNote = getAppendPreviewNote(
       targetMeasure,
@@ -697,14 +743,14 @@ export const calculateCrossStaffSelection = (
  * @returns Navigation result with selection/previewNote, or null if no change
  */
 export const calculateVerticalNavigation = (
-  score: any,
-  selection: any,
+  score: Score,
+  selection: NavigationSelection,
   direction: 'up' | 'down',
   activeDuration: string = 'quarter',
   isDotted: boolean = false,
-  previewNote: any = null,
+  previewNote: PreviewNote | null = null,
   currentQuantsPerMeasure: number = CONFIG.quantsPerMeasure
-) => {
+): VerticalNavigationResult | null => {
   const { staffIndex = 0, measureIndex, eventId } = selection;
 
   // Handle ghost cursor navigation (no eventId)
