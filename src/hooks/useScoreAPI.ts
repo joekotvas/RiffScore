@@ -77,7 +77,6 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
   // 2. Synchronous State Refs (authoritative for API methods to avoid stale closures)
   const scoreRef = useRef(score);
   const selectionRef = useRef(selection);
-  const apiRef = useRef<MusicEditorAPI | null>(null);
 
   // Keep refs in sync with React state on every render
   scoreRef.current = score;
@@ -91,8 +90,6 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
   }, [setSelection]);
 
   // 4. Build API Object (memoized to maintain stable reference)
-
-  // Build API object (memoized to maintain stable reference)
   const api: MusicEditorAPI = useMemo(() => {
     const instance: MusicEditorAPI = {
       // ========== NAVIGATION ==========
@@ -607,10 +604,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
     return instance;
   }, [config, dispatch, syncSelection]);
 
-  // Keep apiRef in sync for registry
-  apiRef.current = api;
-
-  // Registry registration/cleanup
+  // 5. Registry registration/cleanup
   useEffect(() => {
     initRegistry();
     
