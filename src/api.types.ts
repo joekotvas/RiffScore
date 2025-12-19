@@ -117,7 +117,7 @@ export interface MusicEditorAPI {
 
   // --- Configuration ---
   /** Change the clef */
-  setClef(clef: 'treble' | 'bass' | 'alto'): this;
+  setClef(clef: 'treble' | 'bass' | 'grand'): this;
   /** Update the score title */
   setScoreTitle(title: string): this;
   /** Set the tempo in BPM */
