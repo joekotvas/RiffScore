@@ -16,6 +16,7 @@ import type { Score, Selection, RiffScoreConfig, ScoreEvent, Note } from '../typ
 import { AddEventCommand } from '../commands/AddEventCommand';
 import { AddNoteToEventCommand } from '../commands/AddNoteToEventCommand';
 import { navigateSelection } from '../utils/core';
+import { canAddEventToMeasure } from '../utils/validation';
 
 /**
  * Internal helper to generate unique IDs
@@ -237,18 +238,51 @@ export function useScoreAPI({
         let staffIndex = sel.staffIndex;
         let measureIndex = sel.measureIndex;
 
-        // If no measure is selected, default to first available position
-        // (first staff, first measure, append at end)
+        // If no measure is selected, default to first staff
         if (measureIndex === null) {
           staffIndex = 0;
-          measureIndex = 0;
-          // Ensure the staff and measure exist
-          const staff = scoreRef.current.staves[staffIndex];
-          if (!staff || staff.measures.length === 0) {
-            // Cannot add note - no measures exist
-            return this;
+        }
+
+        const staff = scoreRef.current.staves[staffIndex];
+        if (!staff || staff.measures.length === 0) {
+          // Cannot add note - no measures exist
+          return this;
+        }
+
+        // Find first measure that can accept this note (by capacity)
+        // Start from current measure or first measure if none selected
+        const startMeasure = measureIndex ?? 0;
+        let targetMeasure = startMeasure;
+        let foundSpace = false;
+
+        for (let i = startMeasure; i < staff.measures.length; i++) {
+          const measure = staff.measures[i];
+          if (canAddEventToMeasure(measure.events, duration, dotted)) {
+            targetMeasure = i;
+            foundSpace = true;
+            break;
           }
         }
+
+        // If no space found from current position, try from beginning
+        if (!foundSpace && startMeasure > 0) {
+          for (let i = 0; i < startMeasure; i++) {
+            const measure = staff.measures[i];
+            if (canAddEventToMeasure(measure.events, duration, dotted)) {
+              targetMeasure = i;
+              foundSpace = true;
+              break;
+            }
+          }
+        }
+
+        // If still no space, cannot add (all measures full)
+        if (!foundSpace) {
+          // All measures are full - note cannot be added
+          return this;
+        }
+
+        measureIndex = targetMeasure;
 
         // Create note payload
         const noteId = generateId();
@@ -264,11 +298,6 @@ export function useScoreAPI({
         dispatch(new AddEventCommand(measureIndex, false, note, duration, dotted, undefined, eventId, staffIndex));
 
         // Advance cursor to the new event
-        // We need to wait for state update, but for chainability we update selection immediately
-        // The event will be at the end of the measure
-        const staff = scoreRef.current.staves[staffIndex];
-        const _newEventIndex = staff?.measures[measureIndex]?.events.length ?? 0;
-
         syncSelection({
           staffIndex,
           measureIndex,
@@ -286,15 +315,48 @@ export function useScoreAPI({
         let staffIndex = sel.staffIndex;
         let measureIndex = sel.measureIndex;
 
-        // If no measure is selected, default to first available position
+        // If no measure is selected, default to first staff
         if (measureIndex === null) {
           staffIndex = 0;
-          measureIndex = 0;
-          const staff = scoreRef.current.staves[staffIndex];
-          if (!staff || staff.measures.length === 0) {
-            return this;
+        }
+
+        const staff = scoreRef.current.staves[staffIndex];
+        if (!staff || staff.measures.length === 0) {
+          return this;
+        }
+
+        // Find first measure that can accept this rest (by capacity)
+        const startMeasure = measureIndex ?? 0;
+        let targetMeasure = startMeasure;
+        let foundSpace = false;
+
+        for (let i = startMeasure; i < staff.measures.length; i++) {
+          const measure = staff.measures[i];
+          if (canAddEventToMeasure(measure.events, duration, dotted)) {
+            targetMeasure = i;
+            foundSpace = true;
+            break;
           }
         }
+
+        // If no space found from current position, try from beginning
+        if (!foundSpace && startMeasure > 0) {
+          for (let i = 0; i < startMeasure; i++) {
+            const measure = staff.measures[i];
+            if (canAddEventToMeasure(measure.events, duration, dotted)) {
+              targetMeasure = i;
+              foundSpace = true;
+              break;
+            }
+          }
+        }
+
+        // If still no space, cannot add
+        if (!foundSpace) {
+          return this;
+        }
+
+        measureIndex = targetMeasure;
 
         // Dispatch AddEventCommand with isRest=true
         const eventId = generateId();
