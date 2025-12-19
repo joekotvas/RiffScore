@@ -62,6 +62,25 @@ export const useSelection = ({ score }: UseSelectionProps) => {
     });
   }, [setSelection]);
 
+  /**
+   * Selects an event or note in the score.
+   *
+   * Handles multiple selection modes:
+   * - **Standard selection**: Replaces current selection with target
+   * - **Multi-select (isMulti)**: Adds target to selection without removing others
+   * - **Range select (isShift)**: Selects all notes between anchor and target
+   * - **Select all in event (selectAllInEvent)**: Selects all notes in the target event
+   * - **History only (onlyHistory)**: Updates lastSelection without visual selection
+   *
+   * @param measureIndex - Index of measure containing the target (null to clear)
+   * @param eventId - ID of target event (null to clear)
+   * @param noteId - ID of target note, or null to select entire event
+   * @param staffIndex - Staff index (default: 0)
+   * @param options.isMulti - Add to selection instead of replacing
+   * @param options.isShift - Range select from anchor to target
+   * @param options.selectAllInEvent - Select all notes in the event
+   * @param options.onlyHistory - Only update lastSelection, not visual selection
+   */
   const select = useCallback(
     (
       measureIndex: number | null,
@@ -89,9 +108,8 @@ export const useSelection = ({ score }: UseSelectionProps) => {
 
       const startStaffIndex = staffIndex !== undefined ? staffIndex : selection.staffIndex || 0;
 
-      // 1. Handle Shift+Click (Range Selection)
+      // Handle Shift+Click (Range Selection)
       if (isShift && !onlyHistory) {
-        // ... (Logic from useNavigation)
         const anchor = selection.anchor || {
           staffIndex: selection.staffIndex || 0,
           measureIndex: selection.measureIndex!,
@@ -110,11 +128,10 @@ export const useSelection = ({ score }: UseSelectionProps) => {
             noteId,
           };
 
-          // Note: We need linearization logic here.
-          // We can import calculateNoteRange from utils/selection
+          // Calculate range selection using linearized notes
           const linearNotes = getLinearizedNotes(score);
-          // We need to make sure 'noteId' is not null for calculation.
-          // If noteId is null (event selection), pick first note of event.
+
+          // If noteId is null (event selection), pick first note of event
           let targetNoteId = noteId;
           if (!targetNoteId) {
             const measure = getActiveStaff(score, startStaffIndex).measures[measureIndex];
@@ -124,9 +141,6 @@ export const useSelection = ({ score }: UseSelectionProps) => {
 
           if (targetNoteId) {
             const focus = { ...context, noteId: targetNoteId };
-            // Ensure anchor has noteId too
-            // ... (Assumption: anchor always has noteId if set correctly)
-
             const selectedNotes = calculateNoteRange(anchor as SelectedNote, focus, linearNotes);
 
             setSelection((prev) => ({
