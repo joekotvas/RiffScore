@@ -10,7 +10,7 @@
  * @see docs/migration/api_reference_draft.md
  */
 
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useCallback } from 'react';
 import type { MusicEditorAPI, Unsubscribe } from '../api.types';
 import type { Score, Selection, RiffScoreConfig, ScoreEvent, Note } from '../types';
 import { AddEventCommand } from '../commands/AddEventCommand';
@@ -73,6 +73,12 @@ export function useScoreAPI({
   scoreRef.current = score;
   selectionRef.current = selection;
 
+  // Helper to update selection both synchronously (for chaining) and via React state
+  const syncSelection = useCallback((newSelection: Selection) => {
+    selectionRef.current = newSelection; // Synchronous update for chained calls
+    setSelection(newSelection); // Async update for React re-render
+  }, [setSelection]);
+
   // Build API object (memoized to maintain stable reference)
   const api: MusicEditorAPI = useMemo(() => {
     const instance: MusicEditorAPI = {
@@ -87,7 +93,7 @@ export function useScoreAPI({
         if (direction === 'left' || direction === 'right') {
           // Use existing navigateSelection utility for horizontal movement
           const newSel = navigateSelection(measures, sel, direction);
-          setSelection({
+          syncSelection({
             ...newSel,
             selectedNotes: newSel.eventId
               ? [
@@ -146,7 +152,7 @@ export function useScoreAPI({
         const eventId = event?.id ?? null;
         const noteId = getFirstNoteId(event);
 
-        setSelection({
+        syncSelection({
           staffIndex: sel.staffIndex,
           measureIndex: targetMeasureIndex,
           eventId,
@@ -173,7 +179,7 @@ export function useScoreAPI({
         const eventId = event?.id ?? null;
         const noteId = getFirstNoteId(event);
 
-        setSelection({
+        syncSelection({
           staffIndex,
           measureIndex,
           eventId,
@@ -214,7 +220,7 @@ export function useScoreAPI({
       },
 
       deselectAll() {
-        setSelection({
+        syncSelection({
           staffIndex: selectionRef.current.staffIndex,
           measureIndex: null,
           eventId: null,
@@ -250,7 +256,7 @@ export function useScoreAPI({
         const staff = scoreRef.current.staves[staffIndex];
         const newEventIndex = staff?.measures[measureIndex]?.events.length ?? 0;
 
-        setSelection({
+        syncSelection({
           staffIndex,
           measureIndex,
           eventId,
@@ -273,7 +279,7 @@ export function useScoreAPI({
 
         // Advance cursor
         const restNoteId = `${eventId}-rest`;
-        setSelection({
+        syncSelection({
           staffIndex,
           measureIndex,
           eventId,
@@ -306,7 +312,7 @@ export function useScoreAPI({
         dispatch(new AddNoteToEventCommand(measureIndex, eventId, note, staffIndex));
 
         // Update selection to include new note
-        setSelection({
+        syncSelection({
           ...sel,
           noteId,
           selectedNotes: [{ staffIndex, measureIndex, eventId, noteId }],
@@ -542,7 +548,7 @@ export function useScoreAPI({
     };
 
     return instance;
-  }, [config, dispatch, setSelection]);
+  }, [config, dispatch, syncSelection]);
 
   return api;
 }
