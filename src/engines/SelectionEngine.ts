@@ -39,6 +39,7 @@ export class SelectionEngine {
 
   /**
    * Get current selection state synchronously
+   * @tested src/__tests__/SelectionEngine.test.ts - 'getState' describe block
    */
   public getState(): Selection {
     return this.state;
@@ -47,6 +48,7 @@ export class SelectionEngine {
   /**
    * Set selection state directly
    * Used for external sync (e.g., from legacy hooks during migration)
+   * @tested src/__tests__/SelectionEngine.test.ts - 'setState' describe block
    */
   public setState(newState: Selection): void {
     this.state = newState;
@@ -56,6 +58,7 @@ export class SelectionEngine {
   /**
    * Dispatch a selection command
    * Command receives current state + score, returns new state
+   * @tested src/__tests__/SelectionEngine.test.ts - 'dispatch' describe block
    */
   public dispatch(command: SelectionCommand): void {
     const score = this.scoreRef();
@@ -67,6 +70,7 @@ export class SelectionEngine {
   /**
    * Subscribe to selection changes
    * @returns Unsubscribe function
+   * @tested src/__tests__/SelectionEngine.test.ts - 'subscribe' describe block
    */
   public subscribe(listener: SelectionListener): () => void {
     this.listeners.add(listener);
@@ -78,6 +82,7 @@ export class SelectionEngine {
   /**
    * Update the score reference
    * Called when score changes to keep commands in sync
+   * @tested src/__tests__/SelectionEngine.test.ts - 'setScoreGetter' describe block
    */
   public setScoreGetter(scoreGetter: () => Score): void {
     this.scoreRef = scoreGetter;

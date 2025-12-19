@@ -16,6 +16,7 @@ export type NavigateDirection = 'left' | 'right' | 'up' | 'down';
 
 /**
  * Command to navigate selection in a direction
+ * @tested src/__tests__/SelectionEngine.test.ts - 'NavigateCommand' describe block
  */
 export class NavigateCommand implements SelectionCommand {
   readonly type = 'NAVIGATE';

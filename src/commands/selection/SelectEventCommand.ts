@@ -19,6 +19,7 @@ export interface SelectEventOptions {
 
 /**
  * Command to select a specific event in the score
+ * @tested src/__tests__/SelectionEngine.test.ts - 'SelectEventCommand' describe block
  */
 export class SelectEventCommand implements SelectionCommand {
   readonly type = 'SELECT_EVENT';
