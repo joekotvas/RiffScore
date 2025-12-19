@@ -234,8 +234,21 @@ export function useScoreAPI({
       // ========== ENTRY (CREATE) ==========
       addNote(pitch, duration = 'quarter', dotted = false) {
         const sel = selectionRef.current;
-        const staffIndex = sel.staffIndex;
-        const measureIndex = sel.measureIndex ?? 0;
+        let staffIndex = sel.staffIndex;
+        let measureIndex = sel.measureIndex;
+
+        // If no measure is selected, default to first available position
+        // (first staff, first measure, append at end)
+        if (measureIndex === null) {
+          staffIndex = 0;
+          measureIndex = 0;
+          // Ensure the staff and measure exist
+          const staff = scoreRef.current.staves[staffIndex];
+          if (!staff || staff.measures.length === 0) {
+            // Cannot add note - no measures exist
+            return this;
+          }
+        }
 
         // Create note payload
         const noteId = generateId();
@@ -254,7 +267,7 @@ export function useScoreAPI({
         // We need to wait for state update, but for chainability we update selection immediately
         // The event will be at the end of the measure
         const staff = scoreRef.current.staves[staffIndex];
-        const newEventIndex = staff?.measures[measureIndex]?.events.length ?? 0;
+        const _newEventIndex = staff?.measures[measureIndex]?.events.length ?? 0;
 
         syncSelection({
           staffIndex,
@@ -270,8 +283,18 @@ export function useScoreAPI({
 
       addRest(duration = 'quarter', dotted = false) {
         const sel = selectionRef.current;
-        const staffIndex = sel.staffIndex;
-        const measureIndex = sel.measureIndex ?? 0;
+        let staffIndex = sel.staffIndex;
+        let measureIndex = sel.measureIndex;
+
+        // If no measure is selected, default to first available position
+        if (measureIndex === null) {
+          staffIndex = 0;
+          measureIndex = 0;
+          const staff = scoreRef.current.staves[staffIndex];
+          if (!staff || staff.measures.length === 0) {
+            return this;
+          }
+        }
 
         // Dispatch AddEventCommand with isRest=true
         const eventId = generateId();
