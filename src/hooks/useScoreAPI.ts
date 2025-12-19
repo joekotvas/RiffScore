@@ -12,27 +12,16 @@
 
 import { useRef, useMemo, useCallback } from 'react';
 import type { MusicEditorAPI, Unsubscribe } from '../api.types';
-import type { Score, Selection, RiffScoreConfig, ScoreEvent, Note } from '../types';
+import type { Score, Selection, RiffScoreConfig, Note } from '../types';
 import { AddEventCommand } from '../commands/AddEventCommand';
 import { AddNoteToEventCommand } from '../commands/AddNoteToEventCommand';
-import { navigateSelection } from '../utils/core';
+import { navigateSelection, getFirstNoteId } from '../utils/core';
 import { canAddEventToMeasure } from '../utils/validation';
 
-/**
- * Internal helper to generate unique IDs
- */
 const generateId = (): string =>
   typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-
-/**
- * Get first note ID from an event
- */
-const getFirstNoteId = (event: ScoreEvent | undefined): string | number | null => {
-  if (!event || !event.notes || event.notes.length === 0) return null;
-  return event.notes[0].id;
-};
 
 /**
  * Props for the useScoreAPI hook
@@ -93,48 +82,8 @@ export function useScoreAPI({
 
         if (direction === 'left' || direction === 'right') {
           // Use existing navigateSelection utility for horizontal movement
+          // Note: Full ghost cursor support requires Phase 1.5 (wiring to calculateNextSelection)
           const newSel = navigateSelection(measures, sel, direction);
-
-          // Check if we're at the last event and trying to move right
-          // If navigateSelection returns unchanged selection and direction is right,
-          // we should move to append position (ghost cursor)
-          if (direction === 'right' && newSel.eventId === sel.eventId && sel.eventId !== null) {
-            const measure = measures[sel.measureIndex ?? 0];
-            if (measure) {
-              const eventIdx = measure.events.findIndex((e: ScoreEvent) => e.id === sel.eventId);
-              // At last event in measure?
-              if (eventIdx === measure.events.length - 1) {
-                // Check if there are more measures with events
-                const nextMeasureIdx = (sel.measureIndex ?? 0) + 1;
-                if (nextMeasureIdx < measures.length && measures[nextMeasureIdx]?.events?.length > 0) {
-                  // Move to first event of next measure
-                  const nextEvent = measures[nextMeasureIdx].events[0];
-                  const noteId = nextEvent.notes?.[0]?.id ?? null;
-                  syncSelection({
-                    ...sel,
-                    measureIndex: nextMeasureIdx,
-                    eventId: nextEvent.id,
-                    noteId,
-                    selectedNotes: nextEvent.id ? [{ staffIndex: sel.staffIndex, measureIndex: nextMeasureIdx, eventId: nextEvent.id, noteId }] : [],
-                    anchor: null,
-                  });
-                  return this;
-                } else {
-                  // At end of all events - create append position (ghost cursor)
-                  // Stay in current measure, clear eventId to indicate append mode
-                  syncSelection({
-                    staffIndex: sel.staffIndex,
-                    measureIndex: sel.measureIndex ?? 0,
-                    eventId: null,
-                    noteId: null,
-                    selectedNotes: [],
-                    anchor: null,
-                  });
-                  return this;
-                }
-              }
-            }
-          }
 
           syncSelection({
             ...newSel,
@@ -152,8 +101,7 @@ export function useScoreAPI({
           });
         } else if (direction === 'up' || direction === 'down') {
           // Vertical navigation (cross-staff) - for single staff, cycle within notes
-          // TODO: Handle cross-staff navigation properly in Phase 2
-          // For now, just stay on current selection
+          // TODO: Wire to calculateVerticalNavigation in Phase 1.5
         }
         return this;
       },
@@ -463,8 +411,8 @@ export function useScoreAPI({
         return this;
       },
 
-      updateEvent(_props: Partial<ScoreEvent>) {
-        // TODO: Generic update
+      updateEvent(_props: Partial<{ id: string; notes: Note[]; duration: string; dotted: boolean }>) {
+        // TODO: Generic update - will use proper ScoreEvent type when implemented
         return this;
       },
 
