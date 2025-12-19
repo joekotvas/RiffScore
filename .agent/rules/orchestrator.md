@@ -14,7 +14,7 @@ Step 1: Scoping & Approval
 
 Action: Analyze the specific requirements for the current phase from the Master Plan.
 
-Output: meaningful "Phase Implementation Spec" containing:
+Output: a meaningful "Phase Implementation Spec" containing:
 
 Files to be created/modified.
 
