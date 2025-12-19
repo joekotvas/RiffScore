@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Selection, createDefaultSelection, Score, getActiveStaff } from '@/types';
+import { Selection, createDefaultSelection, Score, getActiveStaff, Note, ScoreEvent, SelectedNote } from '@/types';
 import { toggleNoteInSelection, calculateNoteRange, getLinearizedNotes } from '@/utils/selection';
 import { playNote } from '@/engines/toneEngine';
 import { SelectionEngine } from '@/engines/SelectionEngine';
@@ -45,7 +45,7 @@ export const useSelection = ({ score }: UseSelectionProps) => {
 
   // --- Helpers ---
 
-  const playAudioFeedback = useCallback((notes: any[]) => {
+  const playAudioFeedback = useCallback((notes: Note[]) => {
     notes.filter((n) => n.pitch !== null).forEach((n) => playNote(n.pitch));
   }, []);
 
@@ -117,7 +117,7 @@ export const useSelection = ({ score }: UseSelectionProps) => {
           let targetNoteId = noteId;
           if (!targetNoteId) {
             const measure = getActiveStaff(score, startStaffIndex).measures[measureIndex];
-            const event = measure?.events.find((e: any) => e.id === eventId);
+            const event = measure?.events.find((e: ScoreEvent) => e.id === eventId);
             if (event && event.notes.length > 0) targetNoteId = event.notes[0].id;
           }
 
@@ -126,7 +126,7 @@ export const useSelection = ({ score }: UseSelectionProps) => {
             // Ensure anchor has noteId too
             // ... (Assumption: anchor always has noteId if set correctly)
 
-            const selectedNotes = calculateNoteRange(anchor as any, focus, linearNotes);
+            const selectedNotes = calculateNoteRange(anchor as SelectedNote, focus, linearNotes);
 
             setSelection((prev) => ({
               ...prev,
@@ -146,10 +146,10 @@ export const useSelection = ({ score }: UseSelectionProps) => {
       // If selectAllInEvent is TRUE, OR if noteId is NULL (clicking stem/body), we select all notes.
       // "Events cannot be independently selected."
       let targetNoteId = noteId;
-      let notesToSelect: any[] = [];
+      let notesToSelect: SelectedNote[] = [];
 
       const measure = getActiveStaff(score, startStaffIndex).measures[measureIndex];
-      const event = measure?.events.find((e: any) => e.id === eventId);
+      const event = measure?.events.find((e: ScoreEvent) => e.id === eventId);
 
       // Handle REST selection
       // Previously, we treated rests as having NO notes (noteId: null).
@@ -162,7 +162,7 @@ export const useSelection = ({ score }: UseSelectionProps) => {
       if (hasNotes) {
         // Standard handling for both Notes and Rests (pitchless notes)
         if (selectAllInEvent || !noteId) {
-          notesToSelect = event.notes.map((n: any) => ({
+          notesToSelect = event.notes.map((n: Note) => ({
             staffIndex: startStaffIndex,
             measureIndex,
             eventId,
@@ -261,7 +261,7 @@ export const useSelection = ({ score }: UseSelectionProps) => {
 
           // Audio Feedback (Early return for toggle path)
           if (targetNoteId) {
-            const note = event?.notes.find((n: any) => n.id === targetNoteId);
+            const note = event?.notes.find((n: Note) => n.id === targetNoteId);
             if (note) playAudioFeedback([note]);
           }
           return;
@@ -272,7 +272,7 @@ export const useSelection = ({ score }: UseSelectionProps) => {
       if (onlyHistory && nextSelection) {
         setLastSelection(nextSelection);
         // Ensure visual selection is cleared
-        setSelection((prev) => ({
+        setSelection((_prev) => ({
           ...createDefaultSelection(),
           staffIndex: startStaffIndex,
         }));
@@ -293,10 +293,10 @@ export const useSelection = ({ score }: UseSelectionProps) => {
       const measure = getActiveStaff(score, staffIndex).measures[measureIndex];
       if (!measure) return;
 
-      const allNotes: any[] = [];
-      measure.events.forEach((event: any) => {
+      const allNotes: SelectedNote[] = [];
+      measure.events.forEach((event: ScoreEvent) => {
         if (event.notes) {
-          event.notes.forEach((note: any) => {
+          event.notes.forEach((note: Note) => {
             allNotes.push({
               staffIndex,
               measureIndex,
