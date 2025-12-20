@@ -70,6 +70,9 @@ export class SelectAllCommand implements SelectionCommand {
 
   /**
    * Implements the hierarchical expansion logic from the specification
+   * 
+   * OPTIMIZATION: We build the selected notes Set once upfront (O(N)),
+   * then pass it to completeness checks (O(M)) for O(N+M) total.
    */
   private progressiveExpansion(state: Selection, score: Score): Selection {
     const { selectedNotes } = state;
@@ -79,6 +82,9 @@ export class SelectAllCommand implements SelectionCommand {
       return this.selectScope(state, score, 'score', 0, 0);
     }
 
+    // OPTIMIZATION: Build the Set of selected note IDs once
+    const selectedIds = new Set(selectedNotes.map(n => this.getNoteKey(n)));
+
     // Get unique touched measures and staves
     const touchedMeasures = this.getUniqueTouchedMeasures(selectedNotes);
     const touchedStaves = this.getUniqueTouchedStaves(selectedNotes);
@@ -86,7 +92,7 @@ export class SelectAllCommand implements SelectionCommand {
     // Case 2: Check if any touched measure is partially selected
     const hasPartialMeasures = touchedMeasures.some(({ staffIndex, measureIndex }) => {
       const allNotesInMeasure = this.collectNotesInMeasure(score, staffIndex, measureIndex);
-      return !this.isFullySelected(selectedNotes, allNotesInMeasure);
+      return !this.isContainerFullySelected(selectedIds, allNotesInMeasure);
     });
 
     if (hasPartialMeasures) {
@@ -98,7 +104,7 @@ export class SelectAllCommand implements SelectionCommand {
     // Case 3: All touched measures are full, check if any touched staff is partial
     const hasPartialStaves = touchedStaves.some(staffIndex => {
       const allNotesInStaff = this.collectNotesInStaff(score, staffIndex);
-      return !this.isFullySelected(selectedNotes, allNotesInStaff);
+      return !this.isContainerFullySelected(selectedIds, allNotesInStaff);
     });
 
     if (hasPartialStaves) {
@@ -168,18 +174,24 @@ export class SelectAllCommand implements SelectionCommand {
   }
 
   /**
-   * Check if a container is fully selected
+   * Generate a unique key for a note selection
+   * Ensures consistent format across Set creation and lookup
    */
-  private isFullySelected(currentSelection: SelectedNote[], allNotes: SelectedNote[]): boolean {
-    if (allNotes.length === 0) return true;
-    
-    const selectedIds = new Set(
-      currentSelection.map(n => `${n.staffIndex}-${n.measureIndex}-${n.eventId}-${n.noteId}`)
-    );
+  private getNoteKey(note: SelectedNote): string {
+    return `${note.staffIndex}-${note.measureIndex}-${note.eventId}-${note.noteId}`;
+  }
 
-    return allNotes.every(n => 
-      selectedIds.has(`${n.staffIndex}-${n.measureIndex}-${n.eventId}-${n.noteId}`)
-    );
+  /**
+   * Check if all notes in a container are present in the selection Set
+   * @param selectedIds - Pre-computed Set of selected note keys
+   * @param containerNotes - All notes in the container to check
+   */
+  private isContainerFullySelected(
+    selectedIds: Set<string>,
+    containerNotes: SelectedNote[]
+  ): boolean {
+    if (containerNotes.length === 0) return true;
+    return containerNotes.every(n => selectedIds.has(this.getNoteKey(n)));
   }
 
   /**
