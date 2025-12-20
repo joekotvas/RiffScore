@@ -308,7 +308,17 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   );
 
   const memoizedOnDragStart = useCallback(
-    (args: { measureIndex: number; eventId: string | number; noteId: string | number; startPitch: string }) => {
+    (args: {
+      measureIndex: number;
+      eventId: string | number;
+      noteId: string | number;
+      startPitch: string;
+      startY: number;
+      isMulti?: boolean;
+      isShift?: boolean;
+      selectAllInEvent?: boolean;
+      staffIndex?: number;
+    }) => {
       handleDragStart(args);
     },
     [handleDragStart]
