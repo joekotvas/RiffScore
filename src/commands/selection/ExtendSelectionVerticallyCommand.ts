@@ -426,34 +426,26 @@ export class ExtendSelectionVerticallyCommand implements SelectionCommand {
   }
 
   /**
-   * Add notes from anchor to edge of chord (for anchor staff).
+   * Add all notes in anchor's event when crossing to another staff.
+   * This implicitly fills the anchor's chord when transitioning cross-staff.
    */
   private addNotesFromAnchorToEdge(
     result: SelectedNote[],
     staffIndex: number,
     measureIndex: number,
     event: ScoreEvent,
-    anchor: VerticalPosition,
-    cursorBelow: boolean
+    _anchor: VerticalPosition,
+    _cursorBelow: boolean
   ): void {
+    // When crossing to another staff, select ALL notes in anchor's event
+    // (Don't filter by anchor.midi - fill the entire chord)
     if (event.isRest || !event.notes || event.notes.length === 0) {
       result.push({ staffIndex, measureIndex, eventId: event.id, noteId: null });
       return;
     }
 
     for (const note of event.notes) {
-      const midi = getMidi(note.pitch ?? 'C4');
-      if (cursorBelow) {
-        // Cursor is below, so select from anchor down (anchor midi and lower)
-        if (midi <= anchor.midi) {
-          result.push({ staffIndex, measureIndex, eventId: event.id, noteId: note.id });
-        }
-      } else {
-        // Cursor is above, so select from anchor up (anchor midi and higher)
-        if (midi >= anchor.midi) {
-          result.push({ staffIndex, measureIndex, eventId: event.id, noteId: note.id });
-        }
-      }
+      result.push({ staffIndex, measureIndex, eventId: event.id, noteId: note.id });
     }
   }
 
