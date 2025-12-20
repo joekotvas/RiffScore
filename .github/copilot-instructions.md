@@ -75,6 +75,12 @@ npm run format:check
   - `@utils/*` → `src/utils/*`
   - `@commands/*` → `src/commands/*`
   - `@engines/*` → `src/engines/*`
+  - `@config` → `src/config.ts`
+  - `@config/*` → `src/config/*`
+  - `@types` → `src/types.ts`
+  - `@types/*` → `src/types/*`
+  - `@constants` → `src/constants.ts`
+  - `@constants/*` → `src/constants/*`
   - `@assets/*` → `src/components/Assets/*`
 
 ### React Best Practices
@@ -110,7 +116,7 @@ Don't reinvent music theory logic - these libraries are already integrated and t
 ## Testing
 
 ### Test Location
-- All tests are in `src/__tests__/`
+- Tests are typically located in `src/__tests__/`
 - Use `.test.ts` or `.test.tsx` extensions
 
 ### Test Utilities
