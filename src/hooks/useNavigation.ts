@@ -169,9 +169,17 @@ export const useNavigation = ({
       if (navResult.selection) {
         const { measureIndex, eventId, noteId, staffIndex } = navResult.selection;
 
-        // Simply pass the calculated target to select().
-        // We assume select() handles a null noteId (selecting the whole event/rest) correctly.
-        select(measureIndex, eventId, noteId || null, staffIndex, { isShift });
+        // BUG FIX #100: When Shift+navigating to a ghost position (no event),
+        // preserve the existing selection instead of clearing it.
+        // The selection will be extended when we land on an actual note.
+        if (isShift && !eventId) {
+          // Don't clear selection - just update preview note below
+          // The anchor remains intact for when we reach a real note
+        } else {
+          // Simply pass the calculated target to select().
+          // We assume select() handles a null noteId (selecting the whole event/rest) correctly.
+          select(measureIndex, eventId, noteId || null, staffIndex, { isShift });
+        }
       }
 
       // --- 5. Handle Side Effects ---
