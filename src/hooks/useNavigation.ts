@@ -10,8 +10,6 @@ import { playNote } from '@/engines/toneEngine';
 import { Command } from '@/commands/types';
 import { AddMeasureCommand } from '@/commands/MeasureCommands';
 import { TransposeSelectionCommand } from '@/commands/TransposeSelectionCommand';
-import { SetSelectionCommand } from '@/commands/selection';
-import { SelectionEngine } from '@/engines/SelectionEngine';
 
 interface UseNavigationProps {
   scoreRef: RefObject<Score>;
@@ -32,7 +30,6 @@ interface UseNavigationProps {
   currentQuantsPerMeasure: number;
   dispatch: (command: Command) => void;
   inputMode: 'NOTE' | 'REST';
-  selectionEngine: SelectionEngine;
 }
 
 interface UseNavigationReturn {
@@ -62,7 +59,6 @@ export const useNavigation = ({
   currentQuantsPerMeasure,
   dispatch,
   inputMode,
-  selectionEngine,
 }: UseNavigationProps): UseNavigationReturn => {
   // --- Internal Helpers ---
 
@@ -173,37 +169,54 @@ export const useNavigation = ({
       if (navResult.selection) {
         const { measureIndex, eventId, noteId, staffIndex } = navResult.selection;
 
-        // BUG FIX #100: When Shift+navigating to a ghost position (no event),
-        // we need to:
-        // 1. Update selection to ghost state (for next navigation to work correctly)
-        // 2. Preserve the anchor (for range extension when we land on a real note)
-        // 3. NOT clear the selectedNotes (keep what we had)
-        if (isShift && !eventId) {
-          // Get current anchor before updating selection
-          const currentState = selectionEngine.getState();
-          const existingAnchor = currentState.anchor || (
-            currentState.eventId ? {
-              staffIndex: currentState.staffIndex || 0,
-              measureIndex: currentState.measureIndex!,
-              eventId: currentState.eventId!,
-              noteId: currentState.noteId,
-            } : null
-          );
-
-          // Update to ghost state but preserve anchor and selectedNotes
-          selectionEngine.dispatch(new SetSelectionCommand({
-            staffIndex,
-            measureIndex, // null for ghost
+        // SIMPLIFIED UX: When Shift+Arrow lands on a gap (no event),
+        // skip the gap and extend selection directly to the next actual note.
+        // This is cleaner UX and avoids complex state preservation.
+        if (isShift && !eventId && navResult.previewNote) {
+          // Navigate AGAIN from the ghost position to find the next note
+          const ghostSelection: Selection = {
+            ...selection,
+            staffIndex: staffIndex || 0,
+            measureIndex: null,
             eventId: null,
             noteId: null,
-            selectedNotes: currentState.selectedNotes, // preserve!
-            anchor: existingAnchor, // preserve!
-          }));
-        } else {
-          // Simply pass the calculated target to select().
-          // We assume select() handles a null noteId (selecting the whole event/rest) correctly.
-          select(measureIndex, eventId, noteId || null, staffIndex, { isShift });
+            selectedNotes: selection.selectedNotes,
+            anchor: selection.anchor,
+          };
+
+          const secondNav = calculateNextSelection(
+            activeStaff.measures,
+            ghostSelection,
+            direction as 'left' | 'right',
+            navResult.previewNote,
+            activeDuration,
+            isDotted,
+            currentQuantsPerMeasure,
+            activeStaff.clef,
+            activeStaffIndex,
+            inputMode
+          );
+
+          if (secondNav?.selection?.eventId) {
+            // Found the next note - extend selection to it
+            select(
+              secondNav.selection.measureIndex,
+              secondNav.selection.eventId,
+              secondNav.selection.noteId || null,
+              secondNav.selection.staffIndex,
+              { isShift }
+            );
+            // Play audio for the found note
+            if (secondNav.audio) {
+              playAudioFeedback(secondNav.audio.notes);
+            }
+          }
+          // If no next note found, don't change anything - selection stays put
+          return;
         }
+
+        // Standard case: Navigate to the calculated target
+        select(measureIndex, eventId, noteId || null, staffIndex, { isShift });
       }
 
       // --- 5. Handle Side Effects ---

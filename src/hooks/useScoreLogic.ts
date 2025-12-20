@@ -177,7 +177,6 @@ export const useScoreLogic = (initialScore: any) => {
     currentQuantsPerMeasure,
     dispatch: engine.dispatch.bind(engine),
     inputMode,
-    selectionEngine,
   });
 
   // Tuplet Actions: apply/remove tuplets
