@@ -197,6 +197,7 @@ riffscore/
 │   │   ├── LoadScoreCommand.ts
 │   │   ├── MeasureCommands.ts
 │   │   ├── RemoveTupletCommand.ts
+│   │   ├── SetClefCommand.ts
 │   │   ├── SetGrandStaffCommand.ts
 │   │   ├── SetKeySignatureCommand.ts
 │   │   ├── SetSingleStaffCommand.ts
@@ -211,13 +212,16 @@ riffscore/
 │   │   └── selection/        # Selection commands
 │   │       ├── index.ts      # Exports
 │   │       ├── types.ts
-│   │       ├── SelectEventCommand.ts
-│   │       ├── SelectAllCommand.ts
-│   │       ├── SelectMeasureCommand.ts
-│   │       ├── RangeSelectCommand.ts
+│   │       ├── ClearSelectionCommand.ts
 │   │       ├── LassoSelectCommand.ts
 │   │       ├── NavigateCommand.ts
-│   │       └── SetSelectionCommand.ts
+│   │       ├── RangeSelectCommand.ts
+│   │       ├── SelectAllCommand.ts
+│   │       ├── SelectAllInEventCommand.ts
+│   │       ├── SelectEventCommand.ts
+│   │       ├── SelectMeasureCommand.ts
+│   │       ├── SetSelectionCommand.ts
+│   │       └── ToggleNoteCommand.ts
 │
 │   ├── hooks/                # React hooks (29 files)
 │   │   ├── handlers/         # Event handler modules
@@ -230,6 +234,7 @@ riffscore/
 │   │   ├── useScoreEngine.ts
 │   │   ├── useScoreInteraction.ts
 │   │   ├── useSelection.ts
+│   │   ├── useScoreAPI.ts
 │   │   ├── useHistory.ts
 │   │   ├── useNavigation.ts
 │   │   ├── useNoteActions.ts
@@ -278,7 +283,7 @@ riffscore/
 │   ├── data/                 # Static data
 │   │   └── melodies.ts       # Sample melodies
 │
-│   └── __tests__/            # All tests (34 files)
+│   └── __tests__/            # All tests (43 files)
 │
 ├── demo/                     # Demo Next.js app
 │   ├── app/
@@ -422,11 +427,13 @@ Selection operations use the Command pattern just like score mutations:
 |---------|---------|
 | `SelectEventCommand` | Select a note/event |
 | `SetSelectionCommand` | Raw state replacement |
+| `ClearSelectionCommand` | Clear all selection |
 | `RangeSelectCommand` | Select range between anchor and focus |
 | `SelectAllInEventCommand` | Select all notes in a chord |
 | `SelectAllCommand` | Progressive scope expansion |
 | `SelectMeasureCommand` | Select all events in a measure |
 | `LassoSelectCommand` | Multi-select by bounding box |
+| `ToggleNoteCommand` | Toggle note in multi-selection |
 | `NavigateCommand` | Move cursor (arrow keys) |
 
 </details>
