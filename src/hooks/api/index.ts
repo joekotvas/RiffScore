@@ -6,3 +6,4 @@ export * from './modification';
 export * from './history';
 export * from './playback';
 export * from './io';
+export * from './events';
