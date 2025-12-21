@@ -4,19 +4,26 @@ import { navigateSelection, getFirstNoteId } from '@/utils/core';
 import { SelectEventCommand } from '@/commands/selection';
 
 /**
+ * Navigation method names provided by this factory
+ */
+type NavigationMethodNames = 'move' | 'jump' | 'select' | 'selectById' | 'selectAtQuant';
+
+/**
  * Factory for creating Navigation API methods.
+ *
+ * Uses ThisType<MusicEditorAPI> so `this` is correctly typed without explicit casts.
  *
  * @param ctx - Shared API context
  * @returns Partial API implementation for navigation
  */
-export const createNavigationMethods = (ctx: APIContext): Pick<MusicEditorAPI, 'move' | 'jump' | 'select' | 'selectById' | 'selectAtQuant'> => {
+export const createNavigationMethods = (ctx: APIContext): Pick<MusicEditorAPI, NavigationMethodNames> & ThisType<MusicEditorAPI> => {
   const { scoreRef, selectionRef, syncSelection, selectionEngine } = ctx;
 
   return {
     move(direction) {
       const sel = selectionRef.current;
       const staff = scoreRef.current.staves[sel.staffIndex];
-      if (!staff) return this as unknown as MusicEditorAPI;
+      if (!staff) return this;
 
       const measures = staff.measures;
 
@@ -42,13 +49,13 @@ export const createNavigationMethods = (ctx: APIContext): Pick<MusicEditorAPI, '
         // Vertical navigation (cross-staff logic placeholder - wired in Phase 1.5)
         // For now, no-op or simple behavior can be preserved if it existed
       }
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     jump(target) {
       const sel = selectionRef.current;
       const staff = scoreRef.current.staves[sel.staffIndex];
-      if (!staff || staff.measures.length === 0) return this as unknown as MusicEditorAPI;
+      if (!staff || staff.measures.length === 0) return this;
 
       const measures = staff.measures;
       let targetMeasureIndex: number;
@@ -72,11 +79,11 @@ export const createNavigationMethods = (ctx: APIContext): Pick<MusicEditorAPI, '
           targetEventIndex = Math.max(0, measures[targetMeasureIndex]?.events.length - 1);
           break;
         default:
-          return this as unknown as MusicEditorAPI;
+          return this;
       }
 
       const measure = measures[targetMeasureIndex];
-      if (!measure) return this as unknown as MusicEditorAPI;
+      if (!measure) return this;
 
       const event = measure.events[targetEventIndex];
       const eventId = event?.id ?? null;
@@ -93,7 +100,7 @@ export const createNavigationMethods = (ctx: APIContext): Pick<MusicEditorAPI, '
         anchor: null,
       });
 
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     select(measureNum, staffIndex = 0, eventIndex = 0, noteIndex = 0) {
@@ -111,18 +118,18 @@ export const createNavigationMethods = (ctx: APIContext): Pick<MusicEditorAPI, '
       // Sync the ref for chaining
       selectionRef.current = selectionEngine.getState();
 
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     selectAtQuant(_measureNum, _quant, _staffIndex = 0) {
       // TODO: Implement quant-based selection
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     selectById(eventId, noteId) {
       const sel = selectionRef.current;
       const staff = scoreRef.current.staves[sel.staffIndex];
-      if (!staff) return this as unknown as MusicEditorAPI;
+      if (!staff) return this;
 
       // Find the event and measure containing this eventId
       // TODO: Optimize lookup map
@@ -147,7 +154,7 @@ export const createNavigationMethods = (ctx: APIContext): Pick<MusicEditorAPI, '
           break;
         }
       }
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
   };
 };

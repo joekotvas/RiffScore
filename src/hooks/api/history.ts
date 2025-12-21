@@ -2,25 +2,32 @@ import { MusicEditorAPI } from '@/api.types';
 import { APIContext } from './types';
 
 /**
+ * History method names provided by this factory
+ */
+type HistoryMethodNames = 'undo' | 'redo' | 'beginTransaction' | 'commitTransaction' | 'rollbackTransaction' | 'copy' | 'cut' | 'paste';
+
+/**
  * Factory for creating History API methods.
  * Handles undo/redo, transactions, and clipboard operations.
+ *
+ * Uses ThisType<MusicEditorAPI> so `this` is correctly typed without explicit casts.
  *
  * @param ctx - Shared API context
  * @returns Partial API implementation for history
  */
-export const createHistoryMethods = (ctx: APIContext): Pick<MusicEditorAPI, 'undo' | 'redo' | 'beginTransaction' | 'commitTransaction' | 'rollbackTransaction' | 'copy' | 'cut' | 'paste'> => {
+export const createHistoryMethods = (ctx: APIContext): Pick<MusicEditorAPI, HistoryMethodNames> & ThisType<MusicEditorAPI> => {
   const { history } = ctx;
   const { undo, redo, begin, commit, rollback } = history;
 
   return {
     undo() {
       undo();
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     redo() {
       redo();
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     /**
@@ -29,7 +36,7 @@ export const createHistoryMethods = (ctx: APIContext): Pick<MusicEditorAPI, 'und
      */
     beginTransaction() {
       begin();
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     /**
@@ -39,7 +46,7 @@ export const createHistoryMethods = (ctx: APIContext): Pick<MusicEditorAPI, 'und
     commitTransaction(_label?: string) {
       // Note: label parameter is not used by the current history implementation
       commit();
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     /**
@@ -48,22 +55,22 @@ export const createHistoryMethods = (ctx: APIContext): Pick<MusicEditorAPI, 'und
      */
     rollbackTransaction() {
       rollback();
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     copy() {
       // TODO: Implement
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     cut() {
       // TODO: Implement
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     paste() {
       // TODO: Implement
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
   };
 };

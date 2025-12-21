@@ -3,21 +3,34 @@ import { APIContext } from './types';
 import { Note } from '@/types';
 import { AddEventCommand } from '@/commands/AddEventCommand';
 import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
-import { canAddEventToMeasure } from '@/utils/validation';
+import { canAddEventToMeasure, isValidPitch } from '@/utils/validation';
 import { generateId } from '@/utils/core';
+
+/**
+ * Entry method names provided by this factory
+ */
+type EntryMethodNames = 'addNote' | 'addRest' | 'addTone' | 'makeTuplet' | 'unmakeTuplet' | 'toggleTie' | 'setTie' | 'setInputMode';
 
 /**
  * Factory for creating Entry API methods.
  * Handles note/rest creation, tuplets, and ties.
  *
+ * Uses ThisType<MusicEditorAPI> so `this` is correctly typed without explicit casts.
+ *
  * @param ctx - Shared API context
  * @returns Partial API implementation for entry
  */
-export const createEntryMethods = (ctx: APIContext): Pick<MusicEditorAPI, 'addNote' | 'addRest' | 'addTone' | 'makeTuplet' | 'unmakeTuplet' | 'toggleTie' | 'setTie' | 'setInputMode'> => {
+export const createEntryMethods = (ctx: APIContext): Pick<MusicEditorAPI, EntryMethodNames> & ThisType<MusicEditorAPI> => {
   const { scoreRef, selectionRef, syncSelection, dispatch } = ctx;
 
   return {
     addNote(pitch, duration = 'quarter', dotted = false) {
+      // Validate pitch format
+      if (!isValidPitch(pitch)) {
+        console.warn(`[RiffScore API] addNote failed: Invalid pitch format '${pitch}'. Expected format: 'C4', 'F#5', 'Bb3', etc.`);
+        return this;
+      }
+
       const sel = selectionRef.current;
       let staffIndex = sel.staffIndex;
       let measureIndex = sel.measureIndex;
@@ -31,19 +44,19 @@ export const createEntryMethods = (ctx: APIContext): Pick<MusicEditorAPI, 'addNo
       const staff = scoreRef.current.staves[staffIndex];
       if (!staff || staff.measures.length === 0) {
         console.warn('[RiffScore API] addNote failed: No measures exist in the score');
-        return this as unknown as MusicEditorAPI;
+        return this;
       }
 
       const measure = staff.measures[measureIndex];
       if (!measure) {
         console.warn(`[RiffScore API] addNote failed: Measure ${measureIndex + 1} does not exist`);
-        return this as unknown as MusicEditorAPI;
+        return this;
       }
 
       // Check if measure has capacity for this note
       if (!canAddEventToMeasure(measure.events, duration, dotted)) {
         console.warn(`[RiffScore API] addNote failed: Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} note.`);
-        return this as unknown as MusicEditorAPI;
+        return this;
       }
 
       // Create note payload
@@ -69,7 +82,7 @@ export const createEntryMethods = (ctx: APIContext): Pick<MusicEditorAPI, 'addNo
         anchor: null,
       });
 
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     addRest(duration = 'quarter', dotted = false) {
@@ -86,27 +99,27 @@ export const createEntryMethods = (ctx: APIContext): Pick<MusicEditorAPI, 'addNo
       const staff = scoreRef.current.staves[staffIndex];
       if (!staff || staff.measures.length === 0) {
         console.warn('[RiffScore API] addRest failed: No measures exist in the score');
-        return this as unknown as MusicEditorAPI;
+        return this;
       }
 
       const measure = staff.measures[measureIndex];
       if (!measure) {
         console.warn(`[RiffScore API] addRest failed: Measure ${measureIndex + 1} does not exist`);
-        return this as unknown as MusicEditorAPI;
+        return this;
       }
 
       // Check if measure has capacity for this rest
       if (!canAddEventToMeasure(measure.events, duration, dotted)) {
         console.warn(`[RiffScore API] addRest failed: Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} rest.`);
-        return this as unknown as MusicEditorAPI;
+        return this;
       }
 
       // Dispatch AddEventCommand with isRest=true
       const eventId = generateId();
       dispatch(new AddEventCommand(measureIndex, true, null, duration, dotted, undefined, eventId, staffIndex));
 
-      // Advance cursor
-      const restNoteId = `${eventId}-rest`;
+      // Advance cursor - use generateId for consistency
+      const restNoteId = generateId();
       syncSelection({
         staffIndex,
         measureIndex,
@@ -116,12 +129,18 @@ export const createEntryMethods = (ctx: APIContext): Pick<MusicEditorAPI, 'addNo
         anchor: null,
       });
 
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     addTone(pitch) {
+      // Validate pitch format
+      if (!isValidPitch(pitch)) {
+        console.warn(`[RiffScore API] addTone failed: Invalid pitch format '${pitch}'. Expected format: 'C4', 'F#5', 'Bb3', etc.`);
+        return this;
+      }
+
       const sel = selectionRef.current;
-      if (sel.measureIndex === null || sel.eventId === null) return this as unknown as MusicEditorAPI;
+      if (sel.measureIndex === null || sel.eventId === null) return this;
 
       const staffIndex = sel.staffIndex;
       const measureIndex = sel.measureIndex;
@@ -146,32 +165,32 @@ export const createEntryMethods = (ctx: APIContext): Pick<MusicEditorAPI, 'addNo
         selectedNotes: [{ staffIndex, measureIndex, eventId, noteId }],
       });
 
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     makeTuplet(_numNotes, _inSpaceOf) {
       // TODO: Implement
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     unmakeTuplet() {
       // TODO: Implement
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     toggleTie() {
       // TODO: Implement
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     setTie(_tied) {
       // TODO: Implement
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
 
     setInputMode(_mode) {
       // TODO: Implement
-      return this as unknown as MusicEditorAPI;
+      return this;
     },
   };
 };
