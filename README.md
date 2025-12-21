@@ -68,22 +68,22 @@ That's it! RiffScore renders a fully interactive grand staff editor with sensibl
 
 | Mac | Windows | Action |
 |-----|---------|--------|
-| **Entry** |||
+| **Entry & Editing** |||
 | `1`-`7` | `1`-`7` | Set duration (64th to whole) |
 | `.` | `.` | Toggle dotted |
 | `R` | `R` | Toggle note/rest mode |
 | `T` | `T` | Toggle tie |
 | `Enter` | `Enter` | Insert note/rest at cursor |
-| **Navigation** |||
-| `←` / `→` | `←` / `→` | Previous / Next event |
 | `↑` / `↓` | `↑` / `↓` | Transpose selection |
-| `Cmd+↑/↓` | `Ctrl+↑/↓` | Navigate within chord |
-| `Space` | `Space` | Play / Pause |
-| `Esc` | `Esc` | Clear selection / Cancel |
-| **Selection** |||
+| **Navigation & Selection** |||
+| `←` / `→` | `←` / `→` | Previous / Next event |
 | `Shift+←/→` | `Shift+←/→` | Extend selection horizontally |
+| `Cmd+↑/↓` | `Ctrl+↑/↓` | Navigate within chord |
 | `Cmd+Shift+↑/↓` | `Ctrl+Shift+↑/↓` | Extend selection vertically |
 | `Cmd+A` | `Ctrl+A` | Select all (progressive) |
+| `Esc` | `Esc` | Clear selection / Cancel |
+| **Playback** |||
+| `Space` | `Space` | Play / Pause |
 | **History** |||
 | `Cmd+Z` | `Ctrl+Z` | Undo |
 | `Cmd+Shift+Z` | `Ctrl+Y` | Redo |
