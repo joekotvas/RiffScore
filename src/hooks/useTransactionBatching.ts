@@ -31,16 +31,14 @@ export function useTransactionBatching(engine: ScoreEngine) {
     if (depthRef.current > 0) {
       // In a transaction: Execute immediately to update state, 
       // but DO NOT add to history yet. Buffer it instead.
-      try {
-        const success = engine.dispatch(command, { addToHistory: false });
-        // Only buffer if execution succeeded
-        if (success) {
-          bufferRef.current.push(command);
-        }
-      } catch (error) {
-        // If execution fails, we throw.
-        // Consumer must handle rollback.
-        throw error;
+      const success = engine.dispatch(command, { addToHistory: false });
+      
+      // Only buffer if execution succeeded
+      if (success) {
+        bufferRef.current.push(command);
+      } else {
+        // If execution fails, throw so consumer knows to rollback
+        throw new Error(`Command execution failed: ${command.type}`);
       }
     } else {
       // Normal operation
@@ -102,8 +100,6 @@ export function useTransactionBatching(engine: ScoreEngine) {
     bufferRef.current = [];
     depthRef.current = 0;
     setIsBatching(false);
-    
-    console.log('[RiffScore] Transaction rolled back');
   }, [engine]);
 
   return {
