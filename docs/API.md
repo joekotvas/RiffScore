@@ -52,7 +52,7 @@ The most recently focused or mounted instance.
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `move` | `move(direction)` | ⚠️ Partial | Left/Right work; Up/Down pending. |
+| `move` | `move(direction)` | ✅ | Navigate in any direction (left/right/up/down). |
 | `jump` | `jump(target)` | ✅ | `'start-score'`, `'end-score'`, `'start-measure'`, `'end-measure'`. |
 | `select` | `select(measureNum, staffIndex?, eventIndex?, noteIndex?)` | ✅ | Absolute targeting (1-based measure). |
 | `selectAtQuant` | `selectAtQuant(measureNum, quant, staffIndex?)` | ⏳ | Target by rhythmic position. |

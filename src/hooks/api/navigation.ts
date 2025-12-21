@@ -1,6 +1,7 @@
 import { MusicEditorAPI } from '@/api.types';
 import { APIContext } from './types';
 import { navigateSelection, getFirstNoteId } from '@/utils/core';
+import { calculateVerticalNavigation } from '@/utils/navigation/vertical';
 import { SelectEventCommand } from '@/commands/selection';
 
 /**
@@ -22,7 +23,8 @@ export const createNavigationMethods = (ctx: APIContext): Pick<MusicEditorAPI, N
   return {
     move(direction) {
       const sel = selectionRef.current;
-      const staff = scoreRef.current.staves[sel.staffIndex];
+      const score = scoreRef.current;
+      const staff = score.staves[sel.staffIndex];
       if (!staff) return this;
 
       const measures = staff.measures;
@@ -46,8 +48,34 @@ export const createNavigationMethods = (ctx: APIContext): Pick<MusicEditorAPI, N
           anchor: null,
         });
       } else if (direction === 'up' || direction === 'down') {
-        // Vertical navigation (cross-staff logic placeholder - wired in Phase 1.5)
-        // For now, no-op or simple behavior can be preserved if it existed
+        // Use calculateVerticalNavigation for cross-staff and chord navigation
+        // Note: activeDuration defaults to 'quarter' - if needed, expose via API context
+        const result = calculateVerticalNavigation(
+          score,
+          sel,
+          direction,
+          'quarter', // Default duration for ghost cursor creation
+          false,     // Default dotted state
+          null       // No preview note in API context
+        );
+
+        if (result?.selection) {
+          syncSelection({
+            ...result.selection,
+            selectedNotes: result.selection.eventId && result.selection.measureIndex !== null
+              ? [
+                  {
+                    staffIndex: result.selection.staffIndex,
+                    measureIndex: result.selection.measureIndex,
+                    eventId: result.selection.eventId,
+                    noteId: result.selection.noteId,
+                  },
+                ]
+              : [],
+            anchor: null,
+          });
+        }
+        // Note: Ghost cursor (previewNote) is handled by the UI layer, not the API
       }
       return this;
     },
