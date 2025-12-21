@@ -269,12 +269,13 @@ riffscore/
 │   │   ├── ScoreContext.tsx
 │   │   └── ThemeContext.tsx
 │
-│   ├── utils/                # Utility functions (10 files)
+│   ├── utils/                # Utility functions (11 files)
 │   │   ├── core.ts           # Duration math
 │   │   ├── generateScore.ts  # Template → staves
 │   │   ├── mergeConfig.ts    # Deep merge
 │   │   ├── selection.ts      # Selection utilities
 │   │   ├── interaction.ts    # Interaction utilities
+│   │   ├── verticalStack.ts  # Vertical selection (metrics, stacks)
 │   │   ├── validation.ts     # Score validation
 │   │   ├── accidentalContext.ts
 │   │   ├── commandHelpers.ts
@@ -487,7 +488,12 @@ Selection
   ├── selectedNotes: Array<{      // Multi-selection support
   │     staffIndex, measureIndex, eventId, noteId
   │   }>
-  └── anchor?: { ... } | null     // Range selection anchor
+  ├── anchor?: { ... } | null     // Range selection anchor
+  └── verticalAnchors?: {         // Vertical extension state
+        direction: 'up' | 'down'
+        sliceAnchors: Record<time, SelectedNote>
+        originSelection: SelectedNote[]
+      }
 ```
 
 ### Configuration
