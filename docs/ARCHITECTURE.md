@@ -216,6 +216,7 @@ riffscore/
 │   │       ├── LassoSelectCommand.ts
 │   │       ├── NavigateCommand.ts
 │   │       ├── RangeSelectCommand.ts
+│   │       ├── ExtendSelectionVerticallyCommand.ts
 │   │       ├── SelectAllCommand.ts
 │   │       ├── SelectAllInEventCommand.ts
 │   │       ├── SelectEventCommand.ts
@@ -429,6 +430,7 @@ Selection operations use the Command pattern just like score mutations:
 | `SetSelectionCommand` | Raw state replacement |
 | `ClearSelectionCommand` | Clear all selection |
 | `RangeSelectCommand` | Select range between anchor and focus |
+| `ExtendSelectionVerticallyCommand` | Extend vertical selection (Slice-Based) |
 | `SelectAllInEventCommand` | Select all notes in a chord |
 | `SelectAllCommand` | Progressive scope expansion |
 | `SelectMeasureCommand` | Select all events in a measure |

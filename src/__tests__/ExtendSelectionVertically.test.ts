@@ -268,17 +268,23 @@ describe('ExtendSelectionVerticallyCommand', () => {
       expect(result.selectedNotes.some(n => n.eventId === 'bass-e0')).toBe(true);
     });
 
-    test('implicitly fills entire anchor chord when crossing to bass', () => {
+    test('does not fill anchor chord when crossing to bass', () => {
       const score = createTestScore();
-      const state = createSelectionWithNote(0, 0, 'e0', 'n0'); // C4 only (partial chord)
+      const state = createSelectionWithNote(0, 0, 'e0', 'n0'); // C4 only
 
       const cmd = new ExtendSelectionVerticallyCommand({ direction: 'down' });
       const result = cmd.execute(state, score);
 
-      // The anchor's event (e0) should be fully selected (C4, E4, G4)
+      // Should ONLY select C4 and the next note down (G3 in bass)
+      // E4 and G4 should NOT be selected
       const trebleNotes = result.selectedNotes.filter(n => n.staffIndex === 0 && n.eventId === 'e0');
-      expect(trebleNotes).toHaveLength(3); // All 3 notes in the chord
-      expect(trebleNotes.map(n => n.noteId)).toEqual(expect.arrayContaining(['n0', 'n1', 'n2']));
+      expect(trebleNotes).toHaveLength(1); // C4 only
+      expect(trebleNotes[0].noteId).toBe('n0');
+      
+      const bassNotes = result.selectedNotes.filter(n => n.staffIndex === 1);
+      expect(bassNotes.length).toBeGreaterThan(0);
+      // G3 is bass-n1
+      expect(bassNotes.map(n => n.noteId)).toContain('bass-n1');
     });
 
     test('at bottom staff lowest note, extend down is no-op', () => {
