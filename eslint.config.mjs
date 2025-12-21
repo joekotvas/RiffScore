@@ -1,6 +1,7 @@
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
+import testingLibrary from "eslint-plugin-testing-library";
 import globals from "globals";
 import prettier from "eslint-config-prettier";
 
@@ -58,11 +59,16 @@ export default tseslint.config(
         ...globals.node
       }
     },
+    plugins: {
+      "testing-library": testingLibrary
+    },
     rules: {
       // Relaxed rules for tests
       ...sharedRules,
       "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-require-imports": "off"
+      "@typescript-eslint/no-require-imports": "off",
+      // Testing Library best practices
+      ...testingLibrary.configs.react.rules
     }
   },
   

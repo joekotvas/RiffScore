@@ -77,28 +77,39 @@
 
 ---
 
-### 🔲 Phase 2g: Testing Enhancement (NEW)
+### 🔲 Phase 2g: Testing Enhancement
 
-**Goal:** Evaluate and implement enhanced testing capabilities to improve test reliability, coverage, and developer experience.
+**Goal:** Improve test reliability, coverage, and developer experience.
 
-#### Evaluation Areas
-- [ ] Assess current test infrastructure (`jest`, `@testing-library/react`)
-- [ ] Evaluate snapshot testing for score state verification
-- [ ] Consider visual regression testing for rendered output
-- [ ] Explore property-based testing for selection logic
-- [ ] Review test helper patterns and fixtures
+**Evaluation:** [testing_enhancement_evaluation.md](./testing_enhancement_evaluation.md)
 
-#### Potential Improvements
-- [ ] Create reusable test score builders
-- [ ] Add test coverage reporting
-- [ ] Implement E2E testing with Playwright/Cypress
-- [ ] Create visual diff tooling for score rendering
-- [ ] Add performance benchmarks for critical paths
+#### Phase A: Infrastructure ⬜
+- [ ] Install `@testing-library/user-event`
+- [ ] Install `eslint-plugin-testing-library` + configure
+- [ ] Create `setupTests.ts` with global jest-dom
+- [ ] Add coverage config (75% threshold) + `test:coverage` script
 
-#### Deliverables
-- [ ] Testing enhancement proposal document
-- [ ] Implementation of approved improvements
-- [ ] Documentation updates to `TESTING.md`
+#### Phase B: Command Tests (14 files) ⬜
+- [ ] Migrate pure command tests to new patterns
+
+#### Phase C: Engine/API Tests (10 files) ⬜
+- [ ] Migrate engine and API tests, add userEvent where applicable
+
+#### Phase D: Hook/Component Tests (14 files) ⬜
+- [ ] Migrate RTL tests to userEvent pattern
+
+#### Phase E: Utility Tests (10 files) ⬜
+- [ ] Migrate utility and integration tests
+
+#### Phase F: Documentation ⬜
+- [ ] Create `docs/TESTING_ANTIPATTERNS.md`
+- [ ] Update `docs/TESTING.md`
+- [ ] Update progress tracker
+
+#### Deferred
+- Property-based testing (fast-check)
+- Visual regression (Playwright)
+- E2E testing (Playwright)
 
 ---
 
