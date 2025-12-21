@@ -123,14 +123,11 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     toggleInputMode,
   } = tools;
 
-  // --- SELECTION & PREVIEW STATE ---
   const {
     selection,
     setSelection,
     select,
     clearSelection,
-    updateSelection: _updateSelection,
-    selectAllInMeasure: _selectAllInMeasure,
     lastSelection,
     engine: selectionEngine,
   } = useSelection({ score });
@@ -191,8 +188,7 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     }
   }, [selection, score, setActiveAccidental, setActiveTie, setInputMode, inputMode]);
 
-  // Deprecated shim
-  const syncToolbarState = useCallback(() => {}, []);
+
 
   // --- COMPOSED HOOKS ---
 
@@ -211,7 +207,6 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     setSelection, // Still passed but might be unused if we fully switched
     select,
     setPreviewNote,
-    syncToolbarState, // Deprecated
     activeDuration,
     isDotted,
     activeAccidental,
