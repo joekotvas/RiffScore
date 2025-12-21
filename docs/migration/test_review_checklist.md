@@ -35,9 +35,25 @@ Use this checklist when reviewing each test file during Phase 2g migration.
 - [ ] Remove unnecessary `act()` wrappers
 - [ ] Remove redundant `await waitFor()` around sync assertions
 
-### 6. Documentation
-- [ ] Add/update JSDoc if test purpose is unclear
-- [ ] Document any discovered anti-patterns in `TESTING_ANTIPATTERNS.md`
+### 6. Test Quality Evaluation
+- [ ] **Happy paths**: Core functionality tested with valid inputs
+- [ ] **Edge cases**: Boundary conditions (empty arrays, null, max values)
+- [ ] **Exception paths**: Invalid inputs, error states, recovery
+
+### 7. Fixture Consolidation
+- [ ] Identify duplicate test score creation across files
+- [ ] Move reusable fixtures to `__tests__/fixtures/` or `__tests__/helpers/`
+- [ ] Use factory functions (e.g., `createTestScore()`) over inline objects
+- [ ] Export fixtures for cross-file reuse
+
+### 8. Documentation (per CONTRIBUTING.md)
+- [ ] Add file-level JSDoc describing test file purpose and coverage
+- [ ] Use `@see` to link to tested command/function
+- [ ] Add `@tested` annotation to source functions with coverage
+- [ ] Use implementation note prefixes where helpful:
+  - `// NOTE:` — Important context
+  - `// BUG FIX #XX:` — Regression test for specific issue
+  - `// EDGE CASE:` — Non-obvious boundary test
 
 ---
 
@@ -81,7 +97,7 @@ describe('MyComponent', () => {
 
 | Phase | Files | Status |
 | :--- | :---: | :--- |
-| B | 14 command tests | ✅ Complete (1 fix) |
+| B | 14 command tests | ✅ Complete (1 fix, 6 JSDoc added) |
 | C | 10 engine/API tests | ⬜ |
 | D | 14 hook/component tests | ⬜ |
 | E | 10 utility tests | ⬜ |

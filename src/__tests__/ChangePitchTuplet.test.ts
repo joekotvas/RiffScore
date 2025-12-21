@@ -1,3 +1,13 @@
+/**
+ * ChangePitchCommand + Tuplet Integration Test
+ *
+ * Tests that changing pitch on a tuplet note preserves tuplet structure.
+ * Regression test for tuplet corruption issues.
+ *
+ * @see ChangePitchCommand
+ * @see ApplyTupletCommand
+ */
+
 import { ChangePitchCommand } from '@/commands/ChangePitchCommand';
 import { createDefaultScore, ScoreEvent } from '@/types';
 import { ApplyTupletCommand } from '@/commands/TupletCommands';
