@@ -523,6 +523,15 @@ Key signature, time signature, and pickup measures apply to all staves. `Alt + U
 ### Tests are consolidated
 All tests live in `__tests__/`. Current coverage: Services 98%, Utils 87%, Commands 79%, Hooks 62%.
 
+### 2D Selection Model
+Vertical selection treats the score as a **2D grid** where:
+- **Time** is the horizontal axis (`measureIndex × 100000 + quant`)
+- **Vertical Metric** combines staff and pitch into a single ordering (`(100 - staffIndex) × 1000 + midi`)
+
+This unified model allows natural rectangular selection and predictable expand/contract behavior regardless of whether notes are in the same chord, different chords, or different staves. By computing a single numeric metric, we avoid special-case logic for "within chord" vs "cross-staff"—both are just steps in the vertical stack.
+
+See [verticalStack.ts](../src/utils/verticalStack.ts) for the `calculateVerticalMetric()` formula and [KEYBOARD_NAVIGATION.md](./KEYBOARD_NAVIGATION.md#vertical-selection-cmd--shift--updown) for the full algorithm.
+
 </details>
 
 ---
