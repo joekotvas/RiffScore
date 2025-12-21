@@ -93,9 +93,6 @@ export class ExtendSelectionVerticallyCommand implements SelectionCommand {
       state.verticalAnchors.originSelection,
       state.selectedNotes
     );
-    
-    // eslint-disable-next-line no-console
-    console.info(`EXTEND VERTICAL: ${isFirstCall ? 'FIRST CALL' : 'CONTINUATION'} (direction: ${this.direction})`);
 
     // 3. Group current selection by Time Slice
     const slices = new Map<number, VerticalPoint[]>();
