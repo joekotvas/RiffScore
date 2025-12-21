@@ -2,18 +2,21 @@ import { NOTE_TYPES, TIME_SIGNATURES } from '@/constants';
 import { Measure, ScoreEvent, Note, Selection } from '@/types';
 
 /**
+ * Basic ID generator.
+ * Uses crypto.randomUUID() when available, falls back to timestamp + random string.
+ */
+export const generateId = (): string =>
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+/**
  * Calculates the duration of a note in quants.
  * @param type - The note type (e.g., 'quarter', 'eighth')
  * @param dotted - Whether the note is dotted (adds 50% duration)
  * @param tuplet - Optional tuplet ratio (e.g., [3, 2] for triplet)
  * @returns Duration in quants
  */
-// Basic ID generator
-export const generateId = (): string =>
-  typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-
 export const getNoteDuration = (duration: string, dotted: boolean = false, tuplet?: { ratio: [number, number]; groupSize?: number; position?: number; baseDuration?: string; id?: string }): number => {
   const base = NOTE_TYPES[duration].duration;
   const dottedValue = dotted ? base * 1.5 : base;

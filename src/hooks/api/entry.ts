@@ -118,8 +118,8 @@ export const createEntryMethods = (ctx: APIContext): Pick<MusicEditorAPI, EntryM
       const eventId = generateId();
       dispatch(new AddEventCommand(measureIndex, true, null, duration, dotted, undefined, eventId, staffIndex));
 
-      // Advance cursor - use generateId for consistency
-      const restNoteId = generateId();
+      // Advance cursor - use the same rest note ID pattern as AddEventCommand
+      const restNoteId = `${eventId}-rest`;
       syncSelection({
         staffIndex,
         measureIndex,

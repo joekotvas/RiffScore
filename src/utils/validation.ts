@@ -3,10 +3,10 @@ import { getNoteDuration, calculateTotalQuants } from './core';
 
 /**
  * Regex pattern for scientific pitch notation.
- * Matches: A-G, optional accidentals (# or b, double sharp ## or double flat bb), octave 0-9
- * Examples: "C4", "F#5", "Bb3", "G##7", "Ebb2"
+ * Matches: A-G, optional accidentals (# or b, double sharp ## or double flat bb), octave number (0 or higher)
+ * Examples: "C4", "F#5", "Bb3", "G##7", "Ebb2", "C10"
  */
-const PITCH_PATTERN = /^[A-G](#{1,2}|b{1,2})?\d$/;
+const PITCH_PATTERN = /^[A-G](#{1,2}|b{1,2})?\d+$/;
 
 /**
  * Validates if a pitch string is in valid scientific notation format.

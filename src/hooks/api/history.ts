@@ -42,9 +42,11 @@ export const createHistoryMethods = (ctx: APIContext): Pick<MusicEditorAPI, Hist
     /**
      * Commit the current transaction batch.
      * Bundles buffered commands into a single history entry.
+     *
+     * @param _label - Reserved for future use. Currently ignored by the history implementation.
      */
     commitTransaction(_label?: string) {
-      // Note: label parameter is not used by the current history implementation
+      // TODO: Pass label to history.commit() when label support is added
       commit();
       return this;
     },
