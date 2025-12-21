@@ -4,24 +4,14 @@
  * Tests for the window.riffScore registry and API chainability.
  */
 
-import { render, cleanup } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { RiffScore } from '../RiffScore';
 
-// Extend Window interface for tests
-declare global {
-  interface Window {
-    riffScore: {
-      instances: Map<string, unknown>;
-      get(id: string): unknown | undefined;
-      active: unknown | null;
-    };
-  }
-}
+// Note: window.riffScore typing is provided globally by src/hooks/useScoreAPI.ts
 
 describe('Registry', () => {
   afterEach(() => {
-    cleanup();
-    // Clean up registry between tests
+    // Clean up registry between tests (RTL auto-cleans DOM)
     if (window.riffScore) {
       window.riffScore.instances.clear();
       window.riffScore.active = null;
@@ -63,7 +53,7 @@ describe('Registry', () => {
 });
 
 describe('Data Methods', () => {
-  afterEach(cleanup);
+  // RTL auto-cleans after each test
 
   test('getScore() returns current score', () => {
     render(<RiffScore id="data-test" />);
@@ -99,7 +89,7 @@ describe('Data Methods', () => {
 });
 
 describe('Chainability', () => {
-  afterEach(cleanup);
+  // RTL auto-cleans after each test
 
   test('methods return this for chaining', () => {
     render(<RiffScore id="chain-test" />);
@@ -122,7 +112,7 @@ describe('Chainability', () => {
 
 describe('Entry Methods', () => {
   afterEach(() => {
-    cleanup();
+    // Clean up registry between tests (RTL auto-cleans DOM)
     if (window.riffScore) {
       window.riffScore.instances.clear();
       window.riffScore.active = null;
@@ -199,7 +189,7 @@ describe('Entry Methods', () => {
 
 describe('Navigation Methods', () => {
   afterEach(() => {
-    cleanup();
+    // Clean up registry between tests (RTL auto-cleans DOM)
     if (window.riffScore) {
       window.riffScore.instances.clear();
       window.riffScore.active = null;
@@ -219,13 +209,13 @@ describe('Navigation Methods', () => {
 
   test('move("right") advances cursor', () => {
     render(<RiffScore id="nav-move-test" />);
-    const api = window.riffScore.get('nav-move-test') as {
-      select(m: number): unknown;
-      addNote(pitch: string): unknown;
-      addNote(pitch: string): unknown;
-      move(direction: string): unknown;
+    interface ChainableAPI {
+      select(m: number): ChainableAPI;
+      addNote(pitch: string): ChainableAPI;
+      move(direction: string): ChainableAPI;
       getSelection(): { eventId: unknown };
-    };
+    }
+    const api = window.riffScore.get('nav-move-test') as ChainableAPI;
 
     // Add two notes first
     api.select(1).addNote('C4').addNote('D4');

@@ -1,3 +1,11 @@
+/**
+ * useScoreLogic Integration Tests
+ *
+ * Tests for core score logic: add, delete, duration change, accidental toggle.
+ *
+ * @see useScoreLogic
+ */
+
 import { renderHook, act } from '@testing-library/react';
 import { useScoreLogic } from '@/hooks/useScoreLogic';
 import { createDefaultScore } from '@/types';

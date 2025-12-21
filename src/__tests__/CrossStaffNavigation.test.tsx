@@ -1,3 +1,12 @@
+/**
+ * Cross-Staff Navigation Tests
+ *
+ * Tests for Alt+Arrow navigation between staves in grand staff.
+ * Covers: switchStaff, quant alignment, empty measure handling.
+ *
+ * @see useNavigation
+ */
+
 import { renderHook, act } from '@testing-library/react';
 import { useNavigation } from '@/hooks/useNavigation';
 import { Score, Measure } from '@/types';
@@ -89,7 +98,6 @@ describe('Cross-Staff Navigation (Alt+Arrows)', () => {
       }
     });
     const setPreviewNote = jest.fn();
-    const syncToolbarState = jest.fn();
     const dispatch = jest.fn();
 
     const select = jest.fn((measureIndex, eventId, noteId, staffIndex) => {
@@ -154,7 +162,6 @@ describe('Cross-Staff Navigation (Alt+Arrows)', () => {
       }
     });
     const setPreviewNote = jest.fn();
-    const syncToolbarState = jest.fn();
     const dispatch = jest.fn();
 
     const select = jest.fn((measureIndex, eventId, noteId, staffIndex) => {
@@ -215,7 +222,6 @@ describe('Cross-Staff Navigation (Alt+Arrows)', () => {
       }
     });
     const setPreviewNote = jest.fn();
-    const syncToolbarState = jest.fn();
     const dispatch = jest.fn();
 
     const select = jest.fn((measureIndex, eventId, noteId, staffIndex) => {
@@ -343,7 +349,6 @@ describe('Cross-Staff Navigation (Alt+Arrows)', () => {
     const setPreviewNote = jest.fn((note) => {
       capturedPreviewNote = note;
     });
-    const syncToolbarState = jest.fn();
     const dispatch = jest.fn();
 
     const select = jest.fn((measureIndex, eventId, noteId, staffIndex) => {
