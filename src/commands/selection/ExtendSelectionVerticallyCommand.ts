@@ -49,10 +49,10 @@ export class ExtendSelectionVerticallyCommand implements SelectionCommand {
     // Return state for safety.
     if (!anchorPt) return state;
 
+    // DEBUG LOGS
+    console.log('DEBUG: Anchor', anchorPt?.midi, 'FocusNoteId', state.noteId);
+    
     // 3. Determine Global Orientation
-    // Orientation determines which 'edge' of the selection moves in each slice.
-    // UP: The TOP edge moves. (Bottom is anchor).
-    // DOWN: The BOTTOM edge moves. (Top is anchor).
     let orientation: 'up' | 'down' = 'down'; // Default
     
     // Heuristic: Check relationship between Anchor and Focus (state.noteId)
@@ -64,15 +64,20 @@ export class ExtendSelectionVerticallyCommand implements SelectionCommand {
         if (focusPt) {
            const metricA = this.calculateVerticalMetric(anchorPt.staffIndex, anchorPt.midi);
            const metricF = this.calculateVerticalMetric(focusPt.staffIndex, focusPt.midi);
+           console.log('DEBUG: Metrics A:', metricA, 'F:', metricF);
+           
            if (metricF > metricA) orientation = 'up'; // Visual UP (Higher Pitch)
            else if (metricF < metricA) orientation = 'down'; // Visual DOWN (Lower Pitch)
         }
+      } else {
+         console.log('DEBUG: Focus note not found in selection');
       }
     } else {
        // Neutral state (Anchor == Focus): Use input direction to establish orientation
        orientation = this.direction === 'up' ? 'up' : 'down'; 
        if (this.direction === 'all') orientation = 'down'; 
     }
+    console.log('DEBUG: Orientation:', orientation);
 
     // 4. Group by Time Slice
     const slices = new Map<number, VerticalPoint[]>();

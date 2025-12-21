@@ -466,6 +466,43 @@ describe('ExtendSelectionVerticallyCommand', () => {
       // No change - at boundary, nowhere to go  
       expect(result).toBe(state);
     });
+    });
   });
-});
+
+  describe('bug reproduction: full event expansion', () => {
+    test('expands in direction if event is fully selected (overriding anchor logic)', () => {
+      const score = createTestScore();
+      // Fully select M0.e0 (G4, E4, C4).
+      // Simulate "Bottom-Up" creation: Anchor=C4(Bottom), Focus=G4(Top).
+      // n0=G4(Top), n1=E4, n2=C4(Bottom)
+      const state: Selection = {
+        staffIndex: 0,
+        measureIndex: 0,
+        eventId: 'e0',
+        noteId: 'n0', // Focus G4 (Top)
+        selectedNotes: [
+          { staffIndex: 0, measureIndex: 0, eventId: 'e0', noteId: 'n2' }, // C4
+          { staffIndex: 0, measureIndex: 0, eventId: 'e0', noteId: 'n1' }, // E4
+          { staffIndex: 0, measureIndex: 0, eventId: 'e0', noteId: 'n0' }, // G4
+        ],
+        anchor: { staffIndex: 0, measureIndex: 0, eventId: 'e0', noteId: 'n2' }, // Anchor C4 (Bottom)
+      };
+
+      // Cmd 'down'.
+      // Current Behavior (Bug): Contracts to [G4] (if anchor switched) or [C4] (if anchor preserved but focus top moves down).
+      // Expectation: Expand to Bass.
+      const cmd = new ExtendSelectionVerticallyCommand({ direction: 'down' });
+      const result = cmd.execute(state, score);
+      
+      // Should include Bass note (n3 in m0 e0 on staff 1)
+      const hasBass = result.selectedNotes.some(n => n.staffIndex === 1);
+      
+      // Also check that we didn't lose the Treble notes (which contraction would do)
+      const trebleNotes = result.selectedNotes.filter(n => n.staffIndex === 0);
+
+      expect(hasBass).toBe(true);
+      expect(trebleNotes.length).toBe(3); 
+    });
+  });
+
 
