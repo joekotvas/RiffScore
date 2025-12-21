@@ -45,7 +45,7 @@ export const ScoreProvider: React.FC<ScoreProviderProps> = ({ children, initialS
     (val: string) => {
       const newClef = String(val).trim();
       if (newClef === 'grand') {
-        setGrandStaff(true);
+        setGrandStaff();
       } else if (staffCount >= 2) {
         // Switching from grand staff to single clef - show confirmation
         setPendingClefChange({ targetClef: newClef as 'treble' | 'bass' });

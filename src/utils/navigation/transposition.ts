@@ -6,7 +6,7 @@
  * @tested interactionUtils.test.ts
  */
 
-import { movePitchVisual, getMidi } from '@/services/MusicService';
+import { movePitchVisual } from '@/services/MusicService';
 import { PIANO_RANGE } from '@/constants';
 import {
   Measure,

@@ -124,7 +124,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
 
     // 5. Structure (Measures, Staff)
     const { add: addMeasure, remove: removeMeasure, togglePickup, setTimeSignature: handleTimeSignatureChange, setKeySignature: handleKeySignatureChange } = ctx.measures;
-    const handleClefChange = ctx.measures.setGrandStaff; // Maps to setGrandStaff for now
+    const { handleClefChange } = ctx; // Get from ScoreContext which has proper clef handling logic
 
     // 6. Advanced (Tuplets)
     const { apply: applyTuplet, remove: removeTuplet, canApply: canApplyTuplet, activeRatio: activeTupletRatio } = ctx.tuplets;

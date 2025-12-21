@@ -57,7 +57,7 @@ const ScoreEditorContent = ({
   const scoreLogic = useScoreContext();
   
   // Grouped API destructuring
-  const { score, selection, previewNote } = scoreLogic.state;
+  const { score, selection } = scoreLogic.state;
   const { dispatch, scoreRef } = scoreLogic.engines;
   const { activeDuration, isDotted, activeAccidental } = scoreLogic.tools;
   const { select: handleNoteSelection, focus: focusScore } = scoreLogic.navigation;

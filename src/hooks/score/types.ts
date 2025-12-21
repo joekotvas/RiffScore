@@ -87,7 +87,7 @@ export interface ScoreMeasuresGroup {
   setTimeSignature: (sig: string) => void;
   setKeySignature: (key: string) => void;
   togglePickup: () => void;
-  setGrandStaff: (enabled: boolean) => void;
+  setGrandStaff: () => void;
 }
 
 /**
@@ -142,7 +142,13 @@ export interface UseScoreLogicGroupedReturn {
   modifiers: ScoreModifiersGroup;
   measures: ScoreMeasuresGroup;
   tuplets: ScoreTupletsGroup;
-  history: ScoreHistoryGroup;
+  historyAPI: ScoreHistoryGroup;
   engines: ScoreEnginesGroup;
   derived: ScoreDerivedGroup;
+  
+  // Additional top-level exports
+  setSelection: (selection: Selection) => void;
+  setPreviewNote: (note: PreviewNote | null) => void;
+  clearSelection: () => void;
+  currentQuantsPerMeasure: number;
 }
