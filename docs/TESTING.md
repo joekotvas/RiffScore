@@ -22,8 +22,15 @@ src/__tests__/
 ├── SelectionEngine.test.ts
 ├── ExtendSelectionVertically.test.ts
 ├── verticalStack.test.ts     # Utility tests
+├── ScoreAPI.registry.test.tsx   # API registry tests
+├── ScoreAPI.transactions.test.tsx # API history tests
+├── ScoreAPI.events.test.tsx     # API subscription tests
+├── ScoreAPI.navigation.test.tsx # API navigation tests (20 tests)
+├── ScoreAPI.entry.test.tsx      # API entry tests (15 tests)
 └── ...
 ```
+
+> **See also**: [API Test Coverage Analysis](./migration/api_test_coverage.md) for detailed coverage by method.
 
 ---
 
@@ -194,7 +201,73 @@ describe('SelectionEngine', () => {
 
 ---
 
-## 6. Testing Utilities
+## 6. Testing the ScoreAPI
+
+The fluent API is tested by rendering `<RiffScore />` and accessing it via the global registry.
+
+### Pattern: Registry Access
+
+```typescript
+import { render } from '@testing-library/react';
+import { RiffScore } from '../RiffScore';
+import type { MusicEditorAPI } from '../api.types';
+
+const getAPI = (id: string): MusicEditorAPI => {
+  return window.riffScore.get(id) as MusicEditorAPI;
+};
+
+describe('API Navigation', () => {
+  afterEach(() => {
+    window.riffScore.instances.clear();
+    window.riffScore.active = null;
+  });
+
+  test('move("right") advances cursor', () => {
+    render(<RiffScore id="nav-test" />);
+    const api = getAPI('nav-test');
+
+    api.select(1, 0, 0);
+    const before = api.getSelection().eventId;
+    
+    api.move('right');
+    const after = api.getSelection().eventId;
+    
+    expect(after).not.toBe(before);
+  });
+});
+```
+
+### Pattern: Verify Selection (Not Event Count)
+
+When testing entry methods, verify via **selection state** rather than event count. The `getScore()` method may return stale data in test environments.
+
+```typescript
+// ✅ Good - selection is authoritative
+test('addNote succeeds', () => {
+  api.select(1).addNote('C4');
+  expect(api.getSelection().eventId).toBeDefined();
+});
+
+// ⚠️ Fragile - may return stale data
+test('addNote adds event', () => {
+  api.select(1).addNote('C4');
+  expect(api.getScore().staves[0].measures[0].events).toHaveLength(1);
+});
+```
+
+### Pattern: Custom Staves via Config
+
+Navigation tests can use custom scores via `config.score.staves`:
+
+```typescript
+const customStaves = [{ id: 'treble', clef: 'treble', measures: [...] }];
+
+render(<RiffScore id="custom" config={{ score: { staves: customStaves } }} />);
+```
+
+---
+
+## 7. Testing Utilities
 
 ### Pure Function Tests
 
@@ -222,7 +295,7 @@ describe('collectVerticalStack', () => {
 
 ---
 
-## 7. Mocking Context
+## 8. Mocking Context
 
 ### Mock Score Context
 
@@ -246,7 +319,7 @@ render(
 
 ---
 
-## 8. Coverage Targets
+## 9. Coverage Targets
 
 | Area | Target | Current |
 |------|--------|---------|
@@ -265,7 +338,7 @@ Components can rely more on integration/E2E tests.
 
 ---
 
-## 9. Common Patterns
+## 10. Common Patterns
 
 ### `@tested` Annotation
 
