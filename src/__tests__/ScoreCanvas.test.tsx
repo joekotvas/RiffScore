@@ -1,5 +1,12 @@
+/**
+ * ScoreCanvas Tests
+ *
+ * Tests for ScoreCanvas component rendering and measure interaction.
+ *
+ * @see ScoreCanvas
+ */
+
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import ScoreCanvas from '@/components/Canvas/ScoreCanvas';
 import { createDefaultScore } from '@/types';
 import { ThemeProvider } from '@/context/ThemeContext';

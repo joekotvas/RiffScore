@@ -1,6 +1,14 @@
+/**
+ * Multi-Note Selection Tests
+ *
+ * Integration tests for CMD+Click multi-selection behavior.
+ * Covers: add to selection, toggle, single-click reset.
+ *
+ * @see handleNoteSelection
+ */
+
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import ScoreEditor from '@components/Layout/ScoreEditor';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { createDefaultScore } from '@/types';

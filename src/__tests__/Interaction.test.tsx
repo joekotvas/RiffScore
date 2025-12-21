@@ -1,6 +1,14 @@
+/**
+ * ScoreEditor Interaction Tests
+ *
+ * Integration tests for mouse/keyboard interaction with ScoreEditor.
+ * Covers: note entry, deletion, cursor advance, multi-select.
+ *
+ * @see ScoreEditor
+ */
+
 import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import ScoreEditor from '@components/Layout/ScoreEditor';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { createDefaultScore } from '@/types';

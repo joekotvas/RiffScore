@@ -1,6 +1,14 @@
+/**
+ * Bass Clef Selection Tests
+ *
+ * Tests for staffIndex propagation in grand staff selection.
+ * Verifies bass staff clicks pass correct staffIndex.
+ *
+ * @see ScoreCanvas
+ */
+
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import ScoreCanvas from '@/components/Canvas/ScoreCanvas';
 import { createDefaultScore } from '@/types';
 import { ThemeProvider } from '@/context/ThemeContext';

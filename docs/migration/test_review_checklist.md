@@ -99,5 +99,5 @@ describe('MyComponent', () => {
 | :--- | :---: | :--- |
 | B | 14 command tests | ✅ Complete (1 fix, 6 JSDoc added) |
 | C | 10 engine/API tests | ✅ Complete (1 cleanup fix, 6 JSDoc) |
-| D | 14 hook/component tests | ⬜ |
+| D | 14 hook/component tests | ✅ Complete (6 jest-dom removed, 12 JSDoc) |
 | E | 10 utility tests | ⬜ |
