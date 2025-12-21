@@ -232,6 +232,18 @@ riffscore/
 │   │       └── ToggleNoteCommand.ts
 │
 │   ├── hooks/                # React hooks (29 files)
+│   │   ├── api/              # API factory modules
+│   │   │   ├── index.ts      # Barrel exports
+│   │   │   ├── types.ts      # APIContext interface
+│   │   │   ├── navigation.ts # move, jump, select, selectById
+│   │   │   ├── selection.ts  # selectAll, extend*, selectFullEvents
+│   │   │   ├── entry.ts      # addNote, addRest, addTone, tuplets
+│   │   │   ├── modification.ts # setPitch, transpose, structure
+│   │   │   ├── history.ts    # undo, redo, transactions
+│   │   │   ├── playback.ts   # play, pause, stop
+│   │   │   ├── io.ts         # loadScore, reset, export
+│   │   │   └── events.ts     # on() subscription wrapper
+│   │   │
 │   │   ├── handlers/         # Event handler modules
 │   │   │   ├── handleMutation.ts
 │   │   │   ├── handleNavigation.ts
@@ -242,7 +254,8 @@ riffscore/
 │   │   ├── useScoreEngine.ts
 │   │   ├── useScoreInteraction.ts
 │   │   ├── useSelection.ts
-│   │   ├── useScoreAPI.ts
+│   │   ├── useScoreAPI.ts    # Composes all api/ factories
+│   │   ├── useAPISubscriptions.ts # Event subscription hook
 │   │   ├── useHistory.ts
 │   │   ├── useNavigation.ts
 │   │   ├── useNoteActions.ts

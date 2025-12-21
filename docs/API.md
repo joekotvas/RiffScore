@@ -32,6 +32,35 @@
 
 ---
 
+## Internal Architecture
+
+The API is implemented using a **factory pattern** with 10 domain-specific modules:
+
+```
+src/hooks/api/
+├── index.ts        # Barrel exports
+├── types.ts        # APIContext interface
+├── navigation.ts   # move, jump, select, selectById
+├── selection.ts    # selectAll, extend*, selectFullEvents  
+├── entry.ts        # addNote, addRest, addTone
+├── modification.ts # setPitch, transpose, structure
+├── history.ts      # undo, redo, transactions
+├── playback.ts     # play, pause, stop
+├── io.ts           # loadScore, reset, export
+└── events.ts       # on() subscription wrapper
+```
+
+Each factory receives an `APIContext` containing refs and dispatch functions, then returns methods bound to `this` via `ThisType<MusicEditorAPI>` for fluent chaining.
+
+### Method Status Tags
+
+All methods in `src/api.types.ts` are annotated with `@status` JSDoc tags:
+- `@status implemented` — Ready to use
+- `@status stub` — Returns `this` (no-op), tracked in [Issue #119](https://github.com/joekotvas/RiffScore/issues/119)
+- `@status partial` — Partially implemented (e.g., `export('json')` works, others throw)
+
+---
+
 ## 1. Global Registry ✅
 
 ### `window.riffScore.get(id)` ✅
