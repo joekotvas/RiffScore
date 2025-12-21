@@ -35,8 +35,6 @@ interface UseNoteActionsProps {
   dispatch: (command: Command) => void;
   /** Input mode: NOTE or REST */
   inputMode: InputMode;
-  // deprecated but currently passed by useScoreLogic before refactor is complete
-  syncToolbarState?: any;
 }
 
 interface UseNoteActionsReturn {

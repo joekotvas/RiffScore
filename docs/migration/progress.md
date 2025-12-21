@@ -124,9 +124,24 @@
 - [x] Implement `useTransactionBatching` hook
 - [x] Document ADR 003
 
-### 🔲 Phase 5: Code Refactor
-- [ ] Split `interaction.ts` (~1134 lines → 4 files)
-- [ ] Split `useSelection.ts` (~349 lines → 3 files)
+### 🔄 Phase 5: Code Refactor (In Progress)
+
+#### ✅ Component E: `useScoreLogic.ts` Slimming
+- [x] Extract `useDerivedSelection.ts` (4 useMemo hooks)
+- [x] Extract `useToolsSync.ts` (toolbar sync)
+- [x] Extract `useFocusScore.ts` (focus logic)
+- [x] Create grouped API types in `types.ts`
+- [x] Remove 52 lines of flat exports
+- [x] Update all consumers to grouped API
+- [x] Fix error handling (throw vs console.error)
+- [x] Memoize migration logic
+- **Net reduction:** 154 lines
+
+#### 🔲 Deferred (Future PRs)
+- Component A: Split `interaction.ts` (~1134 lines → 4 files)
+- Component B: Split `useScoreAPI.ts` (facade modules)
+- Component C: Split `useNoteActions.ts`
+- Component D: Selection keyboard handlers
 
 ### 🔲 Phase 6: Initial Documentation
 - [ ] Finalize `docs/API.md`
