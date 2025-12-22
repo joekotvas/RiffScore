@@ -1,6 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useScoreAPI } from '../hooks/useScoreAPI';
 import { ScoreProvider } from '../context/ScoreContext';
+import { ThemeProvider } from '../context/ThemeContext';
 import { createDefaultScore, DEFAULT_RIFF_CONFIG } from '../types';
 // Mock clipboard to avoid errors in test env
 Object.assign(navigator, {
@@ -10,7 +11,9 @@ Object.assign(navigator, {
 });
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <ScoreProvider initialScore={createDefaultScore()}>{children}</ScoreProvider>
+  <ThemeProvider>
+    <ScoreProvider initialScore={createDefaultScore()}>{children}</ScoreProvider>
+  </ThemeProvider>
 );
 
 describe('ScoreAPI Transactions', () => {

@@ -11,6 +11,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useScoreAPI } from '../hooks/useScoreAPI';
 import { ScoreProvider } from '../context/ScoreContext';
+import { ThemeProvider } from '../context/ThemeContext';
 import { createDefaultScore } from '../types';
 import { RiffScoreConfig } from '../types';
 
@@ -34,9 +35,11 @@ const defaultScore = createDefaultScore();
 
 // Wrapper to provide context
 const wrapper = ({ children }: any) => (
-  <ScoreProvider initialScore={defaultScore}>
-    {children}
-  </ScoreProvider>
+  <ThemeProvider>
+    <ScoreProvider initialScore={defaultScore}>
+      {children}
+    </ScoreProvider>
+  </ThemeProvider>
 );
 
 describe('ScoreAPI Events', () => {
