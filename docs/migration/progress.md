@@ -143,9 +143,10 @@
 | `extendSelectionUp()` | selection.ts | ✅ Impl, ✅ Tested | Medium |
 | `extendSelectionDown()` | selection.ts | ✅ Impl, ✅ Tested | Medium |
 | `extendSelectionAll()` | selection.ts | ✅ Impl, ✅ Tested | Medium |
-| `copy()` / `cut()` / `paste()` | — | ⏳ Pending | Low |
+| `copy()` / `cut()` / `paste()` | — | ⏳ Pending | High (Deferred) |
 | `play()` / `pause()` | playback.ts | ⏳ Stub | Low |
-| `on('playback')` | events.ts | ⏳ Stub | Low |
+| State/Config Methods | mutation.ts | ⏳ Stub | Low |
+| **Total Remaining** | **18 methods** | **6 High, 12 Low** | **~12-16 hours** |
 
 <details>
 <summary><strong>✅ Phase 7A: Wire Commands & Robustness</strong> — <a href="https://github.com/joekotvas/RiffScore/pull/144">PR #144</a></summary>
@@ -156,15 +157,29 @@
 - [x] **Types**: Exported `ClefType`
 </details>
 
-#### 7B: Simple State Updates — Est. 1-2 hours
+#### 7B: Simple State Updates (7 methods) — Est. 1-2 hours
+- [ ] `setBpm`, `setTheme`, `setScale`, `setInputMode`, `reset`, `setAccidental`, `toggleAccidental`
 
-#### 7C: Clipboard API (Deferred)
+#### 7C: Selection Enhancements (3 methods) — Est. 2 hours
+- [ ] `selectAtQuant`, `addToSelection`, `selectRangeTo`
+
+#### 7D: Playback Integration (5 methods) — Est. 2-3 hours
+- [ ] `play`, `pause`, `stop`, `rewind`, `setInstrument`
+- [ ] `on('playback')` event
+
+#### 7E: New Commands (3 methods) — Est. 3-4 hours
+- [ ] `setDuration` (ChangeRhythmCommand)
+- [ ] `transpose` (chromatic)
+- [ ] `rollbackTransaction`
+
+#### 7F: Clipboard API (Deferred - 3 methods) — Est. 4-6 hours
 - [ ] Implement `copy()`, `cut()`, `paste()`
 - [ ] Wire to browser clipboard API
 
-#### 7C: Playback API (Deferred)
-- [ ] Complete `play()`, `pause()`, `stop()`
-- [ ] Implement `on('playback')` event
+#### 7G: Documentation & Polish (Phase 8)
+- [ ] Post-release documentation cleanup
+
+**Total Remaining: 18 active methods + 3 deferred (Clipboard)**
 
 ---
 
