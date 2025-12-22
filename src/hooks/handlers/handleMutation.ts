@@ -1,9 +1,11 @@
+
 import { ToggleRestCommand } from '@/commands/ToggleRestCommand';
+import { ScoreContextType } from '@/context/ScoreContext';
 
 /**
  * Handles mutation keyboard shortcuts (Enter, Delete, Accidentals, Ties, Transposition, Undo/Redo).
  */
-export const handleMutation = (e: KeyboardEvent, logic: any) => {
+export const handleMutation = (e: KeyboardEvent, logic: ScoreContextType) => {
   // Access grouped API from logic
   const { selection, previewNote, editorState } = logic.state;
   const { undo, redo } = logic.historyAPI;

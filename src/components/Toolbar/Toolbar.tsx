@@ -82,6 +82,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
       onBpmChange,
       errorMsg,
       onToggleHelp,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       midiStatus = { connected: false, deviceName: null, error: null },
       melodies,
       selectedInstrument,
@@ -159,7 +160,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
         openClefMenu: () => staffControlsRef.current?.openClefMenu(),
         isMenuOpen: () => isAnyMenuOpen,
       }),
-      [showLibrary, isAnyMenuOpen]
+      [isAnyMenuOpen]
     );
 
     useFocusTrap({
