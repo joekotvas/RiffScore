@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, act } from '@testing-library/react';
 import { RiffScore } from '../RiffScore';
 import type { MusicEditorAPI } from '../api.types';
 import { createSingleStaffScore } from './fixtures/selectionTestScores';
@@ -11,6 +11,9 @@ const getAPI = (id: string): MusicEditorAPI => {
 
 // Mock ScoreAPI to test Alto Clef functionality
 const TEST_ID = 'api-test-score';
+
+// Mock scrollTo for JSDOM (doesn't implement it)
+Element.prototype.scrollTo = jest.fn();
 
 describe('ScoreAPI Custom Staves & Alto Clef (Phase 6B)', () => {
 
@@ -39,11 +42,11 @@ describe('ScoreAPI Custom Staves & Alto Clef (Phase 6B)', () => {
       api.addNote('C4', 'quarter', false);
     });
 
-    // Verify
+    // Verify - fixture has 1 event, we added 1 more = 2 events
     const score = api.getScore();
     const events = score.staves[0].measures[0].events;
-    expect(events.length).toBe(1);
-    expect(events[0].notes[0].pitch).toBe('C4');
+    expect(events.length).toBe(2);
+    expect(events[1].notes[0].pitch).toBe('C4');
   });
 
   // REPRODUCTION 2: Add note on 3rd staff (index 2)
@@ -97,8 +100,9 @@ describe('ScoreAPI Custom Staves & Alto Clef (Phase 6B)', () => {
       ],
     } as any;
 
-    render(<RiffScore id={TEST_ID} config={{ score: { staves: altoScore.staves } }} />);
+    const { container } = render(<RiffScore id={TEST_ID} config={{ score: { staves: altoScore.staves } }} />);
     
-    expect(screen.getByTestId('riff-score-container')).toBeInTheDocument();
+    // Component renders with data-riffscore-id attribute
+    expect(container.querySelector('[data-riffscore-id="api-test-score"]')).toBeInTheDocument();
   });
 });
