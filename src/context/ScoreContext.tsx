@@ -6,9 +6,9 @@ import { SetClefCommand } from '@/commands/SetClefCommand';
 // Infers the return type of useScoreLogic and extends it with UI state
 // Infers the return type of useScoreLogic and extends it with UI state
 export type ScoreContextType = ReturnType<typeof useScoreLogic> & {
-  pendingClefChange: { targetClef: 'treble' | 'bass' } | null;
+  pendingClefChange: { targetClef: 'treble' | 'bass' | 'alto' | 'tenor' } | null;
   setPendingClefChange: React.Dispatch<
-    React.SetStateAction<{ targetClef: 'treble' | 'bass' } | null>
+    React.SetStateAction<{ targetClef: 'treble' | 'bass' | 'alto' | 'tenor' } | null>
   >;
   handleClefChange: (val: string) => void;
 };
@@ -33,7 +33,7 @@ export const ScoreProvider: React.FC<ScoreProviderProps> = ({ children, initialS
 
   // UI State for Clef Confirmation (moved from ScoreEditor)
   const [pendingClefChange, setPendingClefChange] = React.useState<{
-    targetClef: 'treble' | 'bass';
+    targetClef: 'treble' | 'bass' | 'alto' | 'tenor';
   } | null>(null);
 
   // Access grouped API
@@ -49,10 +49,10 @@ export const ScoreProvider: React.FC<ScoreProviderProps> = ({ children, initialS
         setGrandStaff();
       } else if (staffCount >= 2) {
         // Switching from grand staff to single clef - show confirmation
-        setPendingClefChange({ targetClef: newClef as 'treble' | 'bass' });
+        setPendingClefChange({ targetClef: newClef as 'treble' | 'bass' | 'alto' | 'tenor' });
       } else {
         // Single staff - use SetClefCommand to change the clef
-        dispatch(new SetClefCommand(newClef as 'treble' | 'bass'));
+        dispatch(new SetClefCommand(newClef as 'treble' | 'bass' | 'alto' | 'tenor'));
       }
     },
     [staffCount, setGrandStaff, dispatch]

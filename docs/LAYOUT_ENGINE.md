@@ -27,28 +27,32 @@ The layout engine transforms **Score data** into **visual coordinates** for SVG 
 
 ## 2. Pitch to Y Coordinate
 
-The `positioning.ts` module maps MIDI pitches to vertical positions:
+The `positioning.ts` module maps MIDI pitches to vertical positions using a **reference-based calculation**:
 
 ```
-Y = baseY - (stepsFromMiddleC * halfLineSpacing)
+Y = referenceOffset + (refMidi - pitchMidi) * spacingFactor
 ```
+
+Each clef defines a reference pitch and offset in `CLEF_REFERENCE`:
+
+| Clef | Reference Pitch | Meaning |
+|------|-----------------|---------|
+| Treble | C4 at offset 60 | C4 on ledger line below |
+| Bass | E2 at offset 60 | E2 on ledger line below |
+| Alto | C4 at offset 24 | C4 on Line 3 (middle line) |
+| Tenor | C4 at offset 18 | C4 on Line 4 |
+
+> See [ADR-007: Open-Closed Clef Reference](./adr/007-open-closed-clef-reference.md) for the design rationale.
 
 ### Staff Lines
 
-| Line | Treble | Bass |
-|------|--------|------|
-| 5th line | F5 | A3 |
-| 4th line | D5 | F3 |
-| 3rd line | B4 | D3 |
-| 2nd line | G4 | B2 |
-| 1st line | E4 | G2 |
-
-### Ledger Lines
-
-Notes beyond the staff receive ledger lines. The layout calculates:
-- Number of ledger lines needed
-- Position above or below staff
-- Correct spacing
+| Line | Treble | Bass | Alto | Tenor |
+|------|--------|------|------|-------|
+| 5th line | F5 | A3 | G4 | E4 |
+| 4th line | D5 | F3 | E4 | C4 |
+| 3rd line | B4 | D3 | C4 | A3 |
+| 2nd line | G4 | B2 | A3 | F3 |
+| 1st line | E4 | G2 | F3 | D3 |
 
 ---
 

@@ -46,7 +46,7 @@ export interface Measure {
 
 export interface Staff {
   id: string | number;
-  clef: 'treble' | 'bass' | 'grand';
+  clef: 'treble' | 'bass' | 'alto' | 'tenor' | 'grand';
   keySignature: string; // e.g., 'C', 'G', 'F', 'Bb'
   measures: Measure[];
 }

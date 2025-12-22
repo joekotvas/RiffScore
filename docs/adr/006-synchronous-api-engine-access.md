@@ -1,10 +1,8 @@
-# 6. Synchronous API Engine Access
+# ADR-006: Synchronous API Engine Access
 
-Date: 2025-12-22
-
-## Status
-
-Accepted
+> **Principle**: Principle of Least Astonishment (POLA)  
+> **Status**: Accepted  
+> **Date**: 2025-12-22
 
 ## Context
 
@@ -16,7 +14,9 @@ const score = api.getScore(); // Query
 // Expectation: score includes the new measure
 ```
 
-Previously, `useScoreAPI` relied on a `scoreRef` that was updated via `useEffect`. Because `useEffect` runs asynchronously after the React render cycle, the `getScore()` call in the example above would return *stale data* (state prior to the mutation) if called in the same event tick. This led to unreliable scripts and difficult-to-debug "off-by-one" errors in test automation.
+Previously, `useScoreAPI` relied on a `scoreRef` that was updated via `useEffect`. Because `useEffect` runs asynchronously after the React render cycle, the `getScore()` call in the example above would return *stale data*.
+
+The **Principle of Least Astonishment** states that a system should behave in a way that users expect. API consumers expect `getScore()` to reflect immediately preceding mutations.
 
 ## Decision
 

@@ -151,7 +151,7 @@ The most recently focused or mounted instance.
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `setClef` | `setClef(clef)` | ⏳ | `'treble'`, `'bass'`, `'grand'`. |
+| `setClef` | `setClef(clef)` | ⏳ | `'treble'`, `'bass'`, `'alto'`, `'tenor'`, `'grand'`. |
 | `setScoreTitle` | `setScoreTitle(title)` | ⏳ | Update title. |
 | `setBpm` | `setBpm(number)` | ⏳ | Set tempo. |
 | `setTheme` | `setTheme(theme)` | ⏳ | `'LIGHT'`, `'DARK'`, `'WARM'`, `'COOL'`. |

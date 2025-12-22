@@ -1,13 +1,16 @@
-# ADR 002: Event Subscription Pattern
+# ADR-002: Event Subscription Pattern
 
-**Status:** Accepted  
-**Date:** 2025-12-21  
-**Deciders:** Core Team  
-**Revised:** 2025-12-21 ([Issue #122](https://github.com/joekotvas/RiffScore/issues/122), [PR #123](https://github.com/joekotvas/RiffScore/pull/123))
+> **Principle**: Inversion of Control (Observer Pattern)  
+> **Status:** Accepted  
+> **Date:** 2025-12-21  
+> **Deciders:** Core Team  
+> **Revised:** 2025-12-21 ([Issue #122](https://github.com/joekotvas/RiffScore/issues/122), [PR #123](https://github.com/joekotvas/RiffScore/pull/123))
 
 ## Context
 
-RiffScore requires an external API (`window.riffScore`) to allow wrapping applications or scripts to react to state changes (e.g., selection updates, score modifications) without polling. The system currently uses React's Context API and standard hooks for state management.
+RiffScore requires an external API (`window.riffScore`) to allow wrapping applications or scripts to react to state changes (e.g., selection updates, score modifications) without polling.
+
+The **Inversion of Control** principle states that external code registers interest and the framework controls when callbacks are invoked, rather than external code polling or driving execution.
 
 ## Decision
 

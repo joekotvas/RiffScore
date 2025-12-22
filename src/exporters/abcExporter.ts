@@ -50,7 +50,16 @@ export const generateABC = (score: Score, bpm: number) => {
 
   staves.forEach((staff: Staff, staffIndex: number) => {
     const clef = staff.clef || 'treble';
-    const abcClef = clef === 'bass' ? 'bass' : 'treble';
+    // ABC notation supports: treble, bass, alto, tenor
+    const getAbcClef = (c: string) => {
+      switch (c) {
+        case 'bass': return 'bass';
+        case 'alto': return 'alto';
+        case 'tenor': return 'tenor';
+        default: return 'treble';
+      }
+    };
+    const abcClef = getAbcClef(clef);
     const voiceId = staffIndex + 1;
 
     // Voice Header

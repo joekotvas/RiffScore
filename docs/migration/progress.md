@@ -8,9 +8,9 @@
 
 | Status | Phases |
 | :--- | :--- |
-| ✅ Complete | 0, 1, 2 (a-g), 3, 4, 5 (A-E), 6A |
+| ✅ Complete | 0, 1, 2 (a-g), 3, 4, 5 (A-E), 6A, 6B |
 | 🔄 In Progress | 7 |
-| 🔲 Remaining | 6B, 8 |
+| 🔲 Remaining | 8 |
 
 **Goal:** Complete transition to a dispatch-based, engine-driven, fully exposed and machine-addressable API.
 
@@ -113,35 +113,23 @@
 - [x] Document [ADR-006](../adr/006-synchronous-api-engine-access.md)
 </details>
 
+<details>
+<summary><strong>✅ Phase 6B: Custom Staves & C-Clef Support</strong></summary>
+
+**Spec:** [phase-6b-custom-staves-spec.md](./phase-6b-custom-staves-spec.md)
+
+- [x] Added Alto and Tenor clef support (types, constants, UI, rendering)
+- [x] Implemented `CLEF_REFERENCE` pattern in `positioning.ts`
+- [x] Fixed clef handling in exporters (MusicXML, ABC)
+- [x] Fixed clef handling in commands (ToggleRestCommand, SetClefCommand)
+- [x] Fixed clef handling in utilities (useFocusScore, verticalStack)
+- [x] Added 28 regression tests with exception paths
+- [x] Document [ADR-007](../adr/007-open-closed-clef-reference.md)
+</details>
+
 ---
 
 ## Remaining Roadmap
-
-
----
-
-### 🔄 Phase 6: API Reliability
-
-**Goal:** Fix known issues that prevent reliable programmatic usage.
-
-| Issue | Severity | Status |
-|-------|----------|--------|
-| **[Issue #124](https://github.com/joekotvas/RiffScore/issues/124): Horizontal selection drops other staves** | High | 🔲 |
-| **#1: `getScore()` returns stale data** | Medium | 🔲 |
-| **#2: Entry methods don't work with custom staves** | Medium | 🔲 |
-| **#3: Measure capacity validation untestable** | Low | Deferred |
-| **#4: `addRest()` orphaned noteId** | Info | Deferred |
-
-**Related:** [Issue #101](https://github.com/joekotvas/RiffScore/issues/101) (Cross-staff selection extension)
-
-#### 6A: Fix Stale `getScore()` (Completed)
-- [x] Investigate `scoreRef.current` sync in `useScoreAPI`
-- [x] Ensure `getScore()` returns fresh data after mutations
-- [x] Add test: `addNote() → getScore() → verify event exists`
-
-#### 6B: Fix Entry with Custom Staves
-- [ ] Debug why `addNote()` fails with custom staves
-- [ ] Add test: `config={{ score: { staves: [...] } }} → addNote() → verify`
 
 ---
 

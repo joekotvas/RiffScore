@@ -478,7 +478,7 @@ Score
   ├── bpm: number
   └── staves: Staff[]
         ├── id: string | number
-        ├── clef: 'treble' | 'bass' | 'grand'
+        ├── clef: 'treble' | 'bass' | 'alto' | 'tenor' | 'grand'
         ├── keySignature: string
         └── measures: Measure[]
               ├── id: string | number
@@ -551,6 +551,27 @@ Vertical selection treats the score as a **2D grid** where:
 This unified model allows natural rectangular selection and predictable expand/contract behavior regardless of whether notes are in the same chord, different chords, or different staves. By computing a single numeric metric, we avoid special-case logic for "within chord" vs "cross-staff"—both are just steps in the vertical stack.
 
 See [verticalStack.ts](../src/utils/verticalStack.ts) for the `calculateVerticalMetric()` formula and [KEYBOARD_NAVIGATION.md](./KEYBOARD_NAVIGATION.md#vertical-selection-cmd--shift--updown) for the full algorithm.
+
+</details>
+
+---
+
+## 6a. Design Principles
+
+<details>
+<summary><strong>View principles with ADRs</strong></summary>
+
+Key architectural decisions are documented as ADRs with explicit design principles:
+
+| ADR | Principle | Summary |
+|-----|-----------|--------|
+| [ADR-001](./adr/001-vertical-selection.md) | Divide and Conquer | Per-slice vertical selection decomposition |
+| [ADR-002](./adr/002-event-subscriptions.md) | Inversion of Control | Observer-based event subscriptions |
+| [ADR-003](./adr/003-transaction-batching.md) | Atomicity | Unit of Work for batch operations |
+| [ADR-004](./adr/004-api-factory-pattern.md) | Single Responsibility (SRP) | Domain-specific API factories |
+| [ADR-005](./adr/005-selection-dispatch-pattern.md) | Command Pattern | Selection via dispatch, single source of truth |
+| [ADR-006](./adr/006-synchronous-api-engine-access.md) | Least Astonishment (POLA) | API queries reflect immediate mutations |
+| [ADR-007](./adr/007-open-closed-clef-reference.md) | Open-Closed (OCP) | Extensible clef support via reference pattern |
 
 </details>
 

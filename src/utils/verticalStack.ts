@@ -12,6 +12,18 @@
 import type { Score, SelectedNote, ScoreEvent } from '../types';
 import { getNoteDuration } from './core';
 import { getMidi } from '../services/MusicService';
+import { getClefConfig } from '../constants';
+
+/**
+ * Get the default MIDI value for a rest in a given clef.
+ * Used for vertical stack sorting.
+ * 
+ * @see CLEF_CONFIG in constants.ts
+ */
+const getRestMidi = (clef: string): number => {
+  const config = getClefConfig(clef);
+  return config.restMidi;
+};
 
 // =============================================================================
 // TYPES
@@ -95,7 +107,7 @@ export function toVerticalPoint(note: SelectedNote, score: Score): VerticalPoint
   let realNoteId = note.noteId;
   
   if (foundEvent.isRest) {
-    midi = staff.clef === 'bass' ? 48 : 71; 
+    midi = getRestMidi(staff.clef); 
   } else if (note.noteId) {
     const n = foundEvent.notes.find((n) => n.id === note.noteId);
     if (n) midi = getMidi(n.pitch || 'C4');
@@ -145,7 +157,7 @@ export function collectVerticalStack(score: Score, globalTime: number): Vertical
         // IMPORTANT: Rests DO have noteId in their notes array
         if (event.isRest && event.notes && event.notes.length > 0) {
           const restNote = event.notes[0];
-          const midi = staff.clef === 'bass' ? 48 : 71;
+          const midi = getRestMidi(staff.clef);
           stack.push({
             staffIndex: sIdx,
             measureIndex: mIndex,

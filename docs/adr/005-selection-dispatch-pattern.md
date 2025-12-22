@@ -1,18 +1,21 @@
 # ADR-005: Selection Dispatch Pattern
 
-> **Status**: Accepted
-> **Date**: 2025-12-22
-> **Issue**: #136
+> **Principle**: Command Pattern / Single Source of Truth  
+> **Status**: Accepted  
+> **Date**: 2025-12-22  
+> **Issue**: #136  
 > **PR**: #136
 
 ## Context
 
 Originally, the RiffScore application managed selection state using React's `useState` hook directly within components and custom hooks. As the application grew, we encountered several significant issues:
 
-1.  **Stale Closures**: Hooks like `useNavigation` and `useEntry` often closed over stale selection state, leading to "jumping" cursors or incorrect operations.
-2.  **Logic Duplication**: Selection mutation logic (e.g., "select next note") was scattered across multiple files (`utils/interaction.ts`, `hooks/useSelection.ts`, `hooks/useNavigation.ts`).
-3.  **Untestability**: Testing selection logic required mounting React components or hooks, making it slow and difficult to test edge cases.
+1.  **Stale Closures**: Hooks often closed over stale selection state, leading to "jumping" cursors.
+2.  **Logic Duplication**: Selection mutation logic was scattered across multiple files.
+3.  **Untestability**: Testing selection logic required mounting React components.
 4.  **Race Conditions**: Multiple effects trying to `setSelection` simultaneously often conflicted.
+
+The **Command Pattern** (Gang of Four) encapsulates all mutations as command objects. **Single Source of Truth** ensures one authoritative state location.
 
 ## Decision
 
