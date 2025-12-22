@@ -150,8 +150,14 @@
 - [x] Convert `interaction.ts` to facade
 - [x] All tests passing
 
+#### ✅ Component B: `hooks/api/` Factory Pattern
+- [x] Create modular API factory structure
+- [x] `entry.ts`, `events.ts`, `history.ts`, `io.ts`
+- [x] `modification.ts`, `navigation.ts`, `playback.ts`, `selection.ts`
+- [x] `types.ts` (APIContext), `index.ts` (exports)
+- [x] Document in API.md (Internal Architecture section)
+
 #### 🔲 Deferred (Future PRs)
-- Component B: `hooks/api/`
 - Component C: `hooks/entry/`
 - Component D: Selection Handlers
 
