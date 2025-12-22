@@ -2,141 +2,237 @@
 
 **Status:** Proposed  
 **Date:** 2025-12-21  
-**Related Issue:** Create tracking issue if proceeding
+**Focus:** DRY, organization, maintainability, command pattern compliance
 
 ---
 
-## Executive Summary
+## Assessment Summary
 
-**Recommendation:** Phase 5C scope should be **reduced or deferred**. The entry-related hooks serve distinct purposes and consolidating them would increase coupling without significant benefit.
+| Metric | Status | Score | Notes |
+|--------|--------|-------|-------|
+| **Command Pattern Compliance** | ✅ Good | 9/10 | All mutations use dispatch |
+| **DRY (Don't Repeat Yourself)** | ⚠️ Needs Work | 6/10 | Duplication in note creation |
+| **File Organization** | ⚠️ Needs Work | 5/10 | 500-line monolith |
+| **Maintainability** | ⚠️ Moderate | 6/10 | Complex callbacks, mixed concerns |
+
+**Overall Refactor Utility: Medium-High** — Worth doing but not urgent.
 
 ---
 
-## Current State Analysis
+## Detailed Analysis
 
-### Entry-Related Files
+### 1. Command Pattern Compliance ✅ 9/10
 
-| File | Lines | Purpose | Calls dispatch? |
-|------|-------|---------|-----------------|
-| `hooks/api/entry.ts` | 201 | **Programmatic API** (`addNote`, `addRest`, `addTone`) | ✅ Yes |
-| `hooks/useNoteActions.ts` | 500 | **UI interaction handlers** (mouse hover, click, preview) | ✅ Yes |
-| `hooks/useMeasureActions.ts` | 74 | **Measure-level UI** (time sig, key sig, add/remove) | ✅ Yes |
-| `hooks/useTupletActions.ts` | 167 | **Tuplet operations** (apply, remove, query) | ✅ Yes |
-| `hooks/entry/` | 0 | **Empty directory** | — |
-
-### Key Observations
-
-#### 1. Different Domains
-
-```
-api/entry.ts              → External programmatic access (fluent API)
-useNoteActions.ts         → Internal UI event handling (mouse, preview)
-useMeasureActions.ts      → Measure config UI (toolbar actions)
-useTupletActions.ts       → Tuplet-specific operations
-```
-
-#### 2. `useNoteActions` Has UI-Specific Logic
+**All mutations go through dispatch:**
 
 ```typescript
-// Example: Preview note handling (not applicable to API)
-const handleMeasureHover = useCallback((
-  measureIndex,
-  hit,           // ← UI hit detection
-  pitch,
-  staffIndex
-) => {
-  const appendPosition = getAppendPreviewNote(...);  // ← Preview rendering
-  setPreviewNote({ ... });  // ← Visual feedback
-}, [...]);
+// useNoteActions.ts - Every mutation uses commands:
+dispatch(new AddEventCommand(...));
+dispatch(new AddNoteToEventCommand(...));
+dispatch(new DeleteNoteCommand(...));
+dispatch(new DeleteEventCommand(...));
+dispatch(new ChangePitchCommand(...));
+dispatch(new AddMeasureCommand());
 ```
 
-#### 3. `api/entry.ts` Is Already Clean
+**No direct state mutations found.** ✅
 
-The API factory already uses the command pattern correctly:
-- Validates input
-- Dispatches `AddEventCommand` / `AddNoteToEventCommand`
-- Updates selection via `syncSelection`
-- No UI concerns
-
-#### 4. No Duplication
-
-The hooks don't duplicate logic—they operate at different abstraction levels:
-- **API:** "Add note C4 at cursor" → dispatch command
-- **UI hooks:** "Mouse at Y=150 → calculate pitch → show preview → on click → dispatch command"
+Minor gap: `setSelection` is passed as a prop but only used indirectly through `select()`.
 
 ---
 
-## Stubs in `api/entry.ts`
+### 2. DRY Violations ⚠️ 6/10
 
-The following methods are unimplemented stubs:
+#### A. Note Creation Logic Duplicated
 
-| Method | Status | Implementation Path |
-|--------|--------|---------------------|
-| `makeTuplet()` | ⏳ Stub | Use `ApplyTupletCommand` from `useTupletActions` |
-| `unmakeTuplet()` | ⏳ Stub | Use `RemoveTupletCommand` from `useTupletActions` |
-| `toggleTie()` | ⏳ Stub | Create `ToggleTieCommand` |
-| `setTie()` | ⏳ Stub | Create `SetTieCommand` |
-| `setInputMode()` | ⏳ Stub | Expose through API context |
+**In `useNoteActions.ts` (lines 279-305, 445-450):**
+```typescript
+const noteToAdd = {
+  id: Date.now() + 1,
+  pitch: newNote.pitch,
+  accidental: activeAccidental,
+  tied: activeTie,
+};
+```
 
----
+**In `api/entry.ts` (lines 64-69, 155-160):**
+```typescript
+const note: Note = {
+  id: noteId,
+  pitch,
+  accidental: null,
+  tied: false,
+};
+```
 
-## Revised Scope Options
-
-### Option A: Defer Phase 5C Entirely ✅ Recommended
-
-**Rationale:** The hooks are already well-organized. No architectural debt requires immediate attention.
-
-**Actions:**
-1. Mark Phase 5C as "Not Needed" in progress.md
-2. Track stub implementations in Phase 7 (API Completion) with [Issue #119](https://github.com/joekotvas/RiffScore/issues/119)
-
----
-
-### Option B: Minimal Scope — Implement Stubs Only
-
-**Rationale:** Complete the API surface without restructuring existing hooks.
-
-**Actions:**
-1. Implement `makeTuplet()` / `unmakeTuplet()` in `api/entry.ts`
-2. Implement `toggleTie()` / `setTie()` in `api/entry.ts`
-3. Implement `setInputMode()` if API-accessible mode switching is needed
-
-**Effort:** ~2 hours
+**Fix:** Extract `createNotePayload(pitch, accidental, tied)` utility.
 
 ---
 
-### Option C: Extract Shared Utilities (Optional Future Work)
+#### B. Measure Capacity Check Duplicated
 
-If later analysis reveals duplicated validation or calculation logic, extract to:
+**In `useNoteActions.ts` (lines 139, 156, 243-250):**
+```typescript
+if (!canAddEventToMeasure(measure.events, activeDuration, isDotted, currentQuantsPerMeasure)) {
+```
+
+**In `api/entry.ts` (lines 57-60, 113-116):**
+```typescript
+if (!canAddEventToMeasure(measure.events, duration, dotted)) {
+```
+
+**Status:** Already using shared utility ✅ — No action needed.
+
+---
+
+#### C. Preview Note Construction Duplicated
+
+**In `useNoteActions.ts` (lines 164-177, 360-371):**
+```typescript
+const newPreview = {
+  measureIndex: targetMeasureIndex,
+  staffIndex,
+  pitch: finalPitch,
+  duration: activeDuration,
+  // ... 10+ fields
+};
+```
+
+**Fix:** Extract `createPreviewNote(params)` utility.
+
+---
+
+#### D. Pitch Calculation Logic
+
+**In `useNoteActions.ts` (lines 108-127):**
+```typescript
+if (activeAccidental) {
+  const note = Note.get(rawPitch);
+  if (activeAccidental === 'sharp') finalPitch = `${note.letter}#${note.oct}`;
+  // ...
+} else {
+  finalPitch = applyKeySignature(rawPitch, keySig);
+}
+```
+
+**In vertical navigation (`interaction/vertical.ts`):** Similar logic exists.
+
+**Fix:** Extract `resolvePitch(rawPitch, accidental, keySig)` utility.
+
+---
+
+### 3. File Organization ⚠️ 5/10
+
+| File | Lines | Concern |
+|------|-------|---------|
+| `useNoteActions.ts` | **500** | ⚠️ Monolithic |
+| `useMeasureActions.ts` | 74 | ✅ Focused |
+| `useTupletActions.ts` | 167 | ✅ Focused |
+| `api/entry.ts` | 201 | ✅ Focused |
+
+**`useNoteActions.ts` does too much:**
+1. Mouse hover preview (lines 85-208)
+2. Note/rest insertion (lines 210-393)
+3. Chord creation (lines 438-481)
+4. Delete operations (lines 395-436)
+5. Pitch updates (lines 483-490)
+
+---
+
+### 4. Refactor Recommendations
+
+#### Priority 1: Extract Utilities (Low Effort, High Value)
+
+Create `src/utils/entry/`:
 
 ```
 src/utils/entry/
-├── pitchValidation.ts    # isValidPitch, parsePitch
-├── measureCapacity.ts    # canAddEventToMeasure
-└── noteCreation.ts       # createNotePayload
+├── notePayload.ts      # createNotePayload()
+├── previewNote.ts      # createPreviewNote()
+└── pitchResolver.ts    # resolvePitch()
 ```
 
-**Current Status:** These utilities already exist in `utils/validation.ts` and `utils/core.ts`. No action needed.
+**Effort:** 2-3 hours  
+**Impact:** Eliminates duplication, improves testability
 
 ---
 
-## Recommendation
+#### Priority 2: Split `useNoteActions.ts` (Medium Effort, Medium Value)
 
-**Proceed with Option A (Defer)** and update progress.md:
-
-```diff
-- ### 🔄 Phase 5C: Entry Hook Consolidation
-+ ### ✅ Phase 5C: Entry Hook Analysis — Deferred
-+ 
-+ **Result:** Analysis showed hooks serve distinct purposes (API vs UI).
-+ No consolidation needed. Stub implementations tracked in Phase 7.
 ```
+src/hooks/note/
+├── useHoverPreview.ts    # handleMeasureHover (~120 lines)
+├── useNoteEntry.ts       # addNoteToMeasure, addChordToMeasure (~180 lines)
+├── useNoteDelete.ts      # deleteSelected (~40 lines)
+├── useNotePitch.ts       # updateNotePitch (~10 lines)
+└── index.ts              # Re-export combined hook
+```
+
+**Effort:** 4-6 hours  
+**Impact:** Improved maintainability, smaller files
 
 ---
 
-## Files Reviewed
+#### Priority 3: Implement API Stubs (Medium Effort, High Value for API completeness)
 
-- `src/hooks/api/entry.ts` — API factory (clean, uses commands)
-- `src/hooks/useNoteActions.ts` — UI handlers (mouse, preview, click)
-- `src/hooks/useMeasureActions.ts` — Toolbar actions (clean, uses commands)
-- `src/hooks/useTupletActions.ts` — Tuplet operations (clean, uses commands)
+Complete stubs in `api/entry.ts`:
+- `makeTuplet()` — Use `ApplyTupletCommand`
+- `unmakeTuplet()` — Use `RemoveTupletCommand`  
+- `toggleTie()` — Create `ToggleTieCommand`
+- `setInputMode()` — Wire to context
+
+**Effort:** 3-4 hours  
+**Impact:** Completes programmatic API
+
+---
+
+## Revised Phase 5C Scope
+
+### Option A: Utilities Only (Recommended First Step)
+
+1. Extract `createNotePayload()` utility
+2. Extract `createPreviewNote()` utility
+3. Update both `useNoteActions.ts` and `api/entry.ts` to use them
+
+**Effort:** 2-3 hours  
+**DRY Improvement:** 6/10 → 8/10
+
+---
+
+### Option B: Full Refactor
+
+1. All of Option A
+2. Split `useNoteActions.ts` into 4 smaller hooks
+3. Implement API stubs
+
+**Effort:** 8-10 hours  
+**Organization Improvement:** 5/10 → 8/10
+
+---
+
+### Option C: Defer
+
+Mark as low priority, address organically as files are touched.
+
+---
+
+## Command Pattern Compliance Checklist
+
+| Hook | Uses dispatch? | Direct mutations? | Status |
+|------|---------------|-------------------|--------|
+| `useNoteActions` | ✅ All 6 commands | ❌ None | ✅ Compliant |
+| `useMeasureActions` | ✅ All 6 commands | ❌ None | ✅ Compliant |
+| `useTupletActions` | ✅ Both commands | ❌ None | ✅ Compliant |
+| `api/entry.ts` | ✅ All commands | ❌ None | ✅ Compliant |
+
+**All entry-related code uses the dispatch/command model.** ✅
+
+---
+
+## Files Analyzed
+
+- `src/hooks/useNoteActions.ts` — 500 lines, needs splitting
+- `src/hooks/useMeasureActions.ts` — 74 lines, clean
+- `src/hooks/useTupletActions.ts` — 167 lines, clean
+- `src/hooks/api/entry.ts` — 201 lines, has stubs
+
