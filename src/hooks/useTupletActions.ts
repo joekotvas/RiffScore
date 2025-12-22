@@ -31,8 +31,9 @@ export const useTupletActions = (
       }
 
       const currentScore = scoreRef.current;
-      const activeStaff = getActiveStaff(currentScore);
-      const measure = activeStaff.measures[selection.measureIndex];
+      const staffIndex = selection.staffIndex ?? 0;
+      const staff = currentScore.staves[staffIndex];
+      const measure = staff?.measures[selection.measureIndex];
 
       if (!measure) {
         console.warn('Selected measure not found');
@@ -56,7 +57,7 @@ export const useTupletActions = (
       }
 
       // Apply the tuplet
-      dispatch(new ApplyTupletCommand(selection.measureIndex, eventIndex, groupSize, ratio));
+      dispatch(new ApplyTupletCommand(selection.measureIndex, eventIndex, groupSize, ratio, staffIndex));
 
       return true;
     },
@@ -78,8 +79,9 @@ export const useTupletActions = (
     }
 
     const currentScore = scoreRef.current;
-    const activeStaff = getActiveStaff(currentScore);
-    const measure = activeStaff.measures[selection.measureIndex];
+    const staffIndex = selection.staffIndex ?? 0;
+    const staff = currentScore.staves[staffIndex];
+    const measure = staff?.measures[selection.measureIndex];
 
     if (!measure) {
       console.warn('Selected measure not found');
@@ -102,7 +104,7 @@ export const useTupletActions = (
     }
 
     // Remove the tuplet
-    dispatch(new RemoveTupletCommand(selection.measureIndex, eventIndex));
+    dispatch(new RemoveTupletCommand(selection.measureIndex, eventIndex, staffIndex));
 
     return true;
   }, [selection, scoreRef, dispatch]);

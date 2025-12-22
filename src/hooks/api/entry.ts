@@ -190,11 +190,20 @@ export const createEntryMethods = (ctx: APIContext): Pick<MusicEditorAPI, EntryM
         return this;
       }
 
+      // Check if any target events are already in a tuplet
+      for (let i = 0; i < numNotes; i++) {
+        if (measure.events[eventIndex + i]?.tuplet) {
+          console.warn('[RiffScore API] makeTuplet failed: Target events already contain a tuplet');
+          return this;
+        }
+      }
+
       dispatch(new ApplyTupletCommand(
         sel.measureIndex,
         eventIndex,
         numNotes,
-        [numNotes, inSpaceOf] as [number, number]
+        [numNotes, inSpaceOf] as [number, number],
+        sel.staffIndex
       ));
 
       return this;
@@ -224,7 +233,8 @@ export const createEntryMethods = (ctx: APIContext): Pick<MusicEditorAPI, EntryM
 
       dispatch(new RemoveTupletCommand(
         sel.measureIndex,
-        eventIndex
+        eventIndex,
+        sel.staffIndex
       ));
 
       return this;
