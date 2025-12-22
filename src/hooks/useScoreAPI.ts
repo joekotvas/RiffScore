@@ -15,6 +15,7 @@
 
 import { useRef, useMemo, useCallback, useEffect } from 'react';
 import { useScoreContext } from '../context/ScoreContext';
+import { useTheme } from '../context/ThemeContext';
 import { useAPISubscriptions } from './useAPISubscriptions';
 import type { MusicEditorAPI, RiffScoreRegistry } from '../api.types';
 import type { RiffScoreConfig } from '../types';
@@ -119,6 +120,9 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
   // Delegates listener management to the dedicated hook
   const { on } = useAPISubscriptions(score, selection);
 
+  // 4a. Consume Theme Logic
+  const { setTheme, setZoom } = useTheme();
+
   // 5. Build API Object (memoized to maintain stable reference)
   const api: MusicEditorAPI = useMemo(() => {
     const context: APIContext = {
@@ -137,6 +141,10 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
         rollback: rollbackTransaction,
       },
       config,
+      // Wire setters:
+      setTheme: (name) => setTheme(name.toUpperCase() as 'LIGHT' | 'DARK' | 'WARM' | 'COOL'),
+      setZoom,
+      setInputMode: (mode) => ctx.tools.setInputMode(mode.toUpperCase() as 'NOTE' | 'REST'),
     };
 
     // Factory methods access refs via context, not directly during render.
@@ -175,6 +183,9 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
     commitTransaction,
     rollbackTransaction,
     ctx.engines.engine,
+    setTheme,
+    setZoom,
+    ctx.tools,
   ]);
 
   // 5. Registry registration/cleanup

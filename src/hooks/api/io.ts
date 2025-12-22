@@ -3,6 +3,7 @@ import { APIContext } from './types';
 import { LoadScoreCommand } from '@/commands';
 import { generateABC } from '@/exporters/abcExporter';
 import { generateMusicXML } from '@/exporters/musicXmlExporter';
+import { generateStaves } from '@/utils/generateScore';
 
 /**
  * IO method names provided by this factory
@@ -29,8 +30,18 @@ export const createIOMethods = (ctx: APIContext): Pick<MusicEditorAPI, IOMethodN
       return this;
     },
 
-    reset(_template = 'grand', _measures = 4) {
-      // TODO: Implement
+    reset(template = 'grand', measures = 4) {
+      const { dispatch } = ctx;
+      // Default key signature 'C' (implied)
+      const staves = generateStaves(template, measures, 'C');
+      
+      const newScore = {
+        ...scoreRef.current,
+        staves,
+        title: 'New Score',
+      };
+      
+      dispatch(new LoadScoreCommand(newScore));
       return this;
     },
 

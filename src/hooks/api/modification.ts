@@ -15,6 +15,8 @@ import {
   UpdateTitleCommand,
   TransposeSelectionCommand,
   UpdateEventCommand,
+  UpdateNoteCommand,
+  SetBpmCommand,
 } from '@/commands';
 
 /**
@@ -165,18 +167,88 @@ export const createModificationMethods = (ctx: APIContext): Pick<MusicEditorAPI,
       return this;
     },
 
-    setBpm(_bpm) {
-      // TODO: Implement
+    setAccidental(type) {
+      const sel = selectionRef.current;
+      const { selectedNotes } = sel;
+      
+      // Batch update for multiple selection
+      if (selectedNotes.length > 0) {
+        ctx.history.begin();
+        selectedNotes.forEach(note => {
+          if (note.noteId) { // Skip if invalid
+             dispatch(new UpdateNoteCommand(
+               note.measureIndex,
+               note.eventId,
+               note.noteId,
+               { accidental: type },
+               note.staffIndex
+             ));
+          }
+        });
+        ctx.history.commit('Set Accidental');
+      } else if (sel.eventId && sel.noteId && sel.measureIndex !== null) {
+        // Single selection
+        dispatch(new UpdateNoteCommand(
+          sel.measureIndex,
+          sel.eventId,
+          sel.noteId,
+          { accidental: type },
+          sel.staffIndex
+        ));
+      }
       return this;
     },
 
-    setTheme(_theme) {
-      // TODO: Implement
+    toggleAccidental() {
+      const sel = selectionRef.current;
+      // For toggling, we need the current state.
+      // Easiest is to target the primary selection or iterate.
+      // Logic: sharp -> flat -> natural -> null
+      // Implementation Note: Requires resolving current note. 
+      // For Phase 7B, implementing for single selection primarily.
+      
+      if (sel.eventId && sel.noteId && sel.measureIndex !== null) {
+        const score = ctx.getScore();
+        const staff = score.staves[sel.staffIndex];
+        const measure = staff?.measures[sel.measureIndex];
+        const event = measure?.events.find(e => e.id === sel.eventId);
+        const note = event?.notes.find(n => n.id === sel.noteId);
+        
+        if (note) {
+          const current = note.accidental;
+          let next: 'sharp' | 'flat' | 'natural' | null = 'sharp';
+          if (current === 'sharp') next = 'flat';
+          else if (current === 'flat') next = 'natural';
+          else if (current === 'natural') next = null;
+          
+          dispatch(new UpdateNoteCommand(
+            sel.measureIndex,
+            sel.eventId,
+            sel.noteId,
+            { accidental: next },
+            sel.staffIndex
+          ));
+        }
+      }
       return this;
     },
 
-    setScale(_scale) {
-      // TODO: Implement
+    setBpm(bpm) {
+      dispatch(new SetBpmCommand(bpm));
+      return this;
+    },
+
+    setTheme(themeName) {
+      if (ctx.setTheme) {
+        ctx.setTheme(themeName);
+      }
+      return this;
+    },
+
+    setScale(scale) {
+      if (ctx.setZoom) {
+        ctx.setZoom(scale);
+      }
       return this;
     },
 

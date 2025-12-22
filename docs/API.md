@@ -116,7 +116,7 @@ The most recently focused or mounted instance.
 | `unmakeTuplet` | `unmakeTuplet()` | ⏳ | Remove tuplet grouping. |
 | `toggleTie` | `toggleTie()` | ⏳ | Toggle tie to next note. |
 | `setTie` | `setTie(boolean)` | ⏳ | Explicit tie setting. |
-| `setInputMode` | `setInputMode('note' \| 'rest')` | ⏳ | Set entry mode. |
+| `setInputMode` | `setInputMode('note' \| 'rest')` | ✅ | Set entry mode (UI state). |
 
 ---
 
@@ -126,8 +126,8 @@ The most recently focused or mounted instance.
 | :--- | :--- | :--- | :--- |
 | `setPitch` | `setPitch(pitch)` | ⏳ | Update selected note(s). |
 | `setDuration` | `setDuration(duration, dotted?)` | ⏳ | Update selected event(s). |
-| `setAccidental` | `setAccidental(type)` | ⏳ | `'sharp'`, `'flat'`, `'natural'`, `null`. |
-| `toggleAccidental` | `toggleAccidental()` | ⏳ | Cycle accidental. |
+| `setAccidental` | `setAccidental(type)` | ✅ | `'sharp'`, `'flat'`, `'natural'`, `null`. |
+| `toggleAccidental` | `toggleAccidental()` | ✅ | Cycle accidental. |
 | `transpose` | `transpose(semitones)` | ⏳ | Chromatic transposition. |
 | `transposeDiatonic` | `transposeDiatonic(steps)` | ✅ | Visual/diatonic transposition. |
 | `updateEvent` | `updateEvent(props)` | ✅ | Generic escape hatch. |
@@ -153,9 +153,9 @@ The most recently focused or mounted instance.
 | :--- | :--- | :--- | :--- |
 | `setClef` | `setClef(clef)` | ✅ | `'treble'`, `'bass'`, `'alto'`, `'tenor'`, `'grand'`. |
 | `setScoreTitle` | `setScoreTitle(title)` | ✅ | Update title. |
-| `setBpm` | `setBpm(number)` | ⏳ | Set tempo. |
-| `setTheme` | `setTheme(theme)` | ⏳ | `'LIGHT'`, `'DARK'`, `'WARM'`, `'COOL'`. |
-| `setScale` | `setScale(number)` | ⏳ | Zoom factor. |
+| `setBpm` | `setBpm(number)` | ✅ | Set tempo. |
+| `setTheme` | `setTheme(theme)` | ✅ | `'LIGHT'`, `'DARK'`, `'WARM'`, `'COOL'`. |
+| `setScale` | `setScale(number)` | ✅ | Zoom factor. |
 | `setStaffLayout` | `setStaffLayout(type)` | ✅ | `'grand'`, `'single'`. |
 
 ---
@@ -165,7 +165,7 @@ The most recently focused or mounted instance.
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
 | `loadScore` | `loadScore(score)` | ✅ | Load/replace score. |
-| `reset` | `reset(template?, measures?)` | ⏳ | Reset to blank score. |
+| `reset` | `reset(template?, measures?)` | ✅ | Reset to blank score/template. |
 | `export` | `export(format)` | ✅ | `'json'`, `'abc'`, `'musicxml'`. |
 
 ---

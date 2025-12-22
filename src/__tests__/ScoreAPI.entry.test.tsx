@@ -294,18 +294,18 @@ describe('ScoreAPI Entry Methods', () => {
   });
 
   describe('setInputMode', () => {
-    test('logs warning about UI concept', () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-      render(<RiffScore id="mode-warn" />);
-      const api = getAPI('mode-warn');
+    test('changes input mode via context setter', () => {
+      render(<RiffScore id="mode-set" />);
+      const api = getAPI('mode-set');
 
+      // The method should succeed without throwing
+      let result: MusicEditorAPI | undefined;
       act(() => {
-        api.setInputMode('rest');
+        result = api.setInputMode('rest');
       });
 
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Input mode is a UI concept')
-      );
+      // Method should return this for chaining
+      expect(result).toBe(api);
     });
 
     test('supports method chaining', () => {

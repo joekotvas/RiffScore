@@ -35,5 +35,10 @@ export interface APIContext {
   
   /** Current configuration */
   config: RiffScoreConfig;
+  
+  /** UI / Editor State Setters */
+  setTheme?: (name: string) => void;
+  setZoom?: (zoom: number) => void;
+  setInputMode?: (mode: 'note' | 'rest') => void;
 }
 

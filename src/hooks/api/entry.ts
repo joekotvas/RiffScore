@@ -296,11 +296,10 @@ export const createEntryMethods = (ctx: APIContext): Pick<MusicEditorAPI, EntryM
       return this;
     },
 
-    setInputMode(_mode) {
-      // Note: setInputMode affects UI state (tools), not score state.
-      // This requires access to the tools context which is not available here.
-      // For programmatic API usage, mode is typically set before calling addNote/addRest.
-      console.warn('[RiffScore API] setInputMode: Use addNote() for notes, addRest() for rests. Input mode is a UI concept.');
+    setInputMode(mode) {
+      if (ctx.setInputMode) {
+        ctx.setInputMode(mode);
+      }
       return this;
     },
   };
