@@ -333,6 +333,7 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
   const enginesGroup: ScoreEnginesGroup = {
     dispatch,
     selectionEngine,
+    engine,
     scoreRef,
   };
 
