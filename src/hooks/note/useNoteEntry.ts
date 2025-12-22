@@ -8,7 +8,44 @@ import { AddEventCommand } from '@/commands/AddEventCommand';
 import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
 import { AddMeasureCommand } from '@/commands/MeasureCommands';
 import { createNotePayload, createPreviewNote, PreviewNote } from '@/utils/entry';
+import { generateId } from '@/utils/core';
 import { InputMode } from '../useEditorTools';
+
+/**
+ * Placement override for note insertion.
+ */
+export interface PlacementOverride {
+  mode: 'APPEND' | 'INSERT' | 'CHORD';
+  index: number;
+  eventId?: string | number;
+}
+
+/**
+ * Options passed to select function.
+ */
+export interface SelectOptions {
+  /** Only update selection history, not visual selection */
+  onlyHistory?: boolean;
+}
+
+/**
+ * Input for note/chord entry (from preview or direct entry).
+ */
+export interface NoteInput {
+  pitch: string;
+  mode?: 'APPEND' | 'INSERT' | 'CHORD';
+  index?: number;
+  staffIndex?: number;
+  eventId?: string | number;
+}
+
+/**
+ * Input for chord note.
+ */
+export interface ChordNoteInput {
+  pitch: string;
+  accidental?: 'sharp' | 'flat' | 'natural' | null;
+}
 
 /**
  * Props for the useNoteEntry hook.
@@ -24,10 +61,10 @@ export interface UseNoteEntryProps {
     eventId: string | number | null,
     noteId: string | number | null,
     staffIndex?: number,
-    options?: any
+    options?: SelectOptions
   ) => void;
   /** Preview note setter */
-  setPreviewNote: (note: PreviewNote | null | any) => void;
+  setPreviewNote: (note: PreviewNote | null) => void;
   /** Current active duration */
   activeDuration: string;
   /** Whether dotted is active */
@@ -51,14 +88,14 @@ export interface UseNoteEntryReturn {
   /** Add a note or rest to a measure */
   addNoteToMeasure: (
     measureIndex: number,
-    newNote: any,
+    newNote: NoteInput,
     shouldAutoAdvance?: boolean,
-    placementOverride?: any
+    placementOverride?: PlacementOverride | null
   ) => void;
   /** Add a chord (multiple notes) to a measure */
   addChordToMeasure: (
     measureIndex: number,
-    notes: any[],
+    notes: ChordNoteInput[],
     duration: string,
     dotted: boolean
   ) => void;
@@ -114,9 +151,9 @@ export function useNoteEntry({
   const addNoteToMeasure = useCallback(
     (
       measureIndex: number,
-      newNote: any,
+      newNote: NoteInput,
       shouldAutoAdvance = false,
-      placementOverride: any = null
+      placementOverride: PlacementOverride | null = null
     ) => {
       const currentScore = scoreRef.current;
       // Use staff from newNote (preview) if available, otherwise selection
@@ -137,7 +174,7 @@ export function useNoteEntry({
         insertIndex = placementOverride.index;
       } else if (newNote.mode) {
         mode = newNote.mode;
-        insertIndex = newNote.index;
+        insertIndex = newNote.index ?? targetMeasure.events.length;
       }
 
       // Check capacity
@@ -191,7 +228,7 @@ export function useNoteEntry({
         setPreviewNote(null);
       } else {
         // NEW EVENT (note or rest) - unified path
-        const eventId = Date.now().toString();
+        const eventId = generateId();
         const isRest = inputMode === 'REST';
 
         // Build note payload using utility (null for rests)
@@ -292,10 +329,10 @@ export function useNoteEntry({
   );
 
   const addChordToMeasure = useCallback(
-    (measureIndex: number, notes: any[], duration: string, dotted: boolean) => {
+    (measureIndex: number, notes: ChordNoteInput[], duration: string, dotted: boolean) => {
       if (!notes || notes.length === 0) return;
 
-      const eventId = Date.now().toString();
+      const eventId = generateId();
       const firstNote = notes[0];
 
       const noteToAdd = createNotePayload({
