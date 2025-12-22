@@ -8,9 +8,9 @@
 
 | Status | Phases |
 | :--- | :--- |
-| ✅ Complete | 0, 1, 2 (a-g), 3, 4, 5 (A, B, C, D, E) |
-| 🔄 In Progress | 6, 7 |
-| 🔲 Remaining | 8 |
+| ✅ Complete | 0, 1, 2 (a-g), 3, 4, 5 (A-E), 6A |
+| 🔄 In Progress | 7 |
+| 🔲 Remaining | 6B, 8 |
 
 **Goal:** Complete transition to a dispatch-based, engine-driven, fully exposed and machine-addressable API.
 
@@ -103,6 +103,16 @@
 - [x] Fix tuplet bugs (bass clef, staffIndex, TupletBracket NaN)
 </details>
 
+<details>
+<summary><strong>✅ Phase 6A: Fix Stale getScore()</strong> — <a href="https://github.com/joekotvas/RiffScore/issues/140">Issue #140</a> · <a href="https://github.com/joekotvas/RiffScore/pull/141">PR #141</a></summary>
+
+- [x] Create reproduction test `ScoreAPI.reliability.test.tsx`
+- [x] Expose `ScoreEngine` to API layer (via `useScoreLogic` return)
+- [x] Update `api.getScore()` to read `engine.getState()` synchronously
+- [x] Implement missing API commands (`addMeasure`, `setPitch`)
+- [x] Document [ADR-006](../adr/006-synchronous-api-engine-access.md)
+</details>
+
 ---
 
 ## Remaining Roadmap
@@ -124,10 +134,10 @@
 
 **Related:** [Issue #101](https://github.com/joekotvas/RiffScore/issues/101) (Cross-staff selection extension)
 
-#### 6A: Fix Stale `getScore()` 
-- [ ] Investigate `scoreRef.current` sync in `useScoreAPI`
-- [ ] Ensure `getScore()` returns fresh data after mutations
-- [ ] Add test: `addNote() → getScore() → verify event exists`
+#### 6A: Fix Stale `getScore()` (Completed)
+- [x] Investigate `scoreRef.current` sync in `useScoreAPI`
+- [x] Ensure `getScore()` returns fresh data after mutations
+- [x] Add test: `addNote() → getScore() → verify event exists`
 
 #### 6B: Fix Entry with Custom Staves
 - [ ] Debug why `addNote()` fails with custom staves
