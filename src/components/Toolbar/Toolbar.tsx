@@ -147,6 +147,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
 
     // -- Derived Logic --
 
+    // eslint-disable-next-line react-hooks/refs
     const isAnyMenuOpen = showLibrary || (staffControlsRef.current?.isMenuOpen() ?? false);
     const activeStaff = getActiveStaff(score);
 
@@ -234,10 +235,12 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
                 melodies={melodies}
                 onSelectMelody={handleMelodySelect}
                 onClose={() => setShowLibrary(false)}
+                /* eslint-disable react-hooks/refs */
                 position={{
                   x: (melodyLibBtnRef.current?.getBoundingClientRect().right || 0) - 256,
                   y: (melodyLibBtnRef.current?.getBoundingClientRect().bottom || 0) + 5,
                 }}
+                /* eslint-enable react-hooks/refs */
                 triggerRef={melodyLibBtnRef as React.RefObject<HTMLElement>}
               />
             )}

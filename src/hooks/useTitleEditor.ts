@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { UpdateTitleCommand } from '@/commands/UpdateTitleCommand';
+import { Command } from '@/commands/types';
 
 interface UseTitleEditorResult {
   isEditing: boolean;
@@ -15,20 +16,26 @@ interface UseTitleEditorResult {
  */
 export function useTitleEditor(
   currentTitle: string,
-  dispatch: (command: any) => void
+  dispatch: (command: Command) => void
 ): UseTitleEditorResult {
   const [isEditing, setIsEditing] = useState(false);
   const [buffer, setBuffer] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const handleSetEditing = useCallback((editing: boolean) => {
+    if (editing) {
+      setBuffer(currentTitle); // Initialize buffer when starting edit
+    }
+    setIsEditing(editing);
+  }, [currentTitle]);
+
   // Focus and select when editing starts
   useEffect(() => {
     if (isEditing && inputRef.current) {
-      setBuffer(currentTitle);
       inputRef.current.focus();
       inputRef.current.select();
     }
-  }, [isEditing, currentTitle]);
+  }, [isEditing]);
 
   const commit = useCallback(() => {
     setIsEditing(false);
@@ -37,5 +44,5 @@ export function useTitleEditor(
     }
   }, [buffer, currentTitle, dispatch]);
 
-  return { isEditing, setIsEditing, buffer, setBuffer, commit, inputRef };
+  return { isEditing, setIsEditing: handleSetEditing, buffer, setBuffer, commit, inputRef };
 }

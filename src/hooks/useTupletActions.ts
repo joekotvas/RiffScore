@@ -2,16 +2,18 @@ import { useCallback } from 'react';
 import { ApplyTupletCommand } from '@/commands/TupletCommands';
 import { RemoveTupletCommand } from '@/commands/RemoveTupletCommand';
 import { Command } from '@/commands/types';
+import { Score, Selection, ScoreEvent } from '@/types';
 
 /**
  * Hook providing tuplet manipulation actions.
  * Handles applying and removing tuplets from selected events.
  */
 export const useTupletActions = (
-  scoreRef: any,
-  selection: any,
+  scoreRef: React.MutableRefObject<Score>,
+  selection: Selection,
   dispatch: (command: Command) => void
 ) => {
+
   /**
    * Applies a tuplet to a group of consecutive events starting from current selection.
    * @param ratio - Tuplet ratio, e.g., [3, 2] for triplet
@@ -40,7 +42,7 @@ export const useTupletActions = (
       }
 
       // Find the index of the selected event
-      const eventIndex = measure.events.findIndex((e: any) => e.id === selection.eventId);
+      const eventIndex = measure.events.findIndex((e: ScoreEvent) => e.id === selection.eventId);
 
       if (eventIndex === -1) {
         console.warn('Selected event not found in measure');
@@ -88,7 +90,7 @@ export const useTupletActions = (
     }
 
     // Find the index of the selected event
-    const eventIndex = measure.events.findIndex((e: any) => e.id === selection.eventId);
+    const eventIndex = measure.events.findIndex((e: ScoreEvent) => e.id === selection.eventId);
 
     if (eventIndex === -1) {
       console.warn('Selected event not found in measure');
@@ -127,7 +129,7 @@ export const useTupletActions = (
 
       if (!measure) return false;
 
-      const eventIndex = measure.events.findIndex((e: any) => e.id === selection.eventId);
+      const eventIndex = measure.events.findIndex((e: ScoreEvent) => e.id === selection.eventId);
       if (eventIndex === -1) return false;
 
       // Check if we have enough consecutive events
@@ -156,7 +158,7 @@ export const useTupletActions = (
 
     if (!measure) return null;
 
-    const event = measure.events.find((e: any) => e.id === selection.eventId);
+    const event = measure.events.find((e: ScoreEvent) => e.id === selection.eventId);
     return event?.tuplet?.ratio || null;
   }, [selection, scoreRef]);
 

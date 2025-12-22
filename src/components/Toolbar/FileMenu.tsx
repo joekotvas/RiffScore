@@ -148,10 +148,12 @@ const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = 'h-9', variant
         <DropdownOverlay
           onClose={handleClose}
           triggerRef={buttonRef as React.RefObject<HTMLElement>}
+          /* eslint-disable react-hooks/refs */
           position={{
             x: buttonRef.current?.getBoundingClientRect().left || 0,
             y: (buttonRef.current?.getBoundingClientRect().bottom || 0) + 5,
           }}
+          /* eslint-enable react-hooks/refs */
           width={220}
         >
           <div

@@ -124,7 +124,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
 
     // Factory methods access refs via context, not directly during render.
     // The refs are only read when API methods are called (in event handlers).
-    // eslint-disable-next-line
+    /* eslint-disable react-hooks/refs */
     const instance: MusicEditorAPI = {
       // Composition: Mixin all factory methods
       ...createNavigationMethods(context),
@@ -143,6 +143,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
       // Events
       on,
     };
+    /* eslint-enable react-hooks/refs */
 
     return instance;
   }, [config, dispatch, syncSelection, selectionEngine, on, undo, redo, beginTransaction, commitTransaction, rollbackTransaction]);

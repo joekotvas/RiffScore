@@ -149,12 +149,12 @@ export function useNoteEntry({
   inputMode,
 }: UseNoteEntryProps): UseNoteEntryReturn {
   const addNoteToMeasure = useCallback(
-    (
+    function handleAddNote(
       measureIndex: number,
       newNote: NoteInput,
       shouldAutoAdvance = false,
       placementOverride: PlacementOverride | null = null
-    ) => {
+    ) {
       const currentScore = scoreRef.current;
       // Use staff from newNote (preview) if available, otherwise selection
       const currentStaffIndex =
@@ -191,7 +191,7 @@ export function useNoteEntry({
           // Auto-create new measure via Command
           dispatch(new AddMeasureCommand());
           // Recursive call will now target the new measure
-          addNoteToMeasure(measureIndex + 1, { ...newNote, staffIndex: currentStaffIndex }, false, {
+          handleAddNote(measureIndex + 1, { ...newNote, staffIndex: currentStaffIndex }, false, {
             mode: 'APPEND',
             index: 0,
           });
