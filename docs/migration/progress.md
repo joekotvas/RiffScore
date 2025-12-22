@@ -157,8 +157,15 @@
 - [x] **Types**: Exported `ClefType`
 </details>
 
-#### 7B: Simple State Updates (7 methods) — Est. 1-2 hours
-- [ ] `setBpm`, `setTheme`, `setScale`, `setInputMode`, `reset`, `setAccidental`, `toggleAccidental`
+<details>
+<summary><strong>✅ Phase 7B: Simple State Updates</strong></summary>
+
+- [x] Implemented `setBpm`, `setTheme`, `setScale` (modification.ts)
+- [x] Implemented `setInputMode` (entry.ts) - UI State
+- [x] Implemented `setAccidental`, `toggleAccidental` (modification.ts)
+- [x] Implemented `reset` (io.ts)
+- [x] Added `ScoreAPI.config.test.tsx` and `ScoreAPI.accidental.test.tsx`
+</details>
 
 #### 7C: Selection Enhancements (3 methods) — Est. 2 hours
 - [ ] `selectAtQuant`, `addToSelection`, `selectRangeTo`
