@@ -139,7 +139,7 @@ When adding new features or API methods, update relevant docs:
 □ TypeScript: 0 errors
 □ Tests: 100% passing, full coverage for new code
 □ Format: All files formatted
-□ Docs: JSDoc headers, annotations, inline comments
+□ Docs: JSDoc headers, annotations, inline comments, global docs
 ```
 
 ---
