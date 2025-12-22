@@ -107,6 +107,15 @@ Use prefixed comments for important details:
 - [ ] Complex logic has inline comments
 - [ ] Public API methods are documented
 
+### Global Documentation Updates
+
+When adding new features or API methods, update relevant docs:
+
+- [ ] **API.md**: Mark methods as implemented (✅)
+- [ ] **progress.md**: Update phase status and details
+- [ ] **CHANGELOG.md**: Add entry for significant changes
+- [ ] **README.md**: Update if user-facing features change
+
 ---
 
 ## Quick Summary Checklist

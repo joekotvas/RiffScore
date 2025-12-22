@@ -169,12 +169,7 @@ export const createModificationMethods = (
         ctx.history.begin();
         selectedNotes.forEach((note) => {
           // Validate all required properties before dispatch
-          if (
-            note.noteId &&
-            note.eventId &&
-            note.measureIndex != null &&
-            note.staffIndex != null
-          ) {
+          if (note.noteId && note.eventId && note.measureIndex != null && note.staffIndex != null) {
             dispatch(
               new UpdateNoteCommand(
                 note.measureIndex,
