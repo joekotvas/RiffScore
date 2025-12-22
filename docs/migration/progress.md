@@ -190,10 +190,15 @@
 
 > **Future Exploration:** Consider wrapping single-selection dispatches in transactions for consistent undo behavior (e.g., `setAccidental` uses transactions for multi-select but not single-select). Trade-off is overhead vs. consistency.
 
-#### 7E: New Commands (3 methods) — Est. 3-4 hours
-- [ ] `setDuration` (ChangeRhythmCommand)
-- [ ] `transpose` (chromatic)
-- [ ] `rollbackTransaction`
+#### 7E: Remaining Stubs (2 methods) — Est. 2-3 hours
+- [ ] `setDuration` (ChangeRhythmCommand) - stub in modification.ts
+- [ ] `transpose` (chromatic) - stub in modification.ts
+
+> **Codebase Audit Notes (2024-12-22):**
+> - `addMeasure` - ⚠️ Partial: dispatches command but ignores `atIndex` param (always appends)
+> - `rollbackTransaction` - ✅ Implemented: calls `history.rollback()`
+> - `makeTuplet`, `unmakeTuplet`, `toggleTie`, `setTie` - ✅ Implemented in entry.ts
+> - `setPitch` - ✅ Implemented: dispatches ChangePitchCommand
 
 #### 7F: Clipboard API (Deferred - 3 methods) — Est. 4-6 hours
 - [ ] Implement `copy()`, `cut()`, `paste()`
@@ -202,7 +207,7 @@
 #### 7G: Documentation & Polish (Phase 8)
 - [ ] Post-release documentation cleanup
 
-**Total Remaining: 18 active methods + 3 deferred (Clipboard)**
+**Total Remaining: 2 full stubs + 1 partial + 3 clipboard = 6 methods**
 
 ---
 
