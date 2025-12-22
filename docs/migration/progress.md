@@ -176,9 +176,19 @@
 - [x] Added `ScoreAPI.selection.test.tsx` with 8 tests
 </details>
 
-#### 7D: Playback Integration (5 methods) — Est. 2-3 hours
-- [ ] `play`, `pause`, `stop`, `rewind`, `setInstrument`
-- [ ] `on('playback')` event
+<details>
+<summary><strong>✅ Phase 7D: Playback Integration</strong></summary>
+
+- [x] Implemented `play(startMeasure?, startQuant?)` - async, creates timeline, schedules playback
+- [x] Implemented `pause()` - stops transport, retains position for resume
+- [x] Implemented `stop()` - stops transport, resets to beginning
+- [x] Implemented `rewind(measureNum?)` - jumps position, auto-restarts if playing
+- [x] Implemented `setInstrument(instrumentId)` - wraps toneEngine.setInstrument
+- [x] Added `ScoreAPI.playback.test.tsx` with 16 tests (mocks toneEngine)
+- Note: Uses direct toneEngine calls, not Command pattern (playback is side-effectful, not state-transforming)
+</details>
+
+> **Future Exploration:** Consider wrapping single-selection dispatches in transactions for consistent undo behavior (e.g., `setAccidental` uses transactions for multi-select but not single-select). Trade-off is overhead vs. consistency.
 
 #### 7E: New Commands (3 methods) — Est. 3-4 hours
 - [ ] `setDuration` (ChangeRhythmCommand)

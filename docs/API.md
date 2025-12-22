@@ -174,11 +174,11 @@ The most recently focused or mounted instance.
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `play` | `play()` | ⏳ | Start playback. |
-| `pause` | `pause()` | ⏳ | Pause playback. |
-| `stop` | `stop()` | ⏳ | Stop and rewind. |
-| `rewind` | `rewind(measureNum?)` | ⏳ | Jump playback position. |
-| `setInstrument` | `setInstrument(instrumentId)` | ⏳ | Change instrument. |
+| `play` | `play(startMeasure?, startQuant?)` | ✅ | Start/resume playback (async). |
+| `pause` | `pause()` | ✅ | Pause (retains position). |
+| `stop` | `stop()` | ✅ | Stop and reset to beginning. |
+| `rewind` | `rewind(measureNum?)` | ✅ | Jump playback position. |
+| `setInstrument` | `setInstrument(instrumentId)` | ✅ | `'bright'`, `'mellow'`, `'organ'`, `'piano'`. |
 
 ---
 
