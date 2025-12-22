@@ -1,4 +1,5 @@
 import { Selection, Measure } from './types';
+import { HitZone } from './engines/layout/types';
 
 /**
  * Encapsulates all layout configuration required for a measure to render.
@@ -45,7 +46,12 @@ export interface InteractionState {
     isShift?: boolean
   ) => void;
   onDragStart: (params: any) => void;
-  onHover: (measureIndex: number | null, hit: any, pitch: string, staffIndex?: number) => void;
+  onHover: (
+    measureIndex: number | null,
+    hit: HitZone | null,
+    pitch: string | null,
+    staffIndex?: number
+  ) => void;
 }
 
 /**

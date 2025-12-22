@@ -90,13 +90,7 @@ describe('Cross-Staff Navigation (Alt+Arrows)', () => {
       anchor: null,
     };
 
-    const setSelection = jest.fn((update) => {
-      if (typeof update === 'function') {
-        selection = update(selection);
-      } else {
-        selection = update;
-      }
-    });
+
     const setPreviewNote = jest.fn();
     const dispatch = jest.fn();
 
@@ -114,7 +108,6 @@ describe('Cross-Staff Navigation (Alt+Arrows)', () => {
       useNavigation({
         scoreRef,
         selection,
-        setSelection,
         select,
         previewNote: null,
         setPreviewNote,
@@ -154,13 +147,7 @@ describe('Cross-Staff Navigation (Alt+Arrows)', () => {
       anchor: null,
     };
 
-    const setSelection = jest.fn((update) => {
-      if (typeof update === 'function') {
-        selection = update(selection);
-      } else {
-        selection = update;
-      }
-    });
+
     const setPreviewNote = jest.fn();
     const dispatch = jest.fn();
 
@@ -178,7 +165,6 @@ describe('Cross-Staff Navigation (Alt+Arrows)', () => {
       useNavigation({
         scoreRef,
         selection,
-        setSelection,
         select,
         previewNote: null,
         setPreviewNote,
@@ -214,13 +200,7 @@ describe('Cross-Staff Navigation (Alt+Arrows)', () => {
       anchor: null,
     };
 
-    const setSelection = jest.fn((update) => {
-      if (typeof update === 'function') {
-        selection = update(selection);
-      } else {
-        selection = update;
-      }
-    });
+
     const setPreviewNote = jest.fn();
     const dispatch = jest.fn();
 
@@ -238,7 +218,6 @@ describe('Cross-Staff Navigation (Alt+Arrows)', () => {
       useNavigation({
         scoreRef,
         selection,
-        setSelection,
         select,
         previewNote: null,
         setPreviewNote,
@@ -339,13 +318,7 @@ describe('Cross-Staff Navigation (Alt+Arrows)', () => {
 
     let capturedPreviewNote: any = null;
 
-    const setSelection = jest.fn((update) => {
-      if (typeof update === 'function') {
-        selection = update(selection);
-      } else {
-        selection = update;
-      }
-    });
+
     const setPreviewNote = jest.fn((note) => {
       capturedPreviewNote = note;
     });
@@ -365,7 +338,6 @@ describe('Cross-Staff Navigation (Alt+Arrows)', () => {
       useNavigation({
         scoreRef,
         selection,
-        setSelection,
         select,
         previewNote: null,
         setPreviewNote,

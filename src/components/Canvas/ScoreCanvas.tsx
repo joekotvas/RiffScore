@@ -4,7 +4,18 @@ import { useTheme } from '@/context/ThemeContext';
 import { calculateHeaderLayout, getOffsetForPitch, calculateMeasureLayout } from '@/engines/layout';
 import { isRestEvent, getFirstNoteId } from '@/utils/core';
 import Staff, { calculateStaffWidth } from './Staff';
-import { getActiveStaff, Staff as StaffType, Measure, ScoreEvent, Note } from '@/types';
+import {
+  Score,
+  Measure as MeasureData,
+  PreviewNote,
+  Selection,
+  getActiveStaff,
+  Staff as StaffType,
+  Measure,
+  ScoreEvent,
+  Note,
+} from '@/types';
+import { HitZone } from '@/engines/layout/types';
 import { useScoreContext } from '@/context/ScoreContext';
 import { useScoreInteraction } from '@/hooks/useScoreInteraction';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
@@ -322,9 +333,12 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     handleMeasureHoverRef.current = handleMeasureHover;
   }, [handleMeasureHover]);
 
+// ... (keep existing imports)
+
+// ... inside component ...
   // Cache per-staff onHover handlers to prevent recreation (stable identity for memoized children)
   const hoverHandlersRef = useRef<
-    Map<number, (measureIndex: number | null, hit: { quant: number } | null, pitch: string | null) => void>
+    Map<number, (measureIndex: number | null, hit: HitZone | null, pitch: string | null) => void>
   >(new Map());
 
   const getHoverHandler = useCallback(
@@ -332,7 +346,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       if (!hoverHandlersRef.current.has(staffIndex)) {
         hoverHandlersRef.current.set(
           staffIndex,
-          (measureIndex: number | null, hit: { quant: number } | null, pitch: string | null) => {
+          (measureIndex: number | null, hit: HitZone | null, pitch: string | null) => {
             if (!dragState.active) {
               handleMeasureHoverRef.current(measureIndex, hit, pitch || '', staffIndex);
             }

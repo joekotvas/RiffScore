@@ -21,7 +21,7 @@ export interface PreviewNoteOptions {
   /** Whether this is a rest preview */
   isRest?: boolean;
   /** Source of the preview: 'hover' or 'keyboard' */
-  source?: 'hover' | 'keyboard';
+  source?: 'hover' | 'keyboard' | 'mouse';
 }
 
 /**
@@ -32,6 +32,8 @@ export interface PreviewNote extends PreviewNoteOptions {
   quant: number;
   /** Visual quant position */
   visualQuant: number;
+  /** Whether this is a rest preview (mandatory) */
+  isRest: boolean;
 }
 
 /**
