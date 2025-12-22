@@ -17,11 +17,19 @@ interface EventPreviousState {
  * Returns the center pitch for a staff based on its clef.
  * Used when converting rests to notes.
  *
- * @param clef - 'treble' | 'bass' | 'grand'
- * @returns Center pitch (B4 for treble, D3 for bass)
+ * @param clef - 'treble' | 'bass' | 'alto' | 'tenor' | 'grand'
+ * @returns Center pitch (B4 for treble, D3 for bass, C4 for alto/tenor)
  */
-const getCenterPitch = (clef: 'treble' | 'bass' | 'grand'): string => {
-  return clef === 'bass' ? 'D3' : 'B4';
+const getCenterPitch = (clef: string): string => {
+  switch (clef) {
+    case 'bass':
+      return 'D3';
+    case 'alto':
+    case 'tenor':
+      return 'C4'; // Middle C is the reference for C-clefs
+    default:
+      return 'B4'; // Treble and grand
+  }
 };
 
 /**

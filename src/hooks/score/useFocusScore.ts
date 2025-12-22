@@ -9,7 +9,7 @@
 
 import { useCallback, RefObject } from 'react';
 import { Selection, Score, PreviewNote } from '@/types';
-import { getAppendPreviewNote } from '@/utils/interaction';
+import { getAppendPreviewNote, getDefaultPitchForClef } from '@/utils/interaction';
 import { calculateFocusSelection } from '@/utils/focusScore';
 import { SetSelectionCommand } from '@/commands/selection';
 import { SelectionEngine } from '@/engines/SelectionEngine';
@@ -120,7 +120,7 @@ export const useFocusScore = ({
       const measure = staff?.measures[newSelection.measureIndex];
       if (measure) {
         const clef = staff.clef || 'treble';
-        const defaultPitch = clef === 'bass' ? 'D3' : 'B4';
+        const defaultPitch = getDefaultPitchForClef(clef);
         const preview = getAppendPreviewNote(
           measure,
           newSelection.measureIndex,
