@@ -1,5 +1,6 @@
 import { MusicEditorAPI } from '@/api.types';
 import { APIContext } from './types';
+import { ChangePitchCommand, AddMeasureCommand } from '@/commands';
 
 /**
  * Modification method names provided by this factory
@@ -15,12 +16,20 @@ type ModificationMethodNames = 'setPitch' | 'setDuration' | 'setAccidental' | 't
  * @param ctx - Shared API context
  * @returns Partial API implementation for modification
  */
-export const createModificationMethods = (_ctx: APIContext): Pick<MusicEditorAPI, ModificationMethodNames> & ThisType<MusicEditorAPI> => {
-  // const { dispatch } = ctx;
+export const createModificationMethods = (ctx: APIContext): Pick<MusicEditorAPI, ModificationMethodNames> & ThisType<MusicEditorAPI> => {
+  const { dispatch, selectionRef } = ctx;
 
   return {
-    setPitch(_pitch) {
-      // TODO: Dispatch ChangePitchCommand
+    setPitch(pitch) {
+      const sel = selectionRef.current;
+      if (sel.eventId && sel.noteId && sel.measureIndex !== null) {
+        dispatch(new ChangePitchCommand(
+          sel.measureIndex,
+          sel.eventId,
+          sel.noteId,
+          pitch
+        ));
+      }
       return this;
     },
 
@@ -50,13 +59,13 @@ export const createModificationMethods = (_ctx: APIContext): Pick<MusicEditorAPI
     },
 
     updateEvent(_props) {
-      // TODO: Generic update - will use proper ScoreEvent type when implemented
+      // TODO: Generic update
       return this;
     },
 
     // ========== STRUCTURE ==========
     addMeasure(_atIndex) {
-      // TODO: Dispatch AddMeasureCommand
+      dispatch(new AddMeasureCommand());
       return this;
     },
 

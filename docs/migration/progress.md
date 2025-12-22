@@ -8,8 +8,8 @@
 
 | Status | Phases |
 | :--- | :--- |
-| ✅ Complete | 0, 1, 2 (a-g), 3, 4, 5 (A, B, C, E) |
-| 🔄 In Progress | 5 (D), 6, 7 |
+| ✅ Complete | 0, 1, 2 (a-g), 3, 4, 5 (A, B, C, D, E) |
+| 🔄 In Progress | 6, 7 |
 | 🔲 Remaining | 8 |
 
 **Goal:** Complete transition to a dispatch-based, engine-driven, fully exposed and machine-addressable API.
@@ -75,6 +75,22 @@
 </details>
 
 <details>
+<summary><strong>✅ Phase 5E: Maintenance & Stability</strong> — <a href="https://github.com/joekotvas/RiffScore/issues/137">Issue #137</a> · <a href="https://github.com/joekotvas/RiffScore/pull/138">PR #138</a></summary>
+
+- [x] TypeScript cleanup and lint fixes
+- [x] Test repairs (100% pass rate achieved)
+- [x] Resolved "any" types and implicit returns
+</details>
+
+<details>
+<summary><strong>✅ Phase 5D: Selection Handler Consolidation</strong> — <a href="https://github.com/joekotvas/RiffScore/issues/136">Issue #136</a> · <a href="https://github.com/joekotvas/RiffScore/pull/136">PR #136</a></summary>
+
+- [x] Audit remaining `setSelection` calls
+- [x] Verify all production paths use dispatch
+- [x] Document [ADR-005](../adr/005-selection-dispatch-pattern.md)
+</details>
+
+<details>
 <summary><strong>✅ Phase 5C: Entry Hook Refactor</strong> — <a href="https://github.com/joekotvas/RiffScore/issues/125">Issue #125</a> · <a href="https://github.com/joekotvas/RiffScore/pull/130">PR #130</a></summary>
 
 **Analysis:** [phase-5c-entry-analysis.md](./phase-5c-entry-analysis.md)
@@ -91,15 +107,6 @@
 
 ## Remaining Roadmap
 
-### 🔄 Phase 5D: Selection Handler Consolidation
-
-**Goal:** Ensure all selection mutations go through dispatch.
-
-| Task | Files | Priority |
-|------|-------|----------|
-| Audit remaining `setSelection` calls | `useSelection.ts`, `useNavigation.ts` | High |
-| Verify all production paths use dispatch | — | High |
-| Test file usage is acceptable | Tests can use `setSelection` for setup | Info |
 
 ---
 
@@ -134,17 +141,17 @@
 
 | Method | Factory | Status | Priority |
 |--------|---------|--------|----------|
-| `selectFullEvents()` | selection.ts | ✅ Impl, ❌ Not tested | Medium |
-| `extendSelectionUp()` | selection.ts | ✅ Impl, ❌ Not tested | Medium |
-| `extendSelectionDown()` | selection.ts | ✅ Impl, ❌ Not tested | Medium |
-| `extendSelectionAll()` | selection.ts | ✅ Impl, ❌ Not tested | Medium |
+| `selectFullEvents()` | selection.ts | ✅ Impl, ✅ Tested | Medium |
+| `extendSelectionUp()` | selection.ts | ✅ Impl, ✅ Tested | Medium |
+| `extendSelectionDown()` | selection.ts | ✅ Impl, ✅ Tested | Medium |
+| `extendSelectionAll()` | selection.ts | ✅ Impl, ✅ Tested | Medium |
 | `copy()` / `cut()` / `paste()` | — | ⏳ Pending | Low |
 | `play()` / `pause()` | playback.ts | ⏳ Stub | Low |
 | `on('playback')` | events.ts | ⏳ Stub | Low |
 
 #### 7A: Selection Expansion Tests
-- [ ] Test `selectFullEvents()` 
-- [ ] Test `extendSelectionUp/Down/All`
+- [x] Test `selectFullEvents()` 
+- [x] Test `extendSelectionUp/Down/All`
 - [ ] Test `selectAll()` with different scopes
 
 #### 7B: Clipboard API (Deferred)

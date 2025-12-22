@@ -151,7 +151,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
       ...createIOMethods(context),
 
       // Data Accessors (Bound Closures)
-      getScore: () => scoreRef.current,
+      getScore: () => ctx.engines.engine.getState(),
       getConfig: () => config,
       getSelection: () => selectionRef.current,
 
@@ -172,6 +172,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
     beginTransaction,
     commitTransaction,
     rollbackTransaction,
+    ctx.engines.engine,
   ]);
 
   // 5. Registry registration/cleanup

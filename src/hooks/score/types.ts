@@ -123,6 +123,11 @@ export interface ScoreHistoryGroup {
 export interface ScoreEnginesGroup {
   dispatch: (command: Command) => void;
   selectionEngine: SelectionEngine;
+  /**
+   * Direct access to the ScoreEngine instance.
+   * @internal Used for synchronous internal API access.
+   */
+  engine: import('@/engines/ScoreEngine').ScoreEngine;
   scoreRef: RefObject<Score>;
 }
 
