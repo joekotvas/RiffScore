@@ -1,13 +1,16 @@
-# ADR 004: API Factory Pattern
+# ADR-004: API Factory Pattern
 
-**Status:** Accepted  
-**Date:** 2025-12-21  
-**Deciders:** Core Team  
-**Related:** [PR #120](https://github.com/joekotvas/RiffScore/pull/120)
+> **Principle**: Single Responsibility Principle (SRP)  
+> **Status:** Accepted  
+> **Date:** 2025-12-21  
+> **Deciders:** Core Team  
+> **Related:** [PR #120](https://github.com/joekotvas/RiffScore/pull/120)
 
 ## Context
 
 The `MusicEditorAPI` interface defines 40+ methods across navigation, selection, entry, modification, history, playback, and I/O. The initial implementation placed all methods directly in `useScoreAPI`, resulting in a 700+ line hook that was difficult to maintain, test, and extend.
+
+The **Single Responsibility Principle** states that a module should have one, and only one, reason to change. By splitting the API into domain-specific factories, each factory has a single responsibility.
 
 ## Decision
 

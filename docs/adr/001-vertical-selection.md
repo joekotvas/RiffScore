@@ -1,5 +1,6 @@
 # ADR-001: Slice-Based Vertical Selection
 
+> **Principle**: Divide and Conquer  
 > **Status**: Accepted  
 > **Date**: 2025-12-21  
 > **Issue**: #101
@@ -12,7 +13,7 @@ RiffScore needed vertical selection expansion (`Cmd+Shift+Up/Down`) to complemen
 2. **Multiple disjoint selections**: Independent expansion of non-contiguous chords
 3. **Anchor-based model**: Enable both expansion and contraction
 
-## Decision
+The **Divide and Conquer** principle suggests decomposing a complex problem into smaller, independent subproblems. Here, we decompose multi-chord vertical selection into per-time-slice operations.
 
 We implemented a **Slice-Based** vertical selection model where each time-point (vertical slice) is processed independently.
 

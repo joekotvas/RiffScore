@@ -1,16 +1,15 @@
-# ADR 003: Transaction Batching Strategy
+# ADR-003: Transaction Batching Strategy
 
-**Status:** Accepted
-**Date:** 2025-12-21
-**Deciders:** Core Team
+> **Principle**: Atomicity (Unit of Work)  
+> **Status:** Accepted  
+> **Date:** 2025-12-21  
+> **Deciders:** Core Team
 
 ## Context
 
-The RiffScore API requires a "Transaction" mechanism (e.g., `beginTransaction`, `commitTransaction`) to group multiple operations into a single atomic Undo/Redo step. This is critical for:
-1.  **Complexity:** Allowing macros (e.g., "Import MIDI") to not pollute the history stack with hundreds of individual events.
-2.  **Performance:** Potentially reducing notification noise (though not strictly required for this phase).
+The RiffScore API requires a "Transaction" mechanism (e.g., `beginTransaction`, `commitTransaction`) to group multiple operations into a single atomic Undo/Redo step.
 
-We considered two primary patterns for implementation.
+The **Atomicity** principle (from ACID) ensures that a group of operations either all succeed or all fail together, maintaining data integrity. The **Unit of Work** pattern tracks changes and commits them as a single transaction.
 
 ## Decision
 
