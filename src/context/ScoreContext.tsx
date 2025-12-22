@@ -4,7 +4,8 @@ import { Score } from '@/types';
 import { SetClefCommand } from '@/commands/SetClefCommand';
 
 // Infers the return type of useScoreLogic and extends it with UI state
-type ScoreContextType = ReturnType<typeof useScoreLogic> & {
+// Infers the return type of useScoreLogic and extends it with UI state
+export type ScoreContextType = ReturnType<typeof useScoreLogic> & {
   pendingClefChange: { targetClef: 'treble' | 'bass' } | null;
   setPendingClefChange: React.Dispatch<
     React.SetStateAction<{ targetClef: 'treble' | 'bass' } | null>

@@ -1,9 +1,8 @@
-// @ts-nocheck
 import { NOTE_TYPES, KEY_SIGNATURES } from '@/constants';
-import { getActiveStaff } from '@/types';
+import { getActiveStaff, Score, Staff, Measure, ScoreEvent } from '@/types';
 import { isRestEvent } from '@/utils/core';
 
-export const generateMusicXML = (score: any) => {
+export const generateMusicXML = (score: Score) => {
   // Phase 2: Iterate over all staves
   const staves = score.staves || [getActiveStaff(score)];
   const timeSig = score.timeSignature || '4/4';
@@ -33,7 +32,7 @@ export const generateMusicXML = (score: any) => {
   </part-list>`;
 
   // Generate Parts
-  staves.forEach((staff: any, staffIndex: number) => {
+  staves.forEach((staff: Staff, staffIndex: number) => {
     const partId = `P${staffIndex + 1}`;
     const clef = staff.clef || 'treble';
     // Clef logic
@@ -46,7 +45,7 @@ export const generateMusicXML = (score: any) => {
     xml += `
   <part id="${partId}">`;
 
-    staff.measures.forEach((measure: any, mIndex: number) => {
+    staff.measures.forEach((measure: Measure, mIndex: number) => {
       xml += `\n    <measure number="${mIndex + 1}">`;
 
       // Attributes appear on first measure
@@ -69,7 +68,7 @@ export const generateMusicXML = (score: any) => {
       }
 
       // Render Events sequentially
-      measure.events.forEach((event: any) => {
+      measure.events.forEach((event: ScoreEvent) => {
         let duration = NOTE_TYPES[event.duration].duration;
         if (event.dotted) duration = duration * 1.5;
 
@@ -91,7 +90,7 @@ export const generateMusicXML = (score: any) => {
     </note>`;
         } else {
           // NOTES / CHORDS
-          event.notes.forEach((note: any, nIndex: number) => {
+          event.notes.forEach((note: ScoreEvent['notes'][number], nIndex: number) => {
             const isChord = nIndex > 0;
             const step = note.pitch.charAt(0);
             const octave = note.pitch.slice(-1);

@@ -5,6 +5,7 @@ import { calculateHeaderLayout, getOffsetForPitch, calculateMeasureLayout } from
 import { isRestEvent, getFirstNoteId } from '@/utils/core';
 import Staff, { calculateStaffWidth } from './Staff';
 import { getActiveStaff, Staff as StaffType, Measure, ScoreEvent, Note } from '@/types';
+import { HitZone } from '@/engines/layout/types';
 import { useScoreContext } from '@/context/ScoreContext';
 import { useScoreInteraction } from '@/hooks/useScoreInteraction';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
@@ -262,10 +263,12 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       if (notes.length === 0) return;
 
       // Use dispatch for lasso selection
-      selectionEngine.dispatch(new LassoSelectCommand({
-        notes,
-        addToSelection: isAdditive,
-      }));
+      selectionEngine.dispatch(
+        new LassoSelectCommand({
+          notes,
+          addToSelection: isAdditive,
+        })
+      );
     },
     scale,
   });
@@ -316,32 +319,46 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     [handleDragStart]
   );
 
-  // Ref to track latest handler to avoid stale closures in the cached wrappers
-  const handleMeasureHoverRef = useRef(handleMeasureHover);
-  useEffect(() => {
-    handleMeasureHoverRef.current = handleMeasureHover;
-  }, [handleMeasureHover]);
+  // Create stable onHover handlers for each staff index
+  const staffHoverHandlers = useMemo(() => {
+    const handlers = new Map<
+      number,
+      (measureIndex: number | null, hit: HitZone | null, pitch: string | null) => void
+    >();
 
-  // Cache per-staff onHover handlers to prevent recreation (stable identity for memoized children)
-  const hoverHandlersRef = useRef<
-    Map<number, (measureIndex: number | null, hit: { quant: number } | null, pitch: string | null) => void>
-  >(new Map());
+    const createHandler =
+      (sIdx: number) =>
+      (measureIndex: number | null, hit: HitZone | null, pitch: string | null) => {
+        if (!dragState.active) {
+          handleMeasureHover(measureIndex, hit, pitch || '', sIdx);
+        }
+      };
+
+    score.staves.forEach((_, index) => {
+      handlers.set(index, createHandler(index));
+    });
+
+    return handlers;
+  }, [dragState.active, score.staves, handleMeasureHover]);
 
   const getHoverHandler = useCallback(
     (staffIndex: number) => {
-      if (!hoverHandlersRef.current.has(staffIndex)) {
-        hoverHandlersRef.current.set(
-          staffIndex,
-          (measureIndex: number | null, hit: { quant: number } | null, pitch: string | null) => {
-            if (!dragState.active) {
-              handleMeasureHoverRef.current(measureIndex, hit, pitch || '', staffIndex);
-            }
-          }
-        );
+      const handler = staffHoverHandlers.get(staffIndex);
+      if (!handler) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            `ScoreCanvas: hover handler requested for non-existent staff index ${staffIndex}.`
+          );
+        }
+        return (() => {}) as (
+          measureIndex: number | null,
+          hit: HitZone | null,
+          pitch: string | null
+        ) => void;
       }
-      return hoverHandlersRef.current.get(staffIndex)!;
+      return handler;
     },
-    [dragState.active]
+    [staffHoverHandlers]
   );
 
   return (
@@ -473,22 +490,22 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             />
           )}
 
-
           {/* DEBUG: Lasso hit zone positions (cyan) - compare to red Note hit zones */}
-          {CONFIG.debug?.showHitZones && notePositions.map((pos, idx) => (
-            <rect
-              key={`debug-lasso-${idx}`}
-              x={pos.x}
-              y={pos.y}
-              width={pos.width}
-              height={pos.height}
-              fill="cyan"
-              fillOpacity={0.3}
-              stroke="cyan"
-              strokeWidth={1}
-              style={{ pointerEvents: 'none' }}
-            />
-          ))}
+          {CONFIG.debug?.showHitZones &&
+            notePositions.map((pos, idx) => (
+              <rect
+                key={`debug-lasso-${idx}`}
+                x={pos.x}
+                y={pos.y}
+                width={pos.width}
+                height={pos.height}
+                fill="cyan"
+                fillOpacity={0.3}
+                stroke="cyan"
+                strokeWidth={1}
+                style={{ pointerEvents: 'none' }}
+              />
+            ))}
         </g>
       </svg>
     </div>

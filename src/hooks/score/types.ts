@@ -58,11 +58,17 @@ export interface ScoreNavigationGroup {
 /**
  * Entry domain - note/chord creation
  */
+import { NoteInput, ChordNoteInput, PlacementOverride } from '../note/useNoteEntry';
+import { HitZone } from '@/engines/layout/types';
+
+/**
+ * Entry domain - note/chord creation
+ */
 export interface ScoreEntryGroup {
-  addNote: (measureIndex: number, newNote: unknown, shouldAutoAdvance?: boolean, placementOverride?: unknown) => void;
-  addChord: (measureIndex: number, notes: unknown[], duration: string, dotted: boolean) => void;
+  addNote: (measureIndex: number, newNote: NoteInput, shouldAutoAdvance?: boolean, placementOverride?: PlacementOverride | null) => void;
+  addChord: (measureIndex: number, notes: ChordNoteInput[], duration: string, dotted: boolean) => void;
   delete: () => void;
-  handleMeasureHover: (measureIndex: number | null, hit: unknown, pitch: string, staffIndex?: number) => void;
+  handleMeasureHover: (measureIndex: number | null, hit: HitZone | null, pitch: string, staffIndex?: number) => void;
   updatePitch: (measureIndex: number, eventId: string | number, noteId: string | number, newPitch: string) => void;
 }
 

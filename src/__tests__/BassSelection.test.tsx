@@ -133,7 +133,6 @@ describe('Bass Clef Selection Reproduction', () => {
       selectedAccidentals: [],
     },
     // Additional exports
-    setSelection: jest.fn(),
     setPreviewNote: jest.fn(),
     clearSelection: jest.fn(),
     currentQuantsPerMeasure: 64,

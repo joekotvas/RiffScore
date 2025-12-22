@@ -237,10 +237,10 @@ export interface PreviewNote {
   pitch: string; // Preview pitch (e.g., "C4")
   duration: string; // Duration name ('quarter', 'half', etc.)
   dotted: boolean;
-  mode: 'APPEND' | 'INSERT'; // Append at end or insert at position
+  mode: 'APPEND' | 'INSERT' | 'CHORD'; // Append at end or insert at position
   index: number; // Event index where this would be inserted
   isRest: boolean;
-  source?: 'keyboard' | 'mouse'; // How the ghost cursor was triggered
+  source?: 'keyboard' | 'mouse' | 'hover'; // How the ghost cursor was triggered
 }
 
 // ========== NAVIGATION RESULT TYPES ==========

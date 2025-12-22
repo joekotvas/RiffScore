@@ -18,6 +18,7 @@ function createTestScore(): Score {
       {
         id: 'staff-0',
         clef: 'treble',
+        keySignature: 'C',
         measures: [
           {
             id: 'measure-0-0',
@@ -25,18 +26,19 @@ function createTestScore(): Score {
               {
                 id: 'event-0-0-0',
                 notes: [
-                  { id: 'note-1', pitch: 'C4', duration: 'quarter' },
-                  { id: 'note-2', pitch: 'E4', duration: 'quarter' },
+                  { id: 'note-1', pitch: 'C4' },
+                  { id: 'note-2', pitch: 'E4' },
                 ],
                 duration: 'quarter',
-                quant: 0,
+                dotted: false,
                 isRest: false,
               },
               {
                 id: 'event-0-0-1',
-                notes: [{ id: 'note-3', pitch: 'D4', duration: 'quarter' }],
+                notes: [{ id: 'note-3', pitch: 'D4' }],
                 duration: 'quarter',
-                quant: 24,
+
+                dotted: false,
                 isRest: false,
               },
             ],
@@ -46,9 +48,9 @@ function createTestScore(): Score {
             events: [
               {
                 id: 'event-0-1-0',
-                notes: [{ id: 'note-4', pitch: 'E4', duration: 'half' }],
+                notes: [{ id: 'note-4', pitch: 'E4' }],
                 duration: 'half',
-                quant: 0,
+                dotted: false,
                 isRest: false,
               },
             ],

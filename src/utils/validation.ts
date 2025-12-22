@@ -1,5 +1,6 @@
 import { CONFIG } from '@/config';
 import { getNoteDuration, calculateTotalQuants } from './core';
+import { ScoreEvent } from '@/types';
 
 /**
  * Regex pattern for scientific pitch notation.
@@ -36,7 +37,7 @@ export const isValidPitch = (pitch: string): boolean => {
  * @returns True if it fits, False otherwise
  */
 export const canAddEventToMeasure = (
-  events: any[],
+  events: ScoreEvent[],
   duration: string,
   dotted: boolean,
   maxQuants: number = CONFIG.quantsPerMeasure
@@ -55,18 +56,18 @@ export const canAddEventToMeasure = (
  * @returns True if valid, False otherwise
  */
 export const canModifyEventDuration = (
-  events: any[],
+  events: ScoreEvent[],
   eventId: string | number,
   targetDuration: string,
   maxQuants: number = CONFIG.quantsPerMeasure
 ): boolean => {
-  const eventIndex = events.findIndex((e: any) => e.id === eventId);
+  const eventIndex = events.findIndex((e: ScoreEvent) => e.id === eventId);
   if (eventIndex === -1) return true; // Defensive: If event doesn't exist, we can't strict check
 
   const currentEvent = events[eventIndex];
 
   // Calculate total of ALL OTHER events
-  const otherEventsQuants = events.reduce((acc: number, e: any, idx: number) => {
+  const otherEventsQuants = events.reduce((acc: number, e: ScoreEvent, idx: number) => {
     if (idx === eventIndex) return acc;
     return acc + getNoteDuration(e.duration, e.dotted, e.tuplet);
   }, 0);
@@ -85,17 +86,17 @@ export const canModifyEventDuration = (
  * @returns True if valid, False otherwise
  */
 export const canToggleEventDot = (
-  events: any[],
+  events: ScoreEvent[],
   eventId: string | number,
   maxQuants: number = CONFIG.quantsPerMeasure
 ): boolean => {
-  const eventIndex = events.findIndex((e: any) => e.id === eventId);
+  const eventIndex = events.findIndex((e: ScoreEvent) => e.id === eventId);
   if (eventIndex === -1) return true;
 
   const currentEvent = events[eventIndex];
 
   // Calculate total of ALL OTHER events
-  const otherEventsQuants = events.reduce((acc: number, e: any, idx: number) => {
+  const otherEventsQuants = events.reduce((acc: number, e: ScoreEvent, idx: number) => {
     if (idx === eventIndex) return acc;
     return acc + getNoteDuration(e.duration, e.dotted, e.tuplet);
   }, 0);
