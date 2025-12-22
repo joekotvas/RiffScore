@@ -3,6 +3,9 @@ import { APIContext } from './types';
 import { Note } from '@/types';
 import { AddEventCommand } from '@/commands/AddEventCommand';
 import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
+import { ApplyTupletCommand } from '@/commands/TupletCommands';
+import { RemoveTupletCommand } from '@/commands/RemoveTupletCommand';
+import { UpdateNoteCommand } from '@/commands/UpdateNoteCommand';
 import { canAddEventToMeasure, isValidPitch } from '@/utils/validation';
 import { generateId } from '@/utils/core';
 
@@ -172,28 +175,124 @@ export const createEntryMethods = (ctx: APIContext): Pick<MusicEditorAPI, EntryM
       return this;
     },
 
-    makeTuplet(_numNotes, _inSpaceOf) {
-      // TODO: Implement
+    makeTuplet(numNotes = 3, inSpaceOf = 2) {
+      const sel = selectionRef.current;
+      if (sel.measureIndex === null || sel.eventId === null) {
+        console.warn('[RiffScore API] makeTuplet failed: No selection');
+        return this;
+      }
+
+      const staff = scoreRef.current.staves[sel.staffIndex];
+      const measure = staff?.measures[sel.measureIndex];
+      if (!measure) {
+        console.warn('[RiffScore API] makeTuplet failed: Measure not found');
+        return this;
+      }
+
+      // Find the index of the selected event
+      const eventIndex = measure.events.findIndex((e) => e.id === sel.eventId);
+      if (eventIndex === -1) {
+        console.warn('[RiffScore API] makeTuplet failed: Event not found');
+        return this;
+      }
+
+      // Check if we have enough events for the tuplet
+      if (eventIndex + numNotes > measure.events.length) {
+        console.warn(`[RiffScore API] makeTuplet failed: Not enough events (need ${numNotes}, have ${measure.events.length - eventIndex})`);
+        return this;
+      }
+
+      dispatch(new ApplyTupletCommand(
+        sel.measureIndex,
+        eventIndex,
+        numNotes,
+        [numNotes, inSpaceOf] as [number, number]
+      ));
+
       return this;
     },
 
     unmakeTuplet() {
-      // TODO: Implement
+      const sel = selectionRef.current;
+      if (sel.measureIndex === null || sel.eventId === null) {
+        console.warn('[RiffScore API] unmakeTuplet failed: No selection');
+        return this;
+      }
+
+      const staff = scoreRef.current.staves[sel.staffIndex];
+      const measure = staff?.measures[sel.measureIndex];
+      if (!measure) {
+        console.warn('[RiffScore API] unmakeTuplet failed: Measure not found');
+        return this;
+      }
+
+      // Find the selected event and its index
+      const eventIndex = measure.events.findIndex((e) => e.id === sel.eventId);
+      const event = eventIndex >= 0 ? measure.events[eventIndex] : null;
+      if (!event?.tuplet) {
+        console.warn('[RiffScore API] unmakeTuplet failed: Selected event is not part of a tuplet');
+        return this;
+      }
+
+      dispatch(new RemoveTupletCommand(
+        sel.measureIndex,
+        eventIndex
+      ));
+
       return this;
     },
 
     toggleTie() {
-      // TODO: Implement
+      const sel = selectionRef.current;
+      if (sel.measureIndex === null || sel.eventId === null || sel.noteId === null) {
+        console.warn('[RiffScore API] toggleTie failed: No note selected');
+        return this;
+      }
+
+      const staff = scoreRef.current.staves[sel.staffIndex];
+      const measure = staff?.measures[sel.measureIndex];
+      const event = measure?.events.find((e) => e.id === sel.eventId);
+      const note = event?.notes?.find((n) => n.id === sel.noteId);
+
+      if (!note) {
+        console.warn('[RiffScore API] toggleTie failed: Note not found');
+        return this;
+      }
+
+      dispatch(new UpdateNoteCommand(
+        sel.measureIndex,
+        sel.eventId,
+        sel.noteId,
+        { tied: !note.tied },
+        sel.staffIndex
+      ));
+
       return this;
     },
 
-    setTie(_tied) {
-      // TODO: Implement
+    setTie(tied) {
+      const sel = selectionRef.current;
+      if (sel.measureIndex === null || sel.eventId === null || sel.noteId === null) {
+        console.warn('[RiffScore API] setTie failed: No note selected');
+        return this;
+      }
+
+      dispatch(new UpdateNoteCommand(
+        sel.measureIndex,
+        sel.eventId,
+        sel.noteId,
+        { tied },
+        sel.staffIndex
+      ));
+
       return this;
     },
 
     setInputMode(_mode) {
-      // TODO: Implement
+      // Note: setInputMode affects UI state (tools), not score state.
+      // This requires access to the tools context which is not available here.
+      // For programmatic API usage, mode is typically set before calling addNote/addRest.
+      console.warn('[RiffScore API] setInputMode: Use addNote() for notes, addRest() for rests. Input mode is a UI concept.');
       return this;
     },
   };
