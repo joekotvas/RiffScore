@@ -236,3 +236,88 @@ Mark as low priority, address organically as files are touched.
 - `src/hooks/useTupletActions.ts` — 167 lines, clean
 - `src/hooks/api/entry.ts` — 201 lines, has stubs
 
+---
+
+## Decision: Full Refactor (Option B) ✅
+
+**Date:** 2025-12-21  
+**Decision:** Proceed with full refactor
+
+### Rationale
+
+1. **Optimal Codebase Condition**  
+   With the API migration substantially complete, now is the ideal time to ensure the codebase is in optimal condition before adding new features. Technical debt addressed now prevents compounding costs later.
+
+2. **Test Coverage Opportunity**  
+   Splitting `useNoteActions.ts` into focused modules enables comprehensive unit testing per [TESTING.md](../TESTING.md):
+   - Smaller functions are easier to test in isolation
+   - Extracted utilities can have dedicated test files
+   - 75% coverage threshold easier to achieve with focused modules
+
+3. **Documentation Standards**  
+   Refactored code will conform to inline documentation standards from [CONTRIBUTING.md](../CONTRIBUTING.md):
+   - JSDoc on all public functions
+   - `@tested` annotations linking to test files
+   - Clear separation of concerns aids documentation
+
+4. **Eliminates Technical Debt**  
+   - DRY violations fixed: 6/10 → 8/10
+   - Organization improved: 5/10 → 8/10
+   - 500-line monolith → 4 focused modules
+
+### Scope
+
+| Task | Effort | Priority |
+|------|--------|----------|
+| Extract `src/utils/entry/` utilities | 2-3 hrs | P1 |
+| Split `useNoteActions.ts` → `hooks/note/` | 4-6 hrs | P1 |
+| Add unit tests for new modules | 2-3 hrs | P1 |
+| Implement API stubs in `api/entry.ts` | 3-4 hrs | P2 |
+| Add JSDoc and `@tested` annotations | 1-2 hrs | P2 |
+
+**Total Effort:** 12-18 hours
+
+### Deliverables
+
+1. **New Utilities:**
+   ```
+   src/utils/entry/
+   ├── notePayload.ts      # createNotePayload()
+   ├── previewNote.ts      # createPreviewNote()
+   └── pitchResolver.ts    # resolvePitch()
+   ```
+
+2. **Refactored Hooks:**
+   ```
+   src/hooks/note/
+   ├── useHoverPreview.ts
+   ├── useNoteEntry.ts
+   ├── useNoteDelete.ts
+   ├── useNotePitch.ts
+   └── index.ts
+   ```
+
+3. **Tests:**
+   ```
+   src/__tests__/
+   ├── utils/entry/notePayload.test.ts
+   ├── utils/entry/previewNote.test.ts
+   ├── utils/entry/pitchResolver.test.ts
+   └── hooks/note/*.test.tsx
+   ```
+
+4. **Updated API:**
+   - `makeTuplet()` / `unmakeTuplet()` implemented
+   - `toggleTie()` / `setTie()` implemented
+   - `setInputMode()` implemented
+
+### Success Criteria
+
+- [ ] All new files have JSDoc with `@tested` annotations
+- [ ] Unit tests achieve 80%+ coverage on new modules
+- [ ] `useNoteActions.ts` replaced with facade re-exporting from `hooks/note/`
+- [ ] No DRY violations in note creation logic
+- [ ] API stubs implemented and tested
+- [ ] All existing tests pass
+
+
