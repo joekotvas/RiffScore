@@ -83,6 +83,15 @@ describe('resolvePitch', () => {
       const result = resolvePitch({ rawPitch: 'F', accidental: 'sharp' });
       expect(result).toBe('F');
     });
+
+    it('returns raw pitch for unknown accidental type', () => {
+      // This tests the default case in the switch - only reachable if type safety is bypassed
+      const result = resolvePitch({
+        rawPitch: 'F4',
+        accidental: 'unknown' as any, // Bypass TypeScript to test defensive code
+      });
+      expect(result).toBe('F4');
+    });
   });
 
   describe('multiple sharps/flats key signatures', () => {
