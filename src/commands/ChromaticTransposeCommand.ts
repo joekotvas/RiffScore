@@ -153,8 +153,7 @@ export class ChromaticTransposeCommand implements Command {
 
       const note = { ...event.notes[noteIndex] };
       if (note.pitch !== null) {
-        const newPitch = this.transposePitch(note.pitch);
-        if (newPitch) note.pitch = newPitch;
+        note.pitch = this.transposePitch(note.pitch) ?? note.pitch;
       }
 
       const newNotes = [...event.notes];

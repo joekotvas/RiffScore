@@ -54,9 +54,6 @@ export class AddMeasureCommand implements Command {
         ) {
           newMeasures.splice(this.insertedIndex, 1);
         }
-      } else {
-        // Defensive fallback: if execute() was never called, pop last measure
-        newMeasures.pop();
       }
       return { ...staff, measures: newMeasures };
     });

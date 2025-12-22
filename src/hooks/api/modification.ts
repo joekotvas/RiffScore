@@ -73,7 +73,7 @@ export const createModificationMethods = (
       const sel = selectionRef.current;
 
       // Multi-selection: update each unique event
-      if (sel.selectedNotes && sel.selectedNotes.length > 1) {
+      if (sel.selectedNotes && sel.selectedNotes.length > 0) {
         ctx.history.begin();
 
         const processedEvents = new Set<string>();

@@ -6,9 +6,9 @@
 
 | Method | Current Status | Required Work |
 |--------|---------------|---------------|
-| `setDuration(duration, dotted?)` | Stub (TODO) | Wire to `UpdateEventCommand` |
-| `transpose(semitones)` | Stub (TODO) | Create chromatic transpose logic |
-| `addMeasure(atIndex?)` | ⚠️ Partial | Update `AddMeasureCommand` for insertion |
+| `setDuration(duration, dotted?)` | ✅ Complete | Wired to `UpdateEventCommand` |
+| `transpose(semitones)` | ✅ Complete | Created `ChromaticTransposeCommand` |
+| `addMeasure(atIndex?)` | ✅ Complete | Updated `AddMeasureCommand` |
 
 ---
 
