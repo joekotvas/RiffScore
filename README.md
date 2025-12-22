@@ -32,7 +32,7 @@ That's it! RiffScore renders a fully interactive grand staff editor with sensibl
 ```tsx
 <RiffScore config={{
   score: { 
-    staff: 'treble',      // 'grand' | 'treble' | 'bass'
+    staff: 'treble',      // 'grand' | 'treble' | 'bass' | 'alto' | 'tenor'
     measureCount: 4,
     keySignature: 'G'
   }
@@ -114,10 +114,11 @@ See the [Interaction Guide](./docs/INTERACTION.md) for the complete keyboard ref
 
 | Guide | Description |
 |-------|-------------|
-| 📘 [Architecture](./docs/ARCHITECTURE.md) | Technical overview and layer design |
+| 📘 [Architecture](./docs/ARCHITECTURE.md) | Technical overview and design principles |
 | 🧱 [Data Model](./docs/DATA_MODEL.md) | Score schema and quant system |
 | 🔧 [Commands](./docs/COMMANDS.md) | Command pattern reference |
 | 🎼 [Layout Engine](./docs/LAYOUT_ENGINE.md) | Engraving and positioning |
+| 📜 [ADRs](./docs/adr/) | Architecture Decision Records |
 
 ### Contributing
 
@@ -176,7 +177,7 @@ npm run demo:dev
 
 ## Coming Soon
 
-*   **Event Subscriptions**: `api.on('score', callback)` for reactive integrations
-*   **Transaction Batching**: Group operations into single undo steps
 *   **Chord Symbols**: Input and playback for lead sheets
 *   **Import**: ABC and MusicXML import
+*   **Clipboard API**: Copy, cut, and paste operations
+*   **Playback API**: Programmatic play/pause control

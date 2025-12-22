@@ -27,7 +27,7 @@ Score {
 ```typescript
 Staff {
   id: string | number
-  clef: 'treble' | 'bass' | 'alto' | 'grand'
+  clef: 'treble' | 'bass' | 'alto' | 'tenor' | 'grand'
   keySignature: string        // Can override score-level
   measures: Measure[]
 }
