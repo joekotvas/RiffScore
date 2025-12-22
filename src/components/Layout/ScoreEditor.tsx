@@ -63,6 +63,7 @@ const ScoreEditorContent = ({
   const { select: handleNoteSelection, focus: focusScore } = scoreLogic.navigation;
   const { addChord: addChordToMeasure, updatePitch: updateNotePitch } = scoreLogic.entry;
   const { clearSelection, setPreviewNote } = scoreLogic;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { pendingClefChange, setPendingClefChange } = scoreLogic as any; // UI state from context
 
   // --- Local UI State ---
@@ -70,7 +71,9 @@ const ScoreEditorContent = ({
   const [showHelp, setShowHelp] = useState(false);
   const [isHoveringScore, setIsHoveringScore] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState<InstrumentType>('bright');
-  const [errorMsg, setErrorMsg] = useState(null);
+  // Error state temporarily disabled/unused
+  // const [errorMsg, setErrorMsg] = useState(null);
+  const errorMsg = null;
 
   // --- Refs ---
   const toolbarRef = useRef<ToolbarHandle>(null);
@@ -78,7 +81,7 @@ const ScoreEditorContent = ({
 
   // --- Extracted Hooks ---
   const samplerLoaded = useSamplerStatus();
-  const modifierHeld = useModifierKeys();
+  // const modifierHeld = useModifierKeys(); // Unused
   const titleEditor = useTitleEditor(score.title, dispatch);
 
   // --- Complex Hooks ---

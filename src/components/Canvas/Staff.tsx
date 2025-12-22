@@ -130,7 +130,7 @@ const Staff: React.FC<StaffProps> = ({
   });
 
   // Calculate total width for this staff
-  const totalWidth = currentX + 50;
+  currentX += 50;
 
   // Render ties between notes
   const renderTies = () => {
@@ -138,13 +138,25 @@ const Staff: React.FC<StaffProps> = ({
     const { startOfMeasures: tieStartX } = calculateHeaderLayout(keySignature);
 
     let currentMeasureX = tieStartX;
-    const allNotes: any[] = [];
+
+    interface TieNote {
+      measureIndex: number;
+      eventIndex: number;
+      noteIndex: number;
+      pitch: string;
+      tied: boolean;
+      x: number;
+      y: number;
+      id: string | number;
+    }
+
+    const allNotes: TieNote[] = [];
 
     measures.forEach((measure, mIndex: number) => {
       const layout = calculateMeasureLayout(measure.events, undefined, clef, false);
       measure.events.forEach((event, eIndex: number) => {
         const eventX = currentMeasureX + layout.eventPositions[event.id];
-        event.notes.forEach((note: any, nIndex: number) => {
+        event.notes.forEach((note, nIndex: number) => {
           // Skip rest notes (which have null pitch) - they can't have ties
           if (note.pitch === null) return;
 
@@ -153,7 +165,7 @@ const Staff: React.FC<StaffProps> = ({
             eventIndex: eIndex,
             noteIndex: nIndex,
             pitch: note.pitch,
-            tied: note.tied,
+            tied: !!note.tied,
             x: eventX,
             y: CONFIG.baseY + getOffsetForPitch(note.pitch, clef), // Use CONFIG.baseY for normalized coords
             id: note.id,
@@ -257,12 +269,14 @@ const Staff: React.FC<StaffProps> = ({
 
       // Find event covering this quant
       // Note: layout.processedEvents includes x and quant
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const targetEvent = layout.processedEvents.find((e: any) => {
         const dur = getNoteDuration(e.duration, e.dotted, e.tuplet);
         return e.quant <= targetQuant && e.quant + dur > targetQuant;
       });
 
       if (targetEvent) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         absX += (targetEvent as any).x;
       } else {
         // If no note found at this quant (e.g. within a rest or beyond), use fallback
