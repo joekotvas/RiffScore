@@ -74,11 +74,15 @@ export function useAPISubscriptions(score: Score, selection: Selection) {
   }, [selection]);
 
   // Public subscription method
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const on = useCallback(
-    (event: 'score' | 'selection' | 'playback' | string, callback: any): Unsubscribe => {
+    (
+      event: 'score' | 'selection' | 'playback' | string,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      callback: any
+    ): Unsubscribe => {
       const listeners = listenersRef.current;
-      let targetSet: Set<any> | undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let targetSet: Set<any> | undefined;
 
       // Route to appropriate listener set
       if (event === 'score') {

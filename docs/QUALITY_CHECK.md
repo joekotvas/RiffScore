@@ -111,10 +111,23 @@ Use prefixed comments for important details:
 
 When adding new features or API methods, update relevant docs:
 
+- [ ] **ARCHITECTURE.md**: Update if architecture changes
+- [ ] **DATA_MODEL.md**: Update if data model changes
+- [ ] **COMMANDS.md**: Update if commands change
+- [ ] **LAYOUT_ENGINE.md**: Update if layout engine changes
+- [ ] **SELECTION_ENGINE.md**: Update if selection engine changes
+
 - [ ] **API.md**: Mark methods as implemented (✅)
-- [ ] **progress.md**: Update phase status and details
-- [ ] **CHANGELOG.md**: Add entry for significant changes
+- [ ] **COOKBOOK.md**: Update if cookbook examples change
+
+- [ ] **INTERACTION.md**: Update if interaction patterns change
+- [ ] **KEYBOARD_NAVIGATION.md**: Update if keyboard navigation changes
+
+- [ ] **CONTRIBUTING.md**: Update if contributing process changes
+
 - [ ] **README.md**: Update if user-facing features change
+
+- [ ] **progress.md**: Update phase status and details
 
 ---
 
