@@ -3,16 +3,18 @@ import { requestMIDIAccess, setupMIDIListeners, midiNoteToPitch } from '@/engine
 import { playNote } from '@/engines/toneEngine';
 import { Score, getActiveStaff } from '@/types';
 
+export type Accidental = 'sharp' | 'flat' | 'natural' | null;
+
 export const useMIDI = (
   addChordCallback: (
     measureIndex: number,
-    notes: { pitch: string; accidental: string | null; id?: number }[],
+    notes: { pitch: string; accidental: Accidental; id?: number }[],
     duration: string,
     isDotted: boolean
   ) => void,
   activeDuration: string,
   isDotted: boolean,
-  activeAccidental: 'flat' | 'natural' | 'sharp' | null,
+  activeAccidental: Accidental,
   scoreRef: React.MutableRefObject<Score>
 ) => {
   const [midiStatus, setMidiStatus] = useState<{
@@ -22,7 +24,7 @@ export const useMIDI = (
   }>({ connected: false, deviceName: null, error: null });
 
   const midiCleanupRef = useRef<(() => void) | null>(null);
-  const midiChordBuffer = useRef<{ pitch: string; accidental: string | null }[]>([]);
+  const midiChordBuffer = useRef<{ pitch: string; accidental: Accidental }[]>([]);
   const midiChordTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Refs to access latest state in callbacks

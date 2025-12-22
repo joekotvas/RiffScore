@@ -10,7 +10,7 @@ import { usePlayback } from '@hooks/usePlayback';
 import { useMIDI } from '@hooks/useMIDI';
 import { useScoreInteraction } from '@hooks/useScoreInteraction';
 import { useSamplerStatus } from '@hooks/useSamplerStatus';
-import { useModifierKeys } from '@hooks/useModifierKeys';
+// import { useModifierKeys } from '@hooks/useModifierKeys';
 import { useTitleEditor } from '@hooks/useTitleEditor';
 
 // Components
@@ -277,6 +277,7 @@ const ScoreEditor = ({
 }: {
   scale?: number;
   label?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   initialData?: any;
 }) => {
   return (
