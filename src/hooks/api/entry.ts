@@ -275,6 +275,16 @@ export const createEntryMethods = (ctx: APIContext): Pick<MusicEditorAPI, EntryM
         return this;
       }
 
+      const staff = scoreRef.current.staves[sel.staffIndex];
+      const measure = staff?.measures[sel.measureIndex];
+      const event = measure?.events.find((e) => e.id === sel.eventId);
+      const note = event?.notes?.find((n) => n.id === sel.noteId);
+
+      if (!note) {
+        console.warn('[RiffScore API] setTie failed: Note not found');
+        return this;
+      }
+
       dispatch(new UpdateNoteCommand(
         sel.measureIndex,
         sel.eventId,

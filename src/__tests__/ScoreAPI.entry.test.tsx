@@ -255,6 +255,20 @@ describe('ScoreAPI Entry Methods', () => {
   });
 
   describe('setTie', () => {
+    test('warns when no note selected', () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      render(<RiffScore id="tie-set-no-sel" />);
+      const api = getAPI('tie-set-no-sel');
+
+      act(() => {
+        api.setTie(true);
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('No note selected')
+      );
+    });
+
     test('sets tie explicitly', () => {
       render(<RiffScore id="tie-set" />);
       const api = getAPI('tie-set');
