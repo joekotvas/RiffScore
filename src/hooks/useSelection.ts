@@ -240,14 +240,6 @@ export const useSelection = ({ score }: UseSelectionProps) => {
     [selection, score, playAudioFeedback, engine]
   );
 
-  /**
-   * Updates selection with partial values (legacy compatibility)
-   * @deprecated Use dispatch commands directly instead
-   */
-  const updateSelection = useCallback((partial: Partial<Selection>) => {
-    const current = engine.getState();
-    engine.setState({ ...current, ...partial });
-  }, [engine]);
 
   /**
    * Selects all notes in a measure.
@@ -266,25 +258,11 @@ export const useSelection = ({ score }: UseSelectionProps) => {
     [engine]
   );
 
-  /**
-   * Exposed setSelection for backward compatibility
-   * @deprecated Use engine.dispatch() with commands instead
-   */
-  const setSelection = useCallback((newSelection: Selection | ((prev: Selection) => Selection)) => {
-    if (typeof newSelection === 'function') {
-      const updated = newSelection(engine.getState());
-      engine.setState(updated);
-    } else {
-      engine.setState(newSelection);
-    }
-  }, [engine]);
 
   return {
     selection,
-    setSelection, // @deprecated - use commands via dispatch
     select,
     clearSelection,
-    updateSelection, // @deprecated - use commands via dispatch
     selectAllInMeasure,
     lastSelection,
     // Expose engine for direct dispatch access

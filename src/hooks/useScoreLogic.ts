@@ -126,7 +126,6 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
 
   const {
     selection,
-    setSelection,
     select,
     clearSelection,
     lastSelection,
@@ -340,7 +339,6 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
 
     // --- ADDITIONAL EXPORTS (not yet grouped) ---
     // These are commonly needed and will be grouped in future refactors
-    setSelection,
     setPreviewNote,
     clearSelection,
     currentQuantsPerMeasure,
