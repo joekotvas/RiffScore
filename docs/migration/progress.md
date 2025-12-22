@@ -8,188 +8,214 @@
 
 | Status | Phases |
 | :--- | :--- |
-| ✅ Complete | 0, 1, 2, 2b, 2c, 2d, 2e, 2f, 2g, 3, 4 |
-| 🔲 Next | 5 (Code Refactor) |
-| 🔲 Remaining | 5, 6, 7, 8 |
+| ✅ Complete | 0, 1, 2 (a-g), 3, 4, 5 (A, B, E) |
+| � In Progress | 5 (remaining), 6, 7 |
+| 🔲 Remaining | 8 |
+
+**Goal:** Complete transition to a dispatch-based, engine-driven, fully exposed and machine-addressable API.
 
 ---
 
-## Phase Details
+## Completed Phases
 
-### ✅ Phase 0: Type Definitions
-- [x] Define `MusicEditorAPI` interface in [`api.types.ts`](file:///Users/josephkotvas/Sites/Riffs/riffeasy/riffscore/src/api.types.ts#47-196)
+<details>
+<summary><strong>✅ Phase 0: Type Definitions</strong></summary>
+
+- [x] Define `MusicEditorAPI` interface in [`api.types.ts`](file:///Users/josephkotvas/Sites/Riffs/riffeasy/riffscore/src/api.types.ts)
 - [x] Define `RiffScoreRegistry` interface
 - [x] Verify TypeScript compilation
+</details>
 
-### ✅ Phase 1: The Glue Layer
-- [x] Create [`useScoreAPI`](file:///Users/josephkotvas/Sites/Riffs/riffeasy/riffscore/src/hooks/useScoreAPI.ts#67-690) hook
+<details>
+<summary><strong>✅ Phase 1: The Glue Layer</strong></summary>
+
+- [x] Create [`useScoreAPI`](file:///Users/josephkotvas/Sites/Riffs/riffeasy/riffscore/src/hooks/useScoreAPI.ts) hook
 - [x] Modify `RiffScore.tsx` for Registry pattern
 - [x] Write [`ScoreAPI.registry.test.tsx`](file:///Users/josephkotvas/Sites/Riffs/riffeasy/riffscore/src/__tests__/ScoreAPI.registry.test.tsx) (15 tests)
 - [x] Entry methods functional
 - [x] Basic navigation
+</details>
 
-### ✅ Phase 2: Selection Engine
-- [x] Create [`SelectionEngine.ts`](file:///Users/josephkotvas/Sites/Riffs/riffeasy/riffscore/src/engines/SelectionEngine.ts) (101 lines)
-- [x] Create selection command types
-- [x] Refactor [`useSelection.ts`](file:///Users/josephkotvas/Sites/Riffs/riffeasy/riffscore/src/hooks/useSelection.ts) to use engine
-- [x] Write tests (53 total: 17 engine + 14 command + 10 navigate + 12 hook)
-- [x] Code review + cleanup
-- [x] Add JSDoc to `select()` function
+<details>
+<summary><strong>✅ Phase 2: Selection Engine (a-g)</strong></summary>
 
-### ✅ Phase 2b: Selection Command Migration
-- [x] Create `RangeSelectCommand` (Shift+click)
-- [x] Create `ToggleNoteCommand` (Cmd+click)
-- [x] Create `SelectAllInEventCommand`
-- [x] Create `ClearSelectionCommand`
-- [x] Refactor to dispatch-only pattern
-- [x] Remove direct `engine.setState()` calls
+- [x] Create `SelectionEngine.ts` with command dispatch pattern
+- [x] Create all selection commands (Range, Toggle, SelectAll, Clear, etc.)
+- [x] Migrate all `setSelection` calls to dispatch pattern
+- [x] Implement vertical selection (note-based → slice-based)
+- [x] Testing enhancement (user-event, 75% coverage, antipatterns doc)
 
 > **Decision:** `engine.dispatch()` is the canonical pattern. Direct `setState()` deprecated.
+</details>
 
-### ✅ Phase 2c: External setSelection Migration
-- [x] `useKeyboardShortcuts.ts` (3 → 0 calls)
-- [x] `useMeasureActions.ts` (1 → 0 calls)
-- [x] `useScoreAPI.ts` (7 → 0 calls)
-- [x] `useScoreLogic.ts` (1 → 0 calls)
-- [x] `ScoreCanvas.tsx` (3 → 0 calls)
-- [x] `ScoreEditor.tsx` (1 → 0 calls)
+<details>
+<summary><strong>✅ Phase 3: Event Subscriptions</strong></summary>
 
-> All production `setSelection` calls now use dispatch.
-
-### ✅ Phase 2d: Selection Feature Expansion
-- [x] Create [`SelectAllCommand.ts`](file:///Users/josephkotvas/Sites/Riffs/riffeasy/riffscore/src/commands/selection/SelectAllCommand.ts) with progressive expansion
-- [x] Create [`SelectMeasureCommand.ts`](file:///Users/josephkotvas/Sites/Riffs/riffeasy/riffscore/src/commands/selection/SelectMeasureCommand.ts)
-- [x] Add Cmd/Ctrl+A keyboard shortcut with scope escalation
-- [x] Fix Shift+Arrow gap resilience (#100)
-- [x] Implement `selectAll(scope)`, `selectEvent()`, `selectById()` in useScoreAPI
-- [x] Add unit tests (17 tests)
-
-### ✅ Phase 2e: Vertical Selection Refactor (Note-Based)
-- [x] Rewrite [`ExtendSelectionVerticallyCommand`](file:///Users/josephkotvas/Sites/Riffs/riffeasy/riffscore/src/commands/selection/ExtendSelectionVerticallyCommand.ts)
-- [x] Update unit tests for note-based behavior
-- [x] Verify pure note-based vertical selection
-
-### ✅ Phase 2f: Slice-Based Vertical Selection
-- [x] Implement slice-based anchor inference
-- [x] Update command for per-slice behavior
-- [x] Restore multi-event independence tests
-- [x] Implement global cursor and cross-staff support (#101)
-
----
-
-### ✅ Phase 2g: Testing Enhancement
-
-**Goal:** Improve test reliability, coverage, and developer experience.
-
-**Evaluation:** [testing_enhancement_evaluation.md](./testing_enhancement_evaluation.md)
-
-#### Phase A: Infrastructure ✅
-- [x] Install `@testing-library/user-event`
-- [x] Install `eslint-plugin-testing-library` + configure
-- [x] Create `setupTests.ts` with global jest-dom
-- [x] Add coverage config (75% threshold) + `test:coverage` script
-
-#### Phase B: Command Tests (14 files) ✅
-- [x] Migrate pure command tests to new patterns
-
-#### Phase C: Engine/API Tests (10 files) ✅
-- [x] Migrate engine and API tests, add userEvent where applicable
-
-#### Phase D: Hook/Component Tests (14 files) ✅
-- [x] Migrate RTL tests to userEvent pattern
-
-#### Phase E: Utility Tests (10 files) ✅
-- [x] Migrate utility and integration tests
-
-#### Phase F: Documentation ✅
-- [x] Create `docs/TESTING_ANTIPATTERNS.md`
-- [x] Update `docs/TESTING.md`
-- [x] Update progress tracker
-
-#### Deferred
-- Property-based testing (fast-check)
-- Visual regression (Playwright)
-- E2E testing (Playwright)
-
----
-
-### ✅ Phase 3: Event Subscriptions
 - [x] Implement `on(event, callback)` in useScoreAPI
 - [x] Write `ScoreAPI.events.test.tsx`
 - [x] Document ADR 002
-- [x] **#122 Fix:** Callbacks now fire reliably via `useEffect` with correct data
-  - Added `prevRef` checks to prevent duplicate invocations
-  - Updated tests to use `waitFor()` for async assertions
-  - Documented callback timing in API.md, COOKBOOK.md, TESTING.md
+- [x] **#122 Fix:** Callbacks fire reliably via `useEffect` with correct data
+</details>
 
-### ✅ Phase 4: Transaction Batching
+<details>
+<summary><strong>✅ Phase 4: Transaction Batching</strong></summary>
+
 - [x] Add batching to `ScoreEngine.ts`
 - [x] Write `ScoreAPI.transactions.test.tsx`
 - [x] Implement `useTransactionBatching` hook
 - [x] Document ADR 003
+</details>
 
-### 🔄 Phase 5: Code Refactor (In Progress)
+<details>
+<summary><strong>✅ Phase 5: Code Refactor (Components A, B, E)</strong></summary>
 
-#### ✅ Component E: `useScoreLogic.ts` Slimming
-- [x] Extract `useDerivedSelection.ts` (4 useMemo hooks)
-- [x] Extract `useToolsSync.ts` (toolbar sync)
-- [x] Extract `useFocusScore.ts` (focus logic)
-- [x] Create grouped API types in `types.ts`
-- [x] Remove 52 lines of flat exports
-- [x] Update all consumers to grouped API
-- [x] Fix error handling (throw vs console.error)
-- [x] Memoize migration logic
-- **Net reduction:** 154 lines
+- [x] **Component E:** `useScoreLogic.ts` slimming (−154 lines)
+- [x] **Component A:** `interaction.ts` modularization (facade pattern)
+- [x] **Component B:** `hooks/api/` factory pattern (10 files)
+</details>
 
-#### ✅ Component A: `interaction.ts` Modularization
-- [x] Extract `previewNote.ts` (3 functions)
-- [x] Extract `crossStaff.ts` (2 functions)
-- [x] Extract `transposition.ts` (3 functions)
-- [x] Extract `horizontal.ts` (3 functions, ~400 lines)
-- [x] Extract `vertical.ts` (2 functions, ~450 lines)
-- [x] Convert `interaction.ts` to facade
-- [x] All tests passing
+---
 
-#### ✅ Component B: `hooks/api/` Factory Pattern
-- [x] Create modular API factory structure
-- [x] `entry.ts`, `events.ts`, `history.ts`, `io.ts`
-- [x] `modification.ts`, `navigation.ts`, `playback.ts`, `selection.ts`
-- [x] `types.ts` (APIContext), `index.ts` (exports)
-- [x] Document in API.md (Internal Architecture section)
+## Remaining Roadmap
 
-#### 🔲 Deferred (Future PRs)
-- Component C: `hooks/entry/`
-- Component D: Selection Handlers
+### 🔄 Phase 5C: Entry Hook Consolidation
 
-### 🔲 Phase 6: Initial Documentation
-- [ ] Finalize `docs/API.md`
-- [ ] Finalize `docs/COOKBOOK.md`
+**Goal:** Consolidate entry-related hooks into a cohesive pattern.
 
-### 🔲 Phase 7: Navigation Wiring
-- [ ] Wire `move()` to `calculateNextSelection`
-- [ ] Pass context from RiffScoreAPIBridge
-- [ ] Test ghost cursor creation
+| Task | Files | Priority |
+|------|-------|----------|
+| Audit entry-related hooks | `useNoteActions.ts`, `useMeasureActions.ts`, `useTupletActions.ts` | Medium |
+| Identify duplication with `hooks/api/entry.ts` | — | Medium |
+| Extract shared utilities or merge | — | Medium |
+| Ensure all entry paths use dispatch | — | High |
 
-### 🔲 Phase 8: Final Documentation
-- [ ] Update `README.md`
-- [ ] Update `ARCHITECTURE.md`
-- [ ] Update all "See Also" sections
+### 🔄 Phase 5D: Selection Handler Consolidation
 
+**Goal:** Ensure all selection mutations go through dispatch.
+
+| Task | Files | Priority |
+|------|-------|----------|
+| Audit remaining `setSelection` calls | `useSelection.ts`, `useNavigation.ts` | High |
+| Verify all production paths use dispatch | — | High |
+| Test file usage is acceptable | Tests can use `setSelection` for setup | Info |
+
+---
+
+### 🔄 Phase 6: API Reliability
+
+**Goal:** Fix known issues that prevent reliable programmatic usage.
+
+| Issue | Severity | Status |
+|-------|----------|--------|
+| **#1: `getScore()` returns stale data** | Medium | 🔲 |
+| **#2: Entry methods don't work with custom staves** | Medium | 🔲 |
+| **#3: Measure capacity validation untestable** | Low | Deferred |
+| **#4: `addRest()` orphaned noteId** | Info | Deferred |
+
+#### 6A: Fix Stale `getScore()` 
+- [ ] Investigate `scoreRef.current` sync in `useScoreAPI`
+- [ ] Ensure `getScore()` returns fresh data after mutations
+- [ ] Add test: `addNote() → getScore() → verify event exists`
+
+#### 6B: Fix Entry with Custom Staves
+- [ ] Debug why `addNote()` fails with custom staves
+- [ ] Add test: `config={{ score: { staves: [...] } }} → addNote() → verify`
+
+---
+
+### 🔄 Phase 7: API Completion
+
+**Goal:** Implement remaining API methods for full machine-addressability.
+
+| Method | Factory | Status | Priority |
+|--------|---------|--------|----------|
+| `selectFullEvents()` | selection.ts | ✅ Impl, ❌ Not tested | Medium |
+| `extendSelectionUp()` | selection.ts | ✅ Impl, ❌ Not tested | Medium |
+| `extendSelectionDown()` | selection.ts | ✅ Impl, ❌ Not tested | Medium |
+| `extendSelectionAll()` | selection.ts | ✅ Impl, ❌ Not tested | Medium |
+| `copy()` / `cut()` / `paste()` | — | ⏳ Pending | Low |
+| `play()` / `pause()` | playback.ts | ⏳ Stub | Low |
+| `on('playback')` | events.ts | ⏳ Stub | Low |
+
+#### 7A: Selection Expansion Tests
+- [ ] Test `selectFullEvents()` 
+- [ ] Test `extendSelectionUp/Down/All`
+- [ ] Test `selectAll()` with different scopes
+
+#### 7B: Clipboard API (Deferred)
+- [ ] Implement `copy()`, `cut()`, `paste()`
+- [ ] Wire to browser clipboard API
+
+#### 7C: Playback API (Deferred)
+- [ ] Complete `play()`, `pause()`, `stop()`
+- [ ] Implement `on('playback')` event
+
+---
+
+### � Phase 8: Documentation & Polish
+
+**Goal:** Finalize all documentation for external consumption.
+
+| Document | Status | Tasks |
+|----------|--------|-------|
+| `docs/API.md` | ✅ Mostly complete | Verify all methods documented |
+| `docs/COOKBOOK.md` | ✅ Mostly complete | Add more recipes as needed |
+| `docs/ARCHITECTURE.md` | 🔲 Needs update | Document engine architecture |
+| `docs/TESTING.md` | ✅ Updated | — |
+| `README.md` | 🔲 Needs update | Update for npm publish |
+
+---
+
+## Architecture Summary
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    External Access                          │
+│         window.riffScore.get(id) → MusicEditorAPI          │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    useScoreAPI Hook                         │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │             hooks/api/* Factories                    │   │
+│  │  entry.ts │ navigation.ts │ selection.ts │ history.ts  │
+│  │  modification.ts │ playback.ts │ io.ts │ events.ts    │
+│  └─────────────────────────────────────────────────────┘   │
+└──────────┬─────────────────────────────────────┬────────────┘
+           │                                     │
+           ▼                                     ▼
+┌─────────────────────────┐       ┌─────────────────────────┐
+│    ScoreEngine          │       │   SelectionEngine       │
+│   dispatch(Command)     │       │   dispatch(Command)     │
+│   transactions          │       │   anchor tracking       │
+│   undo/redo history     │       │   multi-note selection  │
+└─────────────────────────┘       └─────────────────────────┘
+           │                                     │
+           └──────────────┬──────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Command Pattern                            │
+│    AddNoteCommand │ RangeSelectCommand │ MoveNoteCommand   │
+│    DeleteEventCommand │ ChangePitchCommand │ etc.          │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Related Documents
 
-- [Implementation Plan](./implementation_plan.md) – Technical specifications
+- [API Test Coverage](./api_test_coverage.md) — Test status for each method
+- [Implementation Plan](./implementation_plan.md) – Original technical specifications
 - [API Reference Draft](./api_reference_draft.md) – API signatures
-- [Documentation Strategy](./documentation_strategy.md) – Doc approach
-- [Selection Model Brainstorm](./selection_model_brainstorm.md) – Design decisions
-- [Interaction Model Analysis](./interaction_model_analysis.md) – Architecture analysis
+- [Testing Enhancement Evaluation](./testing_enhancement_evaluation.md) – Testing improvements
 
 ---
 
 ## Notes
 
-- Test files still use `setSelection` for setup (expected)
-- `docs/API.md` and `docs/COOKBOOK.md` already exist (Phase 6 partially complete)
-- Phase 5 (Interaction Refactor) marked as deferred in original plan
+- Test files still use `setSelection` for setup (expected and acceptable)
+- `docs/API.md` and `docs/COOKBOOK.md` already exist and are mostly complete
+- Playback and clipboard APIs are low priority (can be added post-1.0)
+
