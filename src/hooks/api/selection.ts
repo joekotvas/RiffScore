@@ -77,12 +77,22 @@ export const createSelectionMethods = (
         });
       }
 
-      const anchor = sel.anchor || {
-        staffIndex: sel.staffIndex,
-        measureIndex: sel.measureIndex ?? 0,
-        eventId: sel.eventId!,
-        noteId: sel.noteId,
-      };
+      // Use existing anchor, or derive from current selection, or create new from target
+      const anchor =
+        sel.anchor ??
+        (sel.eventId != null
+          ? {
+              staffIndex: sel.staffIndex,
+              measureIndex: sel.measureIndex ?? 0,
+              eventId: sel.eventId,
+              noteId: sel.noteId,
+            }
+          : {
+              staffIndex,
+              measureIndex,
+              eventId: event.id,
+              noteId,
+            });
 
       selectionEngine.dispatch(
         new RangeSelectCommand({
