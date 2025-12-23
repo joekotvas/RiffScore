@@ -153,7 +153,7 @@ Two critical issues surfaced:
 
 Queries became synchronous and reliable. Adding new clefs now requires a single line of configuration. 28 new tests covered edge cases.
 
-> **Room for growth**: Percussion clef, tab clef, and octave-transposing clefs aren't yet supported. MusicXML import is also on the wishlist—currently we can export but not import.
+> **Room for growth**: There are many other musical notation features it will be important to add, such as repeats, dynamics, chord symbols, lyrics, etc. MusicXML import is also on the wishlist. Currently we can export but not import.
 
 ---
 
