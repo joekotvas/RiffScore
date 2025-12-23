@@ -27,7 +27,7 @@ function App() {
 
 That's it! RiffScore renders a fully interactive grand staff editor with sensible defaults.
 
-### [With Configuration](./docs/CONFIGURATION.md)
+### With Configuration
 
 ```tsx
 <RiffScore id="my-editor" config={{
@@ -39,7 +39,9 @@ That's it! RiffScore renders a fully interactive grand staff editor with sensibl
 }} />
 ```
 
-### [Read-Only Mode](./docs/CONFIGURATION.md#interaction)
+See [Configuration](./docs/CONFIGURATION.md) for all options.
+
+### Read-Only Mode
 
 ```tsx
 <RiffScore config={{
@@ -48,7 +50,9 @@ That's it! RiffScore renders a fully interactive grand staff editor with sensibl
 }} />
 ```
 
-### [Programmatic Control](./docs/API.md)
+See [Configuration — Interaction](./docs/CONFIGURATION.md#interaction) for more display modes.
+
+### Programmatic Control
 
 ```javascript
 const api = window.riffScore.get('my-editor');
