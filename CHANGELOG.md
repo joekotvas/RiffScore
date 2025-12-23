@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Robust Input Validation**: The API now safely handles invalid inputs for `addNote`, `setBpm`, `setDuration`, and `setInstrument` by logging structured warnings instead of throwing errors.
 - **Batch Events**: Added `on('batch')` event subscription to the API, allowing external scripts to react to atomic transaction commits with a detailed payload (timestamp, commands summary).
 
+### Documentation
+- **Architecture**: Added ADR-008 for observability patterns and updated API documentation with validation behavior.
+
 ## [1.0.0-alpha.3] - 2025-12-19
 
 ### New Features & Enhancements

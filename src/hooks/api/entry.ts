@@ -5,7 +5,7 @@ import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
 import { ApplyTupletCommand } from '@/commands/TupletCommands';
 import { RemoveTupletCommand } from '@/commands/RemoveTupletCommand';
 import { UpdateNoteCommand } from '@/commands/UpdateNoteCommand';
-import { canAddEventToMeasure, isValidPitch } from '@/utils/validation';
+import { canAddEventToMeasure, isValidPitch, parseDuration } from '@/utils/validation';
 import { generateId } from '@/utils/core';
 import { createNotePayload } from '@/utils/entry';
 import { logger, LogLevel } from '@/utils/debug';
@@ -99,7 +99,7 @@ export const createEntryMethods = (
           measureIndex,
           false,
           note,
-          duration,
+          validDuration,
           dotted,
           undefined,
           eventId,

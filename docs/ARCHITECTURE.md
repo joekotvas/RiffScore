@@ -552,8 +552,6 @@ This unified model allows natural rectangular selection and predictable expand/c
 
 See [verticalStack.ts](../src/utils/verticalStack.ts) for the `calculateVerticalMetric()` formula and [KEYBOARD_NAVIGATION.md](./KEYBOARD_NAVIGATION.md#vertical-selection-cmd--shift--updown) for the full algorithm.
 
-See [verticalStack.ts](../src/utils/verticalStack.ts) for the `calculateVerticalMetric()` formula and [KEYBOARD_NAVIGATION.md](./KEYBOARD_NAVIGATION.md#vertical-selection-cmd--shift--updown) for the full algorithm.
-
 ### Observability Patterns
 The system separates **Transactional Observability** (success) from **Failure Observability** (logging).
 - **Batch Events**: Emitted by `ScoreEngine` to signal complete units of work (transactions), decoupling external listeners from internal micro-mutations.
