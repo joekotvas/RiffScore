@@ -21,16 +21,16 @@ npm install riffscore
 import { RiffScore } from 'riffscore';
 
 function App() {
-  return <RiffScore />;
+  return <RiffScore id="my-editor" />;
 }
 ```
 
 That's it! RiffScore renders a fully interactive grand staff editor with sensible defaults.
 
-### With Configuration
+### [With Configuration](./docs/CONFIGURATION.md)
 
 ```tsx
-<RiffScore config={{
+<RiffScore id="my-editor" config={{
   score: { 
     staff: 'treble',      // 'grand' | 'treble' | 'bass' | 'alto' | 'tenor'
     measureCount: 4,
@@ -39,7 +39,7 @@ That's it! RiffScore renders a fully interactive grand staff editor with sensibl
 }} />
 ```
 
-### Read-Only Mode
+### [Read-Only Mode](./docs/CONFIGURATION.md#interaction)
 
 ```tsx
 <RiffScore config={{
@@ -47,6 +47,19 @@ That's it! RiffScore renders a fully interactive grand staff editor with sensibl
   interaction: { isEnabled: false }
 }} />
 ```
+
+### [Programmatic Control](./docs/API.md)
+
+```javascript
+const api = window.riffScore.get('my-editor');
+
+api.select(1)                      // Select measure 1
+   .addNote('C4', 'quarter')       // Add a quarter note
+   .addNote('E4')                  // Add with current duration
+   .play();                        // Play from selection
+```
+
+See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 
 ---
 
