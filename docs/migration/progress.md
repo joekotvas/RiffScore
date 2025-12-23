@@ -179,7 +179,7 @@ A systematic sweep through every stub:
 
 ### The Result
 
-95%+ of the API surface implemented.
+95%+ of the API surface implemented. See [COOKBOOK.md](../COOKBOOK.md) for API usage examples.
 
 > **Room for growth**: Clipboard operations (`copy`/`cut`/`paste`) remain stubbed—they require designing a serialization format for score fragments. Playback is also fire-and-forget; there's no way to `await` it or know when it finishes.
 
@@ -294,7 +294,7 @@ The API is now stable and observable—a solid foundation for production use.
 
 6. **Specify Quality Expectations**: Including specific instructions about creating tests, running lint, and checking type errors at each step produces much better code than assuming the agent will do these automatically.
 
-7. **Centralize Instructions**: Laying out quality check expectations in a reusable document (and referencing it in prompts) saves time and ensures consistency across sessions. See [COOKBOOK.md](../COOKBOOK.md) for usage patterns.
+7. **Centralize Instructions**: Laying out quality check expectations in a reusable document (and referencing it in prompts) saves time and ensures consistency across sessions.
 
 8. **Verify, Don't Trust**: When asked to follow a pattern, LLMs will sometimes fake it—doing a small sample, creating a facade, or returning hard-coded results. Push back, double-check assumptions, and verify important requirements are actually implemented.
 
