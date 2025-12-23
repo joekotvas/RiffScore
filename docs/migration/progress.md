@@ -1,8 +1,8 @@
 # The Machine-Addressable API: A Migration Story
 
-> **Status:** ✅ Phase 8 Complete (v1.0.0-alpha.4 Candidate)
-> **Timeframe:** December 15-23, 2025 (~8 days intensive development)
-> **Scope:** 36 PRs merged, 33 issues closed, 8 ADRs documented
+> - **Implementation Status:** ✅ All 8 Implementation Phases Complete (v1.0.0-alpha.4 Candidate)
+> - **Timeframe:** December 15-23, 2025 (~8 days intensive development)
+> - **Scope:** 36 PRs merged, 33 issues closed, 8 ADRs documented
 
 ---
 
@@ -280,25 +280,23 @@ The API is now stable and observable—a solid foundation for production use.
 
 ## Lessons Learned
 
-1. **Types First, Implementation Later**: Defining `MusicEditorAPI` upfront forced us to think holistically before coding.
+1. **Commands Are Worth It**: The overhead of creating command classes paid dividends in testability and undo/redo.
 
-2. **Commands Are Worth It**: The overhead of creating command classes paid dividends in testability and undo/redo.
+2. **Synchronous Queries, Async Events**: Users expect `getScore()` to be instant; event callbacks can wait for React.
 
-3. **Synchronous Queries, Async Events**: Users expect `getScore()` to be instant; event callbacks can wait for React.
+3. **Fail Soft, Log Loud**: Chained APIs can't throw exceptions, but they can warn developers.
 
-4. **Fail Soft, Log Loud**: Chained APIs can't throw exceptions, but they can warn developers.
-
-5. **ADRs Preserve Context**: Eight design documents now explain *why* we made each architectural choice.
+4. **ADRs Preserve Context**: Eight design documents now explain *why* we made each architectural choice.
 
 ### Working with LLM Coding Agents
 
-6. **Context is Everything**: LLMs tend to focus narrowly on one part of the codebase. Explicitly noting relevant context—related files, architectural patterns, dependencies—significantly improves outcomes.
+5. **Context is Everything**: LLMs tend to focus narrowly on one part of the codebase. Explicitly noting relevant context—related files, architectural patterns, dependencies—significantly improves outcomes.
 
-7. **Specify Quality Expectations**: Including specific instructions about creating tests, running lint, and checking type errors at each step produces much better code than assuming the agent will do these automatically.
+6. **Specify Quality Expectations**: Including specific instructions about creating tests, running lint, and checking type errors at each step produces much better code than assuming the agent will do these automatically.
 
-8. **Centralize Instructions**: Laying out quality check expectations in a reusable document (and referencing it in prompts) saves time and ensures consistency across sessions.
+7. **Centralize Instructions**: Laying out quality check expectations in a reusable document (and referencing it in prompts) saves time and ensures consistency across sessions. See [COOKBOOK.md](../COOKBOOK.md) for usage patterns.
 
-9. **Verify, Don't Trust**: When asked to follow a pattern, LLMs will sometimes fake it—doing a small sample, creating a facade, or returning hard-coded results. Push back, double-check assumptions, and verify important requirements are actually implemented.
+8. **Verify, Don't Trust**: When asked to follow a pattern, LLMs will sometimes fake it—doing a small sample, creating a facade, or returning hard-coded results. Push back, double-check assumptions, and verify important requirements are actually implemented.
 
 ---
 
