@@ -47,7 +47,7 @@ Plugins need to know *what* happened in the batch without parsing command object
       label?: string; // Optional user/plugin label for the transaction
       timestamp: number;
       commands: { type: string; summary?: string }[]; // Simplified digest
-      affectedMeasures: number[];
+      affectedMeasures?: number[]; // Not yet implemented
     }
     ```
 
