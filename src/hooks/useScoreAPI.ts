@@ -118,7 +118,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
 
   // 4. API Event Subscriptions
   // Delegates listener management to the dedicated hook
-  const { on } = useAPISubscriptions(score, selection);
+  const { on } = useAPISubscriptions(score, selection, ctx.engines.engine);
 
   // 4a. Consume Theme Logic
   const { setTheme, setZoom } = useTheme();

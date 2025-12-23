@@ -19,6 +19,8 @@ import {
   UpdateNoteCommand,
   SetBpmCommand,
 } from '@/commands';
+import { parseDuration, clampBpm } from '@/utils/validation';
+import { logger, LogLevel } from '@/utils/debug';
 
 /**
  * Modification method names provided by this factory
@@ -70,6 +72,12 @@ export const createModificationMethods = (
     },
 
     setDuration(duration, dotted = false) {
+      const validDuration = parseDuration(duration);
+      if (!validDuration) {
+        logger.log(`Invalid duration: "${duration}"`, undefined, LogLevel.WARN);
+        return this;
+      }
+
       const sel = selectionRef.current;
 
       // Multi-selection: update each unique event
@@ -86,7 +94,7 @@ export const createModificationMethods = (
             new UpdateEventCommand(
               note.measureIndex,
               note.eventId,
-              { duration, dotted },
+              { duration: validDuration, dotted },
               note.staffIndex
             )
           );
@@ -98,12 +106,21 @@ export const createModificationMethods = (
 
       // Single selection
       if (sel.measureIndex === null || sel.eventId === null) {
-        console.warn('[RiffScore API] setDuration failed: No event selected');
+        logger.log(
+          '[RiffScore API] setDuration failed: No event selected',
+          undefined,
+          LogLevel.WARN
+        );
         return this;
       }
 
       dispatch(
-        new UpdateEventCommand(sel.measureIndex, sel.eventId, { duration, dotted }, sel.staffIndex)
+        new UpdateEventCommand(
+          sel.measureIndex,
+          sel.eventId,
+          { duration: validDuration, dotted },
+          sel.staffIndex
+        )
       );
       return this;
     },
@@ -111,7 +128,7 @@ export const createModificationMethods = (
     transpose(semitones) {
       const sel = selectionRef.current;
       if (sel.measureIndex === null) {
-        console.warn('[RiffScore API] transpose failed: No selection');
+        logger.log('[RiffScore API] transpose failed: No selection', undefined, LogLevel.WARN);
         return this;
       }
       dispatch(new ChromaticTransposeCommand(sel, semitones));
@@ -242,20 +259,15 @@ export const createModificationMethods = (
       const { selectedNotes } = sel;
       const score = ctx.getScore();
 
-      /**
-       * Determines the next accidental in the cycle:
-       * (none/undefined) -> sharp -> flat -> natural -> null
-       */
       const getNextAccidental = (
         current: 'sharp' | 'flat' | 'natural' | null | undefined
       ): 'sharp' | 'flat' | 'natural' | null => {
         if (current === 'sharp') return 'flat';
         if (current === 'flat') return 'natural';
         if (current === 'natural') return null;
-        return 'sharp'; // undefined or null -> sharp
+        return 'sharp';
       };
 
-      // Multi-select: toggle each note independently
       if (selectedNotes.length > 0) {
         ctx.history.begin();
         selectedNotes.forEach((noteRef) => {
@@ -285,7 +297,6 @@ export const createModificationMethods = (
         });
         ctx.history.commit();
       } else if (sel.eventId && sel.noteId && sel.measureIndex !== null) {
-        // Single selection fallback
         const staff = score.staves[sel.staffIndex];
         const measure = staff?.measures[sel.measureIndex];
         const event = measure?.events.find((e) => e.id === sel.eventId);
@@ -307,7 +318,8 @@ export const createModificationMethods = (
     },
 
     setBpm(bpm) {
-      dispatch(new SetBpmCommand(bpm));
+      const clamped = clampBpm(bpm);
+      dispatch(new SetBpmCommand(clamped));
       return this;
     },
 

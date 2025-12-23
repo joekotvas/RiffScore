@@ -14,8 +14,9 @@
  */
 
 import { useRef, useEffect, useCallback } from 'react';
-import type { Unsubscribe } from '../api.types';
+import type { Unsubscribe, BatchEventPayload } from '../api.types';
 import type { Score, Selection } from '../types';
+import type { ScoreEngine } from '../engines/ScoreEngine';
 
 type Listener<T> = (state: T) => void;
 
@@ -23,6 +24,7 @@ interface Listeners {
   score: Set<Listener<Score>>;
   selection: Set<Listener<Selection>>;
   playback: Set<Listener<unknown>>;
+  batch: Set<Listener<BatchEventPayload>>;
 }
 
 /**
@@ -40,22 +42,19 @@ function safeCall<T>(callback: Listener<T>, state: T): void {
 /**
  * Manages event subscriptions for the score API.
  *
- * Returns:
- * - `on`: Subscribe to events (returns unsubscribe function)
- *
- * Listeners are notified via useEffect when React state changes.
- * This ensures callbacks receive fresh, correct data.
+ * - Score/Selection: Notified via React useEffect (stable state)
+ * - Batch: Notified via ScoreEngine subscription (imperative event)
  */
-export function useAPISubscriptions(score: Score, selection: Selection) {
+export function useAPISubscriptions(score: Score, selection: Selection, engine?: ScoreEngine) {
   // Store listeners in a Ref to avoid re-creation on render
   const listenersRef = useRef<Listeners>({
     score: new Set(),
     selection: new Set(),
     playback: new Set(),
+    batch: new Set(),
   });
 
   // Notify SCORE listeners when React state updates
-  // Callbacks fire after React processes state changes, ensuring fresh data
   const prevScoreRef = useRef(score);
   useEffect(() => {
     if (prevScoreRef.current !== score) {
@@ -73,10 +72,22 @@ export function useAPISubscriptions(score: Score, selection: Selection) {
     }
   }, [selection]);
 
+  // Subscribe to Engine Batch Events
+  useEffect(() => {
+    if (!engine) return;
+
+    // Bridge Engine event -> API listeners
+    const unsubscribeEngine = engine.subscribeBatch((payload) => {
+      listenersRef.current.batch.forEach((cb) => safeCall(cb, payload));
+    });
+
+    return unsubscribeEngine;
+  }, [engine]);
+
   // Public subscription method
   const on = useCallback(
     (
-      event: 'score' | 'selection' | 'playback' | string,
+      event: 'score' | 'selection' | 'playback' | 'batch' | string,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       callback: any
     ): Unsubscribe => {
@@ -91,6 +102,8 @@ export function useAPISubscriptions(score: Score, selection: Selection) {
         targetSet = listeners.selection;
       } else if (event === 'playback') {
         targetSet = listeners.playback;
+      } else if (event === 'batch') {
+        targetSet = listeners.batch;
       }
 
       if (targetSet) {
@@ -106,7 +119,7 @@ export function useAPISubscriptions(score: Score, selection: Selection) {
       return () => {};
     },
     []
-  ); // Empty dependency array ensures 'on' function identity is stable
+  );
 
   return { on };
 }

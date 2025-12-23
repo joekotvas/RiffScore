@@ -5,6 +5,12 @@ All notable changes to RiffScore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0-alpha.4] - 2025-12-22
+
+### New Features & Enhancements
+- **Robust Input Validation**: The API now safely handles invalid inputs for `addNote`, `setBpm`, `setDuration`, and `setInstrument` by logging structured warnings instead of throwing errors.
+- **Batch Events**: Added `on('batch')` event subscription to the API, allowing external scripts to react to atomic transaction commits with a detailed payload (timestamp, commands summary).
+
 ## [1.0.0-alpha.3] - 2025-12-19
 
 ### New Features & Enhancements

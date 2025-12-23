@@ -1,31 +1,79 @@
+import { Note } from 'tonal';
+import { logger, LogLevel } from './debug';
 import { CONFIG } from '@/config';
 import { getNoteDuration, calculateTotalQuants } from './core';
 import { ScoreEvent } from '@/types';
 
 /**
- * Regex pattern for scientific pitch notation.
- * Matches: A-G, optional accidentals (# or b, double sharp ## or double flat bb), octave number (0 or higher)
- * Examples: "C4", "F#5", "Bb3", "G##7", "Ebb2", "C10"
+ * Checks if a pitch string is a valid scientific pitch notation (e.g., "C4", "Bb3").
+ * Uses Tonal.js for robust validation.
+ * @param pitch - The pitch string to validate
+ * @returns True if valid scientific notation, false otherwise
  */
-const PITCH_PATTERN = /^[A-G](#{1,2}|b{1,2})?\d+$/;
+export const isValidPitch = (pitch: string | null): boolean => {
+  if (pitch === null) return true; // explicitly valid for "no pitch" (rests/unpitched)
+  if (!pitch || typeof pitch !== 'string') return false;
+
+  const n = Note.get(pitch);
+  // Ensure it's not empty and has an octave (scientific notation)
+  return !n.empty && n.oct !== null;
+};
 
 /**
- * Validates if a pitch string is in valid scientific notation format.
+ * Normalizes a duration string to a standard format if possible.
+ * Returns the valid duration string or null if invalid.
  *
- * @param pitch - The pitch string to validate (e.g., "C4", "F#5", "Bb3")
- * @returns True if valid scientific notation, false otherwise
- *
- * @example
- * isValidPitch('C4');    // true
- * isValidPitch('F#5');   // true
- * isValidPitch('Bb3');   // true
- * isValidPitch('H4');    // false (H is not a valid note)
- * isValidPitch('C');     // false (missing octave)
- * isValidPitch('');      // false
+ * Supports shorthand: 'q' -> 'quarter', 'w' -> 'whole', 'h' -> 'half',
+ * '8n' -> 'eighth', '16n' -> 'sixteenth'.
  */
-export const isValidPitch = (pitch: string): boolean => {
-  if (!pitch || typeof pitch !== 'string') return false;
-  return PITCH_PATTERN.test(pitch);
+export const parseDuration = (duration: string): string | null => {
+  if (!duration) return null;
+  const d = duration.toLowerCase().trim();
+
+  // Map of shorthands to standard names
+  const map: Record<string, string> = {
+    w: 'whole',
+    '1n': 'whole',
+    whole: 'whole',
+    h: 'half',
+    '2n': 'half',
+    half: 'half',
+    q: 'quarter',
+    '4n': 'quarter',
+    quarter: 'quarter',
+    '8n': 'eighth',
+    eighth: 'eighth',
+    '16n': 'sixteenth',
+    sixteenth: 'sixteenth',
+    '32n': 'thirtysecond',
+    thirtysecond: 'thirtysecond',
+  };
+
+  if (map[d]) return map[d];
+  return null;
+};
+
+/**
+ * Clamps a BPM value to the allowed range (default 30-300).
+ * Parses string inputs.
+ */
+export const clampBpm = (bpm: number | string, min = 30, max = 300): number => {
+  const val = typeof bpm === 'string' ? parseFloat(bpm) : bpm;
+
+  if (!Number.isFinite(val)) {
+    logger.log(`Invalid BPM value "${bpm}", defaulting to 120`, undefined, LogLevel.WARN);
+    return 120;
+  }
+
+  if (val < min) {
+    logger.log(`BPM ${val} too low, clamped to ${min}`, undefined, LogLevel.WARN);
+    return min;
+  }
+  if (val > max) {
+    logger.log(`BPM ${val} too high, clamped to ${max}`, undefined, LogLevel.WARN);
+    return max;
+  }
+  return val;
 };
 
 /**

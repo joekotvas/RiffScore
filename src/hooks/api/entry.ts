@@ -8,6 +8,7 @@ import { UpdateNoteCommand } from '@/commands/UpdateNoteCommand';
 import { canAddEventToMeasure, isValidPitch } from '@/utils/validation';
 import { generateId } from '@/utils/core';
 import { createNotePayload } from '@/utils/entry';
+import { logger, LogLevel } from '@/utils/debug';
 
 /**
  * Entry method names provided by this factory
@@ -40,8 +41,10 @@ export const createEntryMethods = (
     addNote(pitch, duration = 'quarter', dotted = false) {
       // Validate pitch format
       if (!isValidPitch(pitch)) {
-        console.warn(
-          `[RiffScore API] addNote failed: Invalid pitch format '${pitch}'. Expected format: 'C4', 'F#5', 'Bb3', etc.`
+        logger.log(
+          `[RiffScore API] addNote failed: Invalid pitch format '${pitch}'. Expected format: 'C4', 'F#5', 'Bb3', etc.`,
+          undefined,
+          LogLevel.WARN
         );
         return this;
       }
@@ -58,20 +61,30 @@ export const createEntryMethods = (
 
       const staff = getScore().staves[staffIndex];
       if (!staff || staff.measures.length === 0) {
-        console.warn('[RiffScore API] addNote failed: No measures exist in the score');
+        logger.log(
+          '[RiffScore API] addNote failed: No measures exist in the score',
+          undefined,
+          LogLevel.WARN
+        );
         return this;
       }
 
       const measure = staff.measures[measureIndex];
       if (!measure) {
-        console.warn(`[RiffScore API] addNote failed: Measure ${measureIndex + 1} does not exist`);
+        logger.log(
+          `[RiffScore API] addNote failed: Measure ${measureIndex + 1} does not exist`,
+          undefined,
+          LogLevel.WARN
+        );
         return this;
       }
 
       // Check if measure has capacity for this note
       if (!canAddEventToMeasure(measure.events, duration, dotted)) {
-        console.warn(
-          `[RiffScore API] addNote failed: Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} note.`
+        logger.log(
+          `[RiffScore API] addNote failed: Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} note.`,
+          undefined,
+          LogLevel.WARN
         );
         return this;
       }
@@ -121,20 +134,30 @@ export const createEntryMethods = (
 
       const staff = getScore().staves[staffIndex];
       if (!staff || staff.measures.length === 0) {
-        console.warn('[RiffScore API] addRest failed: No measures exist in the score');
+        logger.log(
+          '[RiffScore API] addRest failed: No measures exist in the score',
+          undefined,
+          LogLevel.WARN
+        );
         return this;
       }
 
       const measure = staff.measures[measureIndex];
       if (!measure) {
-        console.warn(`[RiffScore API] addRest failed: Measure ${measureIndex + 1} does not exist`);
+        logger.log(
+          `[RiffScore API] addRest failed: Measure ${measureIndex + 1} does not exist`,
+          undefined,
+          LogLevel.WARN
+        );
         return this;
       }
 
       // Check if measure has capacity for this rest
       if (!canAddEventToMeasure(measure.events, duration, dotted)) {
-        console.warn(
-          `[RiffScore API] addRest failed: Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} rest.`
+        logger.log(
+          `[RiffScore API] addRest failed: Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} rest.`,
+          undefined,
+          LogLevel.WARN
         );
         return this;
       }
@@ -172,8 +195,10 @@ export const createEntryMethods = (
     addTone(pitch) {
       // Validate pitch format
       if (!isValidPitch(pitch)) {
-        console.warn(
-          `[RiffScore API] addTone failed: Invalid pitch format '${pitch}'. Expected format: 'C4', 'F#5', 'Bb3', etc.`
+        logger.log(
+          `[RiffScore API] addTone failed: Invalid pitch format '${pitch}'. Expected format: 'C4', 'F#5', 'Bb3', etc.`,
+          undefined,
+          LogLevel.WARN
         );
         return this;
       }
