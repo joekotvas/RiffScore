@@ -260,14 +260,17 @@ The API is now stable and observable—a solid foundation for production use.
 ## What's Next
 
 ### For v1.0 Stable
-- [ ] Final documentation review
+- [ ] **Clipboard API**: Implement `copy()`, `cut()`, `paste()` with serialization format
+- [ ] **Move functionality**: Drag-and-drop and keyboard-based event moving
+- [ ] **Regression testing**: Comprehensive end-to-end test pass
+- [ ] **Bug fixes**: Address issues discovered during testing
 - [ ] Version bump to `1.0.0`
 - [ ] npm publish
 
-### For v1.1 (Phase 9)
-- [ ] **Clipboard API**: `copy()`, `cut()`, `paste()` with serialization format
+### For v1.1+
 - [ ] **MIDI Input Hook**: `onMidi` for real-time note entry
 - [ ] **Keyboard Shortcut API**: Programmatic triggering
+- [ ] **MusicXML Import**: Currently export-only
 
 ### Known Deferred Issues
 - [#124](https://github.com/joekotvas/RiffScore/issues/124): Horizontal selection extension edge case
@@ -291,4 +294,4 @@ The API is now stable and observable—a solid foundation for production use.
 
 > *"The best APIs are invisible. You don't notice them—you just get things done."*
 
-The Machine-Addressable API is substantially complete. RiffScore is now a platform—ready for real-world use, with clear paths for continued refinement.
+The Machine-Addressable API is substantially complete. RiffScore is now a machine-addressable component package—still in alpha, with clear paths for continued development.
