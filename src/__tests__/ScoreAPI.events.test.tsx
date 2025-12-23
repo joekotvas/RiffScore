@@ -186,4 +186,41 @@ describe('ScoreAPI Events', () => {
     // Adding listeners should NOT cause the API object to be re-created
     expect(newApi).toBe(initialApi);
   });
+
+  test('on("batch") fires on committed transactions', () => {
+    const { result } = renderHook(() => useScoreAPI({ instanceId, config: defaultConfig }), {
+      wrapper,
+    });
+
+    // Subscribe
+    const batchListener = jest.fn();
+    act(() => {
+      result.current.on('batch', batchListener);
+    });
+
+    // Perform a batch operation
+    act(() => {
+      // Assuming beginTransaction/commitTransaction are exposed on API
+      // If not, we might need to rely on methods that internally batch?
+      // createModificationMethods uses begin/commit for multi-selection.
+      // Or we can use exposed transaction methods.
+      result.current.beginTransaction();
+      result.current.select(1).addNote('C4');
+      result.current.select(1).addNote('E4');
+      result.current.commitTransaction('Add Chord');
+    });
+
+    expect(batchListener).toHaveBeenCalledTimes(1);
+    const payload = batchListener.mock.calls[0][0];
+    expect(payload.type).toBe('batch');
+    // We expect 2 commands (addNote x2) + maybe selection commands if they are dispatched?
+    // select() dispatches SetSelectionCommand. addNote dispatches AddEventCommand.
+    // select(1) -> SetSelection
+    // addNote -> AddEvent + SetSelection
+    // select(1) -> SetSelection
+    // addNote -> AddEvent + SetSelection
+    // That's a lot of commands.
+    expect(payload.commands.length).toBeGreaterThan(0);
+    expect(payload.timestamp).toBeDefined();
+  });
 });

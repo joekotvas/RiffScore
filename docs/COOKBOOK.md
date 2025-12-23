@@ -114,9 +114,33 @@ api.select(3)  // Measure 3
    .addRest('whole');
 ```
 
+```javascript
+api.select(3)  // Measure 3
+   .addRest('whole');
+```
+
 ---
 
-## 4. Integration Recipes
+## 4. Validation & Errors
+
+### Safe Input Handling ✅
+
+The API validates inputs and logs warnings instead of throwing errors, allowing safe method chaining.
+
+```javascript
+// This will log a warning (LogLevel.WARN) and continue
+api.addNote('InvalidPitch')
+   .setBpm(1000) // Clamped to 300
+   .setDuration('invalid'); // Ignored
+
+// Check console for:
+// [WARN] [RiffScore API] addNote failed: Invalid pitch format 'InvalidPitch'
+// [WARN] [RiffScore API] setDuration failed: Invalid duration: "invalid"
+```
+
+---
+
+## 5. Integration Recipes
 
 > [!NOTE]
 > **Callback Timing:** Event callbacks fire after React processes state updates (via `useEffect`), not synchronously.
@@ -140,6 +164,16 @@ api.on('selection', (selection) => {
   if (selection.eventId) {
     highlightInExternalPiano(selection.noteId);
   }
+});
+```
+
+### React to Batch Operations (Transactions) ✅
+
+```javascript
+api.on('batch', (payload) => {
+  console.log(`Batch "${payload.label}" committed at ${payload.timestamp}`);
+  console.log('Commands:', payload.commands.map(c => c.type).join(', '));
+  // Use this to sync external state more efficiently than listening to every 'score' event
 });
 ```
 

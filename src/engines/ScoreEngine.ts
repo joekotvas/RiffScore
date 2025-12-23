@@ -1,12 +1,16 @@
 import { Score, createDefaultScore } from '@/types';
 import { Command } from '@/commands/types';
+import { BatchCommand } from '@/commands/BatchCommand';
+import { BatchEventPayload } from '@/api.types';
 import { logger, LogLevel } from '@/utils/debug';
 
 type Listener = (score: Score) => void;
+type BatchListener = (payload: BatchEventPayload) => void;
 
 export class ScoreEngine {
   private state: Score;
   private listeners: Set<Listener> = new Set();
+  private batchListeners: Set<BatchListener> = new Set();
   private history: Command[] = [];
   private redoStack: Command[] = [];
 
@@ -71,6 +75,20 @@ export class ScoreEngine {
     logger.log('Committing batch transaction', batchCommand);
     this.history.push(batchCommand);
     this.redoStack = [];
+
+    // Emit batch event if it's a BatchCommand
+    if (batchCommand instanceof BatchCommand) {
+      const payload: BatchEventPayload = {
+        type: 'batch',
+        timestamp: Date.now(),
+        commands: batchCommand.commands.map((cmd) => ({
+          type: cmd.type,
+          summary: (cmd as { summary?: string }).summary, // Optional summary if available
+        })),
+        affectedMeasures: [], // To be implemented if Command tracks measures
+      };
+      this.notifyBatchListeners(payload);
+    }
   }
 
   public undo() {
@@ -98,7 +116,18 @@ export class ScoreEngine {
     };
   }
 
+  public subscribeBatch(listener: BatchListener): () => void {
+    this.batchListeners.add(listener);
+    return () => {
+      this.batchListeners.delete(listener);
+    };
+  }
+
   private notifyListeners() {
     this.listeners.forEach((listener) => listener(this.state));
+  }
+
+  private notifyBatchListeners(payload: BatchEventPayload) {
+    this.batchListeners.forEach((listener) => listener(payload));
   }
 }

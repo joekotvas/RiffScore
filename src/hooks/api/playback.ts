@@ -9,6 +9,7 @@ import {
   InstrumentType,
 } from '@/engines/toneEngine';
 import { createTimeline } from '@/services/TimelineService';
+import { logger, LogLevel } from '@/utils/debug';
 
 /**
  * Playback method names provided by this factory
@@ -123,6 +124,18 @@ export const createPlaybackMethods = (
     },
 
     setInstrument(instrumentId) {
+      // Valid instruments matching InstrumentType
+      const validInstruments: InstrumentType[] = ['bright', 'mellow', 'organ', 'piano'];
+
+      if (!validInstruments.includes(instrumentId as InstrumentType)) {
+        logger.log(
+          `[RiffScore API] setInstrument failed: Invalid instrument '${instrumentId}'. Valid instruments: ${validInstruments.join(', ')}`,
+          undefined,
+          LogLevel.WARN
+        );
+        return this;
+      }
+
       toneSetInstrument(instrumentId as InstrumentType);
       return this;
     },

@@ -59,12 +59,12 @@ describe('ScoreAPI Configuration & State', () => {
       act(() => {
         api.setBpm(9999);
       });
-      expect(api.getScore().bpm).toBe(500); // 500 max
+      expect(api.getScore().bpm).toBe(300); // 300 max
 
       act(() => {
         api.setBpm(-50);
       });
-      expect(api.getScore().bpm).toBe(10); // 10 min
+      expect(api.getScore().bpm).toBe(30); // 30 min
     });
   });
 

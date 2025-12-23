@@ -15,7 +15,18 @@ import type { Score, ScoreEvent, Selection, RiffScoreConfig } from './types';
 export type Unsubscribe = () => void;
 
 /** Supported API event types */
-export type APIEventType = 'score' | 'selection' | 'playback';
+export type APIEventType = 'score' | 'selection' | 'playback' | 'batch';
+
+/**
+ * Payload for 'batch' events, providing a digest of composite operations.
+ */
+export interface BatchEventPayload {
+  type: 'batch';
+  label?: string;
+  timestamp: number;
+  commands: { type: string; summary?: string }[];
+  affectedMeasures: number[];
+}
 
 // ========== REGISTRY ==========
 
@@ -388,5 +399,6 @@ export interface MusicEditorAPI {
   on(event: 'score', callback: (state: Score) => void): Unsubscribe;
   on(event: 'selection', callback: (state: Selection) => void): Unsubscribe;
   on(event: 'playback', callback: (state: unknown) => void): Unsubscribe;
+  on(event: 'batch', callback: (payload: BatchEventPayload) => void): Unsubscribe;
   on(event: APIEventType, callback: (state: unknown) => void): Unsubscribe;
 }

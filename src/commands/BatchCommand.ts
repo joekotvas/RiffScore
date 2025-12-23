@@ -18,7 +18,7 @@ export class BatchCommand implements Command {
    * @param label - Optional description for the batch (e.g. "Paste 50 notes")
    */
   constructor(
-    private commands: Command[],
+    public readonly commands: Command[],
     public label: string = 'Batch Action'
   ) {}
 

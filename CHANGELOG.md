@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.0.0-alpha.3] - 2025-12-19
 
 ### New Features & Enhancements
+- **Robust Input Validation**: The API now safely handles invalid inputs for `addNote`, `setBpm`, `setDuration`, and `setInstrument` by logging structured warnings instead of throwing errors.
+- **Batch Events**: Added `on('batch')` event subscription to the API, allowing external scripts to react to atomic transaction commits with a detailed payload (timestamp, commands summary).
 - **Unified Navigation**: Added seamless vertical navigation (CMD+Up/Down) with chord traversal, boundary cycling, and cross-staff switching ([#78](https://github.com/joekotvas/RiffScore/pull/78))
 - **Ghost Cursor**: Enhanced ghost cursor behavior with cross-measure navigation and smart duration adjustments ([#78](https://github.com/joekotvas/RiffScore/pull/78))
 - **Clef Handling**: Implemented `SetClefCommand` for robust single-staff clef changes and refactored staff control menu positioning ([#82](https://github.com/joekotvas/RiffScore/pull/82))

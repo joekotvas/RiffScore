@@ -28,7 +28,7 @@
 | **Fluent/Chainable** | All mutation/navigation methods return `this`. |
 | **Synchronous** | State updates are immediate; React render is decoupled. |
 | **Multi-Instance** | Registry supports multiple editors on one page. |
-| **Fail-Safe** | Invalid inputs are no-ops or clamped to valid ranges. |
+| **Fail-Safe** | Invalid inputs are no-ops or clamped to valid ranges. Logs structured warnings. |
 
 ---
 
@@ -215,8 +215,9 @@ The most recently focused or mounted instance.
 
 ### Event Types
 - `'score'` — Score mutations
-- `'selection'` — Selection changes  
+- `'selection'` — Selection changes
 - `'playback'` — Play/pause state (Pending)
+- `'batch'` — Batch transaction commit (Payload: `{ type: 'batch', commands: CommandSummary[], timestamp: number }`)
 
 **Returns:** `() => void` — Unsubscribe function.
 
