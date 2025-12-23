@@ -25,11 +25,7 @@ export interface BatchEventPayload {
   label?: string;
   timestamp: number;
   commands: { type: string; summary?: string }[];
-  /**
-   * List of measure indices affected by the batch.
-   * Currently not implemented - will be populated once Command types include measure tracking.
-   */
-  affectedMeasures?: number[];
+  affectedMeasures: number[];
 }
 
 // ========== REGISTRY ==========

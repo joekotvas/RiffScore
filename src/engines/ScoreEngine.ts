@@ -80,15 +80,12 @@ export class ScoreEngine {
     if (batchCommand instanceof BatchCommand) {
       const payload: BatchEventPayload = {
         type: 'batch',
-        label: batchCommand.label,
         timestamp: Date.now(),
         commands: batchCommand.commands.map((cmd) => ({
           type: cmd.type,
-          // Extract summary if the command provides it (e.g., for logging/debugging).
-          // Since summary is optional in BatchEventPayload, missing values are safely handled.
-          summary: (cmd as { summary?: string }).summary,
+          summary: (cmd as { summary?: string }).summary, // Optional summary if available
         })),
-        affectedMeasures: [], // TODO: Extract from commands once measure tracking is implemented
+        affectedMeasures: [], // To be implemented if Command tracks measures
       };
       this.notifyBatchListeners(payload);
     }
