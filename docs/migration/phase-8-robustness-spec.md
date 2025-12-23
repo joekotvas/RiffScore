@@ -21,9 +21,13 @@ We will implement a lightweight, DX-friendly validation layer in the API factory
 | Method | Parameter | Rules / Parsing | Failure Action |
 | :--- | :--- | :--- | :--- |
 | `setBpm` | `bpm` | Range 30-300. Parses string "120" -> 120. | Warn & Ignore |
-| `addNote` | `pitch` | Valid Scientific (C4, cb3). Case-insensitive. | Warn & Ignore |
 | `setInstrument` | `instrumentId` | Must exist in registry. | Warn & Fallback to valid? (No, safe to Ignore) |
 | `setDuration` | `duration` | 'quarter', 'q', '4n'. Normalizes input. | Warn & Ignore |
+
+#### `src/hooks/api/entry.ts`
+| Method | Parameter | Rules / Parsing | Failure Action |
+| :--- | :--- | :--- | :--- |
+| `addNote` | `pitch` | Valid Scientific (C4, cb3). Case-insensitive. | Warn & Ignore |
 
 #### Helper: `src/utils/validation.ts`
 - `isValidPitch(p): boolean`
@@ -42,7 +46,7 @@ Plugins need to know *what* happened in the batch without parsing command object
       type: 'batch';
       label?: string; // Optional user/plugin label for the transaction
       timestamp: number;
-      commands: { type: string; summary: string }[]; // Simplified digest
+      commands: { type: string; summary?: string }[]; // Simplified digest
       affectedMeasures: number[];
     }
     ```

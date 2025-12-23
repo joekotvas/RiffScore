@@ -124,11 +124,6 @@ api.select(3)  // Measure 3
    .addRest('whole');
 ```
 
-```javascript
-api.select(3)  // Measure 3
-   .addRest('whole');
-```
-
 ---
 
 ## 4. Validation & Errors

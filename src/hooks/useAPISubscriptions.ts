@@ -118,6 +118,7 @@ export function useAPISubscriptions(score: Score, selection: Selection, engine?:
       console.warn(`[RiffScore API] Unknown event type: ${event}`);
       return () => {};
     },
+    // Empty dependency array ensures 'on' function identity is stable
     []
   );
 
