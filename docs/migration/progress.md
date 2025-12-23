@@ -290,6 +290,14 @@ The API is now stable and observable—a solid foundation for production use.
 
 5. **ADRs Preserve Context**: Eight design documents now explain *why* we made each architectural choice.
 
+### Working with LLM Coding Agents
+
+6. **Context is Everything**: LLMs tend to focus narrowly on one part of the codebase. Explicitly noting relevant context—related files, architectural patterns, dependencies—significantly improves outcomes.
+
+7. **Specify Quality Expectations**: Including specific instructions about creating tests, running lint, and checking type errors at each step produces much better code than assuming the agent will do these automatically.
+
+8. **Centralize Instructions**: Laying out quality check expectations in a reusable document (and referencing it in prompts) saves time and ensures consistency across sessions.
+
 ---
 
 > *"The best APIs are invisible. You don't notice them—you just get things done."*
