@@ -179,9 +179,9 @@ A systematic sweep through every stub:
 
 ### The Result
 
-95%+ of the API surface implemented. Only clipboard operations (`copy`/`cut`/`paste`) remain deferred to v1.1—they require designing a serialization format for score fragments.
+95%+ of the API surface implemented.
 
-> **Room for growth**: Playback is fire-and-forget; there's no way to `await` it or know when it finishes. Some methods also accept invalid input silently—Phase 8 addressed key cases, but not all.
+> **Room for growth**: Clipboard operations (`copy`/`cut`/`paste`) remain stubbed—they require designing a serialization format for score fragments. Playback is also fire-and-forget; there's no way to `await` it or know when it finishes.
 
 ---
 
