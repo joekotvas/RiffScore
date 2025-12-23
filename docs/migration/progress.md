@@ -298,6 +298,8 @@ The API is now stable and observable—a solid foundation for production use.
 
 8. **Centralize Instructions**: Laying out quality check expectations in a reusable document (and referencing it in prompts) saves time and ensures consistency across sessions.
 
+9. **Verify, Don't Trust**: When asked to follow a pattern, LLMs will sometimes fake it—doing a small sample, creating a facade, or returning hard-coded results. Push back, double-check assumptions, and verify important requirements are actually implemented.
+
 ---
 
 > *"The best APIs are invisible. You don't notice them—you just get things done."*
