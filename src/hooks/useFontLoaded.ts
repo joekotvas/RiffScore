@@ -16,6 +16,8 @@ const FONT_LOADING_CSS = `
   }
   .RiffScore.font-loading .score-editor-content {
     animation: fontLoadingPulse 3s ease-in-out infinite;
+    pointer-events: none;
+    cursor: default;
   }
   .RiffScore.font-loaded .score-editor-content {
     animation: none;
