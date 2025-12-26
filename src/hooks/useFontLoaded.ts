@@ -46,7 +46,6 @@ const FONT_LOADING_CSS = `
 export interface FontLoadedResult {
   isLoaded: boolean; // Whether fonts have finished loading
   className: string; // CSS class name to apply ('font-loaded' or 'font-loading')
-  style: React.CSSProperties; // Inline styles for glyph opacity transition
   styleElement: React.ReactElement; // Style element to render for font loading CSS rules
 }
 
@@ -116,17 +115,7 @@ export const useFontLoaded = (timeoutMs = 3000): FontLoadedResult => {
 
   // Memoize derived values
   const className = isLoaded ? 'font-loaded' : 'font-loading';
-
-  const style: React.CSSProperties = useMemo(
-    () =>
-      ({
-        '--glyph-opacity': isLoaded ? 1 : 0,
-        '--glyph-transition': isLoaded ? 'opacity 0.15s ease-in' : 'none',
-      }) as React.CSSProperties,
-    [isLoaded]
-  );
-
   const styleElement = useMemo(() => React.createElement('style', null, FONT_LOADING_CSS), []);
 
-  return { isLoaded, className, style, styleElement };
+  return { isLoaded, className, styleElement };
 };

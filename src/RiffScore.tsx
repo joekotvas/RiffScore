@@ -46,11 +46,7 @@ const RiffScoreAPIBridge: React.FC<{
 const RiffScoreInner: React.FC<RiffScoreProps> = ({ id, config: userConfig }) => {
   const { config, initialScore } = useRiffScore(userConfig);
   const { theme: _theme } = useTheme();
-  const {
-    className: fontClassName,
-    style: fontStyle,
-    styleElement: fontStyleElement,
-  } = useFontLoaded();
+  const { className: fontClassName, styleElement: fontStyleElement } = useFontLoaded();
 
   // Use React's useId() for SSR-compatible auto-generated IDs
   const reactId = useId();
@@ -68,7 +64,7 @@ const RiffScoreInner: React.FC<RiffScoreProps> = ({ id, config: userConfig }) =>
   return (
     <div
       className={`RiffScore ${fontClassName}`}
-      style={{ ...containerStyle, ...fontStyle }}
+      style={containerStyle}
       data-riffscore-id={instanceId}
     >
       {fontStyleElement}
