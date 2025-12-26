@@ -7,11 +7,11 @@
  */
 
 import { handlePlayback } from '@/hooks/handlers/handlePlayback';
+import { createTestScore, createTestSelection, createMockKeyboardEvent } from './helpers/testMocks';
+import type { UsePlaybackReturn } from '@/hooks/usePlayback';
 
 describe('handlePlayback', () => {
-  let mockPlayback: any;
-  let mockScore: any;
-  let mockEvent: any;
+  let mockPlayback: UsePlaybackReturn;
 
   beforeEach(() => {
     mockPlayback = {
@@ -19,24 +19,29 @@ describe('handlePlayback', () => {
       stopPlayback: jest.fn(),
       pausePlayback: jest.fn(),
       isPlaying: false,
-      lastPlayStart: { measureIndex: 0, eventIndex: 0 },
-      playbackPosition: { measureIndex: null, quant: null },
+      lastPlayStart: { measureIndex: 0, quant: 0 },
+      playbackPosition: { measureIndex: null, quant: null, duration: 0 },
+      handlePlayToggle: jest.fn(),
+      instrumentState: 'ready',
     };
-    mockScore = {
-      staves: [
-        {
-          measures: [{ events: [{ id: 'e1' }, { id: 'e2' }] }],
-        },
-      ],
-    };
-    mockEvent = { preventDefault: jest.fn() };
   });
 
   test('should play from selection when P is pressed', () => {
-    const selection = { measureIndex: 0, eventId: 'e2' };
-    mockEvent.key = 'p';
+    const mockScore = createTestScore({
+      events: [
+        { id: 'e1', duration: 'quarter', dotted: false, notes: [] },
+        { id: 'e2', duration: 'quarter', dotted: false, notes: [] },
+      ],
+    });
+    const selection = createTestSelection(0, 'e2');
+    const mockEvent = createMockKeyboardEvent({ key: 'p' });
 
-    const result = handlePlayback(mockEvent, mockPlayback, selection, mockScore);
+    const result = handlePlayback(
+      mockEvent as unknown as KeyboardEvent,
+      mockPlayback,
+      selection,
+      mockScore
+    );
 
     expect(result).toBe(true);
     expect(mockEvent.preventDefault).toHaveBeenCalled();
@@ -44,33 +49,46 @@ describe('handlePlayback', () => {
   });
 
   test('should play from start when P is pressed with no selection', () => {
-    const selection = { measureIndex: null, eventId: null };
-    mockEvent.key = 'p';
+    const mockScore = createTestScore();
+    const selection = createTestSelection(null, null);
+    const mockEvent = createMockKeyboardEvent({ key: 'p' });
 
-    const result = handlePlayback(mockEvent, mockPlayback, selection, mockScore);
+    const result = handlePlayback(
+      mockEvent as unknown as KeyboardEvent,
+      mockPlayback,
+      selection,
+      mockScore
+    );
 
     expect(result).toBe(true);
     expect(mockPlayback.playScore).toHaveBeenCalledWith(0, 0);
   });
 
   test('should toggle playback with Space', () => {
-    const selection = { measureIndex: null, eventId: null };
-    mockEvent.code = 'Space';
-    mockEvent.key = ' ';
+    const mockScore = createTestScore();
+    const selection = createTestSelection(null, null);
+    const mockEvent = createMockKeyboardEvent({ code: 'Space', key: ' ' });
 
     // Start playback
-    handlePlayback(mockEvent, mockPlayback, selection, mockScore);
+    handlePlayback(mockEvent as unknown as KeyboardEvent, mockPlayback, selection, mockScore);
     expect(mockPlayback.playScore).toHaveBeenCalled();
 
     // Stop playback
     mockPlayback.isPlaying = true;
-    handlePlayback(mockEvent, mockPlayback, selection, mockScore);
+    handlePlayback(mockEvent as unknown as KeyboardEvent, mockPlayback, selection, mockScore);
     expect(mockPlayback.pausePlayback).toHaveBeenCalled();
   });
 
   test('should ignore other keys', () => {
-    mockEvent.key = 'a';
-    const result = handlePlayback(mockEvent, mockPlayback, {}, mockScore);
+    const mockScore = createTestScore();
+    const mockEvent = createMockKeyboardEvent({ key: 'a' });
+
+    const result = handlePlayback(
+      mockEvent as unknown as KeyboardEvent,
+      mockPlayback,
+      createTestSelection(null, null),
+      mockScore
+    );
     expect(result).toBe(false);
   });
 });
