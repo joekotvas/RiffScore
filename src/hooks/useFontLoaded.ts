@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import React from 'react';
+import { useState, useEffect } from 'react';
+import { createElement, ReactElement } from 'react';
 
 /** CSS rules to hide/show music glyphs based on font loading state */
 const FONT_LOADING_CSS = `
@@ -39,6 +39,7 @@ const FONT_LOADING_CSS = `
     content: 'Loading';
     animation: typingEllipsis 3s steps(1) infinite;
     position: absolute;
+    /* NOTE: left value must match ScoreTitleField padding (px-[1.75rem]) */
     left: 1.75rem;
     top: 0;
     visibility: visible;
@@ -59,8 +60,11 @@ const FONT_LOADING_CSS = `
 export interface FontLoadedResult {
   isLoaded: boolean; // Whether fonts have finished loading
   className: string; // CSS class name to apply ('font-loaded' or 'font-loading')
-  styleElement: React.ReactElement; // Style element to render for font loading CSS rules
+  styleElement: ReactElement; // Style element to render for font loading CSS rules
 }
+
+// Pre-created style element (constant, never changes)
+const FONT_STYLE_ELEMENT: ReactElement = createElement('style', null, FONT_LOADING_CSS);
 
 /**
  * Hook to detect when fonts have finished loading and provide
@@ -126,9 +130,8 @@ export const useFontLoaded = (timeoutMs = 3000): FontLoadedResult => {
     };
   }, [isLoaded, timeoutMs]);
 
-  // Memoize derived values
+  // Derived values
   const className = isLoaded ? 'font-loaded' : 'font-loading';
-  const styleElement = useMemo(() => React.createElement('style', null, FONT_LOADING_CSS), []);
 
-  return { isLoaded, className, styleElement };
+  return { isLoaded, className, styleElement: FONT_STYLE_ELEMENT };
 };

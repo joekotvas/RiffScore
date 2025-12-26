@@ -8,11 +8,11 @@
 
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useFontLoaded, FontLoadedResult } from '@/hooks/useFontLoaded';
-import React from 'react';
+import { ReactElement } from 'react';
 
 // Helper to extract CSS content from styleElement
 const getCSSContent = (result: { current: FontLoadedResult }): string => {
-  const element = result.current.styleElement as React.ReactElement<{ children: string }>;
+  const element = result.current.styleElement as ReactElement<{ children: string }>;
   // eslint-disable-next-line testing-library/no-node-access
   return element.props.children;
 };
