@@ -324,7 +324,7 @@ export const NOTE_TYPES: Record<string, NoteType> = {
 
 export const NOTE_SPACING_BASE_UNIT = 16;
 export const WHOLE_REST_WIDTH = 12;
-export const DEFAULT_SCALE = 1;
+export const DEFAULT_SCALE = 0.75;
 
 export const LAYOUT = {
   // Core Primitives
