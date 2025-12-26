@@ -31,7 +31,8 @@ const FONT_LOADING_CSS = `
     visibility: visible;
   }
   /* Loading title overlay */
-  .RiffScore.font-loading .ScoreTitleField {
+  .RiffScore.font-loading .ScoreTitleField,
+  .RiffScore.font-loading .ScoreTitleFieldInput {
     visibility: hidden;
     position: relative;
   }
@@ -71,8 +72,8 @@ const FONT_STYLE_ELEMENT: ReactElement = createElement('style', null, FONT_LOADI
  * all necessary styling to prevent FOUC (Flash of Unstyled Content).
  *
  * Uses the document.fonts.ready API to detect font loading completion.
- * Handles SSR environments gracefully by returning loaded state immediately
- * when document.fonts is unavailable.
+ * Handles SSR environments and browsers without document.fonts by
+ * assuming fonts are loaded after a short (100ms) fallback delay.
  *
  * @param timeoutMs - Max time to wait before assuming fonts are loaded (default: 3000ms)
  * @returns Object containing load state, className, inline styles, and CSS style element
@@ -128,7 +129,8 @@ export const useFontLoaded = (timeoutMs = 3000): FontLoadedResult => {
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [isLoaded, timeoutMs]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only run on mount
+  }, [timeoutMs]);
 
   // Derived values
   const className = isLoaded ? 'font-loaded' : 'font-loading';
