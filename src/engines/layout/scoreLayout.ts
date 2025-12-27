@@ -1,8 +1,14 @@
 import { Score, Staff, Measure, ScoreEvent } from '@/types';
 import { CONFIG } from '@/config';
-import { calculateHeaderLayout, calculateMeasureLayout, getOffsetForPitch } from '@/engines/layout';
+import {
+  calculateHeaderLayout,
+  calculateMeasureLayout,
+  getOffsetForPitch,
+  calculateBeamingGroups,
+} from '@/engines/layout';
 import { ScoreLayout, StaffLayout, MeasureLayoutV2, NoteLayout, EventLayout } from './types';
 import { calculateSystemLayout, getNoteWidth } from '@/engines/layout';
+import { calculateTupletBrackets } from '@/engines/layout/tuplets';
 
 /**
  * Calculates the complete layout for the score.
@@ -81,11 +87,27 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
         forcedPositions
       );
 
+      // Calculate beam groups for 8th/16th notes
+      const beamGroups = calculateBeamingGroups(
+        measure.events,
+        relativeLayout.eventPositions,
+        staffClef
+      );
+
+      // Calculate tuplet bracket positioning
+      const tupletGroups = calculateTupletBrackets(
+        relativeLayout.processedEvents,
+        relativeLayout.eventPositions,
+        staffClef
+      );
+
       const measureLayout: MeasureLayoutV2 = {
         x: currentMeasureX,
         y: staffY,
         width,
         events: {},
+        beamGroups,
+        tupletGroups,
         legacyLayout: relativeLayout,
       };
 

@@ -101,6 +101,8 @@ export interface MeasureLayoutV2 {
   y: number;
   width: number;
   events: Record<string, EventLayout>; // eventId -> layout
+  beamGroups: BeamGroup[];
+  tupletGroups: TupletBracketGroup[];
   // Keep compatibility with V1 layout for now?
   legacyLayout?: MeasureLayout;
 }

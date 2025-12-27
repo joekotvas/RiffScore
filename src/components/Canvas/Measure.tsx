@@ -8,7 +8,7 @@ import { useMeasureLayout } from '@/hooks/layout';
 import { useMeasureInteraction } from '@/hooks/interaction';
 import { usePreviewRender } from '@/hooks/layout';
 import { MeasureProps } from '../../componentTypes';
-import { BeamGroup } from '@/engines/layout/types';
+import { BeamGroup, TupletBracketGroup } from '@/engines/layout/types';
 import { Theme } from '@/themes';
 
 // Components
@@ -85,21 +85,26 @@ const Measure: React.FC<MeasureProps> = ({
   } = interaction;
 
   // 1. Layout & Physics
-  const {
-    hitZones,
-    eventPositions,
-    totalWidth,
-    effectiveWidth,
-    centeredEvents,
-    beamGroups,
-    tupletGroups,
-  } = useMeasureLayout(
+  // Use centralized layout when available (SSOT), fallback to hook for compatibility
+  const fallbackLayout = useMeasureLayout(
     events,
     clef,
     measureData.isPickup ?? false,
     forcedEventPositions,
     forcedWidth
   );
+
+  // Extract layout data - prefer centralized source, fallback to hook
+  const hitZones = measureLayout?.legacyLayout?.hitZones ?? fallbackLayout.hitZones;
+  const eventPositions =
+    measureLayout?.legacyLayout?.eventPositions ?? fallbackLayout.eventPositions;
+  const totalWidth = measureLayout?.legacyLayout?.totalWidth ?? fallbackLayout.totalWidth;
+  const effectiveWidth = measureLayout?.width ?? fallbackLayout.effectiveWidth;
+  const centeredEvents =
+    measureLayout?.legacyLayout?.processedEvents ?? fallbackLayout.centeredEvents;
+  const beamGroups: BeamGroup[] = measureLayout?.beamGroups ?? fallbackLayout.beamGroups;
+  const tupletGroups: TupletBracketGroup[] =
+    measureLayout?.tupletGroups ?? fallbackLayout.tupletGroups;
 
   // 2. Accidental Logic
   const accidentalOverrides = useAccidentalContext(events, keySignature);
