@@ -55,7 +55,7 @@ const examples = [
     }
   },
   {
-    title: "Bass Clef Only",
+    title: "Bass Clef Only (Dark Mode)",
     description: "Single bass staff for bass parts",
     config: {
       score: { 
@@ -63,7 +63,8 @@ const examples = [
         staff: 'bass' as const, 
         measureCount: 4,
         keySignature: 'F'
-      }
+      },
+      ui: { theme: 'DARK' }
     }
   },
   {
@@ -147,7 +148,8 @@ function ScoreWithJSON({
         ui: {
           ...config?.ui,
           scale: config?.ui?.scale ?? zoom,
-          theme: themeName as 'DARK' | 'COOL' | 'WARM' | 'LIGHT'
+          // Use example's theme if specified, otherwise use global theme
+          theme: (config?.ui?.theme ?? themeName) as 'DARK' | 'COOL' | 'WARM' | 'LIGHT'
         }
       }} />
       <pre 

@@ -185,7 +185,7 @@ const ChordGroup: React.FC<ChordGroupProps> = ({
 
   return (
     <g
-      className={`chord-group ${isGhost ? 'opacity-50' : ''}`}
+      className="chord-group"
       data-testid={isGhost ? 'ghost-note' : `chord-${eventId}`}
       data-selected={isWholeChordSelected}
       style={{ opacity }}

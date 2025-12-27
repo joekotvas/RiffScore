@@ -9,6 +9,11 @@
 @import "../../src/components/Toolbar/styles/PlaybackControls.css";
 @import "../../src/components/Toolbar/styles/InstrumentSelector.css";
 @import "../../src/components/Toolbar/styles/DropdownOverlay.css";
+@import "../../src/components/Canvas/styles/ScoreCanvas.css";
+@import "../../src/components/Layout/styles/ScoreEditor.css";
+@import "../../src/components/Layout/styles/ScoreTitleField.css";
+@import "../../src/components/Layout/Overlays/styles/ShortcutsOverlay.css";
+@import "../../src/components/Layout/Overlays/styles/ConfirmDialog.css";
 
 /* Bravura Music Font - SMuFL compliant */
 @font-face {
