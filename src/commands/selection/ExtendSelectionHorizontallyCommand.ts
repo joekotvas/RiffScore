@@ -234,14 +234,14 @@ export class ExtendSelectionHorizontallyCommand implements SelectionCommand {
     // Note: No vertical slice completion - horizontal extension only affects
     // staves that already have selection or are the click target.
 
-    // 8. Dedupe
+    // 7. Dedupe
     const uniqueNotes = this.dedupeNotes(newSelectedNotes);
 
     if (uniqueNotes.length === 0) {
       return state;
     }
 
-    // 9. Determine new focus (the non-anchor edge = cursor)
+    // 8. Determine new focus (the non-anchor edge = cursor)
     // Find both edges and pick the one that's not the anchor
     const uniquePoints = this.buildHorizontalPoints(uniqueNotes, score);
     const leftEdgeP = this.findEdgePoint(uniquePoints, 'left');
@@ -277,7 +277,7 @@ export class ExtendSelectionHorizontallyCommand implements SelectionCommand {
       }
     }
 
-    // 10. Return updated selection (anchor preserved)
+    // 9. Return updated selection (anchor preserved)
     return {
       ...state,
       selectedNotes: uniqueNotes,
