@@ -9,6 +9,7 @@ import { useMeasureLayout } from '@/hooks/layout';
 import { useMeasureInteraction } from '@/hooks/interaction';
 import { usePreviewRender } from '@/hooks/layout';
 import { MeasureProps } from '../../componentTypes';
+import { MeasureLayoutV2 } from '@/engines/layout/types';
 
 // Components
 import ChordGroup from './ChordGroup';
@@ -56,6 +57,7 @@ const Measure: React.FC<MeasureProps> = ({
   forcedWidth,
   forcedEventPositions,
   layout,
+  measureLayout, // V2 Layout (SSOT)
   interaction,
 }) => {
   const { theme } = useTheme();
@@ -180,6 +182,7 @@ const Measure: React.FC<MeasureProps> = ({
             eventId={event.id}
             beamSpec={beamMap[event.id]}
             layout={layout}
+            eventLayout={measureLayout?.events?.[event.id]}
             interaction={interaction}
             measureIndex={measureIndex}
             onNoteHover={setIsNoteHovered}

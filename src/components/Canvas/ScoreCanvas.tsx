@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
-import { calculateHeaderLayout, getOffsetForPitch, calculateMeasureLayout } from '@/engines/layout';
-import { isRestEvent, getFirstNoteId } from '@/utils/core';
-import Staff, { calculateStaffWidth } from './Staff';
-import { getActiveStaff, Staff as StaffType, Measure, ScoreEvent, Note } from '@/types';
+import Staff from './Staff';
+import { getActiveStaff, Staff as StaffType } from '@/types';
 import { HitZone } from '@/engines/layout/types';
 import { useScoreContext } from '@/context/ScoreContext';
 import { useScoreInteraction } from '@/hooks/interaction';
 import { useAutoScroll } from '@/hooks/layout';
-import { useGrandStaffLayout } from '@/hooks/layout';
+import { useGrandStaffLayout, useScoreLayout } from '@/hooks/layout';
 import { useDragToSelect } from '@/hooks/interaction';
 import GrandStaffBracket from '../Assets/GrandStaffBracket';
-import { LAYOUT, CLAMP_LIMITS, STAFF_HEIGHT } from '@/constants';
+import { CLAMP_LIMITS, STAFF_HEIGHT } from '@/constants';
 import { LassoSelectCommand } from '@/commands/selection';
 
 interface ScoreCanvasProps {
@@ -114,8 +112,48 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     scale,
   });
 
-  // Calculate synchronized measure layouts for Grand Staff
-  const { synchronizedLayoutData, unifiedCursorX, unifiedCursorWidth, isGrandStaff, numStaves } =
+  // --- LAYOUT ENGINE (SSOT) ---
+  // Use the centralized layout hook for both rendering and hit detection
+  const { layout } = useScoreLayout({ score });
+  
+  // Flatten layout for hit detection (interaction layer)
+  // This replaces the old notePositions calculation
+  const notePositions = useMemo(() => {
+    return Object.values(layout.notes).map(noteLayout => ({
+      x: noteLayout.x,
+      y: noteLayout.y,
+      // Use hit zone dimensions from layout engine
+      width: noteLayout.hitZone.endX - noteLayout.hitZone.startX,
+      height: 20, // Standard vertical hit box height
+      // Metadata
+      staffIndex: noteLayout.staffIndex,
+      measureIndex: noteLayout.measureIndex,
+      eventId: noteLayout.eventId,
+      noteId: noteLayout.noteId,
+    }));
+  }, [layout]);
+
+  // --- DIMENSIONS & REF ---
+  const cursorRef = useRef<SVGGElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const totalWidth = useMemo(() => {
+    if (layout.staves.length > 0) {
+      const firstStaff = layout.staves[0];
+      const lastMeasure = firstStaff.measures[firstStaff.measures.length - 1];
+      return lastMeasure ? lastMeasure.x + lastMeasure.width + 50 : 800;
+    }
+    return 800;
+  }, [layout]);
+
+  const svgHeight = useMemo(() => {
+     return CONFIG.baseY + (score.staves.length - 1) * CONFIG.staffSpacing + CONFIG.lineHeight * 4 + 50;
+  }, [score.staves.length]);
+
+  // Backwards compatibility for cursor logic (temporarily keep useGrandStaffLayout for cursor ONLY?)
+  // Or migrate cursor logic?
+  // For now, let's keep useGrandStaffLayout but ONLY for cursor, and rely on useScoreLayout for rendering.
+  const { unifiedCursorX, isGrandStaff, numStaves, synchronizedLayoutData } =
     useGrandStaffLayout({
       score,
       playbackPosition,
@@ -123,131 +161,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       keySignature,
       clef,
     });
-
-  const cursorRef = useRef<SVGGElement>(null);
-
-  // --- PLAYBACK CURSOR ANIMATION LOGIC ---
-  useEffect(() => {
-    if (cursorRef.current && unifiedCursorX !== null && unifiedCursorWidth !== undefined) {
-      // 1. Snap to Start (Instant)
-      cursorRef.current.style.transition = 'none';
-      cursorRef.current.style.transform = `translateX(${unifiedCursorX}px)`;
-
-      // 2. Animate to End (Slide)
-      // Use requestAnimationFrame to ensure the 'none' transition applies first
-      if (playbackPosition.duration > 0) {
-        requestAnimationFrame(() => {
-          if (!cursorRef.current) return;
-          cursorRef.current.style.transition = `transform ${playbackPosition.duration}s linear`;
-          cursorRef.current.style.transform = `translateX(${unifiedCursorX + unifiedCursorWidth}px)`;
-        });
-      }
-    }
-  }, [unifiedCursorX, unifiedCursorWidth, playbackPosition.duration]);
-
-  const totalWidth = React.useMemo(() => {
-    const { startOfMeasures } = calculateHeaderLayout(keySignature);
-
-    if (synchronizedLayoutData) {
-      const measuresWidth = synchronizedLayoutData.reduce(
-        (sum: number, layout: { width: number }) => sum + layout.width,
-        0
-      );
-      return startOfMeasures + measuresWidth + 50;
-    }
-
-    return calculateStaffWidth(activeStaff.measures, keySignature);
-  }, [synchronizedLayoutData, activeStaff.measures, keySignature]);
-
-  const svgHeight =
-    CONFIG.baseY + (numStaves - 1) * CONFIG.staffSpacing + CONFIG.lineHeight * 4 + 50;
-
-  // --- DRAG TO SELECT ---
-  const svgRef = useRef<SVGSVGElement>(null);
-
-  // Calculate note positions for hit detection
-  const notePositions = useMemo(() => {
-    const positions: Array<{
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      staffIndex: number;
-      measureIndex: number;
-      eventId: string;
-      noteId: string | null; // null for rests
-    }> = [];
-
-    const { startOfMeasures } = calculateHeaderLayout(keySignature);
-
-    score.staves.forEach((staff: StaffType, staffIdx: number) => {
-      const staffBaseY = CONFIG.baseY + staffIdx * CONFIG.staffSpacing;
-      const staffClef = staff.clef || (staffIdx === 0 ? 'treble' : 'bass');
-      let measureX = startOfMeasures;
-
-      staff.measures.forEach((measure: Measure, measureIdx: number) => {
-        // Get forced positions from synchronized layout if available
-        const forcedPositions = synchronizedLayoutData?.[measureIdx]?.forcedPositions;
-
-        // Calculate actual layout to get event positions
-        // IMPORTANT: Use measure.isPickup to match visual rendering!
-        const layout = calculateMeasureLayout(
-          measure.events,
-          undefined,
-          staffClef,
-          measure.isPickup || false,
-          forcedPositions
-        );
-
-        measure.events.forEach((event: ScoreEvent) => {
-          const eventX = measureX + (layout.eventPositions?.[event.id] || 0);
-
-          // Handle rest events (isRest flag set)
-          if (isRestEvent(event)) {
-            // Skip placeholder rests for empty measures
-            if (event.id === 'rest-placeholder') return;
-
-            // Get the rest note ID (rests now have a single note entry)
-            const restNoteId = getFirstNoteId(event);
-
-            // Add rest hit area - centered on event, spanning full staff height
-            const staffHeight = CONFIG.lineHeight * 4;
-            positions.push({
-              x: eventX - 15, // Center with ~30px width
-              y: staffBaseY,
-              width: 30,
-              height: staffHeight,
-              staffIndex: staffIdx,
-              measureIndex: measureIdx,
-              eventId: event.id,
-              noteId: restNoteId, // Use the rest note ID for selection
-            });
-          } else {
-            // Handle notes
-            event.notes?.forEach((note: Note) => {
-              const noteY = staffBaseY + getOffsetForPitch(note.pitch, staffClef);
-
-              positions.push({
-                x: eventX - LAYOUT.NOTE_RX, // Center of ellipse minus radius
-                y: noteY - LAYOUT.NOTE_RY,
-                width: LAYOUT.NOTE_RX * 2,
-                height: LAYOUT.NOTE_RY * 2,
-                staffIndex: staffIdx,
-                measureIndex: measureIdx,
-                eventId: event.id,
-                noteId: note.id,
-              });
-            });
-          }
-        });
-
-        measureX += layout.totalWidth || synchronizedLayoutData?.[measureIdx]?.width || 0;
-      });
-    });
-
-    return positions;
-  }, [score.staves, synchronizedLayoutData, keySignature]);
-
+    
   // Drag to select hook
   const {
     isDragging,
@@ -430,6 +344,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 timeSignature={timeSignature}
                 measures={staff.measures}
                 measureLayouts={synchronizedLayoutData}
+                staffLayout={layout.staves[staffIndex]}
                 baseY={staffBaseY}
                 scale={scale}
                 interaction={interaction}
@@ -491,18 +406,16 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
           {/* DEBUG: Lasso hit zone positions (cyan) - compare to red Note hit zones */}
           {CONFIG.debug?.showHitZones &&
-            notePositions.map((pos, idx) => (
+            notePositions.map((pos) => (
               <rect
-                key={`debug-lasso-${idx}`}
-                x={pos.x}
-                y={pos.y}
+                key={`${pos.staffIndex}-${pos.measureIndex}-${pos.eventId}-${pos.noteId}`}
+                x={pos.x - pos.width / 2}
+                y={pos.y - pos.height / 2}
                 width={pos.width}
                 height={pos.height}
                 fill="cyan"
-                fillOpacity={0.3}
-                stroke="cyan"
-                strokeWidth={1}
-                style={{ pointerEvents: 'none' }}
+                opacity={0.3}
+                pointerEvents="none"
               />
             ))}
         </g>

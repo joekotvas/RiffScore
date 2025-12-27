@@ -46,6 +46,6 @@ export const CONFIG: Config = {
     logCommands: true,
     logStateChanges: true,
     logValidation: true,
-    showHitZones: false, // Show red/cyan debug rectangles for hit zones
+    showHitZones: true, // Show red/cyan debug rectangles for hit zones
   },
 };

@@ -9,3 +9,4 @@ export { usePreviewRender } from './usePreviewRender';
 export { useAutoScroll } from './useAutoScroll';
 export { useFontLoaded, type FontLoadedResult } from './useFontLoaded';
 export { useFocusTrap } from './useFocusTrap';
+export * from './useScoreLayout';

@@ -7,6 +7,7 @@ import {
   getOffsetForPitch,
   calculateHeaderLayout,
 } from '@/engines/layout';
+import { StaffLayout } from '@/engines/layout/types';
 import { getNoteDuration } from '@/utils/core';
 import { isNoteSelected } from '@/utils/selection';
 import Measure from './Measure';
@@ -45,6 +46,7 @@ export interface StaffProps {
   // Layout
   baseY?: number; // Y offset for stacking staves (default: CONFIG.baseY)
   measureLayouts?: { width: number; forcedPositions: Record<number, number> }[]; // Synchronized layouts
+  staffLayout?: StaffLayout;
   scale: number;
 
   // Interaction (Grouped)
@@ -77,6 +79,7 @@ const Staff: React.FC<StaffProps> = ({
   measures,
   baseY = CONFIG.baseY,
   measureLayouts,
+  staffLayout,
   scale,
   interaction,
   playbackPosition,
@@ -118,6 +121,8 @@ const Staff: React.FC<StaffProps> = ({
       previewNote: staffPreviewNote,
     };
 
+    const measureLayoutV2 = staffLayout?.measures[index];
+
     const component = (
       <Measure
         key={measure.id}
@@ -127,6 +132,7 @@ const Staff: React.FC<StaffProps> = ({
         isLast={index === measures.length - 1}
         forcedWidth={width}
         forcedEventPositions={forcedPositions}
+        measureLayout={measureLayoutV2}
         layout={{
           scale,
           baseY: CONFIG.baseY,

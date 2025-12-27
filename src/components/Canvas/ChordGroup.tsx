@@ -35,6 +35,7 @@ const ChordGroup = ({
   measureIndex,
   eventId,
   chordLayout,
+  eventLayout,
   beamSpec = null,
 
   // Appearance & Options
@@ -224,6 +225,12 @@ const ChordGroup = ({
         // Check if note is in lasso preview (O(1) Set lookup)
         const noteKey = `${staffIndex}-${measureIndex}-${eventId}-${note.id}`;
         const isInLassoPreview = interaction.lassoPreviewIds?.has(noteKey) ?? false;
+
+        // Note: We don't pass layoutY from the layout engine because:
+        // 1. ChordGroup is already positioned at the correct staff Y
+        // 2. Note component calculates its offset relative to baseY based on its clef
+        // 3. The layout engine's Y coordinates are for hit detection, not rendering
+        const noteLayout = eventLayout?.notes?.[note.id];
 
         return (
           <Note

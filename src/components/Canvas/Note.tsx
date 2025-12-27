@@ -175,6 +175,7 @@ const Note = React.memo(
 
     // Positioning
     x,
+    y: overrideY, // Explicit Y from Layout Engine
     baseY,
     clef,
     xShift = 0,
@@ -198,7 +199,7 @@ const Note = React.memo(
 
     // Calculate position
     const noteX = x + xShift;
-    const noteY = baseY + getOffsetForPitch(effectivePitch, clef);
+    const noteY = overrideY !== undefined ? overrideY : baseY + getOffsetForPitch(effectivePitch, clef);
 
     // Determine color (preview uses accent color, same as selection)
     const color =

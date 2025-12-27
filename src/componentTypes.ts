@@ -1,5 +1,5 @@
 import { Selection, Measure, PreviewNote } from './types';
-import { HitZone } from './engines/layout/types';
+import { HitZone, MeasureLayoutV2 } from './engines/layout/types';
 import { NoteInput, PlacementOverride } from './hooks/note/useNoteEntry';
 
 /**
@@ -80,6 +80,7 @@ export interface MeasureProps {
   isLast: boolean;
   forcedWidth?: number; // For Grand Staff sync
   forcedEventPositions?: Record<number, number>;
+  measureLayout?: MeasureLayoutV2;
 
   // 3. Contexts (Grouped)
   layout: LayoutConfig;
