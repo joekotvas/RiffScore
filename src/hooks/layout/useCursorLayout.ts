@@ -119,49 +119,43 @@ const getQuantPositionFromMap = (
   measureWidth: number,
   isPlaying: boolean = false
 ): QuantPosition => {
-  // Look up exact position for this quant
-  if (quant in quantToX) {
-    const startX = quantToX[quant];
+  const sortedQuants = Object.keys(quantToX)
+    .map(Number)
+    .sort((a, b) => a - b);
 
-    // Calculate width to next quant
-    const sortedQuants = Object.keys(quantToX)
-      .map(Number)
-      .sort((a, b) => a - b);
+  // 1. Exact Match
+  if (quant in quantToX) {
     const idx = sortedQuants.indexOf(quant);
+    
+    // Start at 0 for the vary first event to cover header space
+    const startX = idx === 0 ? 0 : quantToX[quant];
 
     let nextX: number;
-    if (idx !== -1 && idx < sortedQuants.length - 1) {
-      const nextQuant = sortedQuants[idx + 1];
-      nextX = quantToX[nextQuant];
+    if (idx < sortedQuants.length - 1) {
+      nextX = quantToX[sortedQuants[idx + 1]];
     } else {
-      // Last event - width to end of measure
       nextX = measureWidth;
     }
 
     const width = Math.max(nextX - startX, 20);
 
-    // If playing, target the NEXT position (or end of segment) to allow CSS transition to animate FROM start
-    // If paused, target the START position
     return { 
       x: isPlaying ? nextX : startX,
       width,
     };
   }
 
-  // Quant not found - find the event that covers this quant
-  const sortedQuants = Object.keys(quantToX)
-    .map(Number)
-    .sort((a, b) => a - b);
-
+  // 2. In-between (Range Search)
   for (let i = 0; i < sortedQuants.length; i++) {
     const eventQuant = sortedQuants[i];
     const nextQuant = i < sortedQuants.length - 1 ? sortedQuants[i + 1] : Infinity;
 
     if (eventQuant <= quant && quant < nextQuant) {
-      const startX = quantToX[eventQuant];
+      const startX = i === 0 ? 0 : quantToX[eventQuant];
+      
       const nextX =
         i < sortedQuants.length - 1
-          ? quantToX[nextQuant]
+          ? quantToX[sortedQuants[i + 1]]
           : measureWidth;
       
       const width = Math.max(nextX - startX, 20);
@@ -173,13 +167,13 @@ const getQuantPositionFromMap = (
     }
   }
 
-  // Fallback: position at last event
+  // 3. Fallback: After last event
   if (sortedQuants.length > 0) {
     const lastQuant = sortedQuants[sortedQuants.length - 1];
     const lastX = quantToX[lastQuant] ?? 0;
-    // For last event, width goes to end of measure
     return { x: lastX, width: Math.max(measureWidth - lastX, 20) };
   }
 
+  // 4. Empty Measure
   return { x: 0, width: 20 };
 };
