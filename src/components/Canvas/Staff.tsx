@@ -271,8 +271,6 @@ const Staff: React.FC<StaffProps> = ({
 
       {/* Ties */}
       {renderTies()}
-
-
     </g>
   );
 };

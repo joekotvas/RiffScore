@@ -679,10 +679,7 @@
                 "isRest": false,
                 "chord": null,
                 "tuplet": {
-                  "ratio": [
-                    3,
-                    2
-                  ],
+                  "ratio": [3, 2],
                   "groupSize": 3,
                   "position": 0,
                   "baseDuration": "eighth",
@@ -708,10 +705,7 @@
                 "isRest": false,
                 "chord": null,
                 "tuplet": {
-                  "ratio": [
-                    3,
-                    2
-                  ],
+                  "ratio": [3, 2],
                   "groupSize": 3,
                   "position": 1,
                   "baseDuration": "eighth",
@@ -737,10 +731,7 @@
                 "isRest": false,
                 "chord": null,
                 "tuplet": {
-                  "ratio": [
-                    3,
-                    2
-                  ],
+                  "ratio": [3, 2],
                   "groupSize": 3,
                   "position": 2,
                   "baseDuration": "eighth",
