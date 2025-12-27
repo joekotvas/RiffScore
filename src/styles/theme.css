@@ -1,21 +1,23 @@
 /* RiffScore Theme Variables */
+/* Defaults match LIGHT theme to prevent FOUC */
 :root {
-  /* ========== Colors ========== */
+  /* ========== Colors (LIGHT theme defaults) ========== */
   --riff-color-bg: #ffffff;
-  --riff-color-bg-panel: #f9fafb; /* gray-50, for panels/overlays */
-  --riff-color-text: #1f2937; /* gray-800 */
-  --riff-color-text-secondary: #6b7280; /* gray-500 */
-  --riff-color-border: #e5e7eb; /* gray-200 */
-  --riff-color-primary: #3b82f6; /* blue-500 */
-  --riff-color-primary-hover: #2563eb; /* blue-600 */
-  --riff-color-danger: #ef4444; /* red-500 */
-  --riff-color-success: #22c55e; /* green-500 */
-  --riff-color-muted: #9ca3af; /* gray-400 */
+  --riff-color-bg-panel: #f9f9f9;
+  --riff-color-text: #1e293b; /* slate800 */
+  --riff-color-text-secondary: hsla(215, 16%, 47%, 1.00); /* slate500 */
+  --riff-color-border: #e2e8f0;
+  --riff-color-primary: #1DA59C; /* teal accent */
+  --riff-color-primary-hover: #17877f;
+  --riff-color-danger: #ef4444;
+  --riff-color-success: #22c55e;
+  --riff-color-muted: hsla(215, 20%, 65%, 1.00); /* slate400 */
   
   /* Hover/Active states */
-  --riff-color-hover-bg: rgba(0, 0, 0, 0.05);
-  --riff-color-active-bg: var(--riff-color-primary);
+  --riff-color-hover-bg: #f1f5f9;
+  --riff-color-active-bg: #1DA59C; /* teal accent */
   --riff-color-active-text: #ffffff;
+  --riff-color-button-bg: #ffffff;
   
   /* Backdrop */
   --riff-color-backdrop: rgba(0, 0, 0, 0.5);

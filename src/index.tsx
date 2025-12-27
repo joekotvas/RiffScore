@@ -1,6 +1,9 @@
 // RiffScore - Sheet Music Editor for React
 // Main library exports
 
+// Core styles (CSS variables for theming)
+import './styles/theme.css';
+
 // Core components
 export { RiffScore } from './RiffScore';
 export { default as ScoreEditor, ScoreEditorContent } from './components/Layout/ScoreEditor';

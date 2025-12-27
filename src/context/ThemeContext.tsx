@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useLayoutEffect } from 'react';
 import { THEMES, Theme, ThemeName, DEFAULT_THEME } from '@/config';
 import { DEFAULT_SCALE } from '@/constants';
 
@@ -53,8 +53,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode; initialTheme?:
 
   const theme = THEMES[themeName];
 
-  // Inject CSS variables whenever theme changes
-  useEffect(() => {
+  // Inject CSS variables synchronously before paint to prevent FOUC
+  useLayoutEffect(() => {
     injectThemeCSSVariables(theme);
   }, [theme]);
 

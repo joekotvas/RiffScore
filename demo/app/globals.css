@@ -1,6 +1,15 @@
 @import "tailwindcss";
 @source "../../src";
 
+/* RiffScore Component Library Styles */
+@import "../../src/styles/theme.css";
+@import "../../src/components/Toolbar/styles/Toolbar.css";
+@import "../../src/components/Toolbar/styles/ToolbarButton.css";
+@import "../../src/components/Toolbar/styles/Divider.css";
+@import "../../src/components/Toolbar/styles/PlaybackControls.css";
+@import "../../src/components/Toolbar/styles/InstrumentSelector.css";
+@import "../../src/components/Toolbar/styles/DropdownOverlay.css";
+
 /* Bravura Music Font - SMuFL compliant */
 @font-face {
   font-family: 'Bravura';
