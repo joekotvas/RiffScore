@@ -124,7 +124,8 @@ describe('useCursorLayout', () => {
       );
 
       // Single staff SHOULD use unified cursor now
-      expect(result.current.x).toBe(100);
+      // NOTE: First event (quant 0) now force-starts at 0 relative to measure to cover header
+      expect(result.current.x).toBe(80); 
       expect(result.current.isGrandStaff).toBe(false);
       expect(result.current.numStaves).toBe(1);
     });
@@ -156,8 +157,8 @@ describe('useCursorLayout', () => {
         useCursorLayout(layout, { measureIndex: 0, quant: 0, duration: 0.1 })
       );
 
-      // x should be measureX + eventPosition
-      expect(result.current.x).toBe(80 + 20); // 100
+      // x should be measureX + 0 (Header sweep fix)
+      expect(result.current.x).toBe(80); // 80 + 0
     });
 
     it('should calculate cursor position at second event', () => {
@@ -175,8 +176,9 @@ describe('useCursorLayout', () => {
         useCursorLayout(layout, { measureIndex: 0, quant: 0, duration: 0.1 })
       );
 
-      // Width should be gap between events (60 - 20 = 40)
-      expect(result.current.width).toBe(40);
+      // Width should be gap between start (0) and next event (60)
+      // 60 - 0 = 60
+      expect(result.current.width).toBe(60);
     });
 
     it('should handle cursor at second measure', () => {
@@ -185,8 +187,8 @@ describe('useCursorLayout', () => {
         useCursorLayout(layout, { measureIndex: 1, quant: 0, duration: 0.1 })
       );
 
-      // Second measure starts at x: 200, first event at +20
-      expect(result.current.x).toBe(200 + 20); // 220
+      // Second measure starts at x: 200, first event at +20 -> Force 0
+      expect(result.current.x).toBe(200); // 200 + 0
     });
     it('should calculate cursor position for interleaved events across staves', () => {
       // Setup: Staff 0 has event at 0 and 48. Staff 1 has event at 24.
@@ -257,7 +259,7 @@ describe('useCursorLayout', () => {
       const { result: pausedResult } = renderHook(() =>
         useCursorLayout(layout, { measureIndex: 0, quant: 0, duration: 0.5 }, false)
       );
-      expect(pausedResult.current.x).toBe(80 + 20); // 100
+      expect(pausedResult.current.x).toBe(80); // 80 + 0 (Force Start)
 
       // Test Playing - Should target Next Event
       const { result: playingResult } = renderHook(() =>
