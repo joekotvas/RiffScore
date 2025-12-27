@@ -110,3 +110,9 @@
   white-space: nowrap;
   border-width: 0;
 }
+
+/* --- Variant: Accidental Icons --- */
+.riff-ToolbarButton--accidental .riff-ToolbarButton__icon {
+  font-size: 1.25rem;
+  padding-bottom: 0.25rem;
+}

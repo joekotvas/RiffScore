@@ -1,5 +1,16 @@
-@import "tailwindcss";
-@source "../../src";
+/* Demo App Styles - No Tailwind */
+/* Base Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
 
 /* RiffScore Component Library Styles */
 @import "../../src/styles/theme.css";
@@ -14,6 +25,8 @@
 @import "../../src/components/Layout/styles/ScoreTitleField.css";
 @import "../../src/components/Layout/Overlays/styles/ShortcutsOverlay.css";
 @import "../../src/components/Layout/Overlays/styles/ConfirmDialog.css";
+@import "../../src/components/Toolbar/Menus/styles/ClefOverlay.css";
+@import "../../src/components/Toolbar/Menus/styles/KeySignatureOverlay.css";
 
 /* Bravura Music Font - SMuFL compliant */
 @font-face {
@@ -22,4 +35,128 @@
   font-weight: normal;
   font-style: normal;
   font-display: swap;
+}
+
+/* Demo Page Utility Classes */
+.demo-page {
+  min-height: 100vh;
+  padding: 0.5rem;
+  font-family: inherit;
+  transition: all 0.3s ease;
+}
+
+@media (min-width: 768px) {
+  .demo-page {
+    padding: 2rem;
+  }
+}
+
+.demo-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.demo-title {
+  font-size: 4.5rem;
+  font-weight: 300;
+  margin-bottom: 0.5rem;
+}
+
+.demo-subtitle {
+  font-size: 1.25rem;
+}
+
+.demo-main {
+  max-width: 72rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4rem;
+  padding-bottom: 6rem;
+}
+
+.demo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.demo-section-header {
+  border-left: 4px solid;
+  padding-left: 1rem;
+}
+
+.demo-section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.demo-section-description {
+  margin: 0;
+}
+
+.demo-code-wrapper {
+  margin-top: 0.5rem;
+  position: relative;
+}
+
+.demo-code-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.demo-code {
+  font-size: 0.75rem;
+  flex: 1;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  font-family: var(--font-geist-mono), monospace;
+}
+
+.demo-json {
+  font-size: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  font-family: var(--font-geist-mono), monospace;
+  max-height: 16rem;
+}
+
+.demo-copy-btn {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  border-radius: 0.25rem;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.demo-copy-btn:hover {
+  opacity: 0.8;
+}
+
+.demo-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem;
+  text-align: center;
+  backdrop-filter: blur(4px);
+}
+
+.demo-footer p {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.demo-footer a {
+  text-decoration: underline;
+  transition: opacity 0.3s;
+}
+
+.demo-footer a:hover {
+  opacity: 0.8;
 }

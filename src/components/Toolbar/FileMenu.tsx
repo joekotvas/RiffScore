@@ -37,15 +37,19 @@ const ExportButton: React.FC<ExportButtonProps> = ({
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="p-1.5 rounded transition-colors"
+      className="riff-ExportButton"
       style={{
+        padding: '0.375rem',
+        borderRadius: 'var(--riff-border-radius)',
+        transition: 'all var(--riff-transition-normal)',
         backgroundColor: isSuccess
           ? 'transparent'
           : isHovered
             ? theme.buttonHoverBackground
             : theme.buttonBackground,
         color: isSuccess ? '#4ade80' : theme.text,
-        borderColor: theme.border,
+        border: 'none',
+        cursor: 'pointer',
       }}
       title={label}
     >
@@ -77,8 +81,14 @@ const ExportRow: React.FC<ExportRowProps> = ({
 
   return (
     <div
-      className="flex items-center justify-between px-4 py-2 border-b last:border-b-0"
-      style={{ borderColor: theme.border }}
+      className="riff-ControlGroup"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0.5rem 1rem',
+        borderBottom: `1px solid ${theme.border}`,
+      }}
     >
       <div className="riff-ControlGroup" style={{ color: theme.text, fontSize: '0.875rem' }}>
         <span style={{ color: theme.secondaryText }}>{icon}</span>
@@ -145,7 +155,6 @@ const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = 'h-9', variant
       />
 
       {isOpen && (
-        /* eslint-disable react-hooks/refs */
         <DropdownOverlay
           onClose={handleClose}
           triggerRef={buttonRef as React.RefObject<HTMLElement>}
@@ -155,7 +164,6 @@ const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = 'h-9', variant
           }}
           width={220}
         >
-          /* eslint-enable react-hooks/refs */
           <div
             className="px-4 py-2 border-b"
             style={{
