@@ -30,10 +30,11 @@ const MelodyLibrary: React.FC<MelodyLibraryProps> = ({
       maxHeight={320} // max-h-80
     >
       <div
-        className="px-4 py-3 border-b flex items-center gap-2"
+        className="riff-ControlGroup"
         style={{
+          padding: '0.75rem 1rem',
+          borderBottom: `1px solid ${theme.border}`,
           backgroundColor: theme.buttonHoverBackground,
-          borderColor: theme.border,
         }}
       >
         <BookOpen size={16} style={{ color: theme.secondaryText }} />

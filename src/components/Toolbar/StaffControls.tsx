@@ -71,7 +71,7 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
     const currentClef = CLEF_TYPES[clef] || CLEF_TYPES['treble'];
 
     return (
-      <div className="flex items-center gap-2">
+      <div className="riff-ControlGroup">
         {/* Clef Selection */}
         <ToolbarButton
           ref={clefBtnRef}

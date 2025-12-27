@@ -80,7 +80,7 @@ const ExportRow: React.FC<ExportRowProps> = ({
       className="flex items-center justify-between px-4 py-2 border-b last:border-b-0"
       style={{ borderColor: theme.border }}
     >
-      <div className="flex items-center gap-2 text-sm" style={{ color: theme.text }}>
+      <div className="riff-ControlGroup" style={{ color: theme.text, fontSize: '0.875rem' }}>
         <span style={{ color: theme.secondaryText }}>{icon}</span>
         {label}
       </div>
