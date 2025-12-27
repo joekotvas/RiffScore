@@ -367,13 +367,14 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             );
           })}
 
-          {isPlaybackVisible && unifiedCursorX !== null && (
+          {unifiedCursorX !== null && (
             <g
               ref={cursorRef}
               style={{
                 transform: `translateX(${unifiedCursorX}px)`,
                 transition: `transform ${playbackPosition.duration || 0.1}s linear`,
                 pointerEvents: 'none',
+                opacity: isPlaybackVisible ? 1 : 0,
               }}
             >
               <line
