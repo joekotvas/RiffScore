@@ -357,7 +357,8 @@ describe('ExtendSelectionHorizontallyCommand', () => {
       // Original: 2 quarter notes. b-e1 is at start.
       const bassRest = score.staves[1].measures[0].events[0];
       bassRest.isRest = true;
-      bassRest.notes = []; // Rests have no notes
+      // Valid Rest: Has one note with null pitch
+      bassRest.notes = [{ id: 'rest-note-1', pitch: null, isRest: true }];
 
       // Anchor: Staff 0, Measure 0, first event (t-e1)
       const selection: Selection = {

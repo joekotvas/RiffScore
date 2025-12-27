@@ -214,24 +214,13 @@ export class ExtendSelectionHorizontallyCommand implements SelectionCommand {
 
           // Check if event falls within range
           if (eventPosition >= minPos && eventPosition <= maxPos) {
-            const notes = event.notes ?? [];
-            if (notes.length > 0) {
-              // Add all notes in this event (chord support)
-              for (const note of notes) {
-                newSelectedNotes.push({
-                  staffIndex,
-                  measureIndex,
-                  eventId: event.id,
-                  noteId: note.id,
-                });
-              }
-            } else if (event.isRest) {
-              // Handle rests (no notes, but is a selectable event)
+            // Add all notes in this event (chord support)
+            for (const note of event.notes ?? []) {
               newSelectedNotes.push({
                 staffIndex,
                 measureIndex,
                 eventId: event.id,
-                noteId: '', // Convention for rest selection
+                noteId: note.id,
               });
             }
           }
