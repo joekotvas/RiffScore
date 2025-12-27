@@ -333,7 +333,7 @@ describe('ExtendSelectionHorizontallyCommand', () => {
       // 1. Extend Right (e1 -> e2)
       const cmd1 = new ExtendSelectionHorizontallyCommand({ direction: 'right' });
       const result1 = cmd1.execute(selection, score);
-      
+
       // Should select e1, e2
       expect(result1.selectedNotes).toHaveLength(2);
       // Anchor should be set explicitly to e1 (synthesized from original focus)
@@ -345,8 +345,8 @@ describe('ExtendSelectionHorizontallyCommand', () => {
 
       // Should select e1, e2, e3
       // If anchor was dropped, it would reset to e2 and select only e2, e3 (dropping e1)
-      expect(result2.selectedNotes.map(n => n.eventId)).toContain('t-e1');
-      expect(result2.selectedNotes.map(n => n.eventId)).toContain('t-e3');
+      expect(result2.selectedNotes.map((n) => n.eventId)).toContain('t-e1');
+      expect(result2.selectedNotes.map((n) => n.eventId)).toContain('t-e3');
       expect(result2.selectedNotes).toHaveLength(3);
     });
   });
