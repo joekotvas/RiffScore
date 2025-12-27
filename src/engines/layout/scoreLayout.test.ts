@@ -25,7 +25,7 @@ describe('calculateScoreLayout', () => {
     // Score has 2 staves (treble, bass)
     expect(layout.staves).toHaveLength(2);
     const staffLayout = layout.staves[0];
-    
+
     // Each staff has 2 measures
     expect(staffLayout.measures).toHaveLength(2);
 
@@ -46,32 +46,32 @@ describe('calculateScoreLayout', () => {
     // Make the first measure of staff 2 contain more notes to force wider layout
     // (In this mock we might need to manually inject events if createMockScore is simple)
     // For now, let's assume createMockScore returns a basic structure.
-    
+
     // Let's create a custom score setup
     const complexScore: Score = {
-       ...score,
-       staves: [
-         { 
-           ...score.staves[0],
-           measures: [{ ...score.staves[0].measures[0], events: [] }] // Empty measure on staff 1
-         },
-         {
-           ...score.staves[0], // Use same structure
-             id: 'staff-2',
-             // Staff 2 has notes, so it should drive width
-             measures: [ score.staves[0].measures[0] ]
-         }
-       ]
+      ...score,
+      staves: [
+        {
+          ...score.staves[0],
+          measures: [{ ...score.staves[0].measures[0], events: [] }], // Empty measure on staff 1
+        },
+        {
+          ...score.staves[0], // Use same structure
+          id: 'staff-2',
+          // Staff 2 has notes, so it should drive width
+          measures: [score.staves[0].measures[0]],
+        },
+      ],
     };
 
     const layout = calculateScoreLayout(complexScore);
-    
+
     const m1Staff1 = layout.staves[0].measures[0];
     const m1Staff2 = layout.staves[1].measures[0];
 
     // Widths should be equal (synchronized)
     expect(m1Staff1.width).toBeCloseTo(m1Staff2.width);
-    
+
     // Staff 1 measure (empty) should be expanded to match Staff 2
     expect(m1Staff1.width).toBeGreaterThan(CONFIG.measurePaddingLeft + CONFIG.measurePaddingRight);
   });
@@ -80,10 +80,10 @@ describe('calculateScoreLayout', () => {
     const score = createTestScore();
     // Ensure there are notes
     const layout = calculateScoreLayout(score);
-    
+
     const noteKeys = Object.keys(layout.notes);
     expect(noteKeys.length).toBeGreaterThan(0);
-    
+
     // Check note layout structure
     const firstNote = layout.notes[noteKeys[0]];
     expect(firstNote).toHaveProperty('x');
@@ -121,7 +121,7 @@ describe('calculateScoreLayout', () => {
     };
 
     const layout = calculateScoreLayout(score);
-    
+
     // Rests don't create note layouts (only events)
     expect(Object.keys(layout.notes)).toHaveLength(0);
     // But event layouts should exist
@@ -135,8 +135,8 @@ describe('calculateScoreLayout', () => {
     // Get notes from the first event (which likely has a chord)
     const noteEntries = Object.entries(layout.notes);
     if (noteEntries.length >= 2) {
-      const [,note1] = noteEntries[0];
-      const [,note2] = noteEntries[1];
+      const [, note1] = noteEntries[0];
+      const [, note2] = noteEntries[1];
 
       // If they're in the same event, their x positions should differ due to chord shifts
       if (note1.eventId === note2.eventId) {
@@ -232,7 +232,7 @@ describe('calculateScoreLayout', () => {
     };
 
     const layout = calculateScoreLayout(score);
-    
+
     // Pickup measure should still have valid layout
     expect(layout.staves[0].measures).toHaveLength(1);
     expect(Object.keys(layout.notes)).toHaveLength(1);

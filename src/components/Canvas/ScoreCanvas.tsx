@@ -115,11 +115,11 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   // --- LAYOUT ENGINE (SSOT) ---
   // Use the centralized layout hook for both rendering and hit detection
   const { layout } = useScoreLayout({ score });
-  
+
   // Flatten layout for hit detection (interaction layer)
   // This replaces the old notePositions calculation
   const notePositions = useMemo(() => {
-    return Object.values(layout.notes).map(noteLayout => ({
+    return Object.values(layout.notes).map((noteLayout) => ({
       x: noteLayout.x,
       y: noteLayout.y,
       // Use hit zone dimensions from layout engine
@@ -147,21 +147,22 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   }, [layout]);
 
   const svgHeight = useMemo(() => {
-     return CONFIG.baseY + (score.staves.length - 1) * CONFIG.staffSpacing + CONFIG.lineHeight * 4 + 50;
+    return (
+      CONFIG.baseY + (score.staves.length - 1) * CONFIG.staffSpacing + CONFIG.lineHeight * 4 + 50
+    );
   }, [score.staves.length]);
 
   // Backwards compatibility for cursor logic (temporarily keep useGrandStaffLayout for cursor ONLY?)
   // Or migrate cursor logic?
   // For now, let's keep useGrandStaffLayout but ONLY for cursor, and rely on useScoreLayout for rendering.
-  const { unifiedCursorX, isGrandStaff, numStaves, synchronizedLayoutData } =
-    useGrandStaffLayout({
-      score,
-      playbackPosition,
-      _activeStaff: activeStaff,
-      keySignature,
-      clef,
-    });
-    
+  const { unifiedCursorX, isGrandStaff, numStaves, synchronizedLayoutData } = useGrandStaffLayout({
+    score,
+    playbackPosition,
+    _activeStaff: activeStaff,
+    keySignature,
+    clef,
+  });
+
   // Drag to select hook
   const {
     isDragging,

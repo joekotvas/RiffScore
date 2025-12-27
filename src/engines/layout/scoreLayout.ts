@@ -98,14 +98,14 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
 
         // Create Event Layout
         const processedEvent = relativeLayout.processedEvents.find((e) => e.id === event.id);
-        
+
         // Calculate actual event width from chord layout
         let eventWidth = 20; // Default for single notes
         if (processedEvent?.chordLayout) {
           // For chords: base width + max shift + some padding for accidentals/dots
           eventWidth = 30 + (processedEvent.chordLayout.maxNoteShift || 0);
         }
-        
+
         const eventLayout: EventLayout = {
           x: absoluteX,
           y: staffY,

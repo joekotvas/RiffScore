@@ -71,7 +71,14 @@ const ChordGroup: React.FC<ChordGroupProps> = ({
   const { startY: stemStartY, endY: stemEndY } = useMemo(
     () =>
       calculateStemGeometry({
-        beamSpec: beamSpec ? { startX: beamSpec.startX, endX: beamSpec.endX, startY: beamSpec.startY, endY: beamSpec.endY } : undefined,
+        beamSpec: beamSpec
+          ? {
+              startX: beamSpec.startX,
+              endX: beamSpec.endX,
+              startY: beamSpec.startY,
+              endY: beamSpec.endY,
+            }
+          : undefined,
         stemX,
         direction: effectiveDirection,
         minY,

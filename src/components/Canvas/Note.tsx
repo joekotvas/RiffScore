@@ -84,15 +84,7 @@ const Accidental = ({
 /**
  * Renders the augmentation dot.
  */
-const Dot = ({
-  x,
-  y,
-  color,
-}: {
-  x: number;
-  y: number;
-  color: string;
-}) => {
+const Dot = ({ x, y, color }: { x: number; y: number; color: string }) => {
   const fontSize = getFontSize(CONFIG.lineHeight);
 
   return (
@@ -253,7 +245,8 @@ const Note: React.FC<NoteProps> = React.memo(
 
     // Calculate position
     const noteX = x + xShift;
-    const noteY = overrideY !== undefined ? overrideY : baseY + getOffsetForPitch(effectivePitch, clef);
+    const noteY =
+      overrideY !== undefined ? overrideY : baseY + getOffsetForPitch(effectivePitch, clef);
 
     // Determine color (preview uses accent color, same as selection)
     const color =

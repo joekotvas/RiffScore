@@ -68,7 +68,6 @@ export interface TupletBracketGroup {
   number: number;
 }
 
-
 export interface HeaderLayout {
   keySigStartX: number;
   keySigVisualWidth: number;
