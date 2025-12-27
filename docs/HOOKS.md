@@ -1,6 +1,14 @@
-# Hooks Directory Structure
+# Hooks Directory Guide
 
-The `src/hooks/` directory is organized into 8 semantic modules plus 5 entry-point orchestrators at the root.
+The `src/hooks/` directory is organized into semantic modules plus a few root orchestrators. This guide focuses on **where new hooks belong, how they interact, and how to keep the structure predictable**.
+
+## Quick Placement Rules
+
+- **UI-only state** (selection boxes, hover previews, focus traps) → `interaction/` or `layout/`.
+- **Score data mutations** (create, edit, delete) → `note/` or `score/` depending on whether it edits events or the underlying engine.
+- **Global bindings** (keyboard, MIDI, external API) → `handlers/`, `audio/`, or `api/`.
+- **Shared tool state** (duration, mode, modifiers) → `editor/`.
+- **Cross-cutting bundles** that combine several hooks for reuse → treat them as **Composition Hooks** (see Design Patterns) and colocate with their peers.
 
 ## Directory Overview
 
@@ -14,8 +22,20 @@ src/hooks/
 ├── layout/       # Visual rendering, scrolling, font loading
 ├── note/         # Note CRUD operations (Composition Hook pattern)
 ├── score/        # Score state engine and derived state
-└── [root files]  # Main orchestrators
+└── [root files]  # Main orchestrators (compose the modules above)
 ```
+
+### Orchestrator Entry Points
+
+Use these when wiring the editor in app code—they hide module boundaries and expose grouped APIs:
+
+| File | Purpose |
+|------|---------|
+| `useScoreLogic.ts` | **Main orchestrator** — composes all hooks, provides grouped API |
+| `useRiffScore.ts` | Config normalization, initial score setup |
+| `useMeasureActions.ts` | Add/delete measure commands |
+| `useTupletActions.ts` | Tuplet creation and modification |
+| `useTitleEditor.ts` | Title input field state |
 
 ---
 
@@ -77,7 +97,7 @@ Pure functions that handle specific keyboard shortcut categories.
 ---
 
 ### `interaction/` — User Input Routing
-Bundles navigation, focus, and mouse interaction hooks.
+Bundles navigation, focus, and mouse interaction hooks. Use this folder for **UI-facing state that reacts to user intent**; deeper score mutations should stay in `note/` or `score/`.
 
 | File | Purpose |
 |------|---------|
@@ -91,7 +111,7 @@ Bundles navigation, focus, and mouse interaction hooks.
 ---
 
 ### `layout/` — Visual Rendering
-Layout calculations, scrolling, and font loading.
+Layout calculations, scrolling, and font loading. Anything that **moves pixels or controls viewport state** belongs here.
 
 | File | Purpose |
 |------|---------|
@@ -133,24 +153,19 @@ Core state management and derived state utilities.
 
 ---
 
-### Root Files — Entry Points
-
-| File | Purpose |
-|------|---------|
-| `useScoreLogic.ts` | **Main orchestrator** — composes all hooks, provides grouped API |
-| `useRiffScore.ts` | Config normalization, initial score setup |
-| `useMeasureActions.ts` | Add/delete measure commands |
-| `useTupletActions.ts` | Tuplet creation and modification |
-| `useTitleEditor.ts` | Title input field state |
-
----
-
 ## Design Patterns
 
 ### Composition Hooks (ADR-010)
-When multiple hooks share inputs and are used together, they are bundled:
+When multiple hooks share inputs and are used together, they are bundled and colocated with their peers:
 - `useNoteActions` → bundles entry, editing, deletion, preview
 - `useInteraction` → bundles navigation + focus
+
+### Adding a New Hook
+
+1. Choose a folder using the **Quick Placement Rules** above.
+2. Export from the folder's `index.ts` (barrel) for consistent imports.
+3. If the hook composes siblings, name it `use<Feature>Actions` or `use<Feature>` and document the bundle in this file.
+4. Keep **mutations** near the score engine and **view state** near interaction/layout to avoid cross-module churn.
 
 ### Barrel Exports
 Each subfolder has an `index.ts` that re-exports its public API:
