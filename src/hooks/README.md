@@ -131,8 +131,8 @@ Note entry, deletion, and editing operations.
 |------|---------|
 | `useNoteActions.ts` | **Composition Hook**: bundles all note operations |
 | `useNoteEntry.ts` | Add note/chord to measure |
-| `useNoteEditing.ts` | Update pitch, delete notes |
-| `useNoteDeletion.ts` | Remove notes and events |
+| `useNotePitch.ts` | Update pitch of existing notes |
+| `useNoteDelete.ts` | Remove notes and events |
 | `useHoverPreview.ts` | Compute preview note from mouse position |
 
 ---
