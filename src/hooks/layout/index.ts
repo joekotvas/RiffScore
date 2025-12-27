@@ -4,8 +4,9 @@
  */
 
 export { useMeasureLayout } from './useMeasureLayout';
-export { useGrandStaffLayout } from './useGrandStaffLayout';
+export { useCursorLayout } from './useCursorLayout';
 export { usePreviewRender } from './usePreviewRender';
 export { useAutoScroll } from './useAutoScroll';
 export { useFontLoaded, type FontLoadedResult } from './useFontLoaded';
 export { useFocusTrap } from './useFocusTrap';
+export * from './useScoreLayout';

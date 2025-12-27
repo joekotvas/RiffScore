@@ -10,6 +10,7 @@ import { createTimeline } from '@/services/TimelineService';
 
 export interface UsePlaybackReturn {
   isPlaying: boolean;
+  isActive: boolean; // "Playback Mode" - visible cursor
   playbackPosition: {
     measureIndex: number | null;
     quant: number | null;
@@ -19,12 +20,14 @@ export interface UsePlaybackReturn {
   stopPlayback: () => void;
   pausePlayback: () => void;
   handlePlayToggle: () => void;
+  exitPlaybackMode: () => void;
   lastPlayStart: { measureIndex: number; quant: number };
   instrumentState: InstrumentState;
 }
 
 export const usePlayback = (score: Score, bpm: number): UsePlaybackReturn => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isActive, setIsActive] = useState(false);
   const [playbackPosition, setPlaybackPosition] = useState<{
     measureIndex: number | null;
     quant: number | null;
@@ -46,12 +49,18 @@ export const usePlayback = (score: Score, bpm: number): UsePlaybackReturn => {
     isInitialized.current = true;
   }, []);
 
+  const exitPlaybackMode = useCallback(() => {
+    setIsActive(false);
+  }, []);
+
   /*
    * Stop playback and reset position (Stop Button behavior)
    */
   const stopPlayback = useCallback(() => {
     stopTonePlayback();
     setIsPlaying(false);
+    // Keep active (cursor visible at 0)
+    setIsActive(true);
     setPlaybackPosition({ measureIndex: null, quant: null, duration: 0 });
   }, []);
 
@@ -61,6 +70,7 @@ export const usePlayback = (score: Score, bpm: number): UsePlaybackReturn => {
   const pausePlayback = useCallback(() => {
     stopTonePlayback();
     setIsPlaying(false);
+    setIsActive(true);
     // Do NOT reset playbackPosition, so cursor stays visible and we can resume
   }, []);
 
@@ -74,6 +84,7 @@ export const usePlayback = (score: Score, bpm: number): UsePlaybackReturn => {
 
       setLastPlayStart({ measureIndex: startMeasureIndex, quant: startQuant });
       setIsPlaying(true);
+      setIsActive(true);
 
       // Generate timeline
       const timeline = createTimeline(score, bpm);
@@ -88,23 +99,43 @@ export const usePlayback = (score: Score, bpm: number): UsePlaybackReturn => {
 
       if (startEvent) {
         startTimeOffset = startEvent.time;
+        // Pre-seed the state so the UI has the correct "From" position and duration immediately
+        // This fixes the "First Note Jump" where duration was 0 causing instant transition
+        setPlaybackPosition({
+          measureIndex: startEvent.measureIndex,
+          quant: startEvent.quant,
+          duration: startEvent.duration || 0,
+        });
       }
 
-      scheduleTonePlayback(
-        timeline,
-        bpm,
-        startTimeOffset,
-        (measureIndex, quant, duration) => {
-          setPlaybackPosition({ measureIndex, quant, duration: duration || 0 });
-        },
-        () => {
-          setIsPlaying(false);
-          setPlaybackPosition({ measureIndex: null, quant: null, duration: 0 });
-        }
-      );
+
+      // Ensure cursor is mounted in "Stopped" state (at start) before animating
+      setIsActive(true);
+
+      // Use double-RAF to guarantee a paint frame occurs for the "Start" position.
+      // This is more reliable than setTimeout for CSS transitions on newly mounted/updated elements.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsPlaying(true);
+
+          scheduleTonePlayback(
+            timeline,
+            bpm,
+            startTimeOffset,
+            (measureIndex, quant, duration) => {
+              setPlaybackPosition({ measureIndex, quant, duration: duration || 0 });
+            },
+            () => {
+              setIsPlaying(false);
+              setPlaybackPosition({ measureIndex: null, quant: null, duration: 0 });
+            }
+          );
+        });
+      });
     },
     [score, bpm, ensureInit]
   );
+
 
   const handlePlayToggle = useCallback(() => {
     if (isPlaying) {
@@ -119,11 +150,13 @@ export const usePlayback = (score: Score, bpm: number): UsePlaybackReturn => {
 
   return {
     isPlaying,
+    isActive,
     playbackPosition,
     playScore,
     stopPlayback,
     pausePlayback,
     handlePlayToggle,
+    exitPlaybackMode,
     lastPlayStart,
     instrumentState, // Expose for UI (e.g., "Loading piano samples...")
   };
