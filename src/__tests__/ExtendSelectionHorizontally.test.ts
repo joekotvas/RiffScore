@@ -316,6 +316,39 @@ describe('ExtendSelectionHorizontallyCommand', () => {
       // Should still extend (using focus as implicit anchor)
       expect(result.selectedNotes).toHaveLength(2);
     });
+
+    it('persists implicit anchor across multiple extensions', () => {
+      const score = createTwoStaffScore();
+      // Start with single selection, NO anchor (implicit anchor at focus)
+      const selection: Selection = {
+        ...createDefaultSelection(),
+        staffIndex: 0,
+        measureIndex: 0,
+        eventId: 't-e1',
+        noteId: 't-n1',
+        selectedNotes: [{ staffIndex: 0, measureIndex: 0, eventId: 't-e1', noteId: 't-n1' }],
+        anchor: undefined, // Simulating single selection
+      };
+
+      // 1. Extend Right (e1 -> e2)
+      const cmd1 = new ExtendSelectionHorizontallyCommand({ direction: 'right' });
+      const result1 = cmd1.execute(selection, score);
+      
+      // Should select e1, e2
+      expect(result1.selectedNotes).toHaveLength(2);
+      // Anchor should be set explicitly to e1 (synthesized from original focus)
+      expect(result1.anchor).toBeDefined();
+      expect(result1.anchor?.eventId).toBe('t-e1');
+
+      // 2. Extend Right again (e1 -> e3)
+      const result2 = cmd1.execute(result1, score);
+
+      // Should select e1, e2, e3
+      // If anchor was dropped, it would reset to e2 and select only e2, e3 (dropping e1)
+      expect(result2.selectedNotes.map(n => n.eventId)).toContain('t-e1');
+      expect(result2.selectedNotes.map(n => n.eventId)).toContain('t-e3');
+      expect(result2.selectedNotes).toHaveLength(3);
+    });
   });
 
   describe('anchor slice full selection', () => {

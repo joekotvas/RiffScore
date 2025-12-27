@@ -285,7 +285,7 @@ export class ExtendSelectionHorizontallyCommand implements SelectionCommand {
       measureIndex: newFocus?.measureIndex ?? state.measureIndex,
       eventId: newFocus?.eventId ?? state.eventId,
       noteId: newFocus?.noteId ?? state.noteId,
-      anchor: state.anchor, // Always preserve anchor
+      anchor: anchor, // Persist resolved anchor (explicit or synthesized)
     };
   }
 
