@@ -108,6 +108,7 @@ export const usePlayback = (score: Score, bpm: number): UsePlaybackReturn => {
         });
       }
 
+
       // Ensure cursor is mounted in "Stopped" state (at start) before animating
       setIsActive(true);
 
@@ -134,6 +135,7 @@ export const usePlayback = (score: Score, bpm: number): UsePlaybackReturn => {
     },
     [score, bpm, ensureInit]
   );
+
 
   const handlePlayToggle = useCallback(() => {
     if (isPlaying) {
