@@ -22,6 +22,7 @@ interface ScoreCanvasProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   onHoverChange: (isHovering: boolean) => void;
   onBackgroundClick?: () => void;
+  isPlaying?: boolean;
 }
 
 /**
@@ -37,6 +38,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   containerRef,
   onHoverChange,
   onBackgroundClick,
+  isPlaying = false,
 }) => {
   const { theme } = useTheme();
 
@@ -153,12 +155,15 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   }, [score.staves.length]);
 
   // Cursor layout (consumes centralized layout - no duplicate calculations)
+  // Calculate cursor layout
+  // We pass isPlaying=true to animate cursor to the NEXT event (smooth sweep)
+  // When paused, it snaps to the current event start
   const {
     x: unifiedCursorX,
     width: _unifiedCursorWidth,
     isGrandStaff,
     numStaves,
-  } = useCursorLayout(layout, playbackPosition);
+  } = useCursorLayout(layout, playbackPosition, isPlaying);
 
   // Drag to select hook
   const {
@@ -360,6 +365,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               ref={cursorRef}
               style={{
                 transform: `translateX(${unifiedCursorX}px)`,
+                transition: `transform ${playbackPosition.duration || 0.1}s linear`,
                 pointerEvents: 'none',
               }}
             >

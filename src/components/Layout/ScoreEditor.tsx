@@ -239,6 +239,7 @@ const ScoreEditorContent = ({
           onKeySigClick={() => toolbarRef.current?.openKeySigMenu()}
           onTimeSigClick={() => toolbarRef.current?.openTimeSigMenu()}
           onClefClick={() => toolbarRef.current?.openClefMenu()}
+          isPlaying={playback.isPlaying}
         />
       </div>
 

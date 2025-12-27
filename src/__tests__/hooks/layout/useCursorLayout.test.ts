@@ -187,6 +187,86 @@ describe('useCursorLayout', () => {
       // Second measure starts at x: 200, first event at +20
       expect(result.current.x).toBe(200 + 20); // 220
     });
+    it('should calculate cursor position for interleaved events across staves', () => {
+      // Setup: Staff 0 has event at 0 and 48. Staff 1 has event at 24.
+      // Quant 24 should map to Staff 1's event position.
+      const mixedLayout: ScoreLayout = {
+        staves: [
+          {
+            y: 100,
+            index: 0,
+            measures: [
+              {
+                x: 80,
+                y: 100,
+                width: 120,
+                events: {},
+                beamGroups: [],
+                tupletGroups: [],
+                legacyLayout: {
+                  eventPositions: { 's0e1': 20, 's0e2': 80 },
+                  processedEvents: [
+                    { id: 's0e1', duration: 'half', quant: 0 },
+                    { id: 's0e2', duration: 'half', quant: 48 },
+                  ],
+                },
+              },
+            ],
+          } as any,
+          {
+            y: 200,
+            index: 1,
+            measures: [
+              {
+                x: 80,
+                y: 200,
+                width: 120,
+                events: {},
+                beamGroups: [],
+                tupletGroups: [],
+                legacyLayout: {
+                  eventPositions: { 's1e1': 50 },
+                  processedEvents: [
+                    { id: 's1e1', duration: 'quarter', quant: 24 },
+                  ],
+                },
+              },
+            ],
+          } as any,
+        ],
+        notes: {},
+        events: {},
+      };
+
+      const { result } = renderHook(() =>
+        useCursorLayout(mixedLayout, { measureIndex: 0, quant: 24, duration: 0.1 })
+      );
+
+      // Should find event at quant 24 from Staff 1 (pos 50) relative to measure X (80)
+      expect(result.current.x).toBe(80 + 50); // 130
+    });
+
+    it('should target NEXT event when playing to drive smooth animation', () => {
+      // Logic: If at Quant 0 (Start of Event 1), and playing...
+      // Cursor should target End of Event 1 (Start of Event 2)
+      // So CSS transition animates 0 -> End during the note duration.
+      
+      const layout = createGrandStaffLayout();
+      // Layout has event 1 at +20 (Quant 0), event 2 at +60 (Quant 24).
+      
+      // Test Paused (Default) - Should target Current Event
+      const { result: pausedResult } = renderHook(() =>
+        useCursorLayout(layout, { measureIndex: 0, quant: 0, duration: 0.5 }, false)
+      );
+      expect(pausedResult.current.x).toBe(80 + 20); // 100
+
+      // Test Playing - Should target Next Event
+      const { result: playingResult } = renderHook(() =>
+        useCursorLayout(layout, { measureIndex: 0, quant: 0, duration: 0.5 }, true)
+      );
+      // Next event is at +60
+      expect(playingResult.current.x).toBe(80 + 60); // 140
+    });
   });
 
   describe('edge cases', () => {
@@ -224,7 +304,7 @@ describe('useCursorLayout', () => {
 
       // Should fall back gracefully
       expect(result.current.x).toBe(80); // Just measure x
-      expect(result.current.width).toBe(20); // Default width
+      expect(result.current.width).toBe(120); // Full measure width
     });
   });
 });
