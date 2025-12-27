@@ -20,6 +20,19 @@ jest.mock('../engines/toneEngine', () => ({
   getState: () => mockGetState(),
 }));
 
+// Mock RAF to execute immediately to bypass double-RAF wait in tests
+const originalRAF = window.requestAnimationFrame;
+beforeAll(() => {
+  window.requestAnimationFrame = (cb) => {
+    cb(0);
+    return 0;
+  };
+});
+
+afterAll(() => {
+  window.requestAnimationFrame = originalRAF;
+});
+
 // Mock TimelineService
 const mockCreateTimeline = jest.fn().mockReturnValue([
   { measureIndex: 0, quant: 0, time: 0, notes: [{ pitch: 'C4' }] },
