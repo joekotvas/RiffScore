@@ -349,6 +349,43 @@ describe('ExtendSelectionHorizontallyCommand', () => {
       expect(result2.selectedNotes.map((n) => n.eventId)).toContain('t-e3');
       expect(result2.selectedNotes).toHaveLength(3);
     });
+
+    it('selects co-vertical event on target staff at anchor position (Shift+Click)', () => {
+      const score = createTwoStaffScore();
+      
+      // Modify Staff 1, Event 1 (b-e1) to be a REST
+      // Original: 2 quarter notes. b-e1 is at start.
+      const bassRest = score.staves[1].measures[0].events[0];
+      bassRest.isRest = true;
+      bassRest.notes = []; // Rests have no notes
+
+      // Anchor: Staff 0, Measure 0, first event (t-e1)
+      const selection: Selection = {
+        ...createDefaultSelection(),
+        staffIndex: 0,
+        measureIndex: 0,
+        eventId: 't-e1',
+        noteId: 't-n1',
+        selectedNotes: [{ staffIndex: 0, measureIndex: 0, eventId: 't-e1', noteId: 't-n1' }],
+        anchor: { staffIndex: 0, measureIndex: 0, eventId: 't-e1', noteId: 't-n1' },
+      };
+
+      // Target: Staff 1, Measure 0, second event (b-e2)
+      // Expectation: Staff 1 start event (bassRest) should be selected because it aligns with t-e1
+      const command = new ExtendSelectionHorizontallyCommand({
+        direction: 'right',
+        target: { staffIndex: 1, measureIndex: 0, eventId: 'b-e2', noteId: 'b-n2' },
+      });
+      const result = command.execute(selection, score);
+
+      // Verify Staff 1 selections
+      const bassNotes = result.selectedNotes.filter((n) => n.staffIndex === 1);
+      
+      // Should contain b-e1 (the rest) and b-e2 (target)
+      const bassEventIds = bassNotes.map((n) => n.eventId);
+      expect(bassEventIds).toContain('b-e2'); // Target
+      expect(bassEventIds).toContain('b-e1'); // Co-vertical with Anchor (The Rest)
+    });
   });
 
   describe('anchor slice full selection', () => {
