@@ -99,23 +99,39 @@ export const usePlayback = (score: Score, bpm: number): UsePlaybackReturn => {
 
       if (startEvent) {
         startTimeOffset = startEvent.time;
+        // Pre-seed the state so the UI has the correct "From" position and duration immediately
+        // This fixes the "First Note Jump" where duration was 0 causing instant transition
+        setPlaybackPosition({
+          measureIndex: startEvent.measureIndex,
+          quant: startEvent.quant,
+          duration: startEvent.duration || 0,
+        });
       }
 
-      scheduleTonePlayback(
-        timeline,
-        bpm,
-        startTimeOffset,
-        (measureIndex, quant, duration) => {
-          setPlaybackPosition({ measureIndex, quant, duration: duration || 0 });
-        },
-        () => {
-          setIsPlaying(false);
-          setPlaybackPosition({ measureIndex: null, quant: null, duration: 0 });
-          // Note: Auto-finish typically keeps playback mode active (cursor at start)?
-          // Or should it exit? User said "Playing, stopped, or paused".
-          // If song finishes, it is "Stopped". So Active=True.
-        }
-      );
+
+      // Ensure cursor is mounted in "Stopped" state (at start) before animating
+      setIsActive(true);
+
+      // Use double-RAF to guarantee a paint frame occurs for the "Start" position.
+      // This is more reliable than setTimeout for CSS transitions on newly mounted/updated elements.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsPlaying(true);
+
+          scheduleTonePlayback(
+            timeline,
+            bpm,
+            startTimeOffset,
+            (measureIndex, quant, duration) => {
+              setPlaybackPosition({ measureIndex, quant, duration: duration || 0 });
+            },
+            () => {
+              setIsPlaying(false);
+              setPlaybackPosition({ measureIndex: null, quant: null, duration: 0 });
+            }
+          );
+        });
+      });
     },
     [score, bpm, ensureInit]
   );

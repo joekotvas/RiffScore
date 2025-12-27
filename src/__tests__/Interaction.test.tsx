@@ -48,6 +48,8 @@ jest.mock('../hooks/audio/usePlayback', () => ({
     stopPlayback: jest.fn(),
     handlePlayToggle: jest.fn(),
     lastPlayStart: 0,
+    isActive: false,
+    exitPlaybackMode: jest.fn(),
   }),
 }));
 
