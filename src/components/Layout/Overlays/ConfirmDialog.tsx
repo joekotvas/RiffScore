@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme } from '@/context/ThemeContext';
+import './styles/ConfirmDialog.css';
 
 interface ConfirmDialogProps {
   title: string;
@@ -18,8 +18,6 @@ interface ConfirmDialogProps {
  * Renders as a modal overlay with centered content.
  */
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({ title, message, actions, onClose }) => {
-  const { theme } = useTheme();
-
   // Handle ESC key
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -39,56 +37,29 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({ title, message, actions, 
     };
   }, [onClose]);
 
-  const getButtonStyle = (variant: 'primary' | 'danger' | 'secondary' = 'secondary') => {
-    switch (variant) {
-      case 'primary':
-        return {
-          backgroundColor: theme.accent,
-          color: '#fff',
-          border: 'none',
-        };
-      case 'danger':
-        return {
-          backgroundColor: '#ef4444', // Gentler red
-          color: '#fff',
-          border: 'none',
-        };
-      case 'secondary':
-      default:
-        return {
-          backgroundColor: 'transparent',
-          color: theme.text,
-          border: `1px solid ${theme.border}`,
-        };
-    }
-  };
-
   return (
     <div
-      className="fixed top-0 left-0 w-screen h-screen z-[100] flex items-center justify-center"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+      className="riff-ConfirmDialog-backdrop"
       onClick={onClose}
     >
       <div
-        className="rounded-lg shadow-xl p-6 max-w-md w-full mx-4 relative"
-        style={{ backgroundColor: theme.background, maxHeight: '90vh', overflowY: 'auto' }}
+        className="riff-ConfirmDialog"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold mb-2" style={{ color: theme.text }}>
+        <h2 className="riff-ConfirmDialog__title">
           {title}
         </h2>
 
-        <p className="mb-6" style={{ color: theme.secondaryText }}>
+        <p className="riff-ConfirmDialog__message">
           {message}
         </p>
 
-        <div className="flex justify-end gap-3">
+        <div className="riff-ConfirmDialog__actions">
           {actions.map((action, index) => (
             <button
               key={index}
               onClick={action.onClick}
-              className="px-4 py-2 rounded-md font-medium transition-opacity hover:opacity-80"
-              style={getButtonStyle(action.variant)}
+              className={`riff-ConfirmDialog__button riff-ConfirmDialog__button--${action.variant || 'secondary'}`}
             >
               {action.label}
             </button>

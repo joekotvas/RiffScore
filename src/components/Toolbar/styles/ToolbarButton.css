@@ -1,0 +1,112 @@
+/* src/components/Toolbar/styles/ToolbarButton.css */
+
+.riff-ToolbarButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--riff-border-radius);
+  border: var(--riff-border-width) solid var(--riff-color-border);
+  transition: all var(--riff-transition-normal);
+  cursor: pointer;
+  box-sizing: border-box;
+  
+  /* Default variant: uses button background */
+  background-color: var(--riff-color-button-bg);
+  color: var(--riff-color-text-secondary);
+  
+  /* Default size (h-9 = 36px) */
+  height: var(--riff-button-height);
+  width: var(--riff-button-min-width);
+  padding: var(--riff-spacing-0);
+}
+
+.riff-ToolbarButton:hover:not(:disabled) {
+  background-color: var(--riff-color-hover-bg);
+}
+
+.riff-ToolbarButton--auto-width {
+  width: auto;
+  min-width: var(--riff-button-min-width);
+  padding: var(--riff-spacing-0) var(--riff-spacing-3);
+}
+
+/* --- Border Styles --- */
+
+.riff-ToolbarButton--dashed {
+  border-style: dashed;
+  border-color: var(--riff-color-text-secondary);
+}
+
+.riff-ToolbarButton--solid-border {
+  border-style: solid;
+}
+
+/* --- Ghost Variant --- */
+/* Transparent bg and border until hovered */
+
+.riff-ToolbarButton--ghost {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+.riff-ToolbarButton--ghost:hover:not(:disabled) {
+  background-color: var(--riff-color-hover-bg);
+  border-color: var(--riff-color-border);
+}
+
+/* Ghost + dashed needs visible border even when not hovered */
+.riff-ToolbarButton--ghost.riff-ToolbarButton--dashed {
+  border-color: var(--riff-color-text-secondary);
+}
+
+/* --- States --- */
+
+/* Active state (highest priority) */
+.riff-ToolbarButton--active {
+  background-color: var(--riff-color-primary) !important;
+  border-color: var(--riff-color-primary) !important;
+  color: var(--riff-color-active-text) !important;
+}
+
+/* Emphasized state (outline style with accent color) */
+.riff-ToolbarButton--emphasized {
+  border-color: var(--riff-color-primary);
+  color: var(--riff-color-primary);
+}
+
+/* Disabled */
+.riff-ToolbarButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Content --- */
+
+.riff-ToolbarButton__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.riff-ToolbarButton__icon--margin {
+  margin-right: var(--riff-spacing-2);
+}
+
+.riff-ToolbarButton__label {
+  font-size: var(--riff-font-size-xs);
+  font-weight: var(--riff-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--riff-tracking-wider);
+}
+
+.riff-ToolbarButton__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

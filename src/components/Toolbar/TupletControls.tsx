@@ -44,7 +44,7 @@ const TupletControls: React.FC<TupletControlsProps> = ({
   };
 
   return (
-    <div className="flex gap-1">
+    <div className="riff-ControlGroup">
       {/* Triplet Button */}
       <ToolbarButton
         onClick={handleTriplet}

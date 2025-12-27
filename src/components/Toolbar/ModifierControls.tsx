@@ -62,7 +62,7 @@ const ModifierControls: React.FC<ModifierControlsProps> = ({
   }
 
   return (
-    <div className="flex gap-1">
+    <div className="riff-ControlGroup">
       <ToolbarButton
         onClick={onDotToggle}
         label="Dotted Note"

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme } from '@/context/ThemeContext';
+import './styles/Divider.css';
 
 interface DividerProps {
   orientation?: 'vertical' | 'horizontal';
@@ -10,13 +10,11 @@ interface DividerProps {
  * A themed divider component for toolbar sections
  */
 const Divider: React.FC<DividerProps> = ({ orientation = 'vertical', className = '' }) => {
-  const { theme } = useTheme();
+  const baseClass = 'riff-Divider';
+  const orientationClass =
+    orientation === 'horizontal' ? 'riff-Divider--horizontal' : 'riff-Divider--vertical';
 
-  if (orientation === 'horizontal') {
-    return <div className={`w-full h-px ${className}`} style={{ backgroundColor: theme.border }} />;
-  }
-
-  return <div className={`w-px h-6 ${className}`} style={{ backgroundColor: theme.border }} />;
+  return <div className={`${baseClass} ${orientationClass} ${className}`} />;
 };
 
 export default Divider;

@@ -1,0 +1,65 @@
+/* src/components/Toolbar/PlaybackControls.css */
+
+.riff-PlaybackControls {
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-2);
+}
+
+.riff-PlaybackControls__bpm-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-0);
+  padding: var(--riff-spacing-0) var(--riff-spacing-2);
+  border-radius: var(--riff-border-radius);
+  border: var(--riff-border-width) solid transparent;
+  transition: all var(--riff-transition-normal);
+  height: var(--riff-button-height);
+  border-color: var(--riff-color-border);
+}
+
+.riff-PlaybackControls__bpm-wrapper--ghost {
+  border-color: transparent;
+}
+
+.riff-PlaybackControls__bpm-wrapper--hovered:not(.riff-PlaybackControls__bpm-wrapper--focused) {
+  border-color: var(--riff-color-border);
+}
+
+.riff-PlaybackControls__bpm-wrapper--focused {
+  border-color: var(--riff-color-primary) !important;
+}
+
+.riff-PlaybackControls__bpm-label {
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-1);
+  color: var(--riff-color-text-secondary);
+}
+
+.riff-PlaybackControls__bpm-note {
+  /* Bravura font styling handled inline or here if possible */
+  font-family: 'Bravura'; /* Assuming it's loaded globally or via font stack */
+  font-size: 1.5rem;
+  line-height: 1;
+  margin-bottom: -1rem;
+  margin-right: 0.25rem;
+  margin-left: 0.25rem;
+}
+
+.riff-PlaybackControls__bpm-equals {
+  font-size: var(--riff-font-size-xs);
+  font-weight: var(--riff-font-weight-bold);
+  padding: var(--riff-spacing-0) var(--riff-spacing-2);
+}
+
+.riff-PlaybackControls__bpm-input {
+  width: var(--riff-spacing-8);
+  background-color: transparent;
+  font-size: var(--riff-font-size-sm);
+  font-weight: var(--riff-font-weight-bold);
+  text-align: center;
+  outline: none;
+  border: none;
+  color: var(--riff-color-primary);
+}

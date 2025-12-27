@@ -18,7 +18,7 @@ const MeasureControls: React.FC<MeasureControlsProps> = ({
   variant = 'default',
 }) => {
   return (
-    <div className="flex gap-1">
+    <div className="riff-ControlGroup">
       <ToolbarButton
         onClick={onAddMeasure}
         label="Add Measure"

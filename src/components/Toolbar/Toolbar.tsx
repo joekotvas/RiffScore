@@ -29,6 +29,8 @@ import PlaybackControls from './PlaybackControls';
 import Divider from './Divider';
 import { DropdownTrigger } from './Menus/DropdownOverlay';
 
+import './styles/Toolbar.css';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -193,12 +195,15 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
 
     // -- Render --
 
+    // -- Render --
+
     return (
       <div
         ref={toolbarContainerRef}
-        className="flex flex-col gap-2 mb-4 border-b pb-2"
-        style={{ borderColor: theme.border }}
+        className="riff-Toolbar"
+        style={{ borderColor: theme.border }} // Keeping inline style for dynamic theme context override if needed, though theme.css handles defaults
         onFocus={() => setIsToolbarFocused(true)}
+        tabIndex={-1} // Ensure div is focusable for the trap
         onBlur={(e) => {
           if (!toolbarContainerRef.current?.contains(e.relatedTarget as Node)) {
             setIsToolbarFocused(false);
@@ -208,7 +213,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
         {/* -----------------------------------------------------------
           ROW 1: System / File / Playback / MIDI / Library
       ------------------------------------------------------------ */}
-        <div className="row flex items-center gap-4">
+        <div className="riff-Toolbar__row">
           <FileMenu score={score} bpm={bpm} height={TOP_ROW_HEIGHT} variant="ghost" />
 
           <Divider />
@@ -239,7 +244,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
           <Divider />
 
           {/* Library Menu */}
-          <div className="flex gap-1 relative">
+          <div className="riff-Toolbar__library-wrapper">
             <DropdownTrigger
               ref={melodyLibBtnRef}
               label="Library"
@@ -276,7 +281,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
         />
  */}
           {/* Spacer */}
-          <div className="flex-1"></div>
+          <div className="riff-Toolbar__spacer"></div>
 
           <ToolbarButton
             onClick={onToggleHelp}
@@ -293,7 +298,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
         {/* -----------------------------------------------------------
           ROW 2: Notation / Editing Controls
       ------------------------------------------------------------ */}
-        <div className="row flex items-center gap-4 flex-wrap">
+        <div className="riff-Toolbar__row">
           <StaffControls
             ref={staffControlsRef}
             clef={score.staves.length >= 2 ? 'grand' : activeStaff.clef || 'treble'}
@@ -368,7 +373,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
 
         {/* Error Message */}
         {errorMsg && (
-          <div className="w-full text-red-600 text-xs mt-2 font-bold animate-pulse">
+          <div className="riff-Toolbar__error">
             ⚠️ {errorMsg}
           </div>
         )}

@@ -459,3 +459,76 @@ function reduce(action: Action) {
   }
 }
 ```
+
+## 9. CSS & Styling
+
+### Zero-Dependency Philosophy
+
+RiffScore aims to be a zero-dependency, styling-agnostic library. We avoid CSS-in-JS, Tailwind, or pre-processors (Sass) in the production build to minimize bloat and configuration headaches for consumers.
+
+### File Organization (Co-location)
+
+Styles should be defined in a standard `.css` file located **next to** the component they style.
+
+```
+src/components/Toolbar/
+  ├── Toolbar.tsx
+  └── Toolbar.css  <-- Co-located style
+```
+
+These files are imported directly in the component:
+```tsx
+import './Toolbar.css';
+
+export const Toolbar = () => (
+  <div className="riff-Toolbar">...</div>
+);
+```
+
+### Naming Convention (BEM + Namespacing)
+
+We use **BEM (Block Element Modifier)** methodology with a strict `riff-` namespace prefix. This ensures our styles do not bleed into or conflict with the consumer's application.
+
+**Format:** `.riff-Block__Element--modifier`
+
+- **Block**: The component name (e.g., `riff-Toolbar`, `riff-Note`).
+- **Element**: A child part (e.g., `riff-Toolbar__button`, `riff-Note__head`).
+- **Modifier**: A variant or state (e.g., `riff-Toolbar--vertical`, `riff-Note--selected`).
+
+```css
+/* ✅ Good */
+.riff-Button { ... }
+.riff-Button__icon { ... }
+.riff-Button--primary { ... }
+
+/* ❌ Bad - Risk of collision */
+.button { ... } 
+.active { ... }
+```
+
+### CSS Variables (Theming)
+
+All colors, spacing, and fonts should be defined as CSS Variables in `src/styles/theme.css` (or `variables.css`). This allows easy runtime theming by the consumer.
+
+**Prefix**: All variables must start with `--riff-`.
+
+```css
+/* src/styles/theme.css */
+:root {
+  --riff-color-primary: #007bff;
+  --riff-spacing-unit: 0.25rem;
+  --riff-font-family: system-ui, sans-serif;
+}
+
+/* Component usage */
+.riff-Button {
+  color: var(--riff-color-primary);
+  padding: var(--riff-spacing-unit);
+}
+```
+
+### Modern CSS Practices
+
+- **Layout**: Use Flexbox and Grid. Avoid floats and absolute positioning unless necessary for specific overlays/canvas logic.
+- **Layers**: (Optional) Consider using `@layer` if managing cascade specificity becomes complex, but keep it simple for now to ensure broader browser support without polyfills if possible (though support is good).
+- **Units**: Use `rem` for accessibility (font scaling).

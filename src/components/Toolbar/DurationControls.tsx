@@ -32,7 +32,7 @@ const DurationControls: React.FC<DurationControlsProps> = ({
   variant = 'default',
 }) => {
   return (
-    <div className="flex gap-1">
+    <div className="riff-ControlGroup">
       {Object.keys(NOTE_TYPES).map((type) => {
         const shortcuts: Record<string, string> = {
           whole: '7',

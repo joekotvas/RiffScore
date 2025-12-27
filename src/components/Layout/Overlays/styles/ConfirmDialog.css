@@ -1,0 +1,75 @@
+/* src/components/Layout/Overlays/styles/ConfirmDialog.css */
+
+.riff-ConfirmDialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: var(--riff-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--riff-color-backdrop);
+}
+
+.riff-ConfirmDialog {
+  background-color: var(--riff-color-bg);
+  border-radius: var(--riff-border-radius-lg);
+  box-shadow: var(--riff-shadow-xl);
+  padding: var(--riff-spacing-6);
+  max-width: var(--riff-modal-max-width-md);
+  width: 100%;
+  margin: var(--riff-spacing-0) var(--riff-spacing-4);
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.riff-ConfirmDialog__title {
+  font-size: var(--riff-font-size-lg);
+  font-weight: var(--riff-font-weight-semibold);
+  margin-bottom: var(--riff-spacing-2);
+  color: var(--riff-color-text);
+}
+
+.riff-ConfirmDialog__message {
+  margin-bottom: var(--riff-spacing-6);
+  color: var(--riff-color-text-secondary);
+}
+
+.riff-ConfirmDialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--riff-spacing-3);
+}
+
+/* --- Action Buttons --- */
+.riff-ConfirmDialog__button {
+  padding: var(--riff-spacing-2) var(--riff-spacing-4);
+  border-radius: var(--riff-border-radius);
+  font-weight: var(--riff-font-weight-medium);
+  transition: opacity var(--riff-transition-normal);
+  cursor: pointer;
+  border: none;
+}
+
+.riff-ConfirmDialog__button:hover {
+  opacity: 0.8;
+}
+
+.riff-ConfirmDialog__button--primary {
+  background-color: var(--riff-color-primary);
+  color: var(--riff-color-active-text);
+}
+
+.riff-ConfirmDialog__button--danger {
+  background-color: var(--riff-color-danger);
+  color: var(--riff-color-active-text);
+}
+
+.riff-ConfirmDialog__button--secondary {
+  background-color: transparent;
+  color: var(--riff-color-text);
+  border: var(--riff-border-width) solid var(--riff-color-border);
+}

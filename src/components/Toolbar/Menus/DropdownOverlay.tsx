@@ -1,8 +1,8 @@
 import React, { useRef, forwardRef } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { useTheme } from '@/context/ThemeContext';
 import { useFocusTrap } from '@/hooks/layout';
 import Portal from '../../Layout/Portal';
+import '../styles/DropdownOverlay.css';
 
 // ========== DROPDOWN TRIGGER BUTTON ==========
 interface DropdownTriggerProps {
@@ -20,33 +20,35 @@ interface DropdownTriggerProps {
  * - Ghost style (transparent until hover/open)
  */
 export const DropdownTrigger = forwardRef<HTMLButtonElement, DropdownTriggerProps>(
-  ({ label, icon, isOpen, onClick, height = 'h-9' }, ref) => {
-    const { theme } = useTheme();
-    const [isHovered, setIsHovered] = React.useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  ({ label, icon, isOpen, onClick, height }, ref) => {
+    // Height is controlled by CSS defaults but can be overridden via class if needed,
+    // though previously it was passed as class `h-9`. CSS sets default height.
 
-    const borderColor = isOpen ? theme.accent : isHovered ? theme.border : 'transparent';
-    const bgColor = isHovered || isOpen ? theme.buttonBackground : 'transparent';
+    const classes = [
+      'riff-DropdownTrigger',
+      isOpen ? 'riff-DropdownTrigger--open' : 'riff-DropdownTrigger--default',
+    ].join(' ');
 
     return (
       <button
         ref={ref}
         onClick={onClick}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        className={`flex items-center gap-1.5 px-3 ${height} rounded border text-sm font-medium tracking-wide transition-colors`}
-        style={{
-          backgroundColor: bgColor,
-          borderColor: borderColor,
-          color: theme.secondaryText,
-        }}
+        className={classes}
+        type="button"
       >
         {icon}
-        <span className="truncate">{label}</span>
-        <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="riff-DropdownTrigger__label">{label}</span>
+        <ChevronDown
+          size={14}
+          className={`riff-DropdownTrigger__chevron ${isOpen ? 'riff-DropdownTrigger__chevron--open' : ''}`}
+        />
       </button>
     );
   }
 );
+
+DropdownTrigger.displayName = 'DropdownTrigger';
 
 interface DropdownOverlayProps {
   onClose: () => void;
@@ -55,7 +57,7 @@ interface DropdownOverlayProps {
   children: React.ReactNode;
   width?: string | number;
   maxHeight?: string | number;
-  className?: string;
+  className?: string; // Additional classes
 }
 
 const DropdownOverlay: React.FC<DropdownOverlayProps> = ({
@@ -68,7 +70,6 @@ const DropdownOverlay: React.FC<DropdownOverlayProps> = ({
   className = '',
 }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const { theme } = useTheme();
 
   // Use unified focus trap hook
   useFocusTrap({
@@ -84,7 +85,7 @@ const DropdownOverlay: React.FC<DropdownOverlayProps> = ({
     <Portal>
       {/* Backdrop to catch clicks and prevent interaction with background */}
       <div
-        className="fixed inset-0 z-40 bg-transparent"
+        className="riff-DropdownOverlay-backdrop"
         onClick={(e) => {
           e.stopPropagation();
           onClose();
@@ -95,35 +96,17 @@ const DropdownOverlay: React.FC<DropdownOverlayProps> = ({
       {/* Dropdown Content */}
       <div
         ref={ref}
-        className={`fixed z-50 rounded-lg shadow-xl border overflow-hidden backdrop-blur-md ${className}`}
+        className={`riff-DropdownOverlay ${className}`}
         style={{
           left: position.x,
           top: position.y,
-          ...(width !== 'auto' && { width }),
-          maxHeight: maxHeight,
-          backgroundColor: theme.panelBackground,
-          borderColor: theme.border,
-          color: theme.text,
+          width: width === 'auto' ? undefined : width,
+          maxHeight: maxHeight === 'auto' ? undefined : maxHeight,
         }}
         role="menu"
         aria-modal="true"
       >
         {children}
-        <style>{`
-          .dropdown-scroll::-webkit-scrollbar {
-            width: 6px;
-          }
-          .dropdown-scroll::-webkit-scrollbar-track {
-            background: transparent;
-          }
-          .dropdown-scroll::-webkit-scrollbar-thumb {
-            background-color: ${theme.border};
-            border-radius: 3px;
-          }
-          .dropdown-scroll::-webkit-scrollbar-thumb:hover {
-            background-color: ${theme.secondaryText};
-          }
-        `}</style>
       </div>
     </Portal>
   );
@@ -149,31 +132,16 @@ export const DropdownItem: React.FC<DropdownItemProps> = ({
   isSelected = false,
   className = '',
 }) => {
-  const { theme } = useTheme();
-  const [isHovered, setIsHovered] = React.useState(false);
+  const classes = [
+    'riff-DropdownItem',
+    isSelected ? 'riff-DropdownItem--selected' : '',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={`
-        w-full text-left px-3 py-2 rounded-md 
-        text-sm font-medium 
-        cursor-pointer
-        transition-colors
-        ${className}
-      `}
-      style={{
-        backgroundColor: isSelected
-          ? theme.buttonHoverBackground
-          : isHovered
-            ? theme.buttonHoverBackground
-            : 'transparent',
-        color: theme.secondaryText,
-      }}
-      role="menuitem"
-    >
+    <button onClick={onClick} className={classes} role="menuitem" type="button">
       {children}
     </button>
   );

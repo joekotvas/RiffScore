@@ -84,7 +84,7 @@ const ExportRow: React.FC<ExportRowProps> = ({
         <span style={{ color: theme.secondaryText }}>{icon}</span>
         {label}
       </div>
-      <div className="flex gap-1">
+      <div className="riff-ControlGroup">
         <ExportButton
           onClick={() => onCopy(format)}
           icon={<Copy size={14} />}

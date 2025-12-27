@@ -1,0 +1,107 @@
+/* src/components/Toolbar/Menus/DropdownOverlay.css */
+
+/* --- Dropdown Trigger --- */
+.riff-DropdownTrigger {
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-1);
+  padding: var(--riff-spacing-0) var(--riff-spacing-3);
+  border-radius: var(--riff-border-radius);
+  border: var(--riff-border-width) solid transparent;
+  color: var(--riff-color-text-secondary);
+  font-size: var(--riff-font-size-sm);
+  font-weight: var(--riff-font-weight-medium);
+  letter-spacing: var(--riff-tracking-wide);
+  transition: all var(--riff-transition-normal);
+  background-color: transparent;
+  height: var(--riff-button-height);
+  cursor: pointer;
+}
+
+.riff-DropdownTrigger:focus {
+  outline: none;
+}
+
+/* Hover state */
+.riff-DropdownTrigger:hover {
+  background-color: var(--riff-color-hover-bg);
+  border-color: var(--riff-color-border);
+}
+
+.riff-DropdownTrigger__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.riff-DropdownTrigger__chevron {
+  transition: transform var(--riff-transition-normal);
+}
+
+.riff-DropdownTrigger__chevron--open {
+  transform: rotate(180deg);
+}
+
+/* Open state (takes precedence over hover) */
+.riff-DropdownTrigger--open {
+  background-color: var(--riff-color-button-bg);
+  border-color: var(--riff-color-primary);
+}
+
+/* --- Dropdown Overlay --- */
+
+.riff-DropdownOverlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--riff-z-dropdown);
+  background-color: transparent;
+}
+
+.riff-DropdownOverlay {
+  position: fixed;
+  z-index: var(--riff-z-dropdown);
+  border-radius: var(--riff-border-radius-lg);
+  box-shadow: var(--riff-shadow-xl);
+  border: var(--riff-border-width) solid var(--riff-color-border);
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  background-color: var(--riff-color-bg-panel);
+}
+
+
+
+/* Scrollbar styling (replacing the <style> tag) */
+.riff-DropdownOverlay ::-webkit-scrollbar {
+  width: 6px;
+}
+.riff-DropdownOverlay ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.riff-DropdownOverlay ::-webkit-scrollbar-thumb {
+  background-color: var(--riff-color-border);
+  border-radius: 3px;
+}
+.riff-DropdownOverlay ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--riff-color-muted);
+}
+
+/* --- Dropdown Item --- */
+
+.riff-DropdownItem {
+  width: 100%;
+  text-align: left;
+  padding: var(--riff-spacing-2) var(--riff-spacing-3);
+  border-radius: var(--riff-border-radius-md);
+  font-size: var(--riff-font-size-sm);
+  font-weight: var(--riff-font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--riff-transition-normal);
+  background-color: transparent;
+  color: var(--riff-color-text-secondary);
+  border: none;
+}
+
+.riff-DropdownItem:hover,
+.riff-DropdownItem--selected {
+  background-color: var(--riff-color-border); /* hovered bg */
+}

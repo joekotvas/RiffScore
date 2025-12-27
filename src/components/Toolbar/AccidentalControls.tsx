@@ -54,7 +54,7 @@ const AccidentalControls: React.FC<AccidentalControlsProps> = ({
   const sharpState = getVisualState('sharp');
 
   return (
-    <div className="flex gap-1">
+    <div className="riff-ControlGroup">
       <ToolbarButton
         onClick={() => onToggleAccidental('flat')}
         label="Flat"

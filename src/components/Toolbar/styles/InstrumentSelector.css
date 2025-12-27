@@ -1,0 +1,20 @@
+/* src/components/Toolbar/InstrumentSelector.css */
+
+.riff-InstrumentSelector {
+  position: relative;
+}
+
+.riff-InstrumentSelector__list {
+  padding: var(--riff-spacing-1);
+}
+
+.riff-InstrumentSelector__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.riff-InstrumentSelector__check {
+  color: var(--riff-color-primary); /* Using primary instead of green-600 */
+}

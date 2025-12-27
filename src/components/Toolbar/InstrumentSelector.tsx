@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { AudioWaveform, Check } from 'lucide-react';
 import { InstrumentType, setInstrument } from '@/engines/toneEngine';
 import DropdownOverlay, { DropdownItem, DropdownTrigger } from './Menus/DropdownOverlay';
+import './styles/InstrumentSelector.css';
 
 interface InstrumentSelectorProps {
   selectedInstrument: InstrumentType;
@@ -46,7 +47,7 @@ const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
   };
 
   return (
-    <div className="relative">
+    <div className="riff-InstrumentSelector">
       <DropdownTrigger
         ref={buttonRef}
         label={selectedOption.name}
@@ -64,18 +65,18 @@ const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
           triggerRef={buttonRef as React.RefObject<HTMLElement>}
           width={176}
         >
-          /* eslint-enable react-hooks/refs */
-          <div className="p-1">
+          {/* eslint-enable react-hooks/refs */}
+          <div className="riff-InstrumentSelector__list">
             {options.map((option) => (
               <DropdownItem
                 key={option.id}
                 onClick={() => handleSelect(option.id)}
                 isSelected={option.id === selectedInstrument}
               >
-                <span className="flex items-center justify-between w-full">
+                <span className="riff-InstrumentSelector__option">
                   <span>{option.name}</span>
                   {option.id === selectedInstrument && (
-                    <Check size={12} className="text-green-600" />
+                    <Check size={12} className="riff-InstrumentSelector__check" />
                   )}
                 </span>
               </DropdownItem>
