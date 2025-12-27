@@ -1,10 +1,10 @@
-// @ts-nocheck
 import React from 'react';
 import { LAYOUT } from '@/constants';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
 import { getOffsetForPitch } from '@/engines/layout';
 import { NOTEHEADS, BRAVURA_FONT, getFontSize, DOTS } from '@/constants/SMuFL';
+import { NoteProps } from '@/componentTypes';
 
 // =============================================================================
 // SUB-COMPONENTS (Internal to Note)
@@ -13,7 +13,17 @@ import { NOTEHEADS, BRAVURA_FONT, getFontSize, DOTS } from '@/constants/SMuFL';
 /**
  * Renders the notehead glyph (whole, half, or black).
  */
-const NoteHead = ({ x, y, duration, color }) => {
+const NoteHead = ({
+  x,
+  y,
+  duration,
+  color,
+}: {
+  x: number;
+  y: number;
+  duration: string;
+  color: string;
+}) => {
   const getGlyph = () => {
     if (duration === 'whole') return NOTEHEADS.whole;
     if (duration === 'half') return NOTEHEADS.half;
@@ -41,7 +51,17 @@ const NoteHead = ({ x, y, duration, color }) => {
 /**
  * Renders the accidental symbol using Bravura font glyphs.
  */
-const Accidental = ({ x, y, symbol, color }) => {
+const Accidental = ({
+  x,
+  y,
+  symbol,
+  color,
+}: {
+  x: number;
+  y: number;
+  symbol: string;
+  color: string;
+}) => {
   if (!symbol) return null;
 
   const fontSize = getFontSize(CONFIG.lineHeight);
@@ -64,7 +84,15 @@ const Accidental = ({ x, y, symbol, color }) => {
 /**
  * Renders the augmentation dot.
  */
-const Dot = ({ x, y, color }) => {
+const Dot = ({
+  x,
+  y,
+  color,
+}: {
+  x: number;
+  y: number;
+  color: string;
+}) => {
   const fontSize = getFontSize(CONFIG.lineHeight);
 
   return (
@@ -85,7 +113,17 @@ const Dot = ({ x, y, color }) => {
 /**
  * Renders ledger lines above or below the staff.
  */
-const LedgerLines = ({ x, y, baseY, color }) => {
+const LedgerLines = ({
+  x,
+  y,
+  baseY,
+  color,
+}: {
+  x: number;
+  y: number;
+  baseY: number;
+  color: string;
+}) => {
   const lines = [];
   const relativeY = y - baseY;
 
@@ -130,7 +168,23 @@ const LedgerLines = ({ x, y, baseY, color }) => {
  * Hit area for easier clicking on notes.
  * Visibility controlled by CONFIG.debug.showHitZones
  */
-const HitArea = ({ x, y, cursor, onClick, onMouseDown, onDoubleClick, testId }) => {
+const HitArea = ({
+  x,
+  y,
+  cursor,
+  onClick,
+  onMouseDown,
+  onDoubleClick,
+  testId,
+}: {
+  x: number;
+  y: number;
+  cursor: string;
+  onClick?: (e: React.MouseEvent) => void;
+  onMouseDown?: (e: React.MouseEvent) => void;
+  onDoubleClick?: (e: React.MouseEvent) => void;
+  testId: string;
+}) => {
   const showDebug = CONFIG.debug?.showHitZones;
   return (
     <rect
@@ -165,7 +219,7 @@ const HitArea = ({ x, y, cursor, onClick, onMouseDown, onDoubleClick, testId }) 
  *
  * This is the primary building block used by ChordGroup.
  */
-const Note = React.memo(
+const Note: React.FC<NoteProps> = React.memo(
   ({
     // Note data
     note,
@@ -231,14 +285,16 @@ const Note = React.memo(
     return (
       <g
         className={!isGhost ? 'note-group-container' : ''}
-        onMouseEnter={() => handlers?.onMouseEnter?.(note?.id)}
+        onMouseEnter={() => handlers?.onMouseEnter?.(note?.id ?? 'note')}
         onMouseLeave={handlers?.onMouseLeave}
       >
         {/* 1. Ledger Lines (behind everything) */}
         <LedgerLines x={noteX} y={noteY} baseY={baseY} color={color} />
 
         {/* 2. Accidental */}
-        <Accidental x={accidentalX} y={accidentalY} symbol={accidentalGlyph} color={color} />
+        {accidentalGlyph && (
+          <Accidental x={accidentalX} y={accidentalY} symbol={accidentalGlyph} color={color} />
+        )}
 
         {/* 3. Note Head */}
         <g style={{ pointerEvents: 'none' }}>
@@ -254,9 +310,9 @@ const Note = React.memo(
             x={hitX}
             y={hitY}
             cursor={!isGhost ? 'pointer' : 'default'}
-            onClick={(e) => !isGhost && e.stopPropagation()}
-            onMouseDown={(e) => handlers.onMouseDown?.(e, note)}
-            onDoubleClick={(e) => handlers.onDoubleClick?.(e, note)}
+            onClick={(e: React.MouseEvent) => !isGhost && e.stopPropagation()}
+            onMouseDown={(e: React.MouseEvent) => note && handlers.onMouseDown?.(e, note)}
+            onDoubleClick={(e: React.MouseEvent) => note && handlers.onDoubleClick?.(e, note)}
             testId={`note-${noteId}`}
           />
         )}

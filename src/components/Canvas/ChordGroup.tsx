@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useMemo, useCallback } from 'react';
 import { CONFIG } from '@/config';
 import { NOTE_TYPES } from '@/constants';
@@ -7,6 +6,7 @@ import { getStemOffset } from '@/engines/layout';
 import { calculateStemGeometry } from '@/engines/layout/stems';
 import { getAccidentalGlyph } from '@/services/MusicService';
 import { isNoteSelected, areAllNotesSelected } from '@/utils/selection';
+import { ChordGroupProps } from '@/componentTypes';
 
 // Visual Components
 import Note from './Note';
@@ -27,7 +27,7 @@ import Flags from './Flags';
  * └── Note[] (one per pitch)
  *     ├── NoteHead, Accidental, Dot, LedgerLines, HitArea
  */
-const ChordGroup = ({
+const ChordGroup: React.FC<ChordGroupProps> = ({
   // Data
   notes,
   duration,
@@ -35,7 +35,7 @@ const ChordGroup = ({
   measureIndex,
   eventId,
   chordLayout,
-  eventLayout,
+  eventLayout: _eventLayout,
   beamSpec = null,
 
   // Appearance & Options
@@ -56,7 +56,7 @@ const ChordGroup = ({
   const { selection, onDragStart, onSelectNote, isDragging } = interaction;
 
   // Local State
-  const [hoveredNoteId, setHoveredNoteId] = useState(null);
+  const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
 
   // --- 1. Layout Calculations ---
   const { sortedNotes, direction, noteOffsets, maxNoteShift, minY, maxY } = chordLayout;
@@ -71,7 +71,7 @@ const ChordGroup = ({
   const { startY: stemStartY, endY: stemEndY } = useMemo(
     () =>
       calculateStemGeometry({
-        beamSpec,
+        beamSpec: beamSpec ? { startX: beamSpec.startX, endX: beamSpec.endX, startY: beamSpec.startY, endY: beamSpec.endY } : undefined,
         stemX,
         direction: effectiveDirection,
         minY,
@@ -89,7 +89,7 @@ const ChordGroup = ({
   // Check if entire chord is in lasso preview (all notes must be in preview)
   const isWholeChordInLassoPreview =
     !isGhost &&
-    interaction.lassoPreviewIds?.size > 0 &&
+    (interaction.lassoPreviewIds?.size ?? 0) > 0 &&
     notes.every((note) => {
       const noteKey = `${staffIndex}-${measureIndex}-${eventId}-${note.id}`;
       return interaction.lassoPreviewIds?.has(noteKey);
@@ -112,16 +112,16 @@ const ChordGroup = ({
   // --- 3. Interaction Handlers ---
   const handlers = useMemo(
     () => ({
-      onMouseEnter: (id) => {
+      onMouseEnter: (id: string) => {
         if (isGhost) return;
         setHoveredNoteId(id);
-        onNoteHover?.(true);
+        onNoteHover?.(id);
       },
       onMouseLeave: () => {
         setHoveredNoteId(null);
-        onNoteHover?.(false);
+        onNoteHover?.(null);
       },
-      onMouseDown: (e, note) => {
+      onMouseDown: (e: React.MouseEvent, note: { id: string; pitch: string | null }) => {
         if (isGhost || !onDragStart) return;
         e.stopPropagation();
         const isModifier = e.metaKey || e.ctrlKey;
@@ -131,7 +131,7 @@ const ChordGroup = ({
           measureIndex,
           eventId,
           noteId: note.id,
-          startPitch: note.pitch,
+          startPitch: note.pitch ?? '',
           startY: e.clientY,
           isMulti: isModifier,
           isShift: isShift,
@@ -139,7 +139,7 @@ const ChordGroup = ({
           staffIndex,
         });
       },
-      onDoubleClick: (e, note) => {
+      onDoubleClick: (e: React.MouseEvent, note: { id: string; pitch: string | null }) => {
         if (isGhost || !onSelectNote) return;
         e.stopPropagation();
         onSelectNote(measureIndex, eventId, note.id, staffIndex, false, false);
@@ -150,7 +150,7 @@ const ChordGroup = ({
 
   // Click on the Chord (stem area)
   const handleGroupClick = useCallback(
-    (e) => {
+    (e: React.MouseEvent) => {
       if (isGhost || !onDragStart) return;
       e.stopPropagation();
       const isModifier = e.metaKey || e.ctrlKey;
@@ -158,8 +158,8 @@ const ChordGroup = ({
       onDragStart({
         measureIndex,
         eventId,
-        noteId: notes[0]?.id,
-        startPitch: null,
+        noteId: notes[0]?.id ?? '',
+        startPitch: notes[0]?.pitch ?? '',
         startY: e.clientY,
         isMulti: isModifier,
         selectAllInEvent: !isModifier,
@@ -182,8 +182,8 @@ const ChordGroup = ({
       data-testid={isGhost ? 'ghost-note' : `chord-${eventId}`}
       data-selected={isWholeChordSelected}
       style={{ opacity }}
-      onMouseEnter={() => onNoteHover?.(true)}
-      onMouseLeave={() => onNoteHover?.(false)}
+      onMouseEnter={() => onNoteHover?.(null)}
+      onMouseLeave={() => onNoteHover?.(null)}
       onClick={handleGroupClick}
     >
       {/* LAYER 1: Stem */}
@@ -202,11 +202,9 @@ const ChordGroup = ({
 
       {/* LAYER 3: Notes */}
       {notesToRender.map((note) => {
-        const accidentalGlyph = getAccidentalGlyph(
-          note.pitch,
-          keySignature,
-          accidentalOverrides?.[note.id]
-        );
+        const accidentalGlyph = note.pitch
+          ? getAccidentalGlyph(note.pitch, keySignature, accidentalOverrides?.[note.id])
+          : null;
 
         const isSelected = isNoteSelected(selection, {
           staffIndex,
