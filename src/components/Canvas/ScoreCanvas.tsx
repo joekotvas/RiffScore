@@ -1,3 +1,12 @@
+/**
+ * ScoreCanvas.tsx
+ *
+ * The primary rendering surface for the musical score.
+ * Handles the SVG canvas, grand/single staff layout, user interactions (click/drag),
+ * and playback cursor synchronization.
+ *
+ * @see Issue #109
+ */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
