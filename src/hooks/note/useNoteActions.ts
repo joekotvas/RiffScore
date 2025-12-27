@@ -26,7 +26,13 @@ import { Score, Selection } from '@/types';
 import { Command } from '@/commands/types';
 import { InputMode } from '../useEditorTools';
 import { useHoverPreview } from './useHoverPreview';
-import { useNoteEntry, NoteInput, PlacementOverride, ChordNoteInput, SelectOptions } from './useNoteEntry';
+import {
+  useNoteEntry,
+  NoteInput,
+  PlacementOverride,
+  ChordNoteInput,
+  SelectOptions,
+} from './useNoteEntry';
 import { useNoteDelete } from './useNoteDelete';
 import { useNotePitch } from './useNotePitch';
 import { PreviewNote } from '@/utils/entry';
