@@ -96,39 +96,40 @@ const getQuantPosition = (measureLayout: MeasureLayoutV2, quant: number): QuantP
     return { x: 0, width: 20 };
   }
 
-  // Build quant->position map from events
-  // The legacy layout has eventPositions keyed by eventId, not quant
-  // We need to find the position for the current playback quant
   const eventPositions = legacyLayout.eventPositions;
-
-  // For now, use a simple approach: find event at this quant from processedEvents
   const events = legacyLayout.processedEvents;
-  let cursorX = 0;
-  let cursorWidth = 20;
 
-  // Find the event at this quant position
-  let accumulatedQuant = 0;
+  if (events.length === 0) {
+    return { x: 0, width: 20 };
+  }
+
+  // event.quant is the START position of the event, not its duration
+  // Find the event whose start position is <= quant and whose next event starts after quant
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
-    const eventQuant = event.quant ?? 0;
+    const eventStartQuant = event.quant ?? 0;
+    const nextEventStartQuant = i < events.length - 1 ? (events[i + 1].quant ?? 0) : Infinity;
 
-    if (accumulatedQuant <= quant && quant < accumulatedQuant + eventQuant) {
-      // Found the event at this quant
-      cursorX = eventPositions[event.id] ?? 0;
+    if (eventStartQuant <= quant && quant < nextEventStartQuant) {
+      // Found the event covering this quant
+      const cursorX = eventPositions[event.id] ?? 0;
 
       // Calculate width to next event
+      let cursorWidth: number;
       if (i < events.length - 1) {
         const nextEventX = eventPositions[events[i + 1].id] ?? measureLayout.width;
         cursorWidth = nextEventX - cursorX;
       } else {
         // Last event - width to end of measure
-        cursorWidth = Math.max(measureLayout.width - cursorX, 20);
+        cursorWidth = measureLayout.width - cursorX;
       }
-      break;
-    }
 
-    accumulatedQuant += eventQuant;
+      return { x: cursorX, width: Math.max(cursorWidth, 20) };
+    }
   }
 
-  return { x: cursorX, width: Math.max(cursorWidth, 20) };
+  // Fallback: quant is beyond all events, position at last event
+  const lastEvent = events[events.length - 1];
+  const lastX = eventPositions[lastEvent.id] ?? 0;
+  return { x: lastX, width: Math.max(measureLayout.width - lastX, 20) };
 };

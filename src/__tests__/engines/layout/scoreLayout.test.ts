@@ -1,4 +1,4 @@
-import { calculateScoreLayout } from './scoreLayout';
+import { calculateScoreLayout } from '@/engines/layout/scoreLayout';
 import { Score, Staff } from '@/types';
 import { CONFIG } from '@/config';
 import { createTestScore } from '@/__tests__/fixtures/selectionTestScores';
