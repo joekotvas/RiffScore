@@ -182,6 +182,7 @@ const ScoreEditorContent = ({
   return (
     <div
       className="riff-ScoreEditor"
+      data-testid="score-editor"
       style={{
         backgroundColor: showBackground ? theme.panelBackground : 'transparent',
         color: theme.text,
