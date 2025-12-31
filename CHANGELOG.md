@@ -8,23 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.0.0-alpha.6] - 2025-12-31
 
 ### Added
-- **Embedding Support (Issue #160)**: Added `ui.showBackground` config option (default `true`) and "Lightweight Display Mode" (removed shadows/borders) for cleaner embedding. See [Configuration Guide](docs/CONFIGURATION.md).
-- **Score Title Toggle**: `ui.showScoreTitle` config option to show/hide the title input.
+- **Embedding Support (Issue #160)**: Added `ui.showBackground` config option (default `true`) and "Lightweight Display Mode" (removed shadows/borders) for cleaner embedding. See [Configuration Guide](docs/CONFIGURATION.md). ([PR #190](https://github.com/joekotvas/RiffScore/pull/190))
+- **Score Title Toggle**: `ui.showScoreTitle` config option to show/hide the title input ([Issue #160](https://github.com/joekotvas/RiffScore/issues/160)).
 - **Font Loading Animations**: Implemented `useFontLoaded` hook to prevent FOUC by hiding glyphs until Bravura font is ready ([PR #170](https://github.com/joekotvas/RiffScore/pull/170)).
 
 ### Changed
 - **Tailwind Removal**: Complete migration from Tailwind CSS to Vanilla CSS for zero-dependency styling ([PR #189](https://github.com/joekotvas/RiffScore/pull/189)).
 - **Default Theme**: Changed default theme to **Light Mode** (previously Dark) for better initial integration.
-- **Compact Toolbar**: Scaled toolbar to 0.83x and reduced spacing for tighter layout. Default score scale updated to 0.75.
+- **Compact Toolbar**: Scaled toolbar to 0.83x and reduced spacing for tighter layout. Default score scale updated to 0.75 ([Issue #160](https://github.com/joekotvas/RiffScore/issues/160)).
 - **Pickup Icon**: Replaced "PK" text with a beamed eighth-note couplet icon (pickup measure).
-- **UI Polish**: Removed decorative chrome from `ScoreEditor` (`backdrop-filter`, borders) and improved title field interaction (Escape key now cancels editing).
+- **UI Polish**: Removed decorative chrome from `ScoreEditor` (`backdrop-filter`, borders) and improved title field interaction (Escape key now cancels editing) ([Issue #160](https://github.com/joekotvas/RiffScore/issues/160)).
 - **Pattern Governance**: Established explicit governance for architectural patterns ([PR #179](https://github.com/joekotvas/RiffScore/pull/179)). See [Coding Patterns](docs/CODING_PATTERNS.md).
 
 ### Fixed
 - **Horizontal Selection**: Fixed bug where horizontal selection extension dropped notes on other staves ([#124](https://github.com/joekotvas/RiffScore/issues/124), [PR #183](https://github.com/joekotvas/RiffScore/pull/183)).
 - **TypeScript Compliance**: cleared ~55 outstanding TypeScript errors for a strictly typed, clean build ([PR #176](https://github.com/joekotvas/RiffScore/pull/176)).
 - **Theming**: Fixed various dark mode inconsistencies and scoping issues ([PR #171](https://github.com/joekotvas/RiffScore/pull/171)).
-- **Title Jump**: Fixed visual layout shift when editing score title.
+- **Title Jump**: Fixed visual layout shift when editing score title ([Issue #160](https://github.com/joekotvas/RiffScore/issues/160)).
 
 ### Refactoring
 - **Centralized Layout Engine**: Massive refactor consolidating layout logic into a unified engine (Issue #109, [PR #188](https://github.com/joekotvas/RiffScore/pull/188)). See [Layout Engine Docs](docs/LAYOUT_ENGINE.md).
