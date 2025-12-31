@@ -9,6 +9,7 @@
 .riff-ScoreTitleField__input {
   box-sizing: border-box;
   /* font-family: var(--riff-font-serif); Removed to enforce inheritance */
+  font-family: inherit;
   font-weight: var(--riff-font-weight-bold);
   padding: var(--riff-spacing-0) var(--riff-spacing-1);
   border-radius: var(--riff-border-radius);
