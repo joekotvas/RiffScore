@@ -9,7 +9,6 @@ interface TimeSignatureOverlayProps {
   current: string;
   onSelect: (timeSig: string) => void;
   onClose: () => void;
-  position: { x: number; y: number };
   triggerRef: React.RefObject<HTMLElement>;
 }
 
@@ -17,13 +16,12 @@ const TimeSignatureOverlay: React.FC<TimeSignatureOverlayProps> = ({
   current,
   onSelect,
   onClose,
-  position,
   triggerRef,
 }) => {
   const { theme } = useTheme();
 
   return (
-    <DropdownOverlay onClose={onClose} position={position} triggerRef={triggerRef} width={200}>
+    <DropdownOverlay onClose={onClose} triggerRef={triggerRef} width={200}>
       <div className="riff-TimeSignatureOverlay__grid">
         {Object.keys(TIME_SIGNATURES).map((sig) => {
           const [top, bottom] = sig.split('/');

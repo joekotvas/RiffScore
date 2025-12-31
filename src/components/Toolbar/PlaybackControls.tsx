@@ -106,7 +106,6 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         selectedInstrument={selectedInstrument}
         onInstrumentChange={onInstrumentChange}
         samplerLoaded={samplerLoaded}
-        height={height}
       />
     </div>
   );

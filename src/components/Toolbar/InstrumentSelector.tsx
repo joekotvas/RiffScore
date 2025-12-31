@@ -37,13 +37,6 @@ const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
     setIsOpen(false);
   };
 
-  // Calculate dropdown position
-  const getPosition = () => {
-    if (!buttonRef.current) return { x: 0, y: 0 };
-    const rect = buttonRef.current.getBoundingClientRect();
-    return { x: rect.left, y: rect.bottom + 4 };
-  };
-
   return (
     <div className="riff-InstrumentSelector">
       <DropdownTrigger
@@ -55,14 +48,11 @@ const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
       />
 
       {isOpen && (
-        /* eslint-disable react-hooks/refs */
         <DropdownOverlay
           onClose={() => setIsOpen(false)}
-          position={getPosition()}
           triggerRef={buttonRef as React.RefObject<HTMLElement>}
           width={176}
         >
-          {/* eslint-enable react-hooks/refs */}
           <div className="riff-DropdownHeader">
             <AudioWaveform size={16} />
             <h3 className="riff-DropdownHeader__title">Voice</h3>

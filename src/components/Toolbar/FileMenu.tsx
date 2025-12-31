@@ -157,10 +157,7 @@ const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = 'h-9', variant
         <DropdownOverlay
           onClose={handleClose}
           triggerRef={buttonRef as React.RefObject<HTMLElement>}
-          position={{
-            x: buttonRef.current?.getBoundingClientRect().left || 0,
-            y: (buttonRef.current?.getBoundingClientRect().bottom || 0) + 5,
-          }}
+          gap={5}
           width={220}
         >
           <div className="riff-DropdownHeader">

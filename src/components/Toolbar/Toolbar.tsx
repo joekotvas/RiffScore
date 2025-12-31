@@ -254,18 +254,12 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
               height={TOP_ROW_HEIGHT}
             />
             {showLibrary && (
-              /* eslint-disable react-hooks/refs */
               <MelodyLibrary
                 melodies={melodies}
                 onSelectMelody={handleMelodySelect}
                 onClose={() => setShowLibrary(false)}
-                position={{
-                  x: (melodyLibBtnRef.current?.getBoundingClientRect().right || 0) - 256,
-                  y: (melodyLibBtnRef.current?.getBoundingClientRect().bottom || 0) + 5,
-                }}
                 triggerRef={melodyLibBtnRef as React.RefObject<HTMLElement>}
               />
-              /* eslint-enable react-hooks/refs */
             )}
           </div>
           {/* 

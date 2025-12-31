@@ -1,4 +1,4 @@
-import React, { useRef, forwardRef } from 'react';
+import React, { useRef, forwardRef, useState, useLayoutEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useFocusTrap } from '@/hooks/layout';
 import Portal from '../../Layout/Portal';
@@ -53,23 +53,55 @@ DropdownTrigger.displayName = 'DropdownTrigger';
 interface DropdownOverlayProps {
   onClose: () => void;
   triggerRef?: React.RefObject<HTMLElement>;
-  position: { x: number; y: number };
+  /** Optional explicit position. If not provided, position is computed from triggerRef. */
+  position?: { x: number; y: number };
+  /** Gap between trigger and dropdown (default: 4px) */
+  gap?: number;
   children: React.ReactNode;
   width?: string | number;
   maxHeight?: string | number;
-  className?: string; // Additional classes
+  className?: string;
 }
 
+/**
+ * A portal-based dropdown overlay that positions itself relative to a trigger element.
+ *
+ * Position can be provided explicitly via `position` prop, or computed automatically
+ * from `triggerRef`. If both are provided, `position` takes precedence.
+ *
+ * This component properly handles ref access by computing position in useLayoutEffect,
+ * avoiding the React anti-pattern of accessing refs during render.
+ */
 const DropdownOverlay: React.FC<DropdownOverlayProps> = ({
   onClose,
   triggerRef,
-  position,
+  position: explicitPosition,
+  gap = 4,
   children,
   width = 'auto',
   maxHeight = 'auto',
   className = '',
 }) => {
   const ref = useRef<HTMLDivElement>(null);
+  // Only use state for position computed from triggerRef
+  const [triggerPosition, setTriggerPosition] = useState<{ x: number; y: number } | null>(null);
+
+  // Compute position from triggerRef in useLayoutEffect (the proper place to access refs)
+  // Only runs when no explicit position is provided
+  useLayoutEffect(() => {
+    if (explicitPosition) return; // Skip if explicit position is provided
+
+    if (triggerRef?.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setTriggerPosition({
+        x: rect.left,
+        y: rect.bottom + gap,
+      });
+    }
+  }, [triggerRef, explicitPosition, gap]);
+
+  // Use explicit position if provided, otherwise use computed position
+  const position = explicitPosition ?? triggerPosition ?? { x: 0, y: 0 };
 
   // Use unified focus trap hook
   useFocusTrap({

@@ -7,7 +7,6 @@ interface MelodyLibraryProps {
   melodies: Melody[];
   onSelectMelody: (melody: Melody) => void;
   onClose: () => void;
-  position: { x: number; y: number };
   triggerRef?: React.RefObject<HTMLElement>;
 }
 
@@ -15,13 +14,11 @@ const MelodyLibrary: React.FC<MelodyLibraryProps> = ({
   melodies,
   onSelectMelody,
   onClose,
-  position,
   triggerRef,
 }) => {
   return (
     <DropdownOverlay
       onClose={onClose}
-      position={position}
       triggerRef={triggerRef}
       width={256} // w-64
       maxHeight={320} // max-h-80
