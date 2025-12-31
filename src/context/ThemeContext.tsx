@@ -21,7 +21,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
  */
 function injectThemeCSSVariables(theme: Theme, container?: HTMLElement | null) {
   const target = container || document.documentElement;
-  
+
   // Map theme properties to CSS custom properties
   target.style.setProperty('--riff-color-bg', theme.background);
   target.style.setProperty('--riff-color-bg-panel', theme.panelBackground);
@@ -32,7 +32,7 @@ function injectThemeCSSVariables(theme: Theme, container?: HTMLElement | null) {
   target.style.setProperty('--riff-color-active-bg', theme.accent);
   target.style.setProperty('--riff-color-button-bg', theme.buttonBackground);
   target.style.setProperty('--riff-color-hover-bg', theme.buttonHoverBackground);
-  
+
   // Score-specific colors
   target.style.setProperty('--riff-color-score-line', theme.score.line);
   target.style.setProperty('--riff-color-score-note', theme.score.note);
@@ -64,7 +64,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode; initialTheme?:
   }, [theme, containerRef]);
 
   return (
-    <ThemeContext.Provider value={{ theme, themeName, setTheme: setThemeName, zoom, setZoom, setContainerRef, containerRef }}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        themeName,
+        setTheme: setThemeName,
+        zoom,
+        setZoom,
+        setContainerRef,
+        containerRef,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

@@ -1,27 +1,16 @@
 "use client";
 
 import { RiffScore } from "@riffscore/RiffScore";
-import { RiffScoreConfig } from "@riffscore/types";
 
 export default function SimplePage() {
 
     const config = {
         score: {
             title: "Simple Score",
-            staff: "treble" as const,
-            measureCount: 2,
+            measureCount: 4,
             keySignature: "C"
-        },
-        ui: {
-            scale: 0.75,
-            showToolbar: false,
-            showScoreTitle: false,
-            theme: 'LIGHT'
-        },
-        interaction: {
-            isEnabled: false
-        },
-    } as RiffScoreConfig
+        }
+    };
 
 
   return (

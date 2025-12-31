@@ -68,8 +68,6 @@
   background-color: var(--riff-color-bg-panel);
 }
 
-
-
 /* Scrollbar styling (replacing the <style> tag) */
 .riff-DropdownOverlay ::-webkit-scrollbar {
   width: 6px;

@@ -7,62 +7,66 @@
   --riff-color-bg: #ffffff;
   --riff-color-bg-panel: #f9f9f9;
   --riff-color-text: #1e293b; /* slate800 */
-  --riff-color-text-secondary: hsla(215, 16%, 47%, 1.00); /* slate500 */
+  --riff-color-text-secondary: hsla(215, 16%, 47%, 1); /* slate500 */
   --riff-color-border: #e2e8f0;
-  --riff-color-primary: #1DA59C; /* teal accent */
+  --riff-color-primary: #1da59c; /* teal accent */
   --riff-color-primary-hover: #17877f;
   --riff-color-danger: #ef4444;
   --riff-color-success: #22c55e;
-  --riff-color-muted: hsla(215, 20%, 65%, 1.00); /* slate400 */
-  
+  --riff-color-muted: hsla(215, 20%, 65%, 1); /* slate400 */
+
   /* Hover/Active states */
   --riff-color-hover-bg: #f1f5f9;
-  --riff-color-active-bg: #1DA59C; /* teal accent */
+  --riff-color-active-bg: #1da59c; /* teal accent */
   --riff-color-active-text: #ffffff;
   --riff-color-button-bg: #ffffff;
-  
+
   /* Backdrop */
   --riff-color-backdrop: rgba(0, 0, 0, 0.5);
   --riff-color-backdrop-light: rgba(0, 0, 0, 0.2);
-  
+
   /* ========== Spacing ========== */
   --riff-spacing-0: 0;
   --riff-spacing-1: 0.25rem; /* 4px */
-  --riff-spacing-2: 0.5rem;  /* 8px */
+  --riff-spacing-2: 0.5rem; /* 8px */
   --riff-spacing-3: 0.75rem; /* 12px */
-  --riff-spacing-4: 1rem;    /* 16px */
+  --riff-spacing-4: 1rem; /* 16px */
   --riff-spacing-5: 1.25rem; /* 20px */
-  --riff-spacing-6: 1.5rem;  /* 24px */
-  --riff-spacing-8: 2rem;    /* 32px */
+  --riff-spacing-6: 1.5rem; /* 24px */
+  --riff-spacing-8: 2rem; /* 32px */
   --riff-spacing-10: 2.5rem; /* 40px */
-  --riff-spacing-12: 3rem;   /* 48px */
+  --riff-spacing-12: 3rem; /* 48px */
 
   /* ========== Typography ========== */
   /* Font Families */
-  --riff-font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --riff-font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --riff-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  
+  --riff-font-sans:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --riff-font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+  --riff-font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+
   /* Font Sizes */
-  --riff-font-size-xs: 0.75rem;   /* 12px */
-  --riff-font-size-sm: 0.875rem;  /* 14px */
-  --riff-font-size-base: 1rem;    /* 16px */
-  --riff-font-size-lg: 1.125rem;  /* 18px */
-  --riff-font-size-xl: 1.25rem;   /* 20px */
-  --riff-font-size-2xl: 1.5rem;   /* 24px */
+  --riff-font-size-xs: 0.75rem; /* 12px */
+  --riff-font-size-sm: 0.875rem; /* 14px */
+  --riff-font-size-base: 1rem; /* 16px */
+  --riff-font-size-lg: 1.125rem; /* 18px */
+  --riff-font-size-xl: 1.25rem; /* 20px */
+  --riff-font-size-2xl: 1.5rem; /* 24px */
   --riff-font-size-3xl: 1.875rem; /* 30px */
-  
+
   /* Font Weights */
   --riff-font-weight-normal: 400;
   --riff-font-weight-medium: 500;
   --riff-font-weight-semibold: 600;
   --riff-font-weight-bold: 700;
-  
+
   /* Line Heights */
   --riff-line-height-tight: 1.25;
   --riff-line-height-normal: 1.5;
   --riff-line-height-relaxed: 1.75;
-  
+
   /* Letter Spacing */
   --riff-tracking-tight: -0.025em;
   --riff-tracking-normal: 0;
@@ -72,10 +76,10 @@
   /* ========== Borders ========== */
   --riff-border-width: 1px;
   --riff-border-radius-sm: 0.125rem; /* 2px */
-  --riff-border-radius: 0.25rem;     /* 4px */
+  --riff-border-radius: 0.25rem; /* 4px */
   --riff-border-radius-md: 0.375rem; /* 6px */
-  --riff-border-radius-lg: 0.5rem;   /* 8px */
-  --riff-border-radius-xl: 0.75rem;  /* 12px */
+  --riff-border-radius-lg: 0.5rem; /* 8px */
+  --riff-border-radius-xl: 0.75rem; /* 12px */
   --riff-border-radius-full: 9999px;
 
   /* ========== Shadows ========== */
@@ -100,29 +104,28 @@
 
   /* ========== Component Dimensions ========== */
   /* Buttons */
-  --riff-button-height: 2.25rem;     /* 36px, h-9 */
-  --riff-button-height-sm: 2rem;     /* 32px, h-8 */
-  --riff-button-height-lg: 2.5rem;   /* 40px, h-10 */
-  --riff-button-min-width: 2.25rem;  /* Square button default */
-  
+  --riff-button-height: 2.25rem; /* 36px, h-9 */
+  --riff-button-height-sm: 2rem; /* 32px, h-8 */
+  --riff-button-height-lg: 2.5rem; /* 40px, h-10 */
+  --riff-button-min-width: 2.25rem; /* Square button default */
+
   /* Icons */
-  --riff-icon-size-sm: 0.875rem;  /* 14px */
-  --riff-icon-size: 1rem;         /* 16px */
-  --riff-icon-size-md: 1.25rem;   /* 20px */
-  --riff-icon-size-lg: 1.5rem;    /* 24px */
-  
+  --riff-icon-size-sm: 0.875rem; /* 14px */
+  --riff-icon-size: 1rem; /* 16px */
+  --riff-icon-size-md: 1.25rem; /* 20px */
+  --riff-icon-size-lg: 1.5rem; /* 24px */
+
   /* Dividers */
   --riff-divider-size: 1px;
-  --riff-divider-height: 1.5rem;  /* 24px, h-6 */
-  
+  --riff-divider-height: 1.5rem; /* 24px, h-6 */
+
   /* Inputs */
   --riff-input-height: 2.25rem;
   --riff-input-padding-x: 0.75rem;
-  
-  /* Modals/Overlays */
-  --riff-modal-max-width-sm: 20rem;  /* 320px */
-  --riff-modal-max-width-md: 28rem;  /* 448px */
-  --riff-modal-max-width-lg: 32rem;  /* 512px */
-  --riff-modal-max-width-xl: 42rem;  /* 672px */
-}
 
+  /* Modals/Overlays */
+  --riff-modal-max-width-sm: 20rem; /* 320px */
+  --riff-modal-max-width-md: 28rem; /* 448px */
+  --riff-modal-max-width-lg: 32rem; /* 512px */
+  --riff-modal-max-width-xl: 42rem; /* 672px */
+}

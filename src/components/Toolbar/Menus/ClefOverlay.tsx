@@ -13,12 +13,7 @@ interface ClefOverlayProps {
   triggerRef: React.RefObject<HTMLElement>;
 }
 
-const ClefOverlay: React.FC<ClefOverlayProps> = ({
-  current,
-  onSelect,
-  onClose,
-  triggerRef,
-}) => {
+const ClefOverlay: React.FC<ClefOverlayProps> = ({ current, onSelect, onClose, triggerRef }) => {
   const { theme } = useTheme();
 
   return (
@@ -55,4 +50,3 @@ const ClefOverlay: React.FC<ClefOverlayProps> = ({
 };
 
 export default ClefOverlay;
-

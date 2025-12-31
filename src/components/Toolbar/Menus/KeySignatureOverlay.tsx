@@ -210,10 +210,7 @@ const KeySection = ({
   mode: 'major' | 'minor';
 }) => (
   <div className="riff-KeySection">
-    <h3
-      className="riff-KeySection__title"
-      style={{ color: theme.secondaryText }}
-    >
+    <h3 className="riff-KeySection__title" style={{ color: theme.secondaryText }}>
       {title}
     </h3>
     <div className="riff-KeySection__grid">
@@ -258,10 +255,7 @@ const KeySignatureOverlay: React.FC<KeySignatureOverlayProps> = ({
   }, [onClose]);
 
   return (
-    <div
-      className="riff-KeySignatureOverlay"
-      onClick={onClose}
-    >
+    <div className="riff-KeySignatureOverlay" onClick={onClose}>
       <div
         className="riff-KeySignatureOverlay__panel"
         style={{ backgroundColor: theme.panelBackground }}

@@ -363,11 +363,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
         </div>
 
         {/* Error Message */}
-        {errorMsg && (
-          <div className="riff-Toolbar__error">
-            ⚠️ {errorMsg}
-          </div>
-        )}
+        {errorMsg && <div className="riff-Toolbar__error">⚠️ {errorMsg}</div>}
       </div>
     );
   }

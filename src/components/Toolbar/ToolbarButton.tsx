@@ -39,7 +39,7 @@ const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(
     },
     ref
   ) => {
-    // We no longer rely on ThemeContext for *computed* styles, 
+    // We no longer rely on ThemeContext for *computed* styles,
     // but the ThemeProvider still pushes variables to CSS if needed.
     // CSS classes now drive the look.
 
@@ -47,18 +47,20 @@ const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(
       'riff-ToolbarButton',
       // Layout modifiers
       showLabel ? 'riff-ToolbarButton--auto-width' : '',
-      
+
       // Style modifiers
       isDashed ? 'riff-ToolbarButton--dashed' : 'riff-ToolbarButton--solid-border',
       variant === 'ghost' ? 'riff-ToolbarButton--ghost' : '',
-      
+
       // State modifiers
       isActive ? 'riff-ToolbarButton--active' : '',
       isEmphasized ? 'riff-ToolbarButton--emphasized' : '',
-      
+
       // External overrides
-      className
-    ].filter(Boolean).join(' ');
+      className,
+    ]
+      .filter(Boolean)
+      .join(' ');
 
     return (
       <button
@@ -76,7 +78,9 @@ const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(
         type="button"
       >
         {icon && (
-          <span className={`riff-ToolbarButton__icon ${showLabel ? 'riff-ToolbarButton__icon--margin' : ''}`}>
+          <span
+            className={`riff-ToolbarButton__icon ${showLabel ? 'riff-ToolbarButton__icon--margin' : ''}`}
+          >
             {icon}
           </span>
         )}

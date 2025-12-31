@@ -31,12 +31,7 @@ export const DropdownTrigger = forwardRef<HTMLButtonElement, DropdownTriggerProp
     ].join(' ');
 
     return (
-      <button
-        ref={ref}
-        onClick={onClick}
-        className={classes}
-        type="button"
-      >
+      <button ref={ref} onClick={onClick} className={classes} type="button">
         {icon}
         <span className="riff-DropdownTrigger__label">{label}</span>
         <ChevronDown
@@ -164,11 +159,7 @@ export const DropdownItem: React.FC<DropdownItemProps> = ({
   isSelected = false,
   className = '',
 }) => {
-  const classes = [
-    'riff-DropdownItem',
-    isSelected ? 'riff-DropdownItem--selected' : '',
-    className,
-  ]
+  const classes = ['riff-DropdownItem', isSelected ? 'riff-DropdownItem--selected' : '', className]
     .filter(Boolean)
     .join(' ');
 

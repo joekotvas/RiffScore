@@ -161,9 +161,7 @@ const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = 'h-9', variant
           width={220}
         >
           <div className="riff-DropdownHeader">
-            <h3 className="riff-DropdownHeader__title">
-              Export
-            </h3>
+            <h3 className="riff-DropdownHeader__title">Export</h3>
           </div>
           <ExportRow
             label="JSON"

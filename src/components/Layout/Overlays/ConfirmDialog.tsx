@@ -38,21 +38,11 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({ title, message, actions, 
   }, [onClose]);
 
   return (
-    <div
-      className="riff-ConfirmDialog-backdrop"
-      onClick={onClose}
-    >
-      <div
-        className="riff-ConfirmDialog"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="riff-ConfirmDialog__title">
-          {title}
-        </h2>
+    <div className="riff-ConfirmDialog-backdrop" onClick={onClose}>
+      <div className="riff-ConfirmDialog" onClick={(e) => e.stopPropagation()}>
+        <h2 className="riff-ConfirmDialog__title">{title}</h2>
 
-        <p className="riff-ConfirmDialog__message">
-          {message}
-        </p>
+        <p className="riff-ConfirmDialog__message">{message}</p>
 
         <div className="riff-ConfirmDialog__actions">
           {actions.map((action, index) => (

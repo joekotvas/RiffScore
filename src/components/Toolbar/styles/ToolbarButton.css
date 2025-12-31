@@ -9,11 +9,11 @@
   transition: all var(--riff-transition-normal);
   cursor: pointer;
   box-sizing: border-box;
-  
+
   /* Default variant: uses button background */
   background-color: var(--riff-color-button-bg);
   color: var(--riff-color-text-secondary);
-  
+
   /* Default size (h-9 = 36px) */
   height: var(--riff-button-height);
   width: var(--riff-button-min-width);

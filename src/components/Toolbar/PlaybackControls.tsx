@@ -51,12 +51,12 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   };
 
   const isGhost = variant === 'ghost';
-  
+
   const bpmWrapperClasses = [
     'riff-PlaybackControls__bpm-wrapper',
     isFocused ? 'riff-PlaybackControls__bpm-wrapper--focused' : '',
     isGhost ? 'riff-PlaybackControls__bpm-wrapper--ghost' : '',
-    isBpmHovered ? 'riff-PlaybackControls__bpm-wrapper--hovered' : ''
+    isBpmHovered ? 'riff-PlaybackControls__bpm-wrapper--hovered' : '',
   ].join(' ');
 
   return (
@@ -83,10 +83,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         onMouseLeave={() => setIsBpmHovered(false)}
       >
         <span className="riff-PlaybackControls__bpm-label">
-          <span
-            className="riff-PlaybackControls__bpm-note"
-            style={{ fontFamily: BRAVURA_FONT }}
-          >
+          <span className="riff-PlaybackControls__bpm-note" style={{ fontFamily: BRAVURA_FONT }}>
             {PRECOMPOSED_NOTES_UP.quarter}
           </span>
           <span className="riff-PlaybackControls__bpm-equals"> = </span>

@@ -65,7 +65,12 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
           label={currentClef.label}
           showLabel={false}
           onClick={() => setShowClefMenu(!showClefMenu)}
-          icon={<ClefIcon clef={clef || 'treble'} style={{ width: 24, height: 24, overflow: 'visible' }} />}
+          icon={
+            <ClefIcon
+              clef={clef || 'treble'}
+              style={{ width: 24, height: 24, overflow: 'visible' }}
+            />
+          }
           variant={variant}
         />
         {showClefMenu && (
@@ -129,4 +134,3 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
 StaffControls.displayName = 'StaffControls';
 
 export default StaffControls;
-

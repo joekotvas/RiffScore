@@ -214,10 +214,7 @@ const ScoreEditorContent = ({
         </Portal>
       )}
 
-      <div
-        className="riff-ScoreEditor__content"
-        style={{ backgroundColor: theme.background }}
-      >
+      <div className="riff-ScoreEditor__content" style={{ backgroundColor: theme.background }}>
         <div className="riff-ScoreEditor__title-wrapper">
           <ScoreTitleField
             title={score.title}

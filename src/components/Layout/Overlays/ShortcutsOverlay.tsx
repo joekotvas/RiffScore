@@ -14,9 +14,7 @@ interface ShortcutGroupProps {
 
 const ShortcutGroup: React.FC<ShortcutGroupProps> = ({ title, shortcuts }) => (
   <div className="riff-ShortcutGroup">
-    <h3 className="riff-ShortcutGroup__header">
-      {title}
-    </h3>
+    <h3 className="riff-ShortcutGroup__header">{title}</h3>
     <div className="riff-ShortcutGroup__list">
       {shortcuts.map((s, i) => (
         <div key={i} className="riff-ShortcutItem">
@@ -91,26 +89,15 @@ const ShortcutsOverlay: React.FC<ShortcutsOverlayProps> = ({ onClose }) => {
   };
 
   return (
-    <div
-      className="riff-ShortcutsOverlay-backdrop"
-      onClick={onClose}
-    >
-      <div
-        className="riff-ShortcutsOverlay"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="riff-ShortcutsOverlay-backdrop" onClick={onClose}>
+      <div className="riff-ShortcutsOverlay" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="riff-ShortcutsOverlay__header">
           <div className="riff-ShortcutsOverlay__title-group">
             <Keyboard size={20} />
-            <h2 className="riff-ShortcutsOverlay__title">
-              Keyboard Shortcuts
-            </h2>
+            <h2 className="riff-ShortcutsOverlay__title">Keyboard Shortcuts</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="riff-ShortcutsOverlay__close-btn"
-          >
+          <button onClick={onClose} className="riff-ShortcutsOverlay__close-btn">
             <X size={20} />
           </button>
         </div>
@@ -119,9 +106,7 @@ const ShortcutsOverlay: React.FC<ShortcutsOverlayProps> = ({ onClose }) => {
         <div className="riff-ShortcutsOverlay__content">
           {/* Welcome & Instructions */}
           <div className="riff-WelcomeSection">
-            <h3 className="riff-WelcomeSection__title">
-              Welcome to RiffScore!
-            </h3>
+            <h3 className="riff-WelcomeSection__title">Welcome to RiffScore!</h3>
             <p className="riff-WelcomeSection__text">
               This editor allows you to create sheet music using both mouse and keyboard. Use the
               toolbar above to change note duration, add dots, or manage measures.
@@ -129,9 +114,7 @@ const ShortcutsOverlay: React.FC<ShortcutsOverlayProps> = ({ onClose }) => {
 
             <div className="riff-WelcomeSection__grid">
               <div>
-                <h4 className="riff-WelcomeSection__subtitle">
-                  🖱️ Mouse Interactions
-                </h4>
+                <h4 className="riff-WelcomeSection__subtitle">🖱️ Mouse Interactions</h4>
                 <ul className="riff-WelcomeSection__list">
                   <li>Click anywhere in a measure to place the cursor.</li>
                   <li>Click existing notes to select them.</li>
@@ -139,30 +122,16 @@ const ShortcutsOverlay: React.FC<ShortcutsOverlayProps> = ({ onClose }) => {
                 </ul>
               </div>
               <div>
-                <h4 className="riff-WelcomeSection__subtitle">
-                  ⌨️ Keyboard Interactions
-                </h4>
+                <h4 className="riff-WelcomeSection__subtitle">⌨️ Keyboard Interactions</h4>
                 <ul className="riff-WelcomeSection__list">
                   <li>
-                    Use{' '}
-                    <kbd className="riff-Kbd">
-                      Arrow Keys
-                    </kbd>{' '}
-                    to move the cursor.
+                    Use <kbd className="riff-Kbd">Arrow Keys</kbd> to move the cursor.
                   </li>
                   <li>
-                    Press{' '}
-                    <kbd className="riff-Kbd">
-                      Enter
-                    </kbd>{' '}
-                    to add a note at the cursor.
+                    Press <kbd className="riff-Kbd">Enter</kbd> to add a note at the cursor.
                   </li>
                   <li>
-                    Press{' '}
-                    <kbd className="riff-Kbd">
-                      Space
-                    </kbd>{' '}
-                    to play/pause.
+                    Press <kbd className="riff-Kbd">Space</kbd> to play/pause.
                   </li>
                 </ul>
               </div>
@@ -184,11 +153,7 @@ const ShortcutsOverlay: React.FC<ShortcutsOverlayProps> = ({ onClose }) => {
 
         {/* Footer */}
         <div className="riff-ShortcutsOverlay__footer">
-          Press{' '}
-          <kbd className="riff-ShortcutsOverlay__footer-kbd">
-            Esc
-          </kbd>{' '}
-          to close
+          Press <kbd className="riff-ShortcutsOverlay__footer-kbd">Esc</kbd> to close
         </div>
       </div>
     </div>

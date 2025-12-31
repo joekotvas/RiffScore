@@ -125,7 +125,7 @@ describe('useCursorLayout', () => {
 
       // Single staff SHOULD use unified cursor now
       // NOTE: First event (quant 0) now force-starts at 0 relative to measure to cover header
-      expect(result.current.x).toBe(80); 
+      expect(result.current.x).toBe(80);
       expect(result.current.isGrandStaff).toBe(false);
       expect(result.current.numStaves).toBe(1);
     });

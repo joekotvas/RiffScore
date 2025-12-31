@@ -25,9 +25,7 @@ const MelodyLibrary: React.FC<MelodyLibraryProps> = ({
     >
       <div className="riff-DropdownHeader">
         <BookOpen size={16} />
-        <h3 className="riff-DropdownHeader__title">
-          Melody Library
-        </h3>
+        <h3 className="riff-DropdownHeader__title">Melody Library</h3>
       </div>
 
       <div className="riff-DropdownContent" style={{ maxHeight: '320px' }}>
