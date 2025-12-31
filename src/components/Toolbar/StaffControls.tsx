@@ -69,6 +69,7 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
             <ClefIcon
               clef="treble"
               showLeftBarline={true}
+              isSmall={true}
               style={{ width: 24, height: 24, overflow: 'visible' }}
             />
           }

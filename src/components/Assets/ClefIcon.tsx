@@ -4,13 +4,14 @@ import { CLEFS, BRAVURA_FONT } from '@/constants/SMuFL';
 interface ClefIconProps extends React.SVGProps<SVGSVGElement> {
   clef: string;
   showLeftBarline?: boolean;
+  isSmall?: boolean;
 }
 
 /**
  * ClefIcon renders clef symbols using Bravura font glyphs.
  * Designed for use in toolbars and overlays.
  */
-const ClefIcon: React.FC<ClefIconProps> = ({ clef, showLeftBarline, ...props }) => {
+const ClefIcon: React.FC<ClefIconProps> = ({ clef, showLeftBarline, isSmall = false, ...props }) => {
   // Default to 60x60 coordinate system
   const viewBox = props.viewBox || '0 0 60 60';
 
@@ -140,7 +141,7 @@ const ClefIcon: React.FC<ClefIconProps> = ({ clef, showLeftBarline, ...props }) 
               x2="0"
               y2="50"
               stroke="currentColor"
-              strokeWidth="1.5"
+              strokeWidth={isSmall ? "2" : "1"}
             />
           )}
 
@@ -153,8 +154,8 @@ const ClefIcon: React.FC<ClefIconProps> = ({ clef, showLeftBarline, ...props }) 
               x2="60"
               y2={10 + i * 10}
               stroke="currentColor"
-              strokeWidth="1"
-              opacity="0.3"
+              strokeWidth={isSmall ? "2" : "1"}
+              opacity={isSmall ? "0.5" : "0.3"}
             />
           ))}
 
