@@ -16,7 +16,7 @@
 .riff-Toolbar__row {
   display: flex;
   align-items: center;
-  gap: var(--riff-spacing-3);
+  gap: var(--riff-spacing-0);
   flex-wrap: wrap; /* Added for responsiveness based on ROW 2 usage */
 }
 
