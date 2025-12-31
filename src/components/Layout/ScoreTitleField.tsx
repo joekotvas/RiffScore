@@ -71,7 +71,14 @@ export function ScoreTitleField({
         value={buffer}
         onChange={(e) => setBuffer(e.target.value)}
         onBlur={commit}
-        onKeyDown={(e) => e.key === 'Enter' && commit()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsEditing(false);
+          }
+        }}
         className="riff-ScoreTitleField__input"
         style={{ fontSize, color: theme.text, borderColor: theme.border }}
       />
