@@ -52,8 +52,8 @@ const PickupIcon: React.FC = () => (
     <ellipse cx={13} cy={11} rx={2.3} ry={1.6} fill="currentColor" transform="rotate(-20 13 11)" />
     <line x1={15.1} y1={11} x2={15.1} y2={3} stroke="currentColor" strokeWidth={1} />
     
-    {/* Beam (thick) */}
-    <line x1={8.1} y1={6} x2={15.1} y2={3} stroke="currentColor" strokeWidth={2.5} strokeLinecap="butt" />
+    {/* Beam (thick, polygon for vertical ends) */}
+    <polygon points="8.1,6 15.1,3 15.1,5.5 8.1,8.5" fill="currentColor" />
   </svg>
 );
 
