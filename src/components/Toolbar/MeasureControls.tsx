@@ -59,16 +59,11 @@ const PickupIcon: React.FC = () => (
 );
 
 interface MeasureControlsProps {
-  /** Callback to add a measure at the end */
-  onAddMeasure: () => void;
-  /** Callback to remove the selected measure (or last measure) */
-  onRemoveMeasure: () => void;
-  /** Callback to toggle pickup measure state */
-  onTogglePickup: () => void;
-  /** Whether the current measure is a pickup measure */
-  isPickup?: boolean;
-  /** Visual style variant */
-  variant?: 'default' | 'ghost';
+  onAddMeasure: () => void; // Callback to add a measure at the end
+  onRemoveMeasure: () => void; // Callback to remove the selected measure (or last measure)
+  onTogglePickup: () => void; // Callback to toggle pickup measure state
+  isPickup?: boolean; // Whether the current measure is a pickup measure
+  variant?: 'default' | 'ghost'; // Visual style variant
 }
 
 /**
