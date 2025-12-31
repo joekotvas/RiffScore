@@ -10,7 +10,7 @@ interface ClefIconProps extends React.SVGProps<SVGSVGElement> {
  * ClefIcon renders clef symbols using Bravura font glyphs.
  * Designed for use in toolbars and overlays.
  */
-const ClefIcon: React.FC<ClefIconProps> = ({ clef, ...props }) => {
+const ClefIcon: React.FC<ClefIconProps> = ({ clef, showLeftBarline, ...props }) => {
   // Default to 60x60 coordinate system
   const viewBox = props.viewBox || '0 0 60 60';
 
@@ -133,7 +133,7 @@ const ClefIcon: React.FC<ClefIconProps> = ({ clef, ...props }) => {
       ) : (
         <>
           {/* Left Barline (if enabled) */}
-          {props.showLeftBarline && (
+          {showLeftBarline && (
             <line
               x1="0"
               y1="10"
