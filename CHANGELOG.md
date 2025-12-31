@@ -14,14 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 - **Tailwind Removal**: Complete migration from Tailwind CSS to Vanilla CSS for zero-dependency styling ([#189](https://github.com/joekotvas/RiffScore/pull/189)).
+- **Default Theme**: Changed default theme to **Light Mode** (previously Dark) for better initial integration.
 - **Compact Toolbar**: Scaled toolbar to 0.83x and reduced spacing for tighter layout. Default score scale updated to 0.75.
 - **Pickup Icon**: Replaced "PK" text with a beamed eighth-note couplet icon (pickup measure).
-- **UI Polish**: Removed decorative chrome from `ScoreEditor` (`backdrop-filter`, borders) and improved title field interaction.
+- **UI Polish**: Removed decorative chrome from `ScoreEditor` (`backdrop-filter`, borders) and improved title field interaction (Escape key now cancels editing).
 - **Pattern Governance**: Established explicit governance for architectural patterns ([#179](https://github.com/joekotvas/RiffScore/pull/179)).
 
 ### Fixed
 - **Horizontal Selection**: Fixed bug where horizontal selection extension dropped notes on other staves ([#124](https://github.com/joekotvas/RiffScore/issues/124), [#183](https://github.com/joekotvas/RiffScore/pull/183)).
-- **TypeScript Compliance**: Resolved all outstanding TypeScript errors for a clean build ([#176](https://github.com/joekotvas/RiffScore/pull/176)).
+- **TypeScript Compliance**: cleared ~55 outstanding TypeScript errors for a strictly typed, clean build ([#176](https://github.com/joekotvas/RiffScore/pull/176)).
 - **Theming**: Fixed various dark mode inconsistencies and scoping issues ([#171](https://github.com/joekotvas/RiffScore/pull/171)).
 - **Title Jump**: Fixed visual layout shift when editing score title.
 
