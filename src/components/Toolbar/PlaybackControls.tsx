@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Pause } from 'lucide-react';
-import ToolbarButton from './ToolbarButton';
 import InstrumentSelector from './InstrumentSelector';
 import { PRECOMPOSED_NOTES_UP, BRAVURA_FONT } from '@/constants/SMuFL';
 import { InstrumentType } from '@/engines/toneEngine';
@@ -14,7 +13,6 @@ interface PlaybackControlsProps {
   selectedInstrument: InstrumentType;
   onInstrumentChange: (instrument: InstrumentType) => void;
   samplerLoaded: boolean;
-  height?: string;
   variant?: 'default' | 'ghost';
 }
 
@@ -26,7 +24,6 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   selectedInstrument,
   onInstrumentChange,
   samplerLoaded,
-  height = 'h-9',
   variant = 'default',
 }) => {
   const [bpmBuffer, setBpmBuffer] = useState(String(bpm));
