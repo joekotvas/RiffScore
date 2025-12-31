@@ -3,6 +3,7 @@ import { CLEFS, BRAVURA_FONT } from '@/constants/SMuFL';
 
 interface ClefIconProps extends React.SVGProps<SVGSVGElement> {
   clef: string;
+  showLeftBarline?: boolean;
 }
 
 /**
@@ -131,6 +132,18 @@ const ClefIcon: React.FC<ClefIconProps> = ({ clef, ...props }) => {
         </>
       ) : (
         <>
+          {/* Left Barline (if enabled) */}
+          {props.showLeftBarline && (
+            <line
+              x1="0"
+              y1="10"
+              x2="0"
+              y2="50"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+          )}
+
           {/* Staff lines for context */}
           {[0, 1, 2, 3, 4].map((i) => (
             <line

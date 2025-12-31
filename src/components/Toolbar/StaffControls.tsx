@@ -67,7 +67,8 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
           onClick={() => setShowClefMenu(!showClefMenu)}
           icon={
             <ClefIcon
-              clef={clef || 'treble'}
+              clef="treble"
+              showLeftBarline={true}
               style={{ width: 24, height: 24, overflow: 'visible' }}
             />
           }

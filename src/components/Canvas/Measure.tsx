@@ -71,7 +71,7 @@ const MeasureBarLine: React.FC<MeasureBarLineProps> = ({ x, baseY, isLast, theme
           x2={x}
           y2={baseY + height}
           stroke={theme.text}
-          strokeWidth={3}
+          strokeWidth={4}
         />
       </g>
     );

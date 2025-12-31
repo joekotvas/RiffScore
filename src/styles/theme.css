@@ -125,9 +125,9 @@
   --riff-music-icon-clef: 2.25rem; /* 36px - for clef overlays */
 
   /* Toolbar Button Compact Sizing */
-  --riff-toolbar-button-size: 1.875rem; /* 30px (was 36px) */
-  --riff-toolbar-gap: 0.375rem; /* 6px (was 8px) */
-  --riff-toolbar-padding: 0.375rem; /* 6px */
+  --riff-toolbar-button-size: 1.75rem; /* 30px (was 36px) */
+  --riff-toolbar-gap: 0.25rem; /* 6px (was 8px) */
+  --riff-toolbar-padding: 0.25rem; /* 6px */
 
   /* Dividers */
   --riff-divider-size: 1px;
