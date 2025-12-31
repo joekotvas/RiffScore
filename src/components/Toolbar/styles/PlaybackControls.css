@@ -3,7 +3,7 @@
 .riff-PlaybackControls {
   display: flex;
   align-items: center;
-  gap: var(--riff-toolbar-gap);
+  gap: var(--riff-spacing-2);
 }
 
 .riff-PlaybackControls__bpm-wrapper {
