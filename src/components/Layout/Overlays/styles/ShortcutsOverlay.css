@@ -187,7 +187,7 @@
   display: inline-block;
   padding: var(--riff-spacing-1) var(--riff-spacing-2);
   border-radius: var(--riff-border-radius);
-  font-family: var(--riff-font-mono);
+  /* font-family: var(--riff-font-mono); Removed */
   font-size: var(--riff-font-size-xs);
   min-width: var(--riff-icon-size-lg);
   text-align: center;
@@ -215,7 +215,7 @@
   padding: var(--riff-spacing-1) var(--riff-spacing-1);
   border-radius: var(--riff-border-radius);
   border: var(--riff-border-width) solid var(--riff-color-border);
-  font-family: var(--riff-font-mono);
+  /* font-family: var(--riff-font-mono); Removed */
   color: var(--riff-color-text);
   background-color: var(--riff-color-bg-panel);
 }

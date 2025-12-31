@@ -168,6 +168,18 @@ Use comprehensive JSDoc for exported functions, commands, and hooks:
  */
 ```
 
+### Props Interfaces
+
+For component props interfaces, favor concise end-of-line comments to keep the interface definition compact and readable:
+
+```typescript
+interface MyComponentProps {
+  label: string; // The visible label text
+  isActive?: boolean; // Toggles the active state
+  onClick: () => void; // Handler for click events
+}
+```
+
 ### Helper Functions
 
 For small utilities, use concise single-line JSDoc:

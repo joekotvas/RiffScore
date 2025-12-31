@@ -115,9 +115,23 @@
   --riff-icon-size-md: 1.25rem; /* 20px */
   --riff-icon-size-lg: 1.5rem; /* 24px */
 
+  /* Toolbar Music Icons (Bravura font glyphs) */
+  /* Base size is 1.25rem (20px), scaled from original 24px by ~0.83x */
+  --riff-music-icon-base: 1.25rem; /* 20px - primary size for notes/rests */
+  --riff-music-icon-sm: 1rem; /* 16px - for 64th notes etc */
+  --riff-music-icon-lg: 1.375rem; /* 22px - for eighth rest */
+  --riff-music-icon-xlg: 1.75rem; /* 28px - for overlays */
+  --riff-music-icon-2xl: 2rem; /* 32px - for key sig overlay */
+  --riff-music-icon-clef: 2.25rem; /* 36px - for clef overlays */
+
+  /* Toolbar Button Compact Sizing */
+  --riff-toolbar-button-size: 1.75rem; /* 30px (was 36px) */
+  --riff-toolbar-gap: 0.25rem; /* 6px (was 8px) */
+  --riff-toolbar-padding: 0.25rem; /* 6px */
+
   /* Dividers */
   --riff-divider-size: 1px;
-  --riff-divider-height: 1.5rem; /* 24px, h-6 */
+  --riff-divider-height: 1.25rem; /* 20px (was 24px) */
 
   /* Inputs */
   --riff-input-height: 2.25rem;

@@ -165,5 +165,5 @@
   padding: var(--riff-spacing-1) var(--riff-spacing-1);
   border-radius: var(--riff-border-radius);
   border: var(--riff-border-width) solid var(--riff-color-border);
-  font-family: var(--riff-font-mono);
+  /* font-family: var(--riff-font-mono); Removed */
 }

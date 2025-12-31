@@ -2,21 +2,24 @@
 import React from 'react';
 import { PRECOMPOSED_NOTES_UP, BRAVURA_FONT } from '@/constants/SMuFL';
 
-// Custom sizing for notes that need adjustment
+// Icon viewport size (scaled down from 24 to 20)
+const ICON_SIZE = 20;
+
+// Custom sizing for notes that need adjustment (scaled by ~0.83)
 const NOTE_SIZING = {
-  whole: { y: 14, fontSize: 24 }, // Centered (no stem)
-  thirtysecond: { y: 20, fontSize: 20 },
-  sixtyfourth: { y: 22, fontSize: 18 },
+  whole: { y: 12, fontSize: 20 }, // Centered (no stem)
+  thirtysecond: { y: 17, fontSize: 17 },
+  sixtyfourth: { y: 18, fontSize: 15 },
 };
 
 const NoteIcon = ({ type, color = 'currentColor' }) => {
   const glyph = PRECOMPOSED_NOTES_UP[type] || PRECOMPOSED_NOTES_UP.quarter;
-  const sizing = NOTE_SIZING[type] || { y: 20, fontSize: 24 };
+  const sizing = NOTE_SIZING[type] || { y: 17, fontSize: 20 };
 
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} fill="none">
       <text
-        x={12}
+        x={ICON_SIZE / 2}
         y={sizing.y}
         fontFamily={BRAVURA_FONT}
         fontSize={sizing.fontSize}

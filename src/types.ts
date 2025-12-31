@@ -338,6 +338,8 @@ export interface RiffScoreConfig {
     showToolbar: boolean;
     scale: number;
     theme?: ThemeName;
+    showBackground?: boolean; // Whether to show panel background (default: true)
+    showScoreTitle?: boolean;
   };
   interaction: {
     isEnabled: boolean; // Master switch for all interactions
@@ -365,7 +367,9 @@ export interface RiffScoreConfig {
 export const DEFAULT_RIFF_CONFIG: RiffScoreConfig = {
   ui: {
     showToolbar: true,
-    scale: 1,
+    scale: 0.75,
+    showBackground: true,
+    showScoreTitle: true,
   },
   interaction: {
     isEnabled: true,

@@ -1,5 +1,47 @@
+/**
+ * AccidentalControls
+ *
+ * Toolbar tools for applying accidentals (Sharp, Flat, Natural).
+ * Handles both entry mode state and selection adjustment.
+ */
 import React from 'react';
+import { ACCIDENTALS, BRAVURA_FONT } from '@/constants/SMuFL';
 import ToolbarButton from './ToolbarButton';
+
+// SVG viewport and font size for compact toolbar icons
+const ICON_SIZE = 20;
+const FONT_SIZE = 20;
+
+interface AccidentalIconProps {
+  type: 'flat' | 'natural' | 'sharp';
+  color?: string;
+}
+
+/**
+ * Bravura-based accidental icon for toolbar
+ */
+const AccidentalIcon: React.FC<AccidentalIconProps> = ({ type, color = 'currentColor' }) => {
+  const glyph = ACCIDENTALS[type];
+  // Y positions tuned for each glyph to be visually centered in 20px box
+  // Flat needs to be lower, Sharp/Natural need to be higher
+  const yPos = type === 'flat' ? 13 : type === 'natural' ? 11 : 11;
+
+  return (
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} fill="none">
+      <text
+        x={ICON_SIZE / 2}
+        y={yPos}
+        fontFamily={BRAVURA_FONT}
+        fontSize={FONT_SIZE}
+        fill={color}
+        textAnchor="middle"
+        style={{ userSelect: 'none' }}
+      >
+        {glyph}
+      </text>
+    </svg>
+  );
+};
 
 interface AccidentalControlsProps {
   activeAccidental: 'flat' | 'natural' | 'sharp' | null;
@@ -16,13 +58,6 @@ const AccidentalControls: React.FC<AccidentalControlsProps> = ({
   editorState = 'IDLE',
   variant = 'default',
 }) => {
-  // Logic:
-  // If SELECTION_READY:
-  // - If mixed selection (more than 1 type present), show DASHED for any present types.
-  // - If homogeneous selection (only 1 type present), show ACTIVE for that type.
-  // If IDLE/ENTRY:
-  // - Show ACTIVE based on activeAccidental.
-
   const getVisualState = (type: 'flat' | 'natural' | 'sharp') => {
     let isActive = activeAccidental === type;
     let isDashed = false;
@@ -40,7 +75,6 @@ const AccidentalControls: React.FC<AccidentalControlsProps> = ({
         }
       } else {
         // Homogeneous state
-        // If only 'flat' is present, Flat button is active.
         isActive = present;
         isDashed = false;
       }
@@ -61,8 +95,7 @@ const AccidentalControls: React.FC<AccidentalControlsProps> = ({
         isActive={flatState.isActive}
         isDashed={flatState.isDashed}
         isEmphasized={flatState.isEmphasized}
-        className="riff-ToolbarButton--accidental"
-        icon="♭"
+        icon={<AccidentalIcon type="flat" />}
         preventFocus={true}
         variant={variant}
       />
@@ -72,8 +105,7 @@ const AccidentalControls: React.FC<AccidentalControlsProps> = ({
         isActive={naturalState.isActive}
         isDashed={naturalState.isDashed}
         isEmphasized={naturalState.isEmphasized}
-        className="riff-ToolbarButton--accidental"
-        icon="♮"
+        icon={<AccidentalIcon type="natural" />}
         preventFocus={true}
         variant={variant}
       />
@@ -83,8 +115,7 @@ const AccidentalControls: React.FC<AccidentalControlsProps> = ({
         isActive={sharpState.isActive}
         isDashed={sharpState.isDashed}
         isEmphasized={sharpState.isEmphasized}
-        className="riff-ToolbarButton--accidental"
-        icon="♯"
+        icon={<AccidentalIcon type="sharp" />}
         preventFocus={true}
         variant={variant}
       />

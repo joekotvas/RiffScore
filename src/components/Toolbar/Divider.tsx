@@ -1,3 +1,9 @@
+/**
+ * Divider
+ *
+ * Visual separator for toolbar groups.
+ * Supports horizontal and vertical orientations.
+ */
 import React from 'react';
 import './styles/Divider.css';
 

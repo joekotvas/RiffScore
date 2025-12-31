@@ -1,6 +1,11 @@
+/**
+ * PlaybackControls
+ *
+ * Toolbar section for playback management (Play/Pause, BPM).
+ * Includes custom instrument selection and transport controls.
+ */
 import React, { useState, useEffect } from 'react';
 import { Play, Pause } from 'lucide-react';
-import ToolbarButton from './ToolbarButton';
 import InstrumentSelector from './InstrumentSelector';
 import { PRECOMPOSED_NOTES_UP, BRAVURA_FONT } from '@/constants/SMuFL';
 import { InstrumentType } from '@/engines/toneEngine';
@@ -14,7 +19,6 @@ interface PlaybackControlsProps {
   selectedInstrument: InstrumentType;
   onInstrumentChange: (instrument: InstrumentType) => void;
   samplerLoaded: boolean;
-  height?: string;
   variant?: 'default' | 'ghost';
 }
 
@@ -26,7 +30,6 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   selectedInstrument,
   onInstrumentChange,
   samplerLoaded,
-  height = 'h-9',
   variant = 'default',
 }) => {
   const [bpmBuffer, setBpmBuffer] = useState(String(bpm));
@@ -61,21 +64,20 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
 
   return (
     <div className="riff-PlaybackControls">
-      <ToolbarButton
-        icon={
-          isPlaying ? (
-            <Pause size={14} fill="currentColor" />
-          ) : (
-            <Play size={14} fill="currentColor" />
-          )
-        }
-        showLabel={true}
-        label={isPlaying ? 'Pause' : 'Play'}
+      <button
+        type="button"
+        className="riff-PlaybackControls__play-button"
         onClick={onPlayToggle}
-        isEmphasized={true}
-        height={height}
-        variant={variant}
-      />
+        aria-label={isPlaying ? 'Pause' : 'Play'}
+        title={isPlaying ? 'Pause' : 'Play'}
+      >
+        {isPlaying ? (
+          <Pause size={14} fill="currentColor" />
+        ) : (
+          <Play size={14} fill="currentColor" />
+        )}
+        <span className="riff-PlaybackControls__label">{isPlaying ? 'Pause' : 'Play'}</span>
+      </button>
 
       <div
         className={bpmWrapperClasses}
@@ -86,7 +88,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
           <span className="riff-PlaybackControls__bpm-note" style={{ fontFamily: BRAVURA_FONT }}>
             {PRECOMPOSED_NOTES_UP.quarter}
           </span>
-          <span className="riff-PlaybackControls__bpm-equals"> = </span>
+          <span className="riff-PlaybackControls__bpm-equals"> ＝ </span>
         </span>
         <input
           type="text"

@@ -1,3 +1,9 @@
+/**
+ * HistoryControls
+ *
+ * Undo/Redo toolbar buttons.
+ * Interfaces with the score history stack.
+ */
 import React from 'react';
 import { RotateCcw, RotateCw } from 'lucide-react';
 import ToolbarButton from './ToolbarButton';
@@ -22,7 +28,7 @@ const HistoryControls: React.FC<HistoryControlsProps> = ({
   return (
     <div className="riff-ControlGroup">
       <ToolbarButton
-        icon={<RotateCcw size={18} />}
+        icon={<RotateCcw size={14} />}
         label="Undo"
         onClick={onUndo}
         disabled={!canUndo}
@@ -30,7 +36,7 @@ const HistoryControls: React.FC<HistoryControlsProps> = ({
         variant={variant}
       />
       <ToolbarButton
-        icon={<RotateCw size={18} />}
+        icon={<RotateCw size={14} />}
         label="Redo"
         onClick={onRedo}
         disabled={!canRedo}
