@@ -73,11 +73,11 @@
   padding: var(--riff-spacing-0) var(--riff-spacing-2); /* 8px padding */
   height: var(--riff-toolbar-button-size);
   border-radius: var(--riff-border-radius);
-  border: var(--riff-border-width) solid transparent; /* Match active button border */
+  border: var(--riff-border-width) solid var(--riff-color-primary); /* Defined border */
   
-  /* Highlight color (Active state) */
-  background-color: var(--riff-color-primary);
-  color: var(--riff-color-active-text);
+  /* Inverted Highlight (Outlined) */
+  background-color: var(--riff-color-button-bg);
+  color: var(--riff-color-primary);
   
   font-size: var(--riff-font-size-xs); /* 0.75rem */
   font-weight: var(--riff-font-weight-bold);
