@@ -7,7 +7,7 @@
 .riff-Divider--vertical {
   width: var(--riff-divider-size);
   height: var(--riff-divider-height);
-  margin: var(--riff-spacing-0) var(--riff-spacing-2);
+  margin: var(--riff-spacing-0) var(--riff-spacing-3);
 }
 
 .riff-Divider--horizontal {

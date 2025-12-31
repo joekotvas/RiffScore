@@ -27,7 +27,7 @@
 .riff-ToolbarButton--auto-width {
   width: auto;
   min-width: var(--riff-toolbar-button-size);
-  padding: var(--riff-spacing-0) var(--riff-spacing-2);
+  padding: var(--riff-spacing-0) var(--riff-spacing-1);
 }
 
 /* --- Border Styles --- */
