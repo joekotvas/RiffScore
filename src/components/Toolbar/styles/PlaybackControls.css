@@ -86,7 +86,7 @@
 }
 
 .riff-PlaybackControls__play-button:hover {
-  background-color: var(--riff-color-primary-hover);
+  background-color: var(--riff-color-primary);
   border-color: transparent;
   color: var(--riff-color-active-text);
 }
