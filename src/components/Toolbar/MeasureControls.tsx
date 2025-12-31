@@ -46,14 +46,14 @@ const PickupIcon: React.FC = () => (
     {/* Ascending eighth note couplet */}
     {/* Note 1 (Low) */}
     <ellipse cx={6} cy={14} rx={2.3} ry={1.6} fill="currentColor" transform="rotate(-20 6 14)" />
-    <line x1={8.1} y1={14} x2={8.1} y2={6} stroke="currentColor" strokeWidth={1} />
+    <line x1={7.5} y1={14} x2={7.5} y2={4} stroke="currentColor" strokeWidth={1} />
     
     {/* Note 2 (High) */}
     <ellipse cx={13} cy={11} rx={2.3} ry={1.6} fill="currentColor" transform="rotate(-20 13 11)" />
-    <line x1={15.1} y1={11} x2={15.1} y2={3} stroke="currentColor" strokeWidth={1} />
+    <line x1={14.5} y1={11} x2={14.5} y2={1} stroke="currentColor" strokeWidth={1} />
     
     {/* Beam (thick, polygon for vertical ends) */}
-    <polygon points="8.1,6 15.1,3 15.1,5.5 8.1,8.5" fill="currentColor" />
+    <polygon points="7.5,4 14.5,1 14.5,3.5 7.5,6.5" fill="currentColor" />
   </svg>
 );
 
