@@ -3,10 +3,9 @@
 .riff-Toolbar {
   display: flex;
   flex-direction: column;
-  gap: var(--riff-toolbar-gap);
-  margin-bottom: var(--riff-spacing-3);
-  border-bottom: var(--riff-border-width) solid var(--riff-color-border);
-  padding-bottom: var(--riff-toolbar-gap);
+  gap: 0;
+  margin-bottom: 0;
+  padding: var(--riff-spacing-2) var(--riff-spacing-2);
 }
 
 .riff-Toolbar:focus {

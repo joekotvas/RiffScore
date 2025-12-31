@@ -1,5 +1,10 @@
 /* src/components/Layout/styles/ScoreTitleField.css */
 
+.riff-ScoreEditor__title-wrapper {
+  position: relative;
+  z-index: 20;
+}
+
 .riff-ScoreTitleField,
 .riff-ScoreTitleField__input {
   box-sizing: border-box;
@@ -27,7 +32,8 @@
 /* Input specific (Edit mode) */
 .riff-ScoreTitleField__input {
   outline: none;
-  padding: var(--riff-spacing-0) var(--riff-spacing-4);
-  margin: var(--riff-spacing-0) var(--riff-spacing-6);
+  /* Match display mode padding to prevent jumping */
+  padding: var(--riff-spacing-0) var(--riff-spacing-6);
+  margin: 0;
   border-color: var(--riff-color-border);
 }

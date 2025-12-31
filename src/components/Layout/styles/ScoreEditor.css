@@ -1,13 +1,5 @@
 /* src/components/Layout/styles/ScoreEditor.css */
 
 .riff-ScoreEditor {
-  margin-bottom: var(--riff-spacing-8);
-  /* Removed chrome: blur, radius, shadow, padding, border per Issue #160 */
-}
-
-  /* Removed radius and padding-top per Issue #160 */
-
-.riff-ScoreEditor__title-wrapper {
-  position: relative;
-  z-index: 20;
+  padding: 0;
 }
