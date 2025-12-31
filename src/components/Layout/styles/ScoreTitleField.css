@@ -10,13 +10,13 @@
   box-sizing: border-box;
   /* font-family: var(--riff-font-serif); Removed to enforce inheritance */
   font-weight: var(--riff-font-weight-bold);
-  padding: var(--riff-spacing-0) var(--riff-spacing-6);
+  padding: var(--riff-spacing-0) var(--riff-spacing-1);
   border-radius: var(--riff-border-radius);
   color: var(--riff-color-text);
   border: var(--riff-border-width) solid transparent;
   background-color: transparent;
   transition: background-color var(--riff-transition-normal);
-  margin: 1rem 0 0;
+  margin: 1rem 2rem 0;
   height: 2.25rem;
   letter-spacing: 0;
   font-kerning: normal;
@@ -37,4 +37,5 @@
 .riff-ScoreTitleField__input {
   outline: none;
   border-color: var(--riff-color-border);
+  max-width: 100%;
 }
