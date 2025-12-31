@@ -1,18 +1,11 @@
 /* src/components/Layout/styles/ScoreEditor.css */
 
 .riff-ScoreEditor {
-  backdrop-filter: blur(12px);
-  border-radius: var(--riff-border-radius-lg);
-  box-shadow: var(--riff-shadow-xl);
   margin-bottom: var(--riff-spacing-8);
-  padding: var(--riff-spacing-2);
-  border: var(--riff-border-width) solid var(--riff-color-border);
+  /* Removed chrome: blur, radius, shadow, padding, border per Issue #160 */
 }
 
-.riff-ScoreEditor__content {
-  border-radius: var(--riff-border-radius-xl);
-  padding-top: var(--riff-spacing-4);
-}
+  /* Removed radius and padding-top per Issue #160 */
 
 .riff-ScoreEditor__title-wrapper {
   position: relative;
