@@ -2,35 +2,20 @@ import React from 'react';
 import './styles/ToolbarButton.css';
 
 interface ToolbarButtonProps {
-  /** The icon element to display */
-  icon?: React.ReactNode;
-  /** Text label (used for aria-label and tooltip even if hidden) */
-  label: string;
-  /** Whether to display the label text visually */
-  showLabel?: boolean;
-  /** Whether the button is in an active/toggled state */
-  isActive?: boolean;
-  /** Click handler */
-  onClick?: () => void;
-  /** Custom CSS classes */
-  className?: string; 
-  /** Disabled state */
-  disabled?: boolean;
-  /** Tooltip text (defaults to label if omitted) */
-  title?: string;
-  /** Ref for the button element */
-  ref?: React.Ref<HTMLButtonElement>;
-
-  /** If true, prevents focus when clicked (useful for keeping focus on canvas) */
-  preventFocus?: boolean;
-  /** Highlights the button (branding color) */
-  isEmphasized?: boolean;
-  /** Renders with a dashed border (e.g. for ghost/placeholder actions) */
-  isDashed?: boolean;
-  /** @deprecated Used legacy inline height, now handled via CSS */
-  height?: string; 
-  /** Visual style variant */
-  variant?: 'default' | 'ghost';
+  icon?: React.ReactNode; // Icon element to display
+  label: string; // Text label (used for aria-label and tooltip even if hidden)
+  showLabel?: boolean; // Whether to display the label text visually
+  isActive?: boolean; // Whether the button is in an active/toggled state
+  onClick?: () => void; // Click handler
+  className?: string; // Custom CSS classes
+  disabled?: boolean; // Disabled state
+  title?: string; // Tooltip text (defaults to label if omitted)
+  ref?: React.Ref<HTMLButtonElement>; // Ref for the button element
+  preventFocus?: boolean; // If true, prevents focus when clicked (useful for keeping focus on canvas)
+  isEmphasized?: boolean; // Highlights the button (branding color)
+  isDashed?: boolean; // Renders with a dashed border (e.g. for ghost/placeholder actions)
+  height?: string; // @deprecated Used legacy inline height, now handled via CSS
+  variant?: 'default' | 'ghost'; // Visual style variant
 }
 
 /**

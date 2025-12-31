@@ -2,27 +2,18 @@ import React from 'react';
 import './styles/ScoreTitleField.css';
 
 interface ScoreTitleFieldProps {
-  /** The current title text */
-  title: string;
-  /** Whether the field is currently in edit mode */
-  isEditing: boolean;
-  /** State setter for edit mode */
-  setIsEditing: (editing: boolean) => void;
-  /** Temporary text buffer while editing */
-  buffer: string;
-  /** State setter for buffer */
-  setBuffer: (value: string) => void;
-  /** Commits the buffer to the actual title */
-  commit: () => void;
-  /** Ref to the input element for measurement and focus */
-  inputRef: React.RefObject<HTMLInputElement | null>;
-  /** Theme colors */
+  title: string; // The current title text
+  isEditing: boolean; // Whether the field is currently in edit mode
+  setIsEditing: (editing: boolean) => void; // State setter for edit mode
+  buffer: string; // Temporary text buffer while editing
+  setBuffer: (value: string) => void; // State setter for buffer
+  commit: () => void; // Commits the buffer to the actual title
+  inputRef: React.RefObject<HTMLInputElement | null>; // Ref to the input element for measurement and focus
   theme: {
     text: string;
     border: string;
-  };
-  /** Zoom scale factor usually passed from ScoreContext */
-  scale?: number;
+  }; // Theme colors
+  scale?: number; // Zoom scale factor usually passed from ScoreContext
 }
 
 /**
