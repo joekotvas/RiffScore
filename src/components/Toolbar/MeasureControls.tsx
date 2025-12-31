@@ -39,21 +39,21 @@ const DeleteMeasureIcon: React.FC = () => (
  * Pickup Measure Icon - Short barline segment
  */
 const PickupIcon: React.FC = () => (
-  <svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} fill="none">
+  <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="1 0 18 18" fill="none">
     {/* Barline to the right */}
     <line x1={18} y1={4} x2={18} y2={16} stroke="currentColor" strokeWidth={1} />
     
     {/* Ascending eighth note couplet */}
     {/* Note 1 (Low) */}
     <ellipse cx={6} cy={14} rx={2.3} ry={1.6} fill="currentColor" transform="rotate(-20 6 14)" />
-    <line x1={7.8} y1={14} x2={7.8} y2={4} stroke="currentColor" strokeWidth={1} />
+    <line x1={7.7} y1={14} x2={7.7} y2={5} stroke="currentColor" strokeWidth={1} />
     
     {/* Note 2 (High) */}
     <ellipse cx={13} cy={11} rx={2.3} ry={1.6} fill="currentColor" transform="rotate(-20 13 11)" />
-    <line x1={14.8} y1={11} x2={14.8} y2={1} stroke="currentColor" strokeWidth={1} />
+    <line x1={14.7} y1={11} x2={14.7} y2={2} stroke="currentColor" strokeWidth={1} />
     
     {/* Beam (thick, polygon covers stems 7.3-15.3) */}
-    <polygon points="7.3,4 15.3,1 15.3,3.5 7.3,6.5" fill="currentColor" />
+    <polygon points="7.2,4 15.2,1 15.2,3.5 7.2,6.5" fill="currentColor" />
   </svg>
 );
 
