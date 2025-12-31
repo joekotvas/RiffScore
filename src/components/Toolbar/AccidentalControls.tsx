@@ -16,8 +16,9 @@ interface AccidentalIconProps {
  */
 const AccidentalIcon: React.FC<AccidentalIconProps> = ({ type, color = 'currentColor' }) => {
   const glyph = ACCIDENTALS[type];
-  // Y positions tuned for each glyph
-  const yPos = type === 'flat' ? 15 : type === 'natural' ? 14 : 14;
+  // Y positions tuned for each glyph to be visually centered in 20px box
+  // Flat needs to be lower, Sharp/Natural need to be higher
+  const yPos = type === 'flat' ? 14 : type === 'natural' ? 15 : 15;
 
   return (
     <svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} fill="none">

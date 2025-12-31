@@ -49,16 +49,45 @@ interface MeasureBarLineProps {
   theme: Theme;
 }
 
-const MeasureBarLine: React.FC<MeasureBarLineProps> = ({ x, baseY, isLast, theme }) => (
-  <line
-    x1={x}
-    y1={baseY}
-    x2={x}
-    y2={baseY + CONFIG.lineHeight * 4}
-    stroke={isLast ? theme.text : theme.score.line}
-    strokeWidth={isLast ? 3 : 1}
-  />
-);
+const MeasureBarLine: React.FC<MeasureBarLineProps> = ({ x, baseY, isLast, theme }) => {
+  const height = CONFIG.lineHeight * 4;
+  
+  if (isLast) {
+    return (
+      <g>
+        {/* Thin line */}
+        <line
+          x1={x - 5}
+          y1={baseY}
+          x2={x - 5}
+          y2={baseY + height}
+          stroke={theme.text}
+          strokeWidth={1}
+        />
+        {/* Thick line */}
+        <line
+          x1={x}
+          y1={baseY}
+          x2={x}
+          y2={baseY + height}
+          stroke={theme.text}
+          strokeWidth={3}
+        />
+      </g>
+    );
+  }
+
+  return (
+    <line
+      x1={x}
+      y1={baseY}
+      x2={x}
+      y2={baseY + height}
+      stroke={theme.score.line}
+      strokeWidth={1}
+    />
+  );
+};
 
 // --- Main Component ---
 

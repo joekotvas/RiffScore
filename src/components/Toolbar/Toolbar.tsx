@@ -350,6 +350,8 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
             variant="ghost"
           />
 
+          <Divider />
+
           <MeasureControls
             onAddMeasure={addMeasure}
             onRemoveMeasure={removeMeasure}
