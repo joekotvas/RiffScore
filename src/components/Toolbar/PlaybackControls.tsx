@@ -61,21 +61,18 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
 
   return (
     <div className="riff-PlaybackControls">
-      <ToolbarButton
-        icon={
-          isPlaying ? (
-            <Pause size={14} fill="currentColor" />
-          ) : (
-            <Play size={14} fill="currentColor" />
-          )
-        }
-        showLabel={true}
-        label={isPlaying ? 'Pause' : 'Play'}
+      <button
+        type="button"
+        className={`riff-PlaybackControls__play-button ${isGhost ? 'riff-PlaybackControls__play-button--ghost' : ''}`}
         onClick={onPlayToggle}
-        isEmphasized={true}
-        height={height}
-        variant={variant}
-      />
+        aria-label={isPlaying ? 'Pause' : 'Play'}
+        title={isPlaying ? 'Pause' : 'Play'}
+      >
+        {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+        <span className="riff-PlaybackControls__label">
+          {isPlaying ? 'Pause' : 'Play'}
+        </span>
+      </button>
 
       <div
         className={bpmWrapperClasses}

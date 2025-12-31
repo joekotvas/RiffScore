@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   gap: var(--riff-spacing-0);
-  padding: var(--riff-spacing-0) var(--riff-spacing-1);
+  padding: var(--riff-spacing-0) var(--riff-spacing-2); /* Increased to spacing-2 (8px) */
   border-radius: var(--riff-border-radius);
   border: var(--riff-border-width) solid transparent;
   transition: all var(--riff-transition-normal);
@@ -62,4 +62,45 @@
   outline: none;
   border: none;
   color: var(--riff-color-primary);
+}
+
+/* --- Play Button Custom Styles --- */
+
+.riff-PlaybackControls__play-button {
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-2); /* Space between icon and label */
+  padding: var(--riff-spacing-0) var(--riff-spacing-2); /* 8px padding */
+  height: var(--riff-toolbar-button-size);
+  border-radius: var(--riff-border-radius);
+  border: var(--riff-border-width) solid var(--riff-color-border);
+  background-color: var(--riff-color-button-bg);
+  color: var(--riff-color-text-secondary);
+  font-size: var(--riff-font-size-sm);
+  font-weight: var(--riff-font-weight-medium);
+  cursor: pointer;
+  transition: all var(--riff-transition-normal);
+}
+
+.riff-PlaybackControls__play-button:hover {
+  background-color: var(--riff-color-hover-bg);
+  border-color: var(--riff-color-primary); /* Use primary color on hover per typical emphasis */
+  color: var(--riff-color-primary);
+}
+
+.riff-PlaybackControls__play-button--ghost {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+.riff-PlaybackControls__play-button--ghost:hover {
+  background-color: var(--riff-color-hover-bg);
+  border-color: var(--riff-color-border);
+}
+
+.riff-PlaybackControls__label {
+  font-size: var(--riff-font-size-xs);
+  font-weight: var(--riff-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--riff-tracking-wider);
 }
