@@ -5,6 +5,21 @@ All notable changes to RiffScore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0-alpha.6] - Unreleased
+
+### Added
+- **Embedding Support (Issue #160)**: Added `ui.showBackground` config option (default `true`) and "Lightweight Display Mode" (removed shadows/borders) for cleaner embedding.
+- **Auto-Expanding Title**: Score title input now dynamically resizes to fit content.
+
+### Changed
+- **Compact Toolbar**: Scaled toolbar to 0.83x and reduced spacing for tighter layout. Default score scale updated to 0.75.
+- **Pickup Icon**: Replaced "PK" text with a beamed eighth-note couplet icon (pickup measure).
+- **UI Polish**: Removed decorative chrome from `ScoreEditor` and improved title field interaction (Escape to cancel, no layout shift).
+
+### Fixed
+- **Title Jump**: Fixed visual layout shift when editing score title by unifying padding/margins.
+- **Input Typography**: Enforced font inheritance on inputs to match display text metrics.
+
 ## [1.0.0-alpha.5] - 2025-12-23
 
 ### Fixed

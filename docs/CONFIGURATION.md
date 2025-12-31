@@ -53,8 +53,9 @@ interface RiffScoreConfig {
 | Property | Default |
 |----------|---------|
 | `ui.showToolbar` | `true` |
-| `ui.scale` | `1` |
+| `ui.scale` | `0.75` |
 | `ui.theme` | `'LIGHT'` |
+| `ui.showBackground` | `true` |
 | `interaction.isEnabled` | `true` |
 | `interaction.enableKeyboard` | `true` |
 | `interaction.enablePlayback` | `true` |
