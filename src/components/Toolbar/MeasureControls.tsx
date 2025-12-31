@@ -11,12 +11,12 @@ const ICON_SIZE = 20;
 const AddMeasureIcon: React.FC = () => (
   <svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} fill="none">
     {/* Thin barline */}
-    <line x1={6} y1={4} x2={6} y2={16} stroke="currentColor" strokeWidth={1} />
+    <line x1={3} y1={4} x2={3} y2={16} stroke="currentColor" strokeWidth={1} />
     {/* Thick barline */}
-    <line x1={10} y1={4} x2={10} y2={16} stroke="currentColor" strokeWidth={2.5} />
+    <line x1={7} y1={4} x2={7} y2={16} stroke="currentColor" strokeWidth={2.5} />
     {/* Plus sign */}
-    <line x1={15} y1={10} x2={19} y2={10} stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
-    <line x1={17} y1={8} x2={17} y2={12} stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+    <line x1={12} y1={10} x2={16} y2={10} stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+    <line x1={14} y1={8} x2={14} y2={12} stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
   </svg>
 );
 
@@ -27,11 +27,11 @@ const AddMeasureIcon: React.FC = () => (
 const DeleteMeasureIcon: React.FC = () => (
   <svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} fill="none">
     {/* Thin barline */}
-    <line x1={6} y1={4} x2={6} y2={16} stroke="currentColor" strokeWidth={1} />
+    <line x1={3} y1={4} x2={3} y2={16} stroke="currentColor" strokeWidth={1} />
     {/* Thick barline */}
-    <line x1={10} y1={4} x2={10} y2={16} stroke="currentColor" strokeWidth={2.5} />
+    <line x1={7} y1={4} x2={7} y2={16} stroke="currentColor" strokeWidth={2.5} />
     {/* Minus sign */}
-    <line x1={15} y1={10} x2={19} y2={10} stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+    <line x1={12} y1={10} x2={16} y2={10} stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
   </svg>
 );
 
@@ -39,7 +39,7 @@ const DeleteMeasureIcon: React.FC = () => (
  * Pickup Measure Icon - Short barline segment
  */
 const PickupIcon: React.FC = () => (
-  <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="1 0 18 18" fill="none">
+  <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="2 0 18 18" fill="none">
     {/* Barline to the right */}
     <line x1={18} y1={4} x2={18} y2={16} stroke="currentColor" strokeWidth={1} />
     
