@@ -1,13 +1,21 @@
 # Zero-Import CSS Architecture
 
-This document explores moving RiffScore to a zero-import CSS model where consumers don't need to explicitly import stylesheets.
+This document describes RiffScore's approach to CSS bundling where consumers don't need to explicitly import stylesheets.
 
-## Current State
+## Current State (Implemented ✅)
 
-Consumers must import CSS:
+**Styles are bundled automatically.** Consumers just import the component:
+
 ```tsx
-import 'riffscore/styles.css';
 import { RiffScore } from 'riffscore';
+// No CSS import needed!
+```
+
+Styles are imported at the library entry point (`src/index.tsx`):
+
+```tsx
+import './styles/index.css'; // Bundled with library
+export { RiffScore } from './RiffScore';
 ```
 
 ## Zero-Import Approach
@@ -65,13 +73,17 @@ export default defineConfig({
 | Consumer DX | Good | Best |
 | Tree-shaking | CSS always loaded | CSS always loaded |
 
-## Recommendation
+## Implementation Status
 
-**Phase 1 (Current):** Fix explicit import path for standard DX
-**Phase 2 (Future):** Add opt-in zero-import via `enableAutoStyles()` export
+**✅ Completed**: Styles are bundled at the library entry point (`src/index.tsx`). No consumer action required.
 
-Example opt-in API:
+## Future Considerations
+
+If explicit CSS import is ever needed (e.g., for SSR optimization), consider:
+
 ```tsx
-import { RiffScore, enableAutoStyles } from 'riffscore';
-enableAutoStyles(); // Call once at app init
+// Alternative explicit import (not currently required)
+import 'riffscore/dist/styles.css';
+import { RiffScore } from 'riffscore';
 ```
+

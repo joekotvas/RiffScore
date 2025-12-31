@@ -532,3 +532,78 @@ All colors, spacing, and fonts should be defined as CSS Variables in `src/styles
 - **Layout**: Use Flexbox and Grid. Avoid floats and absolute positioning unless necessary for specific overlays/canvas logic.
 - **Layers**: (Optional) Consider using `@layer` if managing cascade specificity becomes complex, but keep it simple for now to ensure broader browser support without polyfills if possible (though support is good).
 - **Units**: Use `rem` for accessibility (font scaling).
+
+### Style Bundling
+
+Styles are bundled into the library entry point (`src/index.tsx`). **Consumers do not need to import CSS separately** — just import the component and it works.
+
+```tsx
+// src/index.tsx
+import './styles/index.css'; // Bundled with library
+
+export { RiffScore } from './RiffScore';
+```
+
+---
+
+## 10. React Patterns
+
+### Ref-Safe Dropdown Positioning
+
+When positioning dropdowns/overlays relative to a trigger button, **never access refs during render**. This violates React's rules and causes the `react-hooks/refs` lint error.
+
+**❌ Bad: Accessing ref during render**
+```tsx
+{isOpen && (
+  <Dropdown
+    position={{
+      x: buttonRef.current?.getBoundingClientRect().left || 0,  // ❌
+      y: buttonRef.current?.getBoundingClientRect().bottom || 0 // ❌
+    }}
+  />
+)}
+```
+
+**✅ Good: Let DropdownOverlay compute position internally**
+
+The `DropdownOverlay` component accepts a `triggerRef` and computes its position in `useLayoutEffect` — the correct place to access refs:
+
+```tsx
+// src/components/Toolbar/Menus/DropdownOverlay.tsx
+const DropdownOverlay: React.FC<Props> = ({ triggerRef, gap = 4, ... }) => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  useLayoutEffect(() => {
+    if (triggerRef?.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPosition({ x: rect.left, y: rect.bottom + gap });
+    }
+  }, [triggerRef, gap]);
+
+  return <Portal>...positioned at {position}...</Portal>;
+};
+```
+
+**Usage:**
+```tsx
+const buttonRef = useRef<HTMLButtonElement>(null);
+
+<ToolbarButton ref={buttonRef} onClick={() => setIsOpen(true)} />
+
+{isOpen && (
+  <DropdownOverlay
+    onClose={() => setIsOpen(false)}
+    triggerRef={buttonRef as React.RefObject<HTMLElement>}
+    width={200}
+  >
+    {/* dropdown content */}
+  </DropdownOverlay>
+)}
+```
+
+**Key Points:**
+- Pass `triggerRef` — don't compute position during render
+- `DropdownOverlay` handles positioning in `useLayoutEffect`
+- Optional `gap` prop controls offset between trigger and dropdown
+- Optional `position` prop for explicit positioning (overrides triggerRef calculation)
+
