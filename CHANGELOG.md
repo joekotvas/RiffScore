@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.0.0-alpha.6] - 2025-12-31
 
 ### Added
-- **Embedding Support (Issue #160)**: Added `ui.showBackground` config option (default `true`) and "Lightweight Display Mode" (removed shadows/borders) for cleaner embedding.
+- **Embedding Support (Issue #160)**: Added `ui.showBackground` config option (default `true`) and "Lightweight Display Mode" (removed shadows/borders) for cleaner embedding. See [Configuration Guide](docs/CONFIGURATION.md).
 - **Score Title Toggle**: `ui.showScoreTitle` config option to show/hide the title input.
 - **Font Loading Animations**: Implemented `useFontLoaded` hook to prevent FOUC by hiding glyphs until Bravura font is ready ([#170](https://github.com/joekotvas/RiffScore/pull/170)).
 
@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Compact Toolbar**: Scaled toolbar to 0.83x and reduced spacing for tighter layout. Default score scale updated to 0.75.
 - **Pickup Icon**: Replaced "PK" text with a beamed eighth-note couplet icon (pickup measure).
 - **UI Polish**: Removed decorative chrome from `ScoreEditor` (`backdrop-filter`, borders) and improved title field interaction (Escape key now cancels editing).
-- **Pattern Governance**: Established explicit governance for architectural patterns ([#179](https://github.com/joekotvas/RiffScore/pull/179)).
+- **Pattern Governance**: Established explicit governance for architectural patterns ([#179](https://github.com/joekotvas/RiffScore/pull/179)). See [Coding Patterns](docs/CODING_PATTERNS.md).
 
 ### Fixed
 - **Horizontal Selection**: Fixed bug where horizontal selection extension dropped notes on other staves ([#124](https://github.com/joekotvas/RiffScore/issues/124), [#183](https://github.com/joekotvas/RiffScore/pull/183)).
@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Title Jump**: Fixed visual layout shift when editing score title.
 
 ### Refactoring
-- **Centralized Layout Engine**: Massive refactor consolidating layout logic into a unified engine (Issue #109, [#188](https://github.com/joekotvas/RiffScore/pull/188)).
+- **Centralized Layout Engine**: Massive refactor consolidating layout logic into a unified engine (Issue #109, [#188](https://github.com/joekotvas/RiffScore/pull/188)). See [Layout Engine Docs](docs/LAYOUT_ENGINE.md).
 - **Hooks Architecture**: Restructured `src/hooks` with semantic groupings (audio, layout, editor, interaction) ([#182](https://github.com/joekotvas/RiffScore/pull/182)).
 - **ID Standardization**: Migrated all ID types to strict strings ([#177](https://github.com/joekotvas/RiffScore/pull/177)).
 - **Melody Data**: Refactored hardcoded melodies to JSON format ([#185](https://github.com/joekotvas/RiffScore/pull/185)).
