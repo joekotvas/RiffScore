@@ -5,21 +5,31 @@ All notable changes to RiffScore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.0.0-alpha.6] - Unreleased
+## [1.0.0-alpha.6] - 2025-12-31
 
 ### Added
 - **Embedding Support (Issue #160)**: Added `ui.showBackground` config option (default `true`) and "Lightweight Display Mode" (removed shadows/borders) for cleaner embedding.
 - **Score Title Toggle**: `ui.showScoreTitle` config option to show/hide the title input.
-- **Auto-Expanding Title**: Score title input now dynamically resizes to fit content.
+- **Font Loading Animations**: Implemented `useFontLoaded` hook to prevent FOUC by hiding glyphs until Bravura font is ready ([#170](https://github.com/joekotvas/RiffScore/pull/170)).
 
 ### Changed
+- **Tailwind Removal**: Complete migration from Tailwind CSS to Vanilla CSS for zero-dependency styling ([#189](https://github.com/joekotvas/RiffScore/pull/189)).
 - **Compact Toolbar**: Scaled toolbar to 0.83x and reduced spacing for tighter layout. Default score scale updated to 0.75.
 - **Pickup Icon**: Replaced "PK" text with a beamed eighth-note couplet icon (pickup measure).
-- **UI Polish**: Removed decorative chrome from `ScoreEditor` and improved title field interaction (Escape to cancel, no layout shift).
+- **UI Polish**: Removed decorative chrome from `ScoreEditor` (`backdrop-filter`, borders) and improved title field interaction.
+- **Pattern Governance**: Established explicit governance for architectural patterns ([#179](https://github.com/joekotvas/RiffScore/pull/179)).
 
 ### Fixed
-- **Title Jump**: Fixed visual layout shift when editing score title by unifying padding/margins.
-- **Input Typography**: Enforced font inheritance on inputs to match display text metrics.
+- **Horizontal Selection**: Fixed bug where horizontal selection extension dropped notes on other staves ([#124](https://github.com/joekotvas/RiffScore/issues/124), [#183](https://github.com/joekotvas/RiffScore/pull/183)).
+- **TypeScript Compliance**: Resolved all outstanding TypeScript errors for a clean build ([#176](https://github.com/joekotvas/RiffScore/pull/176)).
+- **Theming**: Fixed various dark mode inconsistencies and scoping issues ([#171](https://github.com/joekotvas/RiffScore/pull/171)).
+- **Title Jump**: Fixed visual layout shift when editing score title.
+
+### Refactoring
+- **Centralized Layout Engine**: Massive refactor consolidating layout logic into a unified engine (Issue #109, [#188](https://github.com/joekotvas/RiffScore/pull/188)).
+- **Hooks Architecture**: Restructured `src/hooks` with semantic groupings (audio, layout, editor, interaction) ([#182](https://github.com/joekotvas/RiffScore/pull/182)).
+- **ID Standardization**: Migrated all ID types to strict strings ([#177](https://github.com/joekotvas/RiffScore/pull/177)).
+- **Melody Data**: Refactored hardcoded melodies to JSON format ([#185](https://github.com/joekotvas/RiffScore/pull/185)).
 
 ## [1.0.0-alpha.5] - 2025-12-23
 
