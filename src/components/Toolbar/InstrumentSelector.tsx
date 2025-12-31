@@ -1,3 +1,9 @@
+/**
+ * InstrumentSelector
+ *
+ * Dropdown menu for selecting playback instruments.
+ * Manages sampler loading state and instrument selection.
+ */
 import React, { useState, useRef } from 'react';
 import { AudioWaveform, Check } from 'lucide-react';
 import { InstrumentType, setInstrument } from '@/engines/toneEngine';

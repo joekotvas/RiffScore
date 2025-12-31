@@ -1,3 +1,9 @@
+/**
+ * ModifierControls
+ *
+ * Toolbar tools for note modifiers (Dots, Ties).
+ * Handles validation logic for applying these modifiers.
+ */
 import React from 'react';
 import TieIcon from '../Assets/TieIcon';
 import ToolbarButton from './ToolbarButton';

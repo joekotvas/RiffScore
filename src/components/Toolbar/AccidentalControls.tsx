@@ -1,3 +1,9 @@
+/**
+ * AccidentalControls
+ *
+ * Toolbar tools for applying accidentals (Sharp, Flat, Natural).
+ * Handles both entry mode state and selection adjustment.
+ */
 import React from 'react';
 import { ACCIDENTALS, BRAVURA_FONT } from '@/constants/SMuFL';
 import ToolbarButton from './ToolbarButton';

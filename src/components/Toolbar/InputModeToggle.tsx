@@ -1,3 +1,8 @@
+/**
+ * InputModeToggle
+ *
+ * Switch for toggling between Note Entry and Rest Entry modes.
+ */
 import React from 'react';
 import { useTheme } from '@/context/ThemeContext';
 import { RESTS, NOTEHEADS, BRAVURA_FONT } from '@/constants/SMuFL';

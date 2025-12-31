@@ -1,3 +1,9 @@
+/**
+ * StaffControls
+ *
+ * Toolbar tools for changing staff properties (Clef, Key, Time Signature).
+ * Manages overlay menus for these selections.
+ */
 import React, { useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import ClefIcon from '../Assets/ClefIcon';
 import { CLEF_TYPES, KEY_SIGNATURES } from '@/constants';

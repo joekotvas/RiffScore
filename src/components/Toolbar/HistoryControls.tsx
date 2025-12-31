@@ -1,3 +1,9 @@
+/**
+ * HistoryControls
+ *
+ * Undo/Redo toolbar buttons.
+ * Interfaces with the score history stack.
+ */
 import React from 'react';
 import { RotateCcw, RotateCw } from 'lucide-react';
 import ToolbarButton from './ToolbarButton';
