@@ -51,7 +51,7 @@ interface MeasureBarLineProps {
 
 const MeasureBarLine: React.FC<MeasureBarLineProps> = ({ x, baseY, isLast, theme }) => {
   const height = CONFIG.lineHeight * 4;
-  
+
   if (isLast) {
     return (
       <g>
@@ -65,27 +65,13 @@ const MeasureBarLine: React.FC<MeasureBarLineProps> = ({ x, baseY, isLast, theme
           strokeWidth={1}
         />
         {/* Thick line */}
-        <line
-          x1={x}
-          y1={baseY}
-          x2={x}
-          y2={baseY + height}
-          stroke={theme.text}
-          strokeWidth={4}
-        />
+        <line x1={x} y1={baseY} x2={x} y2={baseY + height} stroke={theme.text} strokeWidth={4} />
       </g>
     );
   }
 
   return (
-    <line
-      x1={x}
-      y1={baseY}
-      x2={x}
-      y2={baseY + height}
-      stroke={theme.score.line}
-      strokeWidth={1}
-    />
+    <line x1={x} y1={baseY} x2={x} y2={baseY + height} stroke={theme.score.line} strokeWidth={1} />
   );
 };
 

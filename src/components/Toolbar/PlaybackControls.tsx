@@ -65,10 +65,12 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         aria-label={isPlaying ? 'Pause' : 'Play'}
         title={isPlaying ? 'Pause' : 'Play'}
       >
-        {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
-        <span className="riff-PlaybackControls__label">
-          {isPlaying ? 'Pause' : 'Play'}
-        </span>
+        {isPlaying ? (
+          <Pause size={14} fill="currentColor" />
+        ) : (
+          <Play size={14} fill="currentColor" />
+        )}
+        <span className="riff-PlaybackControls__label">{isPlaying ? 'Pause' : 'Play'}</span>
       </button>
 
       <div

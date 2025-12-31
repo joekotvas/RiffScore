@@ -38,7 +38,7 @@ export function ScoreTitleField({
 }: ScoreTitleFieldProps) {
   // Base font size is 1.875rem (text-3xl), scaled by the zoom factor
   const fontSize = `calc(1.875rem * ${scale})`;
-  
+
   // Auto-resize input width to fit content
   // Creates a hidden span with identical font metrics to measure text width
   React.useLayoutEffect(() => {
@@ -46,7 +46,7 @@ export function ScoreTitleField({
       const input = inputRef.current;
       const measureSpan = document.createElement('span');
       const computed = window.getComputedStyle(input);
-      
+
       // Copy relevant styles for accurate measurement
       measureSpan.style.font = computed.font;
       measureSpan.style.fontSize = fontSize; // Ensure dynamic scale is applied
@@ -59,14 +59,14 @@ export function ScoreTitleField({
       measureSpan.style.visibility = 'hidden';
       measureSpan.style.position = 'absolute';
       measureSpan.style.whiteSpace = 'pre';
-      
+
       measureSpan.textContent = buffer || ' ';
       document.body.appendChild(measureSpan);
       // measureSpan.getBoundingClientRect().width gives subpixel float
       // Add small buffer (2px) to prevent scroll/jitter on rounding
-      const width = measureSpan.getBoundingClientRect().width + 2; 
+      const width = measureSpan.getBoundingClientRect().width + 2;
       document.body.removeChild(measureSpan);
-      
+
       input.style.width = `${width}px`;
     }
   }, [buffer, isEditing, fontSize, inputRef]);

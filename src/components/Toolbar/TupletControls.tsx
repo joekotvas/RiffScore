@@ -32,13 +32,7 @@ const TupletIcon: React.FC<{ digit: 3 | 5 }> = ({ digit }) => {
       </text>
       {/* Noteheads as dots */}
       {Array.from({ length: dotCount }).map((_, i) => (
-        <circle
-          key={i}
-          cx={startX + i * dotSpacing}
-          cy={17}
-          r={1.5}
-          fill="currentColor"
-        />
+        <circle key={i} cx={startX + i * dotSpacing} cy={17} r={1.5} fill="currentColor" />
       ))}
     </svg>
   );

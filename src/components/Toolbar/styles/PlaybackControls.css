@@ -74,11 +74,11 @@
   height: var(--riff-toolbar-button-size);
   border-radius: var(--riff-border-radius);
   border: var(--riff-border-width) solid var(--riff-color-primary); /* Defined border */
-  
+
   /* Inverted Highlight (Outlined) */
   background-color: var(--riff-color-button-bg);
   color: var(--riff-color-primary);
-  
+
   font-size: var(--riff-font-size-xs); /* 0.75rem */
   font-weight: var(--riff-font-weight-bold);
   cursor: pointer;
@@ -91,7 +91,7 @@
   color: var(--riff-color-active-text);
 }
 
-/* Ghost variant removed to enforce highlight color style */ 
+/* Ghost variant removed to enforce highlight color style */
 /* Removing ghost override for play button to enforce highlight if that's the request. 
    But "isGhost" prop is passed. 
    If I want it to look like an "Active" toolbar button, it should be solid Teal. 
