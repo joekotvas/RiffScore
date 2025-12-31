@@ -86,7 +86,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
           <span className="riff-PlaybackControls__bpm-note" style={{ fontFamily: BRAVURA_FONT }}>
             {PRECOMPOSED_NOTES_UP.quarter}
           </span>
-          <span className="riff-PlaybackControls__bpm-equals"> = </span>
+          <span className="riff-PlaybackControls__bpm-equals"> ＝ </span>
         </span>
         <input
           type="text"

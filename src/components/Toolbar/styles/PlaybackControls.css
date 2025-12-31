@@ -40,7 +40,7 @@
 .riff-PlaybackControls__bpm-note {
   /* Bravura font styling handled inline or here if possible */
   font-family: 'Bravura'; /* Assuming it's loaded globally or via font stack */
-  font-size: var(--riff-music-icon-base);
+  font-size: calc(var(--riff-music-icon-base) * 0.85);
   line-height: 1;
   margin-bottom: -0.75rem;
   margin-right: 0.125rem;
