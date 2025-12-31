@@ -9,9 +9,9 @@
   border-radius: var(--riff-border-radius);
   border: var(--riff-border-width) solid transparent;
   color: var(--riff-color-text-secondary);
-  font-size: var(--riff-font-size-sm);
-  font-weight: var(--riff-font-weight-medium);
-  letter-spacing: var(--riff-tracking-wide);
+  font-size: var(--riff-font-size-xs);
+  font-weight: var(--riff-font-weight-bold);
+  letter-spacing: var(--riff-tracking-normal);
   transition: all var(--riff-transition-normal);
   background-color: transparent;
   height: var(--riff-button-height);

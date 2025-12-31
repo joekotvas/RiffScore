@@ -73,34 +73,33 @@
   padding: var(--riff-spacing-0) var(--riff-spacing-2); /* 8px padding */
   height: var(--riff-toolbar-button-size);
   border-radius: var(--riff-border-radius);
-  border: var(--riff-border-width) solid var(--riff-color-border);
-  background-color: var(--riff-color-button-bg);
-  color: var(--riff-color-text-secondary);
-  font-size: var(--riff-font-size-sm);
-  font-weight: var(--riff-font-weight-medium);
+  border: var(--riff-border-width) solid transparent; /* Match active button border */
+  
+  /* Highlight color (Active state) */
+  background-color: var(--riff-color-primary);
+  color: var(--riff-color-active-text);
+  
+  font-size: var(--riff-font-size-xs); /* 0.75rem */
+  font-weight: var(--riff-font-weight-bold);
   cursor: pointer;
   transition: all var(--riff-transition-normal);
 }
 
 .riff-PlaybackControls__play-button:hover {
-  background-color: var(--riff-color-hover-bg);
-  border-color: var(--riff-color-primary); /* Use primary color on hover per typical emphasis */
-  color: var(--riff-color-primary);
-}
-
-.riff-PlaybackControls__play-button--ghost {
-  background-color: transparent;
+  background-color: var(--riff-color-primary-hover);
   border-color: transparent;
+  color: var(--riff-color-active-text);
 }
 
-.riff-PlaybackControls__play-button--ghost:hover {
-  background-color: var(--riff-color-hover-bg);
-  border-color: var(--riff-color-border);
-}
+/* Ghost variant removed to enforce highlight color style */ 
+/* Removing ghost override for play button to enforce highlight if that's the request. 
+   But "isGhost" prop is passed. 
+   If I want it to look like an "Active" toolbar button, it should be solid Teal. 
+   I will keep the solid style defined above. */
 
 .riff-PlaybackControls__label {
   font-size: var(--riff-font-size-xs);
   font-weight: var(--riff-font-weight-bold);
-  text-transform: uppercase;
-  letter-spacing: var(--riff-tracking-wider);
+  /* text-transform: uppercase; Removed */
+  letter-spacing: var(--riff-tracking-normal);
 }

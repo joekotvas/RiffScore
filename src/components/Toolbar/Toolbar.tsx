@@ -234,7 +234,6 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
             selectedInstrument={selectedInstrument}
             onInstrumentChange={onInstrumentChange}
             samplerLoaded={samplerLoaded}
-            height={TOP_ROW_HEIGHT}
             variant="ghost"
           />
 

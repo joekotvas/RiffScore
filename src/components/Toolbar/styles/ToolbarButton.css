@@ -95,8 +95,8 @@
 .riff-ToolbarButton__label {
   font-size: var(--riff-font-size-xs);
   font-weight: var(--riff-font-weight-bold);
-  text-transform: uppercase;
-  letter-spacing: var(--riff-tracking-wider);
+  /* text-transform: uppercase; Removed for Title Case standardization */
+  letter-spacing: var(--riff-tracking-normal);
 }
 
 .riff-ToolbarButton__sr-only {
