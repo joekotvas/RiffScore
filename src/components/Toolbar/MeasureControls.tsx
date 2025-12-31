@@ -53,7 +53,7 @@ const PickupIcon: React.FC = () => (
     <line x1={15.1} y1={11} x2={15.1} y2={3} stroke="currentColor" strokeWidth={1} />
     
     {/* Beam (thick) */}
-    <line x1={8} y1={6} x2={15.2} y2={3} stroke="currentColor" strokeWidth={2.5} strokeLinecap="butt" />
+    <line x1={8.1} y1={6} x2={15.1} y2={3} stroke="currentColor" strokeWidth={2.5} strokeLinecap="butt" />
   </svg>
 );
 
