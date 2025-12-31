@@ -2,23 +2,44 @@ import React from 'react';
 import './styles/ToolbarButton.css';
 
 interface ToolbarButtonProps {
+  /** The icon element to display */
   icon?: React.ReactNode;
+  /** Text label (used for aria-label and tooltip even if hidden) */
   label: string;
+  /** Whether to display the label text visually */
   showLabel?: boolean;
+  /** Whether the button is in an active/toggled state */
   isActive?: boolean;
+  /** Click handler */
   onClick?: () => void;
-  className?: string; // Allow custom classes from consumer
+  /** Custom CSS classes */
+  className?: string; 
+  /** Disabled state */
   disabled?: boolean;
+  /** Tooltip text (defaults to label if omitted) */
   title?: string;
+  /** Ref for the button element */
   ref?: React.Ref<HTMLButtonElement>;
 
+  /** If true, prevents focus when clicked (useful for keeping focus on canvas) */
   preventFocus?: boolean;
+  /** Highlights the button (branding color) */
   isEmphasized?: boolean;
+  /** Renders with a dashed border (e.g. for ghost/placeholder actions) */
   isDashed?: boolean;
-  height?: string; // kept for legacy compat, but effectively ignored if using CSS classes mostly
+  /** @deprecated Used legacy inline height, now handled via CSS */
+  height?: string; 
+  /** Visual style variant */
   variant?: 'default' | 'ghost';
 }
 
+/**
+ * ToolbarButton
+ *
+ * Standard interactive element for the editor toolbar.
+ * Supports icons, labels, toggle states, and various visual variants.
+ * Accessibility-ready with aria-labels and keyboard support.
+ */
 const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(
   (
     {

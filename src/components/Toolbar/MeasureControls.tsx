@@ -36,7 +36,8 @@ const DeleteMeasureIcon: React.FC = () => (
 );
 
 /**
- * Pickup Measure Icon - Short barline segment
+ * Pickup Measure Icon - Beamed Eighth Note Ascending Couplet + Barline
+ * Represents an anacrusis (pickup notes) before the first downbeat.
  */
 const PickupIcon: React.FC = () => (
   <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="2 0 18 18" fill="none">
@@ -58,13 +59,24 @@ const PickupIcon: React.FC = () => (
 );
 
 interface MeasureControlsProps {
+  /** Callback to add a measure at the end */
   onAddMeasure: () => void;
+  /** Callback to remove the selected measure (or last measure) */
   onRemoveMeasure: () => void;
+  /** Callback to toggle pickup measure state */
   onTogglePickup: () => void;
+  /** Whether the current measure is a pickup measure */
   isPickup?: boolean;
+  /** Visual style variant */
   variant?: 'default' | 'ghost';
 }
 
+/**
+ * MeasureControls
+ *
+ * Toolbar group for adding/removing measures and toggling pickup bars.
+ * Uses custom SVG icons for precise musical representation.
+ */
 const MeasureControls: React.FC<MeasureControlsProps> = ({
   onAddMeasure,
   onRemoveMeasure,

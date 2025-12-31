@@ -2,8 +2,11 @@ import React from 'react';
 import { CLEFS, BRAVURA_FONT } from '@/constants/SMuFL';
 
 interface ClefIconProps extends React.SVGProps<SVGSVGElement> {
+  /** The clef type to display (treble, bass, alto, tenor, grand) */
   clef: string;
+  /** Whether to show a vertical barline at the start (standard placement) */
   showLeftBarline?: boolean;
+  /** Whether to render with thinner strokes for small display contexts */
   isSmall?: boolean;
 }
 

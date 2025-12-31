@@ -2,22 +2,37 @@ import React from 'react';
 import './styles/ScoreTitleField.css';
 
 interface ScoreTitleFieldProps {
+  /** The current title text */
   title: string;
+  /** Whether the field is currently in edit mode */
   isEditing: boolean;
+  /** State setter for edit mode */
   setIsEditing: (editing: boolean) => void;
+  /** Temporary text buffer while editing */
   buffer: string;
+  /** State setter for buffer */
   setBuffer: (value: string) => void;
+  /** Commits the buffer to the actual title */
   commit: () => void;
+  /** Ref to the input element for measurement and focus */
   inputRef: React.RefObject<HTMLInputElement | null>;
+  /** Theme colors */
   theme: {
     text: string;
     border: string;
   };
+  /** Zoom scale factor usually passed from ScoreContext */
   scale?: number;
 }
 
 /**
- * Displays the score title as an h2 or an editable input field.
+ * ScoreTitleField
+ *
+ * Displays the score title as an H2 or an editable input field.
+ * Handles auto-resizing the input to fit content and ensures style parity
+ * between display and edit modes.
+ *
+ * @param props - ScoreTitleFieldProps
  */
 export function ScoreTitleField({
   title,
@@ -34,6 +49,7 @@ export function ScoreTitleField({
   const fontSize = `calc(1.875rem * ${scale})`;
   
   // Auto-resize input width to fit content
+  // Creates a hidden span with identical font metrics to measure text width
   React.useLayoutEffect(() => {
     if (isEditing && inputRef.current) {
       const input = inputRef.current;
