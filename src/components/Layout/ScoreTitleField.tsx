@@ -1,3 +1,9 @@
+/**
+ * ScoreTitleField
+ *
+ * Editable title component that seamlessly transitions between display (H2)
+ * and edit (Input) modes, maintaining layout stability.
+ */
 import React from 'react';
 import './styles/ScoreTitleField.css';
 

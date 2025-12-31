@@ -1,3 +1,9 @@
+/**
+ * ClefIcon
+ *
+ * SVG component for rendering musical clefs (G, F, C) using Bravura font glyphs.
+ * Supports standard and grand staff representations.
+ */
 import React from 'react';
 import { CLEFS, BRAVURA_FONT } from '@/constants/SMuFL';
 

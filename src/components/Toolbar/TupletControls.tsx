@@ -1,3 +1,8 @@
+/**
+ * TupletControls
+ *
+ * Toolbar tools for applying and removing tuplet groupings (triplets, quintuplets).
+ */
 import React from 'react';
 import ToolbarButton from './ToolbarButton';
 import { TUPLETS, BRAVURA_FONT } from '@/constants/SMuFL';

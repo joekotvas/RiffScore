@@ -1,3 +1,9 @@
+/**
+ * ToolbarButton
+ *
+ * The foundational interactive component for the editor toolbar.
+ * Provides consistent styling, states, and accessibility features.
+ */
 import React from 'react';
 import './styles/ToolbarButton.css';
 

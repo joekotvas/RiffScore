@@ -1,3 +1,9 @@
+/**
+ * PlaybackControls
+ *
+ * Toolbar section for playback management (Play/Pause, BPM).
+ * Includes custom instrument selection and transport controls.
+ */
 import React, { useState, useEffect } from 'react';
 import { Play, Pause } from 'lucide-react';
 import InstrumentSelector from './InstrumentSelector';
