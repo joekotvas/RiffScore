@@ -95,7 +95,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
     ref
   ) => {
     // -- Local State & Refs --
-    const { theme } = useTheme();
+    const { theme: _theme } = useTheme();
     const staffControlsRef = useRef<StaffControlsHandle>(null);
     const melodyLibBtnRef = useRef<HTMLButtonElement>(null);
     const toolbarContainerRef = useRef<HTMLDivElement>(null);
@@ -195,13 +195,10 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
 
     // -- Render --
 
-    // -- Render --
-
     return (
       <div
         ref={toolbarContainerRef}
         className="riff-Toolbar"
-        style={{ borderColor: theme.border }} // Keeping inline style for dynamic theme context override if needed, though theme.css handles defaults
         onFocus={() => setIsToolbarFocused(true)}
         tabIndex={-1} // Ensure div is focusable for the trap
         onBlur={(e) => {

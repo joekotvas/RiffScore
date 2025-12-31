@@ -1,8 +1,8 @@
 # Zero-Import CSS Architecture
 
-This document describes RiffScore's approach to CSS bundling where consumers don't need to explicitly import stylesheets.
+This document describes RiffScore's CSS bundling approach where consumers don't need to explicitly import stylesheets.
 
-## Current State (Implemented ✅)
+## How It Works
 
 **Styles are bundled automatically.** Consumers just import the component:
 
@@ -11,6 +11,8 @@ import { RiffScore } from 'riffscore';
 // No CSS import needed!
 ```
 
+### Implementation
+
 Styles are imported at the library entry point (`src/index.tsx`):
 
 ```tsx
@@ -18,72 +20,24 @@ import './styles/index.css'; // Bundled with library
 export { RiffScore } from './RiffScore';
 ```
 
-## Zero-Import Approach
+The bundler (tsup) sees this import and includes CSS in the `dist/` output. When consumers import any component from `riffscore`, they automatically get the styles.
 
-### Runtime Style Injection
+## Why This Approach
 
-Inject CSS into `<head>` on component mount:
+| Factor | Bundler Approach |
+|--------|-----------------|
+| Consumer DX | Best — zero config |
+| Bundle size | ~22KB CSS included |
+| SSR | ✅ Works out of the box |
+| Setup required | None |
 
-```tsx
-// src/hooks/useInjectStyles.ts
-import { useEffect } from 'react';
-import cssContent from '../styles/index.css?raw'; // Vite raw import
+Alternative approaches (runtime injection, explicit imports) add complexity with no meaningful benefit for RiffScore's use case as an embeddable React component.
 
-const STYLE_ID = 'riffscore-styles';
+## Explicit Import Option
 
-export function useInjectStyles() {
-  useEffect(() => {
-    if (document.getElementById(STYLE_ID)) return;
-    const style = document.createElement('style');
-    style.id = STYLE_ID;
-    style.textContent = cssContent;
-    document.head.appendChild(style);
-  }, []);
-}
-```
-
-Call in `RiffScore.tsx`:
-```tsx
-export const RiffScore: React.FC<Props> = (props) => {
-  useInjectStyles();
-  return <ThemeProvider>...</ThemeProvider>;
-};
-```
-
-### Build Configuration
-
-For tsup, use the `esbuild` loader to inline CSS:
-
-```ts
-// tsup.config.ts
-export default defineConfig({
-  esbuildOptions(options) {
-    options.loader = { ...options.loader, '.css': 'text' };
-  },
-});
-```
-
-## Trade-offs
-
-| Factor | Explicit Import | Zero-Import |
-|--------|----------------|-------------|
-| Bundle size | ~22KB CSS separate | +22KB in JS |
-| Runtime cost | None | Minimal (one-time inject) |
-| SSR | ✅ Works | Needs hydration handling |
-| Consumer DX | Good | Best |
-| Tree-shaking | CSS always loaded | CSS always loaded |
-
-## Implementation Status
-
-**✅ Completed**: Styles are bundled at the library entry point (`src/index.tsx`). No consumer action required.
-
-## Future Considerations
-
-If explicit CSS import is ever needed (e.g., for SSR optimization), consider:
+If a consumer needs explicit CSS control (rare):
 
 ```tsx
-// Alternative explicit import (not currently required)
-import 'riffscore/dist/styles.css';
+import 'riffscore/styles.css';  // package.json exports this path
 import { RiffScore } from 'riffscore';
 ```
-

@@ -30,3 +30,8 @@
   margin-left: 0;
   overflow: visible;
 }
+
+/* Chord Group */
+.chord-group--ghost {
+  opacity: 0.5;
+}
