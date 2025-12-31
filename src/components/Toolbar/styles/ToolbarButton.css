@@ -14,9 +14,9 @@
   background-color: var(--riff-color-button-bg);
   color: var(--riff-color-text-secondary);
 
-  /* Default size (h-9 = 36px) */
-  height: var(--riff-button-height);
-  width: var(--riff-button-min-width);
+  /* Default size - compact toolbar */
+  height: var(--riff-toolbar-button-size);
+  width: var(--riff-toolbar-button-size);
   padding: var(--riff-spacing-0);
 }
 
@@ -26,8 +26,8 @@
 
 .riff-ToolbarButton--auto-width {
   width: auto;
-  min-width: var(--riff-button-min-width);
-  padding: var(--riff-spacing-0) var(--riff-spacing-3);
+  min-width: var(--riff-toolbar-button-size);
+  padding: var(--riff-spacing-0) var(--riff-spacing-2);
 }
 
 /* --- Border Styles --- */
@@ -113,8 +113,8 @@
 
 /* --- Variant: Accidental Icons --- */
 .riff-ToolbarButton--accidental .riff-ToolbarButton__icon {
-  font-size: 1.25rem;
-  padding-bottom: 0.25rem;
+  font-size: var(--riff-music-icon-base);
+  padding-bottom: 0.125rem;
 }
 
 /* --- Label Sizing Modifier --- */
