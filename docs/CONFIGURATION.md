@@ -30,6 +30,8 @@ interface RiffScoreConfig {
     showToolbar: boolean;  // Show/hide the toolbar
     scale: number;         // Zoom scale factor
     theme?: ThemeName;     // 'DARK' | 'COOL' | 'WARM' | 'LIGHT'
+    showBackground?: boolean; // Show/hide panel background
+    showScoreTitle?: boolean; // Show/hide score title input
   };
   interaction: {
     isEnabled: boolean;      // Master switch for all interactions
@@ -56,6 +58,7 @@ interface RiffScoreConfig {
 | `ui.scale` | `0.75` |
 | `ui.theme` | `'LIGHT'` |
 | `ui.showBackground` | `true` |
+| `ui.showScoreTitle` | `true` |
 | `interaction.isEnabled` | `true` |
 | `interaction.enableKeyboard` | `true` |
 | `interaction.enablePlayback` | `true` |

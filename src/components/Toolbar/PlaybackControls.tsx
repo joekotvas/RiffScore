@@ -66,7 +66,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
     <div className="riff-PlaybackControls">
       <button
         type="button"
-        className={`riff-PlaybackControls__play-button ${isGhost ? 'riff-PlaybackControls__play-button--ghost' : ''}`}
+        className="riff-PlaybackControls__play-button"
         onClick={onPlayToggle}
         aria-label={isPlaying ? 'Pause' : 'Play'}
         title={isPlaying ? 'Pause' : 'Play'}

@@ -369,6 +369,7 @@ export const DEFAULT_RIFF_CONFIG: RiffScoreConfig = {
     showToolbar: true,
     scale: 0.75,
     showBackground: true,
+    showScoreTitle: true,
   },
   interaction: {
     isEnabled: true,
