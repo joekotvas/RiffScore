@@ -1,7 +1,33 @@
 import React from 'react';
 import ToolbarButton from './ToolbarButton';
+import { TUPLETS, BRAVURA_FONT } from '@/constants/SMuFL';
 
 import './styles/TupletControls.css';
+
+// SVG viewport size for compact toolbar icons
+const ICON_SIZE = 20;
+
+/**
+ * SMuFL-based tuplet number icon
+ */
+const TupletIcon: React.FC<{ digit: 3 | 5 }> = ({ digit }) => {
+  const glyph = digit === 3 ? TUPLETS.tuplet3 : TUPLETS.tuplet5;
+  return (
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} fill="none">
+      <text
+        x={ICON_SIZE / 2}
+        y={15}
+        fontFamily={BRAVURA_FONT}
+        fontSize={20}
+        fill="currentColor"
+        textAnchor="middle"
+        style={{ userSelect: 'none' }}
+      >
+        {glyph}
+      </text>
+    </svg>
+  );
+};
 
 interface TupletControlsProps {
   onApplyTuplet: (ratio: [number, number], groupSize: number) => void;
@@ -24,8 +50,6 @@ const TupletControls: React.FC<TupletControlsProps> = ({
   activeTupletRatio,
   variant = 'default',
 }) => {
-  // const { theme } = useTheme();
-
   const isTripletActive = activeTupletRatio?.[0] === 3 && activeTupletRatio?.[1] === 2;
   const isQuintupletActive = activeTupletRatio?.[0] === 5 && activeTupletRatio?.[1] === 4;
 
@@ -54,16 +78,7 @@ const TupletControls: React.FC<TupletControlsProps> = ({
         isActive={isTripletActive}
         disabled={!canApplyTriplet && !isTripletActive}
         preventFocus={true}
-        icon={
-          <div className="riff-TupletIcon">
-            <span className="riff-TupletIcon__number">3</span>
-            <div className="riff-TupletIcon__dots">
-              <div className="riff-TupletIcon__dot"></div>
-              <div className="riff-TupletIcon__dot"></div>
-              <div className="riff-TupletIcon__dot"></div>
-            </div>
-          </div>
-        }
+        icon={<TupletIcon digit={3} />}
         variant={variant}
       />
 
@@ -74,22 +89,9 @@ const TupletControls: React.FC<TupletControlsProps> = ({
         isActive={isQuintupletActive}
         disabled={!canApplyQuintuplet && !isQuintupletActive}
         preventFocus={true}
-        icon={
-          <div className="riff-TupletIcon">
-            <span className="riff-TupletIcon__number">5</span>
-            <div className="riff-TupletIcon__dots">
-              <div className="riff-TupletIcon__dot"></div>
-              <div className="riff-TupletIcon__dot"></div>
-              <div className="riff-TupletIcon__dot"></div>
-              <div className="riff-TupletIcon__dot"></div>
-              <div className="riff-TupletIcon__dot"></div>
-            </div>
-          </div>
-        }
+        icon={<TupletIcon digit={5} />}
         variant={variant}
       />
-
-      {/* Remove Tuplet Button */}
     </div>
   );
 };

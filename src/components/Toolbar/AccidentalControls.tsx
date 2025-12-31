@@ -1,5 +1,5 @@
 import React from 'react';
-import { ACCIDENTALS, DOTS, BRAVURA_FONT } from '@/constants/SMuFL';
+import { ACCIDENTALS, BRAVURA_FONT } from '@/constants/SMuFL';
 import ToolbarButton from './ToolbarButton';
 
 // SVG viewport and font size for compact toolbar icons
