@@ -36,6 +36,7 @@ interface ScoreEditorContentProps {
   scale?: number;
   label?: string;
   showToolbar?: boolean;
+  showBackground?: boolean;
   enableKeyboard?: boolean;
   enablePlayback?: boolean;
 }
@@ -48,6 +49,7 @@ const ScoreEditorContent = ({
   scale = 1,
   label,
   showToolbar = true,
+  showBackground = true,
   enableKeyboard = true,
   enablePlayback = true,
 }: ScoreEditorContentProps) => {
@@ -179,7 +181,7 @@ const ScoreEditorContent = ({
     <div
       className="riff-ScoreEditor"
       style={{
-        backgroundColor: theme.panelBackground,
+        backgroundColor: showBackground ? theme.panelBackground : 'transparent',
         color: theme.text,
         scrollbarWidth: 'thin',
         scrollbarColor: `${theme.border} transparent`,

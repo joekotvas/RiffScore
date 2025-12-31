@@ -83,6 +83,7 @@ const RiffScoreInner: React.FC<RiffScoreProps> = ({ id, config: userConfig }) =>
           <ScoreEditorContent
             scale={config.ui.scale}
             showToolbar={config.ui.showToolbar}
+            showBackground={config.ui.showBackground}
             enableKeyboard={config.interaction.enableKeyboard}
             enablePlayback={config.interaction.enablePlayback}
           />
