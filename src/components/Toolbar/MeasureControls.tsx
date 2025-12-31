@@ -18,7 +18,7 @@ const MeasureControls: React.FC<MeasureControlsProps> = ({
   variant = 'default',
 }) => {
   return (
-    <div className="flex gap-1">
+    <div className="riff-ControlGroup">
       <ToolbarButton
         onClick={onAddMeasure}
         label="Add Measure"
@@ -35,7 +35,7 @@ const MeasureControls: React.FC<MeasureControlsProps> = ({
         onClick={onTogglePickup}
         isActive={isPickup}
         label="Toggle Pickup"
-        icon={<span className="text-xs font-bold">PK</span>}
+        icon={<span style={{ fontSize: '0.75rem', fontWeight: 700 }}>PK</span>}
         variant={variant}
       />
     </div>

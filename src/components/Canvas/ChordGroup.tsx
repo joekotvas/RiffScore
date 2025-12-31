@@ -40,7 +40,6 @@ const ChordGroup: React.FC<ChordGroupProps> = ({
 
   // Appearance & Options
   isGhost = false,
-  opacity = 1,
   renderStem = true,
   x = 0,
   filterNote = null,
@@ -185,10 +184,9 @@ const ChordGroup: React.FC<ChordGroupProps> = ({
 
   return (
     <g
-      className={`chord-group ${isGhost ? 'opacity-50' : ''}`}
+      className={`chord-group${isGhost ? ' chord-group--ghost' : ''}`}
       data-testid={isGhost ? 'ghost-note' : `chord-${eventId}`}
       data-selected={isWholeChordSelected}
-      style={{ opacity }}
       onMouseEnter={() => onNoteHover?.(null)}
       onMouseLeave={() => onNoteHover?.(null)}
       onClick={handleGroupClick}

@@ -40,22 +40,9 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
     const [showKeySig, setShowKeySig] = useState(false);
     const [showTimeSig, setShowTimeSig] = useState(false);
 
-    // Store menu positions in state to avoid reading refs during render
-    const [clefMenuPos, setClefMenuPos] = useState({ x: 0, y: 0 });
-    const [timeSigMenuPos, setTimeSigMenuPos] = useState({ x: 0, y: 0 });
-
     const clefBtnRef = useRef<HTMLButtonElement>(null);
     const keySigBtnRef = useRef<HTMLButtonElement>(null);
     const timeSigBtnRef = useRef<HTMLButtonElement>(null);
-
-    // Helper to calculate position from a ref (only called in event handlers)
-    const getPositionFromRef = (btnRef: React.RefObject<HTMLButtonElement | null>) => {
-      const rect = btnRef.current?.getBoundingClientRect();
-      return {
-        x: rect?.left || 0,
-        y: (rect?.bottom || 0) + 5,
-      };
-    };
 
     useImperativeHandle(
       ref,
@@ -71,19 +58,19 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
     const currentClef = CLEF_TYPES[clef] || CLEF_TYPES['treble'];
 
     return (
-      <div className="flex items-center gap-2">
+      <div className="riff-ControlGroup">
         {/* Clef Selection */}
         <ToolbarButton
           ref={clefBtnRef}
           label={currentClef.label}
           showLabel={false}
-          onClick={() => {
-            if (!showClefMenu) {
-              setClefMenuPos(getPositionFromRef(clefBtnRef));
-            }
-            setShowClefMenu(!showClefMenu);
-          }}
-          icon={<ClefIcon clef={clef || 'treble'} className="w-6 h-6 overflow-visible" />}
+          onClick={() => setShowClefMenu(!showClefMenu)}
+          icon={
+            <ClefIcon
+              clef={clef || 'treble'}
+              style={{ width: 24, height: 24, overflow: 'visible' }}
+            />
+          }
           variant={variant}
         />
         {showClefMenu && (
@@ -94,7 +81,6 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
               setShowClefMenu(false);
             }}
             onClose={() => setShowClefMenu(false)}
-            position={clefMenuPos}
             triggerRef={clefBtnRef as React.RefObject<HTMLElement>}
           />
         )}
@@ -105,7 +91,7 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
           label={KEY_SIGNATURES[keySignature]?.label || keySignature}
           showLabel={true}
           onClick={() => setShowKeySig(!showKeySig)}
-          className="text-xs font-bold"
+          className="riff-ToolbarButton--label-xs"
           variant={variant}
         />
         {showKeySig && (
@@ -125,13 +111,8 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
           ref={timeSigBtnRef}
           label={timeSignature}
           showLabel={true}
-          onClick={() => {
-            if (!showTimeSig) {
-              setTimeSigMenuPos(getPositionFromRef(timeSigBtnRef));
-            }
-            setShowTimeSig(!showTimeSig);
-          }}
-          className="text-xs font-bold"
+          onClick={() => setShowTimeSig(!showTimeSig)}
+          className="riff-ToolbarButton--label-xs"
           variant={variant}
         />
         {showTimeSig && (
@@ -142,7 +123,6 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
               setShowTimeSig(false);
             }}
             onClose={() => setShowTimeSig(false)}
-            position={timeSigMenuPos}
             triggerRef={timeSigBtnRef as React.RefObject<HTMLElement>}
           />
         )}

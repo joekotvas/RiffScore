@@ -29,7 +29,7 @@ interface RiffScoreConfig {
   ui: {
     showToolbar: boolean;  // Show/hide the toolbar
     scale: number;         // Zoom scale factor
-    theme?: ThemeName;     // 'dark' | 'cool' | 'warm' | 'light'
+    theme?: ThemeName;     // 'DARK' | 'COOL' | 'WARM' | 'LIGHT'
   };
   interaction: {
     isEnabled: boolean;      // Master switch for all interactions
@@ -54,7 +54,7 @@ interface RiffScoreConfig {
 |----------|---------|
 | `ui.showToolbar` | `true` |
 | `ui.scale` | `1` |
-| `ui.theme` | `'dark'` |
+| `ui.theme` | `'LIGHT'` |
 | `interaction.isEnabled` | `true` |
 | `interaction.enableKeyboard` | `true` |
 | `interaction.enablePlayback` | `true` |
@@ -139,9 +139,9 @@ const myComposition = {
 ### Theme Selection
 
 ```tsx
-// Available themes: 'dark', 'cool', 'warm', 'light'
+// Available themes: 'DARK', 'COOL', 'WARM', 'LIGHT'
 <RiffScore config={{
-  ui: { theme: 'cool' }
+  ui: { theme: 'COOL' }
 }} />
 ```
 

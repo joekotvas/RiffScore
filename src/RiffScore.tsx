@@ -9,7 +9,7 @@
  * Exposes an imperative API via `window.riffScore` registry for external script control.
  */
 
-import React, { useMemo, useId } from 'react';
+import React, { useMemo, useId, useRef, useEffect } from 'react';
 import { DeepPartial, RiffScoreConfig } from './types';
 import { useRiffScore } from './hooks/useRiffScore';
 import { useFontLoaded } from './hooks/layout';
@@ -45,8 +45,17 @@ const RiffScoreAPIBridge: React.FC<{
  */
 const RiffScoreInner: React.FC<RiffScoreProps> = ({ id, config: userConfig }) => {
   const { config, initialScore } = useRiffScore(userConfig);
-  const { theme: _theme } = useTheme();
+  const { theme: _theme, setContainerRef } = useTheme();
   const { className: fontClassName, styleElement: fontStyleElement } = useFontLoaded();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Register our container element for scoped theme CSS variable injection
+  useEffect(() => {
+    if (containerRef.current) {
+      setContainerRef(containerRef.current);
+    }
+    return () => setContainerRef(null);
+  }, [setContainerRef]);
 
   // Use React's useId() for SSR-compatible auto-generated IDs
   const reactId = useId();
@@ -63,6 +72,7 @@ const RiffScoreInner: React.FC<RiffScoreProps> = ({ id, config: userConfig }) =>
 
   return (
     <div
+      ref={containerRef}
       className={`RiffScore ${fontClassName}`}
       style={containerStyle}
       data-riffscore-id={instanceId}

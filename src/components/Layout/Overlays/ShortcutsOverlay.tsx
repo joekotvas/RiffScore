@@ -1,8 +1,6 @@
 import React, { useEffect } from 'react';
 import { X, Keyboard } from 'lucide-react';
-import { useTheme } from '@context/ThemeContext';
-
-import { Theme } from '@config';
+import './styles/ShortcutsOverlay.css';
 
 interface Shortcut {
   label: string;
@@ -12,32 +10,18 @@ interface Shortcut {
 interface ShortcutGroupProps {
   title: string;
   shortcuts: Shortcut[];
-  theme: Theme;
 }
 
-const ShortcutGroup: React.FC<ShortcutGroupProps> = ({ title, shortcuts, theme }) => (
-  <div className="mb-6">
-    <h3
-      className="text-sm font-bold uppercase tracking-wider mb-3 border-b pb-1"
-      style={{ color: theme.secondaryText, borderColor: theme.border }}
-    >
-      {title}
-    </h3>
-    <div className="grid grid-cols-1 gap-2">
+const ShortcutGroup: React.FC<ShortcutGroupProps> = ({ title, shortcuts }) => (
+  <div className="riff-ShortcutGroup">
+    <h3 className="riff-ShortcutGroup__header">{title}</h3>
+    <div className="riff-ShortcutGroup__list">
       {shortcuts.map((s, i) => (
-        <div key={i} className="flex items-center justify-between text-sm">
-          <span style={{ color: theme.text }}>{s.label}</span>
-          <div className="flex gap-1">
+        <div key={i} className="riff-ShortcutItem">
+          <span>{s.label}</span>
+          <div className="riff-ShortcutItem__keys">
             {s.keys.map((k, j) => (
-              <kbd
-                key={j}
-                className="px-2 py-1 rounded text-xs font-mono min-w-[24px] text-center"
-                style={{
-                  backgroundColor: theme.buttonBackground,
-                  border: `1px solid ${theme.border}`,
-                  color: theme.secondaryText,
-                }}
-              >
+              <kbd key={j} className="riff-Kbd">
                 {k}
               </kbd>
             ))}
@@ -53,8 +37,6 @@ interface ShortcutsOverlayProps {
 }
 
 const ShortcutsOverlay: React.FC<ShortcutsOverlayProps> = ({ onClose }) => {
-  const { theme } = useTheme();
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -107,169 +89,71 @@ const ShortcutsOverlay: React.FC<ShortcutsOverlayProps> = ({ onClose }) => {
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden"
-        style={{ backgroundColor: theme.panelBackground }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="riff-ShortcutsOverlay-backdrop" onClick={onClose}>
+      <div className="riff-ShortcutsOverlay" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div
-          className="p-4 border-b flex items-center justify-between"
-          style={{ backgroundColor: theme.background, borderColor: theme.border }}
-        >
-          <div className="flex items-center gap-2" style={{ color: theme.accent }}>
+        <div className="riff-ShortcutsOverlay__header">
+          <div className="riff-ShortcutsOverlay__title-group">
             <Keyboard size={20} />
-            <h2 className="font-bold text-lg" style={{ color: theme.text }}>
-              Keyboard Shortcuts
-            </h2>
+            <h2 className="riff-ShortcutsOverlay__title">Keyboard Shortcuts</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-full transition-colors"
-            style={{ color: theme.secondaryText }}
-          >
+          <button onClick={onClose} className="riff-ShortcutsOverlay__close-btn">
             <X size={20} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 max-h-[70vh] overflow-y-auto shortcuts-scroll">
+        <div className="riff-ShortcutsOverlay__content">
           {/* Welcome & Instructions */}
-          <div
-            className="mb-8 p-4 rounded-lg border"
-            style={{ backgroundColor: `${theme.accent}10`, borderColor: `${theme.accent}30` }}
-          >
-            <h3 className="font-bold mb-2" style={{ color: theme.accent }}>
-              Welcome to RiffScore!
-            </h3>
-            <p className="text-sm mb-4" style={{ color: theme.text }}>
+          <div className="riff-WelcomeSection">
+            <h3 className="riff-WelcomeSection__title">Welcome to RiffScore!</h3>
+            <p className="riff-WelcomeSection__text">
               This editor allows you to create sheet music using both mouse and keyboard. Use the
               toolbar above to change note duration, add dots, or manage measures.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="riff-WelcomeSection__grid">
               <div>
-                <h4 className="font-bold mb-1" style={{ color: theme.text }}>
-                  🖱️ Mouse Interactions
-                </h4>
-                <ul
-                  className="list-disc list-inside space-y-1"
-                  style={{ color: theme.secondaryText }}
-                >
+                <h4 className="riff-WelcomeSection__subtitle">🖱️ Mouse Interactions</h4>
+                <ul className="riff-WelcomeSection__list">
                   <li>Click anywhere in a measure to place the cursor.</li>
                   <li>Click existing notes to select them.</li>
                   <li>Click the background to deselect.</li>
                 </ul>
               </div>
               <div>
-                <h4 className="font-bold mb-1" style={{ color: theme.text }}>
-                  ⌨️ Keyboard Interactions
-                </h4>
-                <ul
-                  className="list-disc list-inside space-y-1"
-                  style={{ color: theme.secondaryText }}
-                >
+                <h4 className="riff-WelcomeSection__subtitle">⌨️ Keyboard Interactions</h4>
+                <ul className="riff-WelcomeSection__list">
                   <li>
-                    Use{' '}
-                    <kbd
-                      className="font-mono px-1 rounded"
-                      style={{
-                        backgroundColor: theme.buttonBackground,
-                        border: `1px solid ${theme.border}`,
-                        color: theme.accent,
-                      }}
-                    >
-                      Arrow Keys
-                    </kbd>{' '}
-                    to move the cursor.
+                    Use <kbd className="riff-Kbd">Arrow Keys</kbd> to move the cursor.
                   </li>
                   <li>
-                    Press{' '}
-                    <kbd
-                      className="font-mono px-1 rounded"
-                      style={{
-                        backgroundColor: theme.buttonBackground,
-                        border: `1px solid ${theme.border}`,
-                        color: theme.accent,
-                      }}
-                    >
-                      Enter
-                    </kbd>{' '}
-                    to add a note at the cursor.
+                    Press <kbd className="riff-Kbd">Enter</kbd> to add a note at the cursor.
                   </li>
                   <li>
-                    Press{' '}
-                    <kbd
-                      className="font-mono px-1 rounded"
-                      style={{
-                        backgroundColor: theme.buttonBackground,
-                        border: `1px solid ${theme.border}`,
-                        color: theme.accent,
-                      }}
-                    >
-                      Space
-                    </kbd>{' '}
-                    to play/pause.
+                    Press <kbd className="riff-Kbd">Space</kbd> to play/pause.
                   </li>
                 </ul>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="riff-ShortcutsGrid">
             <div>
-              <ShortcutGroup title="Playback" shortcuts={shortcuts.playback} theme={theme} />
-              <ShortcutGroup title="Selection" shortcuts={shortcuts.selection} theme={theme} />
+              <ShortcutGroup title="Playback" shortcuts={shortcuts.playback} />
+              <ShortcutGroup title="Selection" shortcuts={shortcuts.selection} />
             </div>
             <div>
-              <ShortcutGroup title="Editing" shortcuts={shortcuts.editing} theme={theme} />
-              <ShortcutGroup title="Modifiers" shortcuts={shortcuts.modifiers} theme={theme} />
-              <ShortcutGroup title="Durations" shortcuts={shortcuts.durations} theme={theme} />
+              <ShortcutGroup title="Editing" shortcuts={shortcuts.editing} />
+              <ShortcutGroup title="Modifiers" shortcuts={shortcuts.modifiers} />
+              <ShortcutGroup title="Durations" shortcuts={shortcuts.durations} />
             </div>
           </div>
-
-          <style>{`
-            .shortcuts-scroll::-webkit-scrollbar {
-              width: 8px;
-            }
-            .shortcuts-scroll::-webkit-scrollbar-track {
-              background: transparent;
-            }
-            .shortcuts-scroll::-webkit-scrollbar-thumb {
-              background-color: ${theme.border};
-              border-radius: 4px;
-            }
-            .shortcuts-scroll::-webkit-scrollbar-thumb:hover {
-              background-color: ${theme.secondaryText};
-            }
-          `}</style>
         </div>
 
         {/* Footer */}
-        <div
-          className="p-4 border-t text-center text-xs"
-          style={{
-            backgroundColor: theme.background,
-            borderColor: theme.border,
-            color: theme.secondaryText,
-          }}
-        >
-          Press{' '}
-          <kbd
-            className="px-1 py-0.5 rounded border font-mono"
-            style={{
-              backgroundColor: theme.buttonBackground,
-              borderColor: theme.border,
-              color: theme.text,
-            }}
-          >
-            Esc
-          </kbd>{' '}
-          to close
+        <div className="riff-ShortcutsOverlay__footer">
+          Press <kbd className="riff-ShortcutsOverlay__footer-kbd">Esc</kbd> to close
         </div>
       </div>
     </div>

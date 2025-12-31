@@ -20,7 +20,7 @@ const HistoryControls: React.FC<HistoryControlsProps> = ({
   variant = 'default',
 }) => {
   return (
-    <div className="flex gap-1">
+    <div className="riff-ControlGroup">
       <ToolbarButton
         icon={<RotateCcw size={18} />}
         label="Undo"

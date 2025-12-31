@@ -26,6 +26,8 @@ import { UpdateTitleCommand } from '@commands/UpdateTitleCommand';
 import { setInstrument, InstrumentType } from '@engines/toneEngine';
 import { MELODIES } from '@/data/melodies';
 
+import './styles/ScoreEditor.css';
+
 // ------------------------------------------------------------------
 // Props Interface
 // ------------------------------------------------------------------
@@ -175,12 +177,9 @@ const ScoreEditorContent = ({
   // --- Render ---
   return (
     <div
-      className="ScoreEditor backdrop-blur-md rounded-lg shadow-xl mb-8"
+      className="riff-ScoreEditor"
       style={{
-        padding: '.5rem',
         backgroundColor: theme.panelBackground,
-        borderColor: theme.border,
-        borderWidth: '1px',
         color: theme.text,
         scrollbarWidth: 'thin',
         scrollbarColor: `${theme.border} transparent`,
@@ -215,15 +214,8 @@ const ScoreEditorContent = ({
         </Portal>
       )}
 
-      <div
-        className="score-editor-content"
-        style={{
-          backgroundColor: theme.background,
-          borderRadius: '1rem',
-          paddingTop: '1rem',
-        }}
-      >
-        <div className="relative z-20">
+      <div className="riff-ScoreEditor__content" style={{ backgroundColor: theme.background }}>
+        <div className="riff-ScoreEditor__title-wrapper">
           <ScoreTitleField
             title={score.title}
             isEditing={titleEditor.isEditing}

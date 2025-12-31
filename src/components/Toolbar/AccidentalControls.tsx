@@ -54,14 +54,14 @@ const AccidentalControls: React.FC<AccidentalControlsProps> = ({
   const sharpState = getVisualState('sharp');
 
   return (
-    <div className="flex gap-1">
+    <div className="riff-ControlGroup">
       <ToolbarButton
         onClick={() => onToggleAccidental('flat')}
         label="Flat"
         isActive={flatState.isActive}
         isDashed={flatState.isDashed}
         isEmphasized={flatState.isEmphasized}
-        className="text-xl pb-1"
+        className="riff-ToolbarButton--accidental"
         icon="♭"
         preventFocus={true}
         variant={variant}
@@ -72,7 +72,7 @@ const AccidentalControls: React.FC<AccidentalControlsProps> = ({
         isActive={naturalState.isActive}
         isDashed={naturalState.isDashed}
         isEmphasized={naturalState.isEmphasized}
-        className="text-xl pb-1"
+        className="riff-ToolbarButton--accidental"
         icon="♮"
         preventFocus={true}
         variant={variant}
@@ -83,7 +83,7 @@ const AccidentalControls: React.FC<AccidentalControlsProps> = ({
         isActive={sharpState.isActive}
         isDashed={sharpState.isDashed}
         isEmphasized={sharpState.isEmphasized}
-        className="text-xl pb-1"
+        className="riff-ToolbarButton--accidental"
         icon="♯"
         preventFocus={true}
         variant={variant}

@@ -18,7 +18,7 @@ Everything you need to get started and build with RiffScore.
 Technical deep dives for understanding how the system works.
 
 - **[Architecture](./ARCHITECTURE.md)**: High-level system design, layers, and core principles.
-- **[Coding Patterns](./CODING_PATTERNS.md)**: **(New)** Standard architectural patterns, folder structure conventions, and utility usage.
+- **[Coding Patterns](./CODING_PATTERNS.md)**: Standard architectural patterns, folder structure conventions, and utility usage.
 - **[Data Model](./DATA_MODEL.md)**: The schema of `Score`, `Staff`, `Measure`, and `Event`.
 - **[Commands](./COMMANDS.md)**: The Command pattern implementation for state mutations.
 - **[Layout Engine](./LAYOUT_ENGINE.md)**: How the renderer calculates positioning, beaming, and engraving.
@@ -56,6 +56,7 @@ Historical context and architectural decisions.
 - [Documentation Strategy](./migration/documentation_strategy.md)
 - [Implementation Plan](./migration/implementation_plan.md)
 - [API Test Coverage](./migration/api_test_coverage.md)
+- [Zero-Import CSS](./migration/zero-import-css.md)
 
 ## 🔄 Changelog
 

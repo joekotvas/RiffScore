@@ -1,0 +1,60 @@
+/* src/components/Toolbar/Toolbar.css */
+
+.riff-Toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--riff-spacing-2);
+  margin-bottom: var(--riff-spacing-4);
+  border-bottom: var(--riff-border-width) solid var(--riff-color-border);
+  padding-bottom: var(--riff-spacing-2);
+}
+
+.riff-Toolbar:focus {
+  outline: none;
+}
+
+.riff-Toolbar__row {
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-4);
+  flex-wrap: wrap; /* Added for responsiveness based on ROW 2 usage */
+}
+
+/* Spacer utility within toolbar */
+.riff-Toolbar__spacer {
+  flex: 1;
+}
+
+/* Error message styling */
+.riff-Toolbar__error {
+  width: 100%;
+  color: var(--riff-color-danger);
+  font-size: var(--riff-font-size-xs);
+  margin-top: var(--riff-spacing-2);
+  font-weight: bold;
+  animation: riff-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes riff-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Library Menu Wrapper */
+.riff-Toolbar__library-wrapper {
+  display: flex;
+  gap: var(--riff-spacing-1);
+  position: relative;
+}
+
+/* Control Group Utility (replaces flex gap-1) */
+.riff-ControlGroup {
+  display: flex;
+  gap: var(--riff-spacing-1);
+  align-items: center;
+}

@@ -1,6 +1,8 @@
 import React from 'react';
 import ToolbarButton from './ToolbarButton';
 
+import './styles/TupletControls.css';
+
 interface TupletControlsProps {
   onApplyTuplet: (ratio: [number, number], groupSize: number) => void;
   onRemoveTuplet: () => void;
@@ -44,7 +46,7 @@ const TupletControls: React.FC<TupletControlsProps> = ({
   };
 
   return (
-    <div className="flex gap-1">
+    <div className="riff-ControlGroup">
       {/* Triplet Button */}
       <ToolbarButton
         onClick={handleTriplet}
@@ -53,24 +55,12 @@ const TupletControls: React.FC<TupletControlsProps> = ({
         disabled={!canApplyTriplet && !isTripletActive}
         preventFocus={true}
         icon={
-          <div
-            className="flex flex-col items-center justify-center"
-            style={{ fontSize: '10px', lineHeight: '1' }}
-          >
-            <span style={{ fontWeight: 'bold', fontSize: '11px' }}>3</span>
-            <div className="flex gap-0.5 mt-0.5">
-              <div
-                className="w-1 h-1 rounded-full"
-                style={{ backgroundColor: 'currentColor' }}
-              ></div>
-              <div
-                className="w-1 h-1 rounded-full"
-                style={{ backgroundColor: 'currentColor' }}
-              ></div>
-              <div
-                className="w-1 h-1 rounded-full"
-                style={{ backgroundColor: 'currentColor' }}
-              ></div>
+          <div className="riff-TupletIcon">
+            <span className="riff-TupletIcon__number">3</span>
+            <div className="riff-TupletIcon__dots">
+              <div className="riff-TupletIcon__dot"></div>
+              <div className="riff-TupletIcon__dot"></div>
+              <div className="riff-TupletIcon__dot"></div>
             </div>
           </div>
         }
@@ -85,32 +75,14 @@ const TupletControls: React.FC<TupletControlsProps> = ({
         disabled={!canApplyQuintuplet && !isQuintupletActive}
         preventFocus={true}
         icon={
-          <div
-            className="flex flex-col items-center justify-center"
-            style={{ fontSize: '10px', lineHeight: '1' }}
-          >
-            <span style={{ fontWeight: 'bold', fontSize: '11px' }}>5</span>
-            <div className="flex gap-0.5 mt-0.5">
-              <div
-                className="w-1 h-1 rounded-full"
-                style={{ backgroundColor: 'currentColor' }}
-              ></div>
-              <div
-                className="w-1 h-1 rounded-full"
-                style={{ backgroundColor: 'currentColor' }}
-              ></div>
-              <div
-                className="w-1 h-1 rounded-full"
-                style={{ backgroundColor: 'currentColor' }}
-              ></div>
-              <div
-                className="w-1 h-1 rounded-full"
-                style={{ backgroundColor: 'currentColor' }}
-              ></div>
-              <div
-                className="w-1 h-1 rounded-full"
-                style={{ backgroundColor: 'currentColor' }}
-              ></div>
+          <div className="riff-TupletIcon">
+            <span className="riff-TupletIcon__number">5</span>
+            <div className="riff-TupletIcon__dots">
+              <div className="riff-TupletIcon__dot"></div>
+              <div className="riff-TupletIcon__dot"></div>
+              <div className="riff-TupletIcon__dot"></div>
+              <div className="riff-TupletIcon__dot"></div>
+              <div className="riff-TupletIcon__dot"></div>
             </div>
           </div>
         }

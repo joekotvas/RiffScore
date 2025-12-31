@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme } from '@/context/ThemeContext';
+import './styles/ToolbarButton.css';
 
 interface ToolbarButtonProps {
   icon?: React.ReactNode;
@@ -7,7 +7,7 @@ interface ToolbarButtonProps {
   showLabel?: boolean;
   isActive?: boolean;
   onClick?: () => void;
-  className?: string;
+  className?: string; // Allow custom classes from consumer
   disabled?: boolean;
   title?: string;
   ref?: React.Ref<HTMLButtonElement>;
@@ -15,7 +15,7 @@ interface ToolbarButtonProps {
   preventFocus?: boolean;
   isEmphasized?: boolean;
   isDashed?: boolean;
-  height?: string;
+  height?: string; // kept for legacy compat, but effectively ignored if using CSS classes mostly
   variant?: 'default' | 'ghost';
 }
 
@@ -33,80 +33,61 @@ const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(
       preventFocus = false,
       isEmphasized = false,
       isDashed = false,
-      height = 'h-9',
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      height, // unused in CSS approach (fixed height in CSS or overridden via class)
       variant = 'default',
     },
     ref
   ) => {
-    const { theme } = useTheme();
-    const baseStyles =
-      'flex items-center justify-center rounded border transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
-    const sizeStyles = showLabel ? 'min-w-9 px-3' : 'w-9';
-    const borderStyle = isDashed ? 'border-dashed' : 'border-solid';
-    const [isHovered, setIsHovered] = React.useState(false);
+    // We no longer rely on ThemeContext for *computed* styles,
+    // but the ThemeProvider still pushes variables to CSS if needed.
+    // CSS classes now drive the look.
 
-    // Ghost variant styles
-    const isGhost = variant === 'ghost';
+    const classes = [
+      'riff-ToolbarButton',
+      // Layout modifiers
+      showLabel ? 'riff-ToolbarButton--auto-width' : '',
 
-    const getBackgroundColor = () => {
-      if (isActive) return theme.accent;
-      if (isHovered) return theme.buttonHoverBackground;
-      // Ghost variant: Always transparent unless Active or Hovered
-      // This allows the border (mixed state) to show without a solid background
-      if (isGhost) return 'transparent';
+      // Style modifiers
+      isDashed ? 'riff-ToolbarButton--dashed' : 'riff-ToolbarButton--solid-border',
+      variant === 'ghost' ? 'riff-ToolbarButton--ghost' : '',
 
-      if (isEmphasized) return theme.buttonBackground;
-      return theme.buttonBackground;
-    };
+      // State modifiers
+      isActive ? 'riff-ToolbarButton--active' : '',
+      isEmphasized ? 'riff-ToolbarButton--emphasized' : '',
 
-    const getBorderColor = () => {
-      if (isActive) return theme.accent;
-      if (isEmphasized) return theme.accent;
-      // Ensure dashed border is visible even if not emphasized (fallback)
-      if (isDashed) return theme.secondaryText;
-
-      if (isGhost && !isHovered) return 'transparent';
-      return theme.border;
-    };
-
-    const getColor = () => {
-      if (isActive) return '#ffffff';
-      if (isEmphasized) return theme.accent;
-      return theme.secondaryText;
-    };
+      // External overrides
+      className,
+    ]
+      .filter(Boolean)
+      .join(' ');
 
     return (
       <button
         ref={ref}
         onClick={onClick}
-        onMouseEnter={() => !disabled && setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
         onMouseDown={(e) => {
           if (preventFocus) {
             e.preventDefault();
           }
         }}
         disabled={disabled}
-        className={`
-        ${baseStyles}
-        ${height}
-        ${sizeStyles}
-        ${borderStyle}
-        ${className}
-      `}
-        style={{
-          backgroundColor: getBackgroundColor(),
-          borderColor: getBorderColor(),
-          color: getColor(),
-        }}
+        className={classes}
         title={title || label}
         aria-label={label}
+        type="button"
       >
-        {icon && <span className={showLabel ? 'mr-2' : ''}>{icon}</span>}
+        {icon && (
+          <span
+            className={`riff-ToolbarButton__icon ${showLabel ? 'riff-ToolbarButton__icon--margin' : ''}`}
+          >
+            {icon}
+          </span>
+        )}
         {showLabel ? (
-          <span className="text-xs font-bold uppercase tracking-wide">{label}</span>
+          <span className="riff-ToolbarButton__label">{label}</span>
         ) : (
-          <span className="sr-only">{label}</span>
+          <span className="riff-ToolbarButton__sr-only">{label}</span>
         )}
       </button>
     );

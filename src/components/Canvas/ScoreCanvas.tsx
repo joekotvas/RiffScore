@@ -22,6 +22,8 @@ import GrandStaffBracket from '../Assets/GrandStaffBracket';
 import { CLAMP_LIMITS, STAFF_HEIGHT } from '@/constants';
 import { LassoSelectCommand } from '@/commands/selection';
 
+import './styles/ScoreCanvas.css';
+
 interface ScoreCanvasProps {
   scale: number;
   playbackPosition?: { measureIndex: number | null; quant: number | null; duration: number };
@@ -294,7 +296,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     <div
       ref={containerRef}
       data-testid="score-canvas-container"
-      className="ScoreCanvas overflow-x-auto relative outline-none z-10 pl-8 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600/50"
+      className="riff-ScoreCanvas"
       style={{ marginTop: '-30px', backgroundColor: theme.background }}
       onClick={handleBackgroundClick}
       tabIndex={0}
@@ -305,7 +307,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
         ref={svgRef}
         width={totalWidth * scale}
         height={svgHeight * scale}
-        className="ml-0 overflow-visible"
+        className="riff-ScoreCanvas__svg"
         onMouseDown={handleDragSelectMouseDown}
       >
         <g transform={`scale(${scale})`}>
