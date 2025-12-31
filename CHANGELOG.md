@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - **Embedding Support (Issue #160)**: Added `ui.showBackground` config option (default `true`) and "Lightweight Display Mode" (removed shadows/borders) for cleaner embedding.
+- **Score Title Toggle**: `ui.showScoreTitle` config option to show/hide the title input.
 - **Auto-Expanding Title**: Score title input now dynamically resizes to fit content.
 
 ### Changed
