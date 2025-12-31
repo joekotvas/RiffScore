@@ -40,10 +40,20 @@ const DeleteMeasureIcon: React.FC = () => (
  */
 const PickupIcon: React.FC = () => (
   <svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} fill="none">
-    {/* Short barline segment indicating pickup/anacrusis */}
-    <line x1={10} y1={8} x2={10} y2={16} stroke="currentColor" strokeWidth={1.5} />
-    {/* Small bracket indicating partial measure */}
-    <path d="M 6 8 L 6 6 L 14 6 L 14 8" stroke="currentColor" strokeWidth={1} fill="none" strokeLinecap="round" />
+    {/* Barline to the right */}
+    <line x1={18} y1={4} x2={18} y2={16} stroke="currentColor" strokeWidth={1} />
+    
+    {/* Ascending eighth note couplet */}
+    {/* Note 1 (Low) */}
+    <ellipse cx={6} cy={14} rx={2.3} ry={1.6} fill="currentColor" transform="rotate(-20 6 14)" />
+    <line x1={8.1} y1={14} x2={8.1} y2={8.5} stroke="currentColor" strokeWidth={1} />
+    
+    {/* Note 2 (High) */}
+    <ellipse cx={13} cy={11} rx={2.3} ry={1.6} fill="currentColor" transform="rotate(-20 13 11)" />
+    <line x1={15.1} y1={11} x2={15.1} y2={5.5} stroke="currentColor" strokeWidth={1} />
+    
+    {/* Beam (thick) */}
+    <line x1={8} y1={8.5} x2={15.2} y2={5.5} stroke="currentColor" strokeWidth={2.5} strokeLinecap="butt" />
   </svg>
 );
 
