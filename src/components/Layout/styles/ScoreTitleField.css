@@ -21,6 +21,7 @@
   height: 2.25rem;
   letter-spacing: 0;
   font-kerning: normal;
+  vertical-align: top;
   /* Font size is set via inline style since it depends on scale prop */
 }
 
