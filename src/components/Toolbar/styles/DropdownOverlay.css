@@ -14,7 +14,7 @@
   letter-spacing: var(--riff-tracking-normal);
   transition: all var(--riff-transition-normal);
   background-color: transparent;
-  height: var(--riff-button-height);
+  height: var(--riff-toolbar-button-size);
   cursor: pointer;
 }
 
