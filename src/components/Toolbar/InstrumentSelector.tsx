@@ -8,14 +8,12 @@ interface InstrumentSelectorProps {
   selectedInstrument: InstrumentType;
   onInstrumentChange: (instrument: InstrumentType) => void;
   samplerLoaded: boolean;
-  height?: string;
 }
 
 const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
   selectedInstrument,
   onInstrumentChange,
   samplerLoaded,
-  height = 'h-9',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -54,7 +52,6 @@ const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
         icon={<AudioWaveform size={14} />}
         isOpen={isOpen}
         onClick={() => setIsOpen(!isOpen)}
-        height={height}
       />
 
       {isOpen && (
@@ -66,6 +63,10 @@ const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
           width={176}
         >
           {/* eslint-enable react-hooks/refs */}
+          <div className="riff-DropdownHeader">
+            <AudioWaveform size={16} />
+            <h3 className="riff-DropdownHeader__title">Voice</h3>
+          </div>
           <div className="riff-InstrumentSelector__list">
             {options.map((option) => (
               <DropdownItem

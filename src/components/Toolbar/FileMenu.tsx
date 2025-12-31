@@ -116,7 +116,6 @@ const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = 'h-9', variant
   const [isOpen, setIsOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const { theme } = useTheme();
   const { copyToClipboard, downloadFile } = useExport(score, bpm);
 
   const handleAction = async (format: ExportFormat, action: 'copy' | 'download') => {
@@ -164,14 +163,8 @@ const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = 'h-9', variant
           }}
           width={220}
         >
-          <div
-            className="px-4 py-2 border-b"
-            style={{
-              backgroundColor: theme.buttonHoverBackground,
-              borderColor: theme.border,
-            }}
-          >
-            <h3 className="font-semibold text-sm" style={{ color: theme.text }}>
+          <div className="riff-DropdownHeader">
+            <h3 className="riff-DropdownHeader__title">
               Export
             </h3>
           </div>

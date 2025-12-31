@@ -8,32 +8,35 @@ interface ThemeContextType {
   setTheme: (name: ThemeName) => void;
   zoom: number;
   setZoom: (zoom: number) => void;
+  setContainerRef: (ref: HTMLElement | null) => void;
+  containerRef: HTMLElement | null;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 /**
  * Injects CSS custom properties based on the selected theme.
- * This allows CSS-based components to use dynamic theme colors.
+ * If a container element is provided, injects into that element for scoped theming.
+ * Falls back to document.documentElement for global theming.
  */
-function injectThemeCSSVariables(theme: Theme) {
-  const root = document.documentElement;
+function injectThemeCSSVariables(theme: Theme, container?: HTMLElement | null) {
+  const target = container || document.documentElement;
   
   // Map theme properties to CSS custom properties
-  root.style.setProperty('--riff-color-bg', theme.background);
-  root.style.setProperty('--riff-color-bg-panel', theme.panelBackground);
-  root.style.setProperty('--riff-color-text', theme.text);
-  root.style.setProperty('--riff-color-text-secondary', theme.secondaryText);
-  root.style.setProperty('--riff-color-border', theme.border);
-  root.style.setProperty('--riff-color-primary', theme.accent);
-  root.style.setProperty('--riff-color-active-bg', theme.accent);
-  root.style.setProperty('--riff-color-button-bg', theme.buttonBackground);
-  root.style.setProperty('--riff-color-hover-bg', theme.buttonHoverBackground);
+  target.style.setProperty('--riff-color-bg', theme.background);
+  target.style.setProperty('--riff-color-bg-panel', theme.panelBackground);
+  target.style.setProperty('--riff-color-text', theme.text);
+  target.style.setProperty('--riff-color-text-secondary', theme.secondaryText);
+  target.style.setProperty('--riff-color-border', theme.border);
+  target.style.setProperty('--riff-color-primary', theme.accent);
+  target.style.setProperty('--riff-color-active-bg', theme.accent);
+  target.style.setProperty('--riff-color-button-bg', theme.buttonBackground);
+  target.style.setProperty('--riff-color-hover-bg', theme.buttonHoverBackground);
   
   // Score-specific colors
-  root.style.setProperty('--riff-color-score-line', theme.score.line);
-  root.style.setProperty('--riff-color-score-note', theme.score.note);
-  root.style.setProperty('--riff-color-score-fill', theme.score.fill);
+  target.style.setProperty('--riff-color-score-line', theme.score.line);
+  target.style.setProperty('--riff-color-score-note', theme.score.note);
+  target.style.setProperty('--riff-color-score-fill', theme.score.fill);
 }
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode; initialTheme?: ThemeName }> = ({
@@ -42,6 +45,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode; initialTheme?:
 }) => {
   const [themeName, setThemeName] = useState<ThemeName>(initialTheme || DEFAULT_THEME);
   const [zoom, setZoom] = useState(DEFAULT_SCALE);
+  const [containerRef, setContainerRef] = useState<HTMLElement | null>(null);
 
   // Sync with prop changes
   useEffect(() => {
@@ -54,12 +58,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode; initialTheme?:
   const theme = THEMES[themeName];
 
   // Inject CSS variables synchronously before paint to prevent FOUC
+  // When containerRef is set, inject into that element for scoped theming
   useLayoutEffect(() => {
-    injectThemeCSSVariables(theme);
-  }, [theme]);
+    injectThemeCSSVariables(theme, containerRef);
+  }, [theme, containerRef]);
 
   return (
-    <ThemeContext.Provider value={{ theme, themeName, setTheme: setThemeName, zoom, setZoom }}>
+    <ThemeContext.Provider value={{ theme, themeName, setTheme: setThemeName, zoom, setZoom, setContainerRef, containerRef }}>
       {children}
     </ThemeContext.Provider>
   );

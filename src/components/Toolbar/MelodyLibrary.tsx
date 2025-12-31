@@ -2,7 +2,6 @@ import React from 'react';
 import { Melody } from '@/types';
 import { BookOpen } from 'lucide-react';
 import DropdownOverlay, { DropdownItem } from './Menus/DropdownOverlay';
-import { useTheme } from '@/context/ThemeContext';
 
 interface MelodyLibraryProps {
   melodies: Melody[];
@@ -19,8 +18,6 @@ const MelodyLibrary: React.FC<MelodyLibraryProps> = ({
   position,
   triggerRef,
 }) => {
-  const { theme } = useTheme();
-
   return (
     <DropdownOverlay
       onClose={onClose}
@@ -29,21 +26,14 @@ const MelodyLibrary: React.FC<MelodyLibraryProps> = ({
       width={256} // w-64
       maxHeight={320} // max-h-80
     >
-      <div
-        className="riff-ControlGroup"
-        style={{
-          padding: '0.75rem 1rem',
-          borderBottom: `1px solid ${theme.border}`,
-          backgroundColor: theme.buttonHoverBackground,
-        }}
-      >
-        <BookOpen size={16} style={{ color: theme.secondaryText }} />
-        <h3 className="font-semibold text-sm" style={{ color: theme.text }}>
+      <div className="riff-DropdownHeader">
+        <BookOpen size={16} />
+        <h3 className="riff-DropdownHeader__title">
           Melody Library
         </h3>
       </div>
 
-      <div className="overflow-y-auto p-2 dropdown-scroll" style={{ maxHeight: '320px' }}>
+      <div className="riff-DropdownContent" style={{ maxHeight: '320px' }}>
         {melodies.map((melody) => (
           <DropdownItem key={melody.id} onClick={() => onSelectMelody(melody)}>
             {melody.title}

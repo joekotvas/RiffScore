@@ -1,6 +1,8 @@
 /* RiffScore Theme Variables */
 /* Defaults match LIGHT theme to prevent FOUC */
-:root {
+/* Scoped to both :root (standalone) and .RiffScore (embedded) */
+:root,
+.RiffScore {
   /* ========== Colors (LIGHT theme defaults) ========== */
   --riff-color-bg: #ffffff;
   --riff-color-bg-panel: #f9f9f9;

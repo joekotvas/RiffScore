@@ -116,3 +116,9 @@
   font-size: 1.25rem;
   padding-bottom: 0.25rem;
 }
+
+/* --- Label Sizing Modifier --- */
+.riff-ToolbarButton--label-xs .riff-ToolbarButton__label {
+  font-size: var(--riff-font-size-xs);
+  font-weight: var(--riff-font-weight-bold);
+}

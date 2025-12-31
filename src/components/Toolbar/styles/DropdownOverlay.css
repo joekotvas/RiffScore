@@ -105,3 +105,30 @@
 .riff-DropdownItem--selected {
   background-color: var(--riff-color-border); /* hovered bg */
 }
+
+/* --- Dropdown Header --- */
+
+.riff-DropdownHeader {
+  padding: var(--riff-spacing-2) var(--riff-spacing-4);
+  border-bottom: var(--riff-border-width) solid var(--riff-color-border);
+  background-color: var(--riff-color-hover-bg);
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-2);
+  color: var(--riff-color-text-secondary);
+}
+
+.riff-DropdownHeader__title {
+  font-weight: var(--riff-font-weight-semibold);
+  font-size: var(--riff-font-size-sm);
+  padding: 0;
+  margin: 0;
+  color: var(--riff-color-text);
+}
+
+/* --- Dropdown Content --- */
+
+.riff-DropdownContent {
+  overflow-y: auto;
+  padding: var(--riff-spacing-2);
+}

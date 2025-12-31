@@ -13,20 +13,7 @@ body {
 }
 
 /* RiffScore Component Library Styles */
-@import "../../src/styles/theme.css";
-@import "../../src/components/Toolbar/styles/Toolbar.css";
-@import "../../src/components/Toolbar/styles/ToolbarButton.css";
-@import "../../src/components/Toolbar/styles/Divider.css";
-@import "../../src/components/Toolbar/styles/PlaybackControls.css";
-@import "../../src/components/Toolbar/styles/InstrumentSelector.css";
-@import "../../src/components/Toolbar/styles/DropdownOverlay.css";
-@import "../../src/components/Canvas/styles/ScoreCanvas.css";
-@import "../../src/components/Layout/styles/ScoreEditor.css";
-@import "../../src/components/Layout/styles/ScoreTitleField.css";
-@import "../../src/components/Layout/Overlays/styles/ShortcutsOverlay.css";
-@import "../../src/components/Layout/Overlays/styles/ConfirmDialog.css";
-@import "../../src/components/Toolbar/Menus/styles/ClefOverlay.css";
-@import "../../src/components/Toolbar/Menus/styles/KeySignatureOverlay.css";
+@import "../../src/styles/index.css";
 
 /* Bravura Music Font - SMuFL compliant */
 @font-face {
@@ -155,6 +142,7 @@ body {
 .demo-footer a {
   text-decoration: underline;
   transition: opacity 0.3s;
+  color: var(--riff-color-primary);
 }
 
 .demo-footer a:hover {

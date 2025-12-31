@@ -25,14 +25,27 @@ const ConfigMenu = () => {
   }, [isOpen]);
 
   return (
-    <div className="ConfigMenu fixed top-4 right-4 z-50" ref={menuRef}>
+    <div
+      className="ConfigMenu"
+      ref={menuRef}
+      style={{
+        position: 'fixed',
+        top: '1rem',
+        right: '1rem',
+        zIndex: 50,
+      }}
+    >
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-full shadow-lg transition-colors"
         style={{
+          padding: '0.5rem',
+          borderRadius: '9999px',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
+          transition: 'background-color 0.2s, color 0.2s',
           backgroundColor: theme.buttonBackground,
           color: theme.text,
-          border: `1px solid ${theme.border}`
+          border: `1px solid ${theme.border}`,
+          cursor: 'pointer',
         }}
       >
         {isOpen ? <X size={24} /> : <Settings size={24} />}
@@ -40,31 +53,81 @@ const ConfigMenu = () => {
 
       {isOpen && (
         <div 
-          className="absolute top-12 right-0 w-64 p-4 rounded-lg shadow-xl backdrop-blur-md border"
           style={{
+            position: 'absolute',
+            top: '3rem',
+            right: 0,
+            width: '16rem',
+            padding: '1rem',
+            borderRadius: '0.5rem',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            backdropFilter: 'blur(12px)',
+            border: `1px solid ${theme.border}`,
             backgroundColor: theme.panelBackground,
-            borderColor: theme.border,
-            color: theme.text
+            color: theme.text,
           }}
         >
-          <h3 className="font-bold mb-4 text-sm uppercase tracking-wider" style={{ color: theme.secondaryText }}>Configuration</h3>
+          <h3
+            style={{
+              fontWeight: 700,
+              marginBottom: '1rem',
+              fontSize: '0.875rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: theme.secondaryText,
+            }}
+          >
+            Configuration
+          </h3>
           
-          <div className="mb-6">
-            <label className="block text-xs font-bold mb-2 uppercase" style={{ color: theme.secondaryText }}>Theme</label>
-            <div className="grid grid-cols-2 gap-2">
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                marginBottom: '0.5rem',
+                textTransform: 'uppercase',
+                color: theme.secondaryText,
+              }}
+            >
+              Theme
+            </label>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '0.5rem',
+              }}
+            >
               {(Object.keys(THEMES) as ThemeName[]).map((name) => (
                 <button
                   key={name}
                   onClick={() => setTheme(name)}
-                  className={`px-3 py-2 rounded text-xs font-medium transition-all border ${
-                    themeName === name ? 'ring-2 ring-offset-1 ring-offset-transparent' : 'opacity-70 hover:opacity-100'
-                  }`}
                   style={{
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '0.25rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    transition: 'all 0.2s',
+                    cursor: 'pointer',
                     backgroundColor: THEMES[name].background,
                     color: THEMES[name].text,
-                    borderColor: themeName === name ? theme.accent : THEMES[name].border,
-                    '--tw-ring-color': theme.accent
-                  } as React.CSSProperties}
+                    border: `1px solid ${themeName === name ? theme.accent : THEMES[name].border}`,
+                    opacity: themeName === name ? 1 : 0.7,
+                    outline: themeName === name ? `2px solid ${theme.accent}` : 'none',
+                    outlineOffset: '1px',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (themeName !== name) {
+                      e.currentTarget.style.opacity = '1';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (themeName !== name) {
+                      e.currentTarget.style.opacity = '0.7';
+                    }
+                  }}
                 >
                   {name}
                 </button>
@@ -73,7 +136,16 @@ const ConfigMenu = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold mb-2 uppercase" style={{ color: theme.secondaryText }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                marginBottom: '0.5rem',
+                textTransform: 'uppercase',
+                color: theme.secondaryText,
+              }}
+            >
               Zoom: {Math.round(zoom * 100)}%
             </label>
             <input
@@ -83,13 +155,25 @@ const ConfigMenu = () => {
               step="0.1"
               value={zoom}
               onChange={(e) => setZoom(parseFloat(e.target.value))}
-              className="w-full h-2 rounded-lg appearance-none cursor-pointer"
               style={{
+                width: '100%',
+                height: '0.5rem',
+                borderRadius: '0.5rem',
+                appearance: 'none',
+                cursor: 'pointer',
                 background: theme.border,
-                accentColor: theme.accent
+                accentColor: theme.accent,
               }}
             />
-            <div className="flex justify-between text-xs mt-1" style={{ color: theme.secondaryText }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '0.75rem',
+                marginTop: '0.25rem',
+                color: theme.secondaryText,
+              }}
+            >
               <span>50%</span>
               <span>100%</span>
               <span>200%</span>

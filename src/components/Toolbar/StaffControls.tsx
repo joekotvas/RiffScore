@@ -83,7 +83,7 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
             }
             setShowClefMenu(!showClefMenu);
           }}
-          icon={<ClefIcon clef={clef || 'treble'} className="w-6 h-6 overflow-visible" />}
+          icon={<ClefIcon clef={clef || 'treble'} style={{ width: 24, height: 24, overflow: 'visible' }} />}
           variant={variant}
         />
         {showClefMenu && (
@@ -105,7 +105,7 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
           label={KEY_SIGNATURES[keySignature]?.label || keySignature}
           showLabel={true}
           onClick={() => setShowKeySig(!showKeySig)}
-          className="text-xs font-bold"
+          className="riff-ToolbarButton--label-xs"
           variant={variant}
         />
         {showKeySig && (
@@ -131,7 +131,7 @@ const StaffControls = forwardRef<StaffControlsHandle, StaffControlsProps>(
             }
             setShowTimeSig(!showTimeSig);
           }}
-          className="text-xs font-bold"
+          className="riff-ToolbarButton--label-xs"
           variant={variant}
         />
         {showTimeSig && (
