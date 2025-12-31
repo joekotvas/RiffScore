@@ -1,3 +1,9 @@
+/**
+ * MeasureControls
+ *
+ * Toolbar component for managing measure operations (add, remove, pickup).
+ * Contains custom SVG definitions for measure-related icons.
+ */
 import React from 'react';
 import ToolbarButton from './ToolbarButton';
 
