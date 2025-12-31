@@ -1,0 +1,37 @@
+/* src/components/Canvas/styles/ScoreCanvas.css */
+
+.riff-ScoreCanvas {
+  overflow-x: auto;
+  position: relative;
+  outline: none;
+  z-index: 10;
+  padding-left: var(--riff-spacing-8);
+}
+
+/* Custom scrollbar styling */
+.riff-ScoreCanvas::-webkit-scrollbar {
+  height: 8px;
+}
+
+.riff-ScoreCanvas::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.riff-ScoreCanvas::-webkit-scrollbar-thumb {
+  background-color: rgba(51, 65, 85, 0.5); /* slate-700/50 */
+  border-radius: var(--riff-border-radius-full);
+}
+
+.riff-ScoreCanvas:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(71, 85, 105, 0.5); /* slate-600/50 */
+}
+
+.riff-ScoreCanvas__svg {
+  margin-left: 0;
+  overflow: visible;
+}
+
+/* Chord Group */
+.chord-group--ghost {
+  opacity: 0.5;
+}

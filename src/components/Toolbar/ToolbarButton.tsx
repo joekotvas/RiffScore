@@ -1,24 +1,36 @@
+/**
+ * ToolbarButton
+ *
+ * The foundational interactive component for the editor toolbar.
+ * Provides consistent styling, states, and accessibility features.
+ */
 import React from 'react';
-import { useTheme } from '@/context/ThemeContext';
+import './styles/ToolbarButton.css';
 
 interface ToolbarButtonProps {
-  icon?: React.ReactNode;
-  label: string;
-  showLabel?: boolean;
-  isActive?: boolean;
-  onClick?: () => void;
-  className?: string;
-  disabled?: boolean;
-  title?: string;
-  ref?: React.Ref<HTMLButtonElement>;
-
-  preventFocus?: boolean;
-  isEmphasized?: boolean;
-  isDashed?: boolean;
-  height?: string;
-  variant?: 'default' | 'ghost';
+  icon?: React.ReactNode; // Icon element to display
+  label: string; // Text label (used for aria-label and tooltip even if hidden)
+  showLabel?: boolean; // Whether to display the label text visually
+  isActive?: boolean; // Whether the button is in an active/toggled state
+  onClick?: () => void; // Click handler
+  className?: string; // Custom CSS classes
+  disabled?: boolean; // Disabled state
+  title?: string; // Tooltip text (defaults to label if omitted)
+  ref?: React.Ref<HTMLButtonElement>; // Ref for the button element
+  preventFocus?: boolean; // If true, prevents focus when clicked (useful for keeping focus on canvas)
+  isEmphasized?: boolean; // Highlights the button (branding color)
+  isDashed?: boolean; // Renders with a dashed border (e.g. for ghost/placeholder actions)
+  height?: string; // @deprecated Used legacy inline height, now handled via CSS
+  variant?: 'default' | 'ghost'; // Visual style variant
 }
 
+/**
+ * ToolbarButton
+ *
+ * Standard interactive element for the editor toolbar.
+ * Supports icons, labels, toggle states, and various visual variants.
+ * Accessibility-ready with aria-labels and keyboard support.
+ */
 const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(
   (
     {
@@ -33,80 +45,61 @@ const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(
       preventFocus = false,
       isEmphasized = false,
       isDashed = false,
-      height = 'h-9',
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      height, // unused in CSS approach (fixed height in CSS or overridden via class)
       variant = 'default',
     },
     ref
   ) => {
-    const { theme } = useTheme();
-    const baseStyles =
-      'flex items-center justify-center rounded border transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
-    const sizeStyles = showLabel ? 'min-w-9 px-3' : 'w-9';
-    const borderStyle = isDashed ? 'border-dashed' : 'border-solid';
-    const [isHovered, setIsHovered] = React.useState(false);
+    // We no longer rely on ThemeContext for *computed* styles,
+    // but the ThemeProvider still pushes variables to CSS if needed.
+    // CSS classes now drive the look.
 
-    // Ghost variant styles
-    const isGhost = variant === 'ghost';
+    const classes = [
+      'riff-ToolbarButton',
+      // Layout modifiers
+      showLabel ? 'riff-ToolbarButton--auto-width' : '',
 
-    const getBackgroundColor = () => {
-      if (isActive) return theme.accent;
-      if (isHovered) return theme.buttonHoverBackground;
-      // Ghost variant: Always transparent unless Active or Hovered
-      // This allows the border (mixed state) to show without a solid background
-      if (isGhost) return 'transparent';
+      // Style modifiers
+      isDashed ? 'riff-ToolbarButton--dashed' : 'riff-ToolbarButton--solid-border',
+      variant === 'ghost' ? 'riff-ToolbarButton--ghost' : '',
 
-      if (isEmphasized) return theme.buttonBackground;
-      return theme.buttonBackground;
-    };
+      // State modifiers
+      isActive ? 'riff-ToolbarButton--active' : '',
+      isEmphasized ? 'riff-ToolbarButton--emphasized' : '',
 
-    const getBorderColor = () => {
-      if (isActive) return theme.accent;
-      if (isEmphasized) return theme.accent;
-      // Ensure dashed border is visible even if not emphasized (fallback)
-      if (isDashed) return theme.secondaryText;
-
-      if (isGhost && !isHovered) return 'transparent';
-      return theme.border;
-    };
-
-    const getColor = () => {
-      if (isActive) return '#ffffff';
-      if (isEmphasized) return theme.accent;
-      return theme.secondaryText;
-    };
+      // External overrides
+      className,
+    ]
+      .filter(Boolean)
+      .join(' ');
 
     return (
       <button
         ref={ref}
         onClick={onClick}
-        onMouseEnter={() => !disabled && setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
         onMouseDown={(e) => {
           if (preventFocus) {
             e.preventDefault();
           }
         }}
         disabled={disabled}
-        className={`
-        ${baseStyles}
-        ${height}
-        ${sizeStyles}
-        ${borderStyle}
-        ${className}
-      `}
-        style={{
-          backgroundColor: getBackgroundColor(),
-          borderColor: getBorderColor(),
-          color: getColor(),
-        }}
+        className={classes}
         title={title || label}
         aria-label={label}
+        type="button"
       >
-        {icon && <span className={showLabel ? 'mr-2' : ''}>{icon}</span>}
+        {icon && (
+          <span
+            className={`riff-ToolbarButton__icon ${showLabel ? 'riff-ToolbarButton__icon--margin' : ''}`}
+          >
+            {icon}
+          </span>
+        )}
         {showLabel ? (
-          <span className="text-xs font-bold uppercase tracking-wide">{label}</span>
+          <span className="riff-ToolbarButton__label">{label}</span>
         ) : (
-          <span className="sr-only">{label}</span>
+          <span className="riff-ToolbarButton__sr-only">{label}</span>
         )}
       </button>
     );

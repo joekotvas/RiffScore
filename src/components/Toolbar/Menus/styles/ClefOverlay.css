@@ -1,0 +1,49 @@
+/* src/components/Toolbar/Menus/styles/ClefOverlay.css */
+
+.riff-ClefOverlay {
+  width: 320px;
+}
+
+.riff-ClefOverlay__grid {
+  padding: var(--riff-spacing-2);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--riff-spacing-2);
+}
+
+.riff-ClefOverlay__option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--riff-spacing-2);
+  border-radius: var(--riff-border-radius-md);
+  transition: all var(--riff-transition-normal);
+  border: var(--riff-border-width) solid transparent;
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.riff-ClefOverlay__option:hover {
+  background-color: var(--riff-color-hover-bg);
+}
+
+.riff-ClefOverlay__option--selected {
+  background-color: var(--riff-color-hover-bg);
+  border-color: var(--riff-color-primary);
+}
+
+.riff-ClefOverlay__preview {
+  margin-bottom: var(--riff-spacing-1);
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  position: relative;
+}
+
+.riff-ClefOverlay__label {
+  font-size: var(--riff-font-size-xs);
+  font-weight: var(--riff-font-weight-medium);
+}

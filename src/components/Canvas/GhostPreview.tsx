@@ -1,6 +1,7 @@
 import React from 'react';
 import { Note } from '@/types';
 import { ChordLayout } from '@/engines/layout';
+import { LayoutConfig, InteractionState } from '@/componentTypes';
 import { Rest } from './Rest';
 import ChordGroup from './ChordGroup';
 import { NOTE_TYPES } from '@/constants';
@@ -19,8 +20,8 @@ interface GhostPreviewProps {
     isRest?: boolean;
   };
   baseY: number;
-  layout: unknown;
-  interaction: unknown;
+  layout: LayoutConfig;
+  interaction: InteractionState;
   measureIndex: number;
 }
 
@@ -66,6 +67,7 @@ const GhostPreview: React.FC<GhostPreviewProps> = ({
       layout={layout}
       interaction={interaction}
       measureIndex={measureIndex}
+      staffIndex={layout.staffIndex}
       opacity={0.5}
       renderStem={shouldDrawStem}
     />

@@ -4,61 +4,43 @@ import { CLEF_TYPES } from '@/constants';
 import { useTheme } from '@context/ThemeContext';
 import DropdownOverlay from './DropdownOverlay';
 
+import './styles/ClefOverlay.css';
+
 interface ClefOverlayProps {
   current: string;
   onSelect: (clef: string) => void;
   onClose: () => void;
-  position: { x: number; y: number };
   triggerRef: React.RefObject<HTMLElement>;
 }
 
-const ClefOverlay: React.FC<ClefOverlayProps> = ({
-  current,
-  onSelect,
-  onClose,
-  position,
-  triggerRef,
-}) => {
+const ClefOverlay: React.FC<ClefOverlayProps> = ({ current, onSelect, onClose, triggerRef }) => {
   const { theme } = useTheme();
 
   return (
     <DropdownOverlay
       onClose={onClose}
-      position={position}
       triggerRef={triggerRef}
       width="auto"
-      className="w-[320px]"
+      className="riff-ClefOverlay"
     >
-      <div className="p-2 grid grid-cols-3 gap-2">
+      <div className="riff-ClefOverlay__grid">
         {['grand', 'treble', 'bass', 'alto', 'tenor'].map((key) => {
           const data = CLEF_TYPES[key];
+          const isSelected = current === key;
           return (
             <button
               key={key}
               onClick={() => onSelect(key)}
-              className="flex flex-col items-center justify-center p-2 rounded-md transition-colors border"
-              style={{
-                backgroundColor: current === key ? theme.buttonHoverBackground : 'transparent',
-                borderColor: current === key ? theme.accent : 'transparent',
-                color: theme.text,
-              }}
-              onMouseEnter={(e) => {
-                if (current !== key) {
-                  e.currentTarget.style.backgroundColor = theme.buttonHoverBackground;
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor =
-                  current === key ? theme.buttonHoverBackground : 'transparent';
-              }}
+              className={`riff-ClefOverlay__option ${isSelected ? 'riff-ClefOverlay__option--selected' : ''}`}
+              style={{ color: theme.text }}
             >
-              <div className="mb-1 h-20 flex items-center justify-center w-full relative">
+              <div className="riff-ClefOverlay__preview">
                 <ClefIcon
                   clef={key}
                   style={{ width: '56px', height: '56px', overflow: 'visible' }}
                 />
               </div>
-              <span className="text-xs font-medium">{data.label}</span>
+              <span className="riff-ClefOverlay__label">{data.label}</span>
             </button>
           );
         })}

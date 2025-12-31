@@ -1,0 +1,32 @@
+/* RiffScore - Unified Stylesheet
+ * This file aggregates all component styles for bundling.
+ * Consumers import via: import 'riffscore/styles.css';
+ */
+
+/* Core Theme Variables */
+@import './theme.css';
+
+/* Toolbar Components */
+@import '../components/Toolbar/styles/Toolbar.css';
+@import '../components/Toolbar/styles/ToolbarButton.css';
+@import '../components/Toolbar/styles/Divider.css';
+@import '../components/Toolbar/styles/PlaybackControls.css';
+@import '../components/Toolbar/styles/InstrumentSelector.css';
+@import '../components/Toolbar/styles/DropdownOverlay.css';
+@import '../components/Toolbar/styles/TupletControls.css';
+
+/* Toolbar Menus */
+@import '../components/Toolbar/Menus/styles/ClefOverlay.css';
+@import '../components/Toolbar/Menus/styles/KeySignatureOverlay.css';
+@import '../components/Toolbar/Menus/styles/TimeSignatureOverlay.css';
+
+/* Canvas */
+@import '../components/Canvas/styles/ScoreCanvas.css';
+
+/* Layout */
+@import '../components/Layout/styles/ScoreEditor.css';
+@import '../components/Layout/styles/ScoreTitleField.css';
+
+/* Overlays */
+@import '../components/Layout/Overlays/styles/ShortcutsOverlay.css';
+@import '../components/Layout/Overlays/styles/ConfirmDialog.css';

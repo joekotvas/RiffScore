@@ -4,7 +4,7 @@
 
 Complete reference for configuring the `<RiffScore />` component.
 
-> **See also**: [API Reference](./API.md) • [Cookbook](./COOKBOOK.md) • [Architecture](./ARCHITECTURE.md)
+> **See also**: [API Reference](./API.md) • [Cookbook](./COOKBOOK.md) • [Architecture](./ARCHITECTURE.md) • [Interaction Design](./INTERACTION.md)
 
 ## Basic Usage
 
@@ -29,7 +29,9 @@ interface RiffScoreConfig {
   ui: {
     showToolbar: boolean;  // Show/hide the toolbar
     scale: number;         // Zoom scale factor
-    theme?: ThemeName;     // 'dark' | 'cool' | 'warm' | 'light'
+    theme?: ThemeName;     // 'DARK' | 'COOL' | 'WARM' | 'LIGHT'
+    showBackground?: boolean; // Show/hide panel background
+    showScoreTitle?: boolean; // Show/hide score title input
   };
   interaction: {
     isEnabled: boolean;      // Master switch for all interactions
@@ -53,8 +55,10 @@ interface RiffScoreConfig {
 | Property | Default |
 |----------|---------|
 | `ui.showToolbar` | `true` |
-| `ui.scale` | `1` |
-| `ui.theme` | `'dark'` |
+| `ui.scale` | `0.75` |
+| `ui.theme` | `'LIGHT'` |
+| `ui.showBackground` | `true` |
+| `ui.showScoreTitle` | `true` |
 | `interaction.isEnabled` | `true` |
 | `interaction.enableKeyboard` | `true` |
 | `interaction.enablePlayback` | `true` |
@@ -139,9 +143,9 @@ const myComposition = {
 ### Theme Selection
 
 ```tsx
-// Available themes: 'dark', 'cool', 'warm', 'light'
+// Available themes: 'DARK', 'COOL', 'WARM', 'LIGHT'
 <RiffScore config={{
-  ui: { theme: 'cool' }
+  ui: { theme: 'COOL' }
 }} />
 ```
 

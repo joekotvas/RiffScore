@@ -4,7 +4,7 @@
 
 Thank you for your interest in contributing to RiffScore!
 
-> **See also**: [Architecture](./ARCHITECTURE.md) • [Testing](./TESTING.md) • [Commands](./COMMANDS.md) • [Quality Check](./QUALITY_CHECK.md)
+> **See also**: [Architecture](./ARCHITECTURE.md) • [Coding Patterns](./CODING_PATTERNS.md) • [Testing](./TESTING.md) • [Commands](./COMMANDS.md) • [Quality Check](./QUALITY_CHECK.md)
 
 ---
 
@@ -113,6 +113,33 @@ npm run test        # Tests pass
 
 ---
 
+## CSS & Styling
+
+RiffScore uses vanilla CSS with no preprocessors or CSS-in-JS. Styles are bundled automatically—consumers don't need to import CSS.
+
+### Key Principles
+
+- **BEM Naming**: All classes use `.riff-Block__element--modifier` format
+- **Namespaced Variables**: CSS variables use `--riff-` prefix (e.g., `--riff-color-primary`)
+- **Co-location**: Component styles live next to components (e.g., `Toolbar.tsx` + `styles/Toolbar.css`)
+- **No Tailwind**: Zero utility framework dependencies in production
+
+### Adding Component Styles
+
+```tsx
+// 1. Create CSS file: src/components/MyComponent/styles/MyComponent.css
+.riff-MyComponent { ... }
+.riff-MyComponent__button { ... }
+.riff-MyComponent--active { ... }
+
+// 2. Import in component
+import './styles/MyComponent.css';
+```
+
+See [CODING_PATTERNS.md > CSS & Styling](./CODING_PATTERNS.md#9-css--styling) for complete guidelines.
+
+---
+
 ## Documentation Standards
 
 ### JSDoc for Public APIs
@@ -139,6 +166,18 @@ Use comprehensive JSDoc for exported functions, commands, and hooks:
  * @see Issue #123
  * @tested
  */
+```
+
+### Props Interfaces
+
+For component props interfaces, favor concise end-of-line comments to keep the interface definition compact and readable:
+
+```typescript
+interface MyComponentProps {
+  label: string; // The visible label text
+  isActive?: boolean; // Toggles the active state
+  onClick: () => void; // Handler for click events
+}
 ```
 
 ### Helper Functions

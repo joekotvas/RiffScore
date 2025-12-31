@@ -1,0 +1,139 @@
+import { useState, useEffect } from 'react';
+import { createElement, ReactElement } from 'react';
+
+/** CSS rules to hide/show music glyphs based on font loading state */
+const FONT_LOADING_CSS = `
+  @keyframes fontLoadingPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 0.3; }
+  }
+  @keyframes typingEllipsis {
+    0% { content: 'Loading'; }
+    25% { content: 'Loading.'; }
+    50% { content: 'Loading..'; }
+    75% { content: 'Loading...'; }
+    100% { content: 'Loading'; }
+  }
+  .RiffScore.font-loading .score-editor-content {
+    animation: fontLoadingPulse 3s ease-in-out infinite;
+    pointer-events: none;
+    cursor: default;
+  }
+  .RiffScore.font-loaded .score-editor-content {
+    animation: none;
+    opacity: 1;
+    transition: opacity 0.15s ease-in;
+  }
+  .RiffScore.font-loading svg text {
+    visibility: hidden !important;
+  }
+  .RiffScore.font-loaded svg text {
+    visibility: visible;
+  }
+  /* Loading title overlay */
+  .RiffScore.font-loading .ScoreTitleField,
+  .RiffScore.font-loading .ScoreTitleFieldInput {
+    visibility: hidden;
+    position: relative;
+  }
+  .RiffScore.font-loading .ScoreTitleField::after {
+    content: 'Loading';
+    animation: typingEllipsis 3s steps(1) infinite;
+    position: absolute;
+    /* NOTE: left value must match ScoreTitleField padding (px-[1.75rem]) */
+    left: 1.75rem;
+    top: 0;
+    visibility: visible;
+  }
+  /* Respect reduced motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    .RiffScore.font-loading .score-editor-content {
+      animation: none;
+      opacity: 0.5;
+    }
+    .RiffScore.font-loading .ScoreTitleField::after {
+      content: 'Loading...';
+      animation: none;
+    }
+  }
+`;
+
+export interface FontLoadedResult {
+  isLoaded: boolean; // Whether fonts have finished loading
+  className: string; // CSS class name to apply ('font-loaded' or 'font-loading')
+  styleElement: ReactElement; // Style element to render for font loading CSS rules
+}
+
+// Pre-created style element (constant, never changes)
+const FONT_STYLE_ELEMENT: ReactElement = createElement('style', null, FONT_LOADING_CSS);
+
+/**
+ * Hook to detect when fonts have finished loading and provide
+ * all necessary styling to prevent FOUC (Flash of Unstyled Content).
+ *
+ * Uses the document.fonts.ready API to detect font loading completion.
+ * Handles SSR environments and browsers without document.fonts by
+ * assuming fonts are loaded after a short (100ms) fallback delay.
+ *
+ * @param timeoutMs - Max time to wait before assuming fonts are loaded (default: 3000ms)
+ * @returns Object containing load state, className, inline styles, and CSS style element
+ *
+ * @example
+ * ```tsx
+ * const { className, styleElement } = useFontLoaded();
+ * return (
+ *   <div className={`RiffScore ${className}`}>
+ *     {styleElement}
+ *     ...content
+ *   </div>
+ * );
+ * ```
+ */
+export const useFontLoaded = (timeoutMs = 3000): FontLoadedResult => {
+  // Always start with false to ensure SSR/client hydration match
+  // The actual font check happens in useEffect (client-only)
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    // Skip if already loaded
+    if (isLoaded) return;
+
+    let cancelled = false;
+
+    // No fonts API (legacy browsers or SSR) - use timeout only
+    if (typeof document === 'undefined' || !document.fonts) {
+      const timeout = setTimeout(() => {
+        if (!cancelled) setIsLoaded(true);
+      }, 100); // Short delay for legacy browsers
+      return () => {
+        cancelled = true;
+        clearTimeout(timeout);
+      };
+    }
+
+    // Wait for all fonts to finish loading
+    document.fonts.ready.then(() => {
+      if (!cancelled) {
+        setIsLoaded(true);
+      }
+    });
+
+    // Fallback timeout to prevent indefinite hidden state
+    const timeout = setTimeout(() => {
+      if (!cancelled) {
+        setIsLoaded(true);
+      }
+    }, timeoutMs);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run on mount
+  }, [timeoutMs]);
+
+  // Derived values
+  const className = isLoaded ? 'font-loaded' : 'font-loading';
+
+  return { isLoaded, className, styleElement: FONT_STYLE_ELEMENT };
+};

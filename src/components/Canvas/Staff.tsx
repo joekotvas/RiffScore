@@ -7,7 +7,7 @@ import {
   getOffsetForPitch,
   calculateHeaderLayout,
 } from '@/engines/layout';
-import { getNoteDuration } from '@/utils/core';
+import { StaffLayout } from '@/engines/layout/types';
 import { isNoteSelected } from '@/utils/selection';
 import Measure from './Measure';
 import Tie from './Tie';
@@ -27,7 +27,7 @@ interface TieNote {
   tied: boolean;
   x: number;
   y: number;
-  id: string | number;
+  id: string;
 }
 
 /**
@@ -44,15 +44,12 @@ export interface StaffProps {
 
   // Layout
   baseY?: number; // Y offset for stacking staves (default: CONFIG.baseY)
-  measureLayouts?: { width: number; forcedPositions: Record<number, number> }[]; // Synchronized layouts
+  staffLayout?: StaffLayout;
   scale: number;
 
   // Interaction (Grouped)
   interaction: InteractionState;
 
-  // Playback
-  playbackPosition: { measureIndex: number | null; quant: number | null; duration: number };
-  hidePlaybackCursor?: boolean; // Hide cursor when rendered by parent (Grand Staff)
   mouseLimits?: { min: number; max: number }; // For Grand Staff clamping
 
   // Header click callbacks (Panel/Menu interactions)
@@ -76,11 +73,9 @@ const Staff: React.FC<StaffProps> = ({
   timeSignature,
   measures,
   baseY = CONFIG.baseY,
-  measureLayouts,
+  staffLayout,
   scale,
   interaction,
-  playbackPosition,
-  hidePlaybackCursor = false,
   mouseLimits,
   onClefClick,
   onKeySigClick,
@@ -99,12 +94,12 @@ const Staff: React.FC<StaffProps> = ({
   let currentX = startOfMeasures;
 
   const measureComponents = measures.map((measure, index: number) => {
-    // Use synchronized layout if available, otherwise calculate
-    const layoutData = measureLayouts?.[index];
-    const width = layoutData
-      ? layoutData.width
-      : calculateMeasureWidth(measure.events, measure.isPickup);
-    const forcedPositions = layoutData?.forcedPositions;
+    // Use centralized layout if available, otherwise calculate
+    const measureLayoutV2 = staffLayout?.measures[index];
+    const legacyLayout = measureLayoutV2?.legacyLayout;
+
+    const width = measureLayoutV2?.width ?? calculateMeasureWidth(measure.events, measure.isPickup);
+    const forcedPositions = legacyLayout?.eventPositions;
 
     // Only show preview note if it belongs to this staff
     // We create a DERIVED InteractionState for this scope
@@ -127,6 +122,7 @@ const Staff: React.FC<StaffProps> = ({
         isLast={index === measures.length - 1}
         forcedWidth={width}
         forcedEventPositions={forcedPositions}
+        measureLayout={measureLayoutV2}
         layout={{
           scale,
           baseY: CONFIG.baseY,
@@ -248,49 +244,6 @@ const Staff: React.FC<StaffProps> = ({
     return ties;
   };
 
-  // Calculate playback cursor X position for this staff
-  const playbackCursorX = React.useMemo(() => {
-    if (playbackPosition.measureIndex === null || playbackPosition.quant === null) {
-      return null;
-    }
-
-    const { startOfMeasures: cursorStartX } = calculateHeaderLayout(keySignature);
-
-    let absX = cursorStartX;
-
-    for (let i = 0; i < playbackPosition.measureIndex; i++) {
-      if (measures[i]) {
-        absX += calculateMeasureWidth(measures[i].events, measures[i].isPickup);
-      }
-    }
-
-    // Find event corresponding to the current quant
-    const measure = measures[playbackPosition.measureIndex];
-    if (measure) {
-      const layout = calculateMeasureLayout(measure.events, undefined, clef, false);
-      const targetQuant = playbackPosition.quant;
-
-      // Find event covering this quant
-      // Note: layout.processedEvents includes x and quant
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const targetEvent = layout.processedEvents.find((e: any) => {
-        const dur = getNoteDuration(e.duration, e.dotted, e.tuplet);
-        return e.quant <= targetQuant && e.quant + dur > targetQuant;
-      });
-
-      if (targetEvent) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        absX += (targetEvent as any).x;
-      } else {
-        // If no note found at this quant (e.g. within a rest or beyond), use fallback
-        // Try to find closest previous event? Or just use padding if at start.
-        absX += CONFIG.measurePaddingLeft;
-      }
-    }
-
-    return absX;
-  }, [playbackPosition, measures, keySignature, clef]);
-
   return (
     <g className="staff" transform={`translate(0, ${verticalOffset})`}>
       {/* Staff Header (Clef, Key Sig, Time Sig) */}
@@ -318,27 +271,6 @@ const Staff: React.FC<StaffProps> = ({
 
       {/* Ties */}
       {renderTies()}
-
-      {/* Playback Cursor */}
-      {!hidePlaybackCursor && playbackCursorX !== null && (
-        <g
-          style={{
-            transform: `translateX(${playbackCursorX}px)`,
-            transition: `transform ${playbackPosition.duration || 0.1}s linear`,
-            pointerEvents: 'none',
-          }}
-        >
-          <line
-            x1={0}
-            y1={CONFIG.baseY - 20}
-            x2={0}
-            y2={CONFIG.baseY + CONFIG.lineHeight * 4 + 20}
-            stroke={theme.accent}
-            strokeWidth="3"
-            opacity="0.8"
-          />
-        </g>
-      )}
     </g>
   );
 };

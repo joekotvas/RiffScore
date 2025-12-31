@@ -3,11 +3,12 @@ import { TIME_SIGNATURES } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
 import DropdownOverlay from './DropdownOverlay';
 
+import './styles/TimeSignatureOverlay.css';
+
 interface TimeSignatureOverlayProps {
   current: string;
   onSelect: (timeSig: string) => void;
   onClose: () => void;
-  position: { x: number; y: number };
   triggerRef: React.RefObject<HTMLElement>;
 }
 
@@ -15,21 +16,20 @@ const TimeSignatureOverlay: React.FC<TimeSignatureOverlayProps> = ({
   current,
   onSelect,
   onClose,
-  position,
   triggerRef,
 }) => {
   const { theme } = useTheme();
 
   return (
-    <DropdownOverlay onClose={onClose} position={position} triggerRef={triggerRef} width={200}>
-      <div className="p-2 grid grid-cols-2 gap-2">
+    <DropdownOverlay onClose={onClose} triggerRef={triggerRef} width={200}>
+      <div className="riff-TimeSignatureOverlay__grid">
         {Object.keys(TIME_SIGNATURES).map((sig) => {
           const [top, bottom] = sig.split('/');
           return (
             <button
               key={sig}
               onClick={() => onSelect(sig)}
-              className="flex flex-col items-center justify-center p-2 rounded-md transition-colors border"
+              className="riff-TimeSignatureOverlay__option"
               style={{
                 backgroundColor: current === sig ? theme.buttonHoverBackground : 'transparent',
                 borderColor: current === sig ? theme.accent : 'transparent',
@@ -45,7 +45,7 @@ const TimeSignatureOverlay: React.FC<TimeSignatureOverlayProps> = ({
                   current === sig ? theme.buttonHoverBackground : 'transparent';
               }}
             >
-              <div className="mb-1 h-16 flex items-center justify-center w-full">
+              <div className="riff-TimeSignatureOverlay__preview">
                 <svg width="40" height="60" viewBox="0 0 40 60">
                   {/* Staff Lines (faint) */}
                   {[0, 1, 2, 3, 4].map((i) => (
@@ -85,7 +85,7 @@ const TimeSignatureOverlay: React.FC<TimeSignatureOverlayProps> = ({
                   </text>
                 </svg>
               </div>
-              <span className="text-xs font-medium">{sig}</span>
+              <span className="riff-TimeSignatureOverlay__label">{sig}</span>
             </button>
           );
         })}

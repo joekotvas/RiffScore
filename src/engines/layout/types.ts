@@ -1,13 +1,13 @@
 export interface Note {
   pitch: string | null; // null for rest notes
   tied?: boolean;
-  id: string | number;
+  id: string;
   accidental?: string | null;
   isRest?: boolean; // True for rest notes
 }
 
 export interface ScoreEvent {
-  id: string | number;
+  id: string;
   duration: string;
   dotted: boolean;
   notes: Note[];
@@ -46,11 +46,11 @@ export interface HitZone {
   endX: number;
   index: number;
   type: 'APPEND' | 'INSERT' | 'EVENT';
-  eventId?: string | number;
+  eventId?: string;
 }
 
 export interface BeamGroup {
-  ids: (string | number)[];
+  ids: string[];
   startX: number;
   endX: number;
   startY: number;
@@ -73,4 +73,51 @@ export interface HeaderLayout {
   keySigVisualWidth: number;
   timeSigStartX: number;
   startOfMeasures: number;
+}
+
+// ========== SINGLE SOURCE OF TRUTH LAYOUT TYPES ==========
+
+export interface NoteLayout {
+  x: number;
+  y: number;
+  noteId: string;
+  eventId: string;
+  measureIndex: number;
+  staffIndex: number;
+  pitch: string | null;
+  hitZone: HitZone; // Specific hit zone for this note
+}
+
+export interface EventLayout {
+  x: number;
+  y: number; // Base Y for the staff
+  width: number;
+  notes: Record<string, NoteLayout>; // noteId -> layout
+  hitZones: HitZone[];
+}
+
+export interface MeasureLayoutV2 {
+  x: number;
+  y: number;
+  width: number;
+  events: Record<string, EventLayout>; // eventId -> layout
+  beamGroups: BeamGroup[];
+  tupletGroups: TupletBracketGroup[];
+  // Keep compatibility with V1 layout for now?
+  legacyLayout?: MeasureLayout;
+}
+
+export interface StaffLayout {
+  y: number;
+  index: number;
+  measures: MeasureLayoutV2[];
+}
+
+export interface ScoreLayout {
+  staves: StaffLayout[];
+  // Flat maps for O(1) lookup during interaction
+  // Key format: `${staffIndex}-${measureIndex}-${eventId}-${noteId}`
+  notes: Record<string, NoteLayout>;
+  // Key format: `${staffIndex}-${measureIndex}-${eventId}`
+  events: Record<string, EventLayout>;
 }

@@ -4,7 +4,7 @@
 
 > Comprehensive guide to selection mechanics, multi-selection patterns, and the 2D selection box model.
 
-> **See also**: [Keyboard Navigation](./KEYBOARD_NAVIGATION.md) • [Commands](./COMMANDS.md) • [Data Model](./DATA_MODEL.md) • [ADR-001: Vertical Selection](./adr/001-vertical-selection.md)
+> **See also**: [Keyboard Navigation](./KEYBOARD_NAVIGATION.md) • [Commands](./COMMANDS.md) • [Data Model](./DATA_MODEL.md) • [Coding Patterns](./CODING_PATTERNS.md) • [ADR-001: Vertical Selection](./adr/001-vertical-selection.md)
 
 ---
 
@@ -128,6 +128,7 @@ This ensures all treble notes are "above" all bass notes, and within each staff,
 | `ToggleNoteCommand` | Cmd+Click | Add/remove from multi-selection |
 | `SelectAllInEventCommand` | Click chord body | Select all notes in chord |
 | `ExtendSelectionVerticallyCommand` | Cmd+Shift+↑/↓ | Vertical expand/contract |
+| `ExtendSelectionHorizontallyCommand` | Shift+←/→ | Horizontal expand/contract |
 | `SelectAllCommand` | Cmd+A | Progressive scope expansion |
 | `SelectMeasureCommand` | Double-click measure | Select all in measure |
 | `LassoSelectCommand` | Drag | Select by rectangle |

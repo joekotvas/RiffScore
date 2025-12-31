@@ -1,7 +1,35 @@
+/**
+ * ModifierControls
+ *
+ * Toolbar tools for note modifiers (Dots, Ties).
+ * Handles validation logic for applying these modifiers.
+ */
 import React from 'react';
-import { Circle } from 'lucide-react';
 import TieIcon from '../Assets/TieIcon';
 import ToolbarButton from './ToolbarButton';
+import { DOTS, BRAVURA_FONT } from '@/constants/SMuFL';
+
+// SVG viewport and font size for compact toolbar icons
+const ICON_SIZE = 20;
+
+/**
+ * Bravura-based augmentation dot icon for toolbar
+ */
+const DotIcon: React.FC<{ color?: string }> = ({ color = 'currentColor' }) => (
+  <svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} fill="none">
+    <text
+      x={ICON_SIZE / 2}
+      y={12}
+      fontFamily={BRAVURA_FONT}
+      fontSize={20}
+      fill={color}
+      textAnchor="middle"
+      style={{ userSelect: 'none' }}
+    >
+      {DOTS.augmentationDot}
+    </text>
+  </svg>
+);
 
 interface ModifierControlsProps {
   isDotted: boolean;
@@ -62,14 +90,14 @@ const ModifierControls: React.FC<ModifierControlsProps> = ({
   }
 
   return (
-    <div className="flex gap-1">
+    <div className="riff-ControlGroup">
       <ToolbarButton
         onClick={onDotToggle}
         label="Dotted Note"
         isActive={dotActive}
         isDashed={dotDashed}
         isEmphasized={dotEmphasized}
-        icon={<Circle size={8} fill="currentColor" />}
+        icon={<DotIcon />}
         preventFocus={true}
         disabled={!isDotValid}
         variant={variant}
@@ -81,7 +109,7 @@ const ModifierControls: React.FC<ModifierControlsProps> = ({
         isActive={tieActive}
         isDashed={tieDashed}
         isEmphasized={tieEmphasized}
-        icon={<TieIcon size={16} />}
+        icon={<TieIcon size={14} />}
         preventFocus={true}
         variant={variant}
       />

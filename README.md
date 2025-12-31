@@ -27,6 +27,8 @@ function App() {
 
 That's it! RiffScore renders a fully interactive grand staff editor with sensible defaults.
 
+> **Note**: Styles are bundled automatically — no separate CSS import required.
+
 ### With Configuration
 
 ```tsx
@@ -121,6 +123,10 @@ See the [Interaction Guide](./docs/INTERACTION.md) for the complete keyboard ref
 
 ## Documentation
 
+> 📚 **[View Full Documentation Index](./docs/README.md)**  
+> Browse all guides, architectural records, and migration history.
+
+
 ### Getting Started
 
 | Guide | Description |
@@ -142,6 +148,7 @@ See the [Interaction Guide](./docs/INTERACTION.md) for the complete keyboard ref
 | Guide | Description |
 |-------|-------------|
 | 📘 [Architecture](./docs/ARCHITECTURE.md) | Technical overview and design principles |
+| 🧩 [Coding Patterns](./docs/CODING_PATTERNS.md) | Common patterns and architectural standards |
 | 🧱 [Data Model](./docs/DATA_MODEL.md) | Score schema and quant system |
 | 🔧 [Commands](./docs/COMMANDS.md) | Command pattern reference |
 | 🎼 [Layout Engine](./docs/LAYOUT_ENGINE.md) | Engraving and positioning |

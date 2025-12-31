@@ -1,19 +1,28 @@
+/**
+ * ScoreCanvas.tsx
+ *
+ * The primary rendering surface for the musical score.
+ * Handles the SVG canvas, grand/single staff layout, user interactions (click/drag),
+ * and playback cursor synchronization.
+ *
+ * @see Issue #109
+ */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
-import { calculateHeaderLayout, getOffsetForPitch, calculateMeasureLayout } from '@/engines/layout';
-import { isRestEvent, getFirstNoteId } from '@/utils/core';
-import Staff, { calculateStaffWidth } from './Staff';
-import { getActiveStaff, Staff as StaffType, Measure, ScoreEvent, Note } from '@/types';
+import Staff from './Staff';
+import { getActiveStaff, Staff as StaffType } from '@/types';
 import { HitZone } from '@/engines/layout/types';
 import { useScoreContext } from '@/context/ScoreContext';
-import { useScoreInteraction } from '@/hooks/useScoreInteraction';
-import { useAutoScroll } from '@/hooks/useAutoScroll';
-import { useGrandStaffLayout } from '@/hooks/useGrandStaffLayout';
-import { useDragToSelect } from '@/hooks/useDragToSelect';
+import { useScoreInteraction } from '@/hooks/interaction';
+import { useAutoScroll, useCursorLayout } from '@/hooks/layout';
+import { useScoreLayout } from '@/hooks/layout';
+import { useDragToSelect } from '@/hooks/interaction';
 import GrandStaffBracket from '../Assets/GrandStaffBracket';
-import { LAYOUT, CLAMP_LIMITS, STAFF_HEIGHT } from '@/constants';
+import { CLAMP_LIMITS, STAFF_HEIGHT } from '@/constants';
 import { LassoSelectCommand } from '@/commands/selection';
+
+import './styles/ScoreCanvas.css';
 
 interface ScoreCanvasProps {
   scale: number;
@@ -24,6 +33,8 @@ interface ScoreCanvasProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   onHoverChange: (isHovering: boolean) => void;
   onBackgroundClick?: () => void;
+  isPlaying?: boolean;
+  isPlaybackVisible?: boolean;
 }
 
 /**
@@ -39,6 +50,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   containerRef,
   onHoverChange,
   onBackgroundClick,
+  isPlaying = false,
+  isPlaybackVisible = true,
 }) => {
   const { theme } = useTheme();
 
@@ -73,12 +86,11 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   const { dragState, handleDragStart } = useScoreInteraction({
     scoreRef,
     selection,
-    onUpdatePitch: (m: number, e: string | number, n: string | number, p: string) =>
-      updateNotePitch(m, e, n, p),
+    onUpdatePitch: (m: number, e: string, n: string, p: string) => updateNotePitch(m, e, n, p),
     onSelectNote: (
       measureIndex: number | null,
-      eventId: string | number | null,
-      noteId: string | number | null,
+      eventId: string | null,
+      noteId: string | null,
       staffIndexParam?: number,
       isMulti?: boolean,
       selectAllInEvent?: boolean,
@@ -103,7 +115,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   const activeStaff = getActiveStaff(score);
   const keySignature = score.keySignature || activeStaff.keySignature || 'C';
   const timeSignature = score.timeSignature || '4/4';
-  const clef = score.staves.length >= 2 ? 'grand' : activeStaff.clef || 'treble';
+  const _clef = score.staves.length >= 2 ? 'grand' : activeStaff.clef || 'treble';
 
   // --- AUTO-SCROLL LOGIC ---
   useAutoScroll({
@@ -115,139 +127,58 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     scale,
   });
 
-  // Calculate synchronized measure layouts for Grand Staff
-  const { synchronizedLayoutData, unifiedCursorX, unifiedCursorWidth, isGrandStaff, numStaves } =
-    useGrandStaffLayout({
-      score,
-      playbackPosition,
-      _activeStaff: activeStaff,
-      keySignature,
-      clef,
-    });
+  // --- LAYOUT ENGINE (SSOT) ---
+  // Use the centralized layout hook for both rendering and hit detection
+  const { layout } = useScoreLayout({ score });
 
+  // Flatten layout for hit detection (interaction layer)
+  // This replaces the old notePositions calculation
+  const notePositions = useMemo(() => {
+    return Object.values(layout.notes).map((noteLayout) => ({
+      x: noteLayout.x,
+      y: noteLayout.y,
+      // Use hit zone dimensions from layout engine
+      width: noteLayout.hitZone.endX - noteLayout.hitZone.startX,
+      height: 20, // Standard vertical hit box height
+      // Metadata
+      staffIndex: noteLayout.staffIndex,
+      measureIndex: noteLayout.measureIndex,
+      eventId: noteLayout.eventId,
+      noteId: noteLayout.noteId,
+    }));
+  }, [layout]);
+
+  // --- DIMENSIONS & REF ---
   const cursorRef = useRef<SVGGElement>(null);
-
-  // --- PLAYBACK CURSOR ANIMATION LOGIC ---
-  useEffect(() => {
-    if (cursorRef.current && unifiedCursorX !== null && unifiedCursorWidth !== undefined) {
-      // 1. Snap to Start (Instant)
-      cursorRef.current.style.transition = 'none';
-      cursorRef.current.style.transform = `translateX(${unifiedCursorX}px)`;
-
-      // 2. Animate to End (Slide)
-      // Use requestAnimationFrame to ensure the 'none' transition applies first
-      if (playbackPosition.duration > 0) {
-        requestAnimationFrame(() => {
-          if (!cursorRef.current) return;
-          cursorRef.current.style.transition = `transform ${playbackPosition.duration}s linear`;
-          cursorRef.current.style.transform = `translateX(${unifiedCursorX + unifiedCursorWidth}px)`;
-        });
-      }
-    }
-  }, [unifiedCursorX, unifiedCursorWidth, playbackPosition.duration]);
-
-  const totalWidth = React.useMemo(() => {
-    const { startOfMeasures } = calculateHeaderLayout(keySignature);
-
-    if (synchronizedLayoutData) {
-      const measuresWidth = synchronizedLayoutData.reduce(
-        (sum: number, layout: { width: number }) => sum + layout.width,
-        0
-      );
-      return startOfMeasures + measuresWidth + 50;
-    }
-
-    return calculateStaffWidth(activeStaff.measures, keySignature);
-  }, [synchronizedLayoutData, activeStaff.measures, keySignature]);
-
-  const svgHeight =
-    CONFIG.baseY + (numStaves - 1) * CONFIG.staffSpacing + CONFIG.lineHeight * 4 + 50;
-
-  // --- DRAG TO SELECT ---
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Calculate note positions for hit detection
-  const notePositions = useMemo(() => {
-    const positions: Array<{
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      staffIndex: number;
-      measureIndex: number;
-      eventId: string | number;
-      noteId: string | number | null; // null for rests
-    }> = [];
+  const totalWidth = useMemo(() => {
+    if (layout.staves.length > 0) {
+      const firstStaff = layout.staves[0];
+      const lastMeasure = firstStaff.measures[firstStaff.measures.length - 1];
+      return lastMeasure ? lastMeasure.x + lastMeasure.width + 50 : 800;
+    }
+    return 800;
+  }, [layout]);
 
-    const { startOfMeasures } = calculateHeaderLayout(keySignature);
+  const svgHeight = useMemo(() => {
+    return (
+      CONFIG.baseY + (score.staves.length - 1) * CONFIG.staffSpacing + CONFIG.lineHeight * 4 + 50
+    );
+  }, [score.staves.length]);
 
-    score.staves.forEach((staff: StaffType, staffIdx: number) => {
-      const staffBaseY = CONFIG.baseY + staffIdx * CONFIG.staffSpacing;
-      const staffClef = staff.clef || (staffIdx === 0 ? 'treble' : 'bass');
-      let measureX = startOfMeasures;
+  // Cursor layout (consumes centralized layout - no duplicate calculations)
+  // Calculate cursor layout
+  // We pass isPlaying=true to animate cursor to the NEXT event (smooth sweep)
+  // When paused, it snaps to the current event start
+  // We default to 0/0 position if null so cursor is visible at start when stopped (allowing transition to work)
+  const effectivePlaybackPos = {
+    measureIndex: playbackPosition.measureIndex ?? 0,
+    quant: playbackPosition.quant ?? 0,
+    duration: playbackPosition.duration,
+  };
 
-      staff.measures.forEach((measure: Measure, measureIdx: number) => {
-        // Get forced positions from synchronized layout if available
-        const forcedPositions = synchronizedLayoutData?.[measureIdx]?.forcedPositions;
-
-        // Calculate actual layout to get event positions
-        // IMPORTANT: Use measure.isPickup to match visual rendering!
-        const layout = calculateMeasureLayout(
-          measure.events,
-          undefined,
-          staffClef,
-          measure.isPickup || false,
-          forcedPositions
-        );
-
-        measure.events.forEach((event: ScoreEvent) => {
-          const eventX = measureX + (layout.eventPositions?.[event.id] || 0);
-
-          // Handle rest events (isRest flag set)
-          if (isRestEvent(event)) {
-            // Skip placeholder rests for empty measures
-            if (event.id === 'rest-placeholder') return;
-
-            // Get the rest note ID (rests now have a single note entry)
-            const restNoteId = getFirstNoteId(event);
-
-            // Add rest hit area - centered on event, spanning full staff height
-            const staffHeight = CONFIG.lineHeight * 4;
-            positions.push({
-              x: eventX - 15, // Center with ~30px width
-              y: staffBaseY,
-              width: 30,
-              height: staffHeight,
-              staffIndex: staffIdx,
-              measureIndex: measureIdx,
-              eventId: event.id,
-              noteId: restNoteId, // Use the rest note ID for selection
-            });
-          } else {
-            // Handle notes
-            event.notes?.forEach((note: Note) => {
-              const noteY = staffBaseY + getOffsetForPitch(note.pitch, staffClef);
-
-              positions.push({
-                x: eventX - LAYOUT.NOTE_RX, // Center of ellipse minus radius
-                y: noteY - LAYOUT.NOTE_RY,
-                width: LAYOUT.NOTE_RX * 2,
-                height: LAYOUT.NOTE_RY * 2,
-                staffIndex: staffIdx,
-                measureIndex: measureIdx,
-                eventId: event.id,
-                noteId: note.id,
-              });
-            });
-          }
-        });
-
-        measureX += layout.totalWidth || synchronizedLayoutData?.[measureIdx]?.width || 0;
-      });
-    });
-
-    return positions;
-  }, [score.staves, synchronizedLayoutData, keySignature]);
+  const { x: unifiedCursorX, numStaves } = useCursorLayout(layout, effectivePlaybackPos, isPlaying);
 
   // Drag to select hook
   const {
@@ -289,8 +220,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   const memoizedOnSelectNote = useCallback(
     (
       measureIndex: number | null,
-      eventId: number | string | null,
-      noteId: number | string | null,
+      eventId: string | null,
+      noteId: string | null,
       staffIndexParam?: number,
       isMulti?: boolean
     ) => {
@@ -305,8 +236,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   const memoizedOnDragStart = useCallback(
     (args: {
       measureIndex: number;
-      eventId: string | number;
-      noteId: string | number;
+      eventId: string;
+      noteId: string;
       startPitch: string;
       startY: number;
       isMulti?: boolean;
@@ -365,7 +296,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     <div
       ref={containerRef}
       data-testid="score-canvas-container"
-      className="ScoreCanvas overflow-x-auto relative outline-none z-10 pl-8 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600/50"
+      className="riff-ScoreCanvas"
       style={{ marginTop: '-30px', backgroundColor: theme.background }}
       onClick={handleBackgroundClick}
       tabIndex={0}
@@ -376,7 +307,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
         ref={svgRef}
         width={totalWidth * scale}
         height={svgHeight * scale}
-        className="ml-0 overflow-visible"
+        className="riff-ScoreCanvas__svg"
         onMouseDown={handleDragSelectMouseDown}
       >
         <g transform={`scale(${scale})`}>
@@ -430,26 +361,27 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 keySignature={staff.keySignature || keySignature}
                 timeSignature={timeSignature}
                 measures={staff.measures}
-                measureLayouts={synchronizedLayoutData}
+                staffLayout={layout.staves[staffIndex]}
                 baseY={staffBaseY}
                 scale={scale}
                 interaction={interaction}
-                playbackPosition={playbackPosition}
                 onClefClick={onClefClick}
                 onKeySigClick={onKeySigClick}
                 onTimeSigClick={onTimeSigClick}
-                hidePlaybackCursor={isGrandStaff}
                 mouseLimits={mouseLimits}
               />
             );
           })}
 
-          {isGrandStaff && unifiedCursorX !== null && (
+          {unifiedCursorX !== null && (
             <g
               ref={cursorRef}
+              data-testid="playback-cursor"
               style={{
                 transform: `translateX(${unifiedCursorX}px)`,
+                transition: `transform ${playbackPosition.duration || 0.1}s linear`,
                 pointerEvents: 'none',
+                opacity: isPlaybackVisible ? 1 : 0,
               }}
             >
               <line
@@ -492,18 +424,16 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
           {/* DEBUG: Lasso hit zone positions (cyan) - compare to red Note hit zones */}
           {CONFIG.debug?.showHitZones &&
-            notePositions.map((pos, idx) => (
+            notePositions.map((pos) => (
               <rect
-                key={`debug-lasso-${idx}`}
-                x={pos.x}
-                y={pos.y}
+                key={`${pos.staffIndex}-${pos.measureIndex}-${pos.eventId}-${pos.noteId}`}
+                x={pos.x - pos.width / 2}
+                y={pos.y - pos.height / 2}
                 width={pos.width}
                 height={pos.height}
                 fill="cyan"
-                fillOpacity={0.3}
-                stroke="cyan"
-                strokeWidth={1}
-                style={{ pointerEvents: 'none' }}
+                opacity={0.3}
+                pointerEvents="none"
               />
             ))}
         </g>

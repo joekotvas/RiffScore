@@ -5,11 +5,8 @@ import { ScoreProvider, useScoreContext } from '@context/ScoreContext';
 import { useTheme } from '@context/ThemeContext';
 
 // Hooks
-import { useKeyboardShortcuts } from '@hooks/useKeyboardShortcuts';
-import { usePlayback } from '@hooks/usePlayback';
-import { useMIDI } from '@hooks/useMIDI';
-import { useScoreInteraction } from '@hooks/useScoreInteraction';
-import { useSamplerStatus } from '@hooks/useSamplerStatus';
+import { useKeyboardShortcuts, useScoreInteraction } from '@hooks/interaction';
+import { usePlayback, useMIDI, useSamplerStatus } from '@hooks/audio';
 // import { useModifierKeys } from '@hooks/useModifierKeys';
 import { useTitleEditor } from '@hooks/useTitleEditor';
 
@@ -29,6 +26,8 @@ import { UpdateTitleCommand } from '@commands/UpdateTitleCommand';
 import { setInstrument, InstrumentType } from '@engines/toneEngine';
 import { MELODIES } from '@/data/melodies';
 
+import './styles/ScoreEditor.css';
+
 // ------------------------------------------------------------------
 // Props Interface
 // ------------------------------------------------------------------
@@ -37,6 +36,8 @@ interface ScoreEditorContentProps {
   scale?: number;
   label?: string;
   showToolbar?: boolean;
+  showBackground?: boolean;
+  showScoreTitle?: boolean;
   enableKeyboard?: boolean;
   enablePlayback?: boolean;
 }
@@ -49,6 +50,8 @@ const ScoreEditorContent = ({
   scale = 1,
   label,
   showToolbar = true,
+  showBackground = true,
+  showScoreTitle = true,
   enableKeyboard = true,
   enablePlayback = true,
 }: ScoreEditorContentProps) => {
@@ -168,15 +171,20 @@ const ScoreEditorContent = ({
     [setPreviewNote]
   );
 
+  // Exit playback mode (hide cursor) whenever selection changes
+  // This covers: clicking notes, keyboard navigation, background clicks
+  const { exitPlaybackMode } = playback;
+  React.useEffect(() => {
+    exitPlaybackMode();
+  }, [selection, exitPlaybackMode]);
+
   // --- Render ---
   return (
     <div
-      className="ScoreEditor backdrop-blur-md rounded-lg shadow-xl mb-8"
+      className="riff-ScoreEditor"
+      data-testid="score-editor"
       style={{
-        padding: '.5rem',
-        backgroundColor: theme.panelBackground,
-        borderColor: theme.border,
-        borderWidth: '1px',
+        backgroundColor: showBackground ? theme.panelBackground : 'transparent',
         color: theme.text,
         scrollbarWidth: 'thin',
         scrollbarColor: `${theme.border} transparent`,
@@ -211,27 +219,22 @@ const ScoreEditorContent = ({
         </Portal>
       )}
 
-      <div
-        className="score-editor-content"
-        style={{
-          backgroundColor: theme.background,
-          borderRadius: '1rem',
-          paddingTop: '1rem',
-        }}
-      >
-        <div className="relative z-20">
-          <ScoreTitleField
-            title={score.title}
-            isEditing={titleEditor.isEditing}
-            setIsEditing={titleEditor.setIsEditing}
-            buffer={titleEditor.buffer}
-            setBuffer={titleEditor.setBuffer}
-            commit={titleEditor.commit}
-            inputRef={titleEditor.inputRef}
-            theme={theme}
-            scale={scale}
-          />
-        </div>
+      <div className="riff-ScoreEditor__content" style={{ backgroundColor: theme.background }}>
+        {showScoreTitle && (
+          <div className="riff-ScoreEditor__title-wrapper">
+            <ScoreTitleField
+              title={score.title}
+              isEditing={titleEditor.isEditing}
+              setIsEditing={titleEditor.setIsEditing}
+              buffer={titleEditor.buffer}
+              setBuffer={titleEditor.setBuffer}
+              commit={titleEditor.commit}
+              inputRef={titleEditor.inputRef}
+              theme={theme}
+              scale={scale}
+            />
+          </div>
+        )}
 
         <ScoreCanvas
           scale={scale}
@@ -242,6 +245,8 @@ const ScoreEditorContent = ({
           onKeySigClick={() => toolbarRef.current?.openKeySigMenu()}
           onTimeSigClick={() => toolbarRef.current?.openTimeSigMenu()}
           onClefClick={() => toolbarRef.current?.openClefMenu()}
+          isPlaying={playback.isPlaying}
+          isPlaybackVisible={playback.isActive}
         />
       </div>
 

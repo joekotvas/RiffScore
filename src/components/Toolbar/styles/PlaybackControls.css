@@ -1,0 +1,105 @@
+/* src/components/Toolbar/PlaybackControls.css */
+
+.riff-PlaybackControls {
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-2);
+}
+
+.riff-PlaybackControls__bpm-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-0);
+  padding: var(--riff-spacing-0) var(--riff-spacing-2); /* Increased to spacing-2 (8px) */
+  border-radius: var(--riff-border-radius);
+  border: var(--riff-border-width) solid transparent;
+  transition: all var(--riff-transition-normal);
+  height: var(--riff-toolbar-button-size);
+  border-color: var(--riff-color-border);
+}
+
+.riff-PlaybackControls__bpm-wrapper--ghost {
+  border-color: transparent;
+}
+
+.riff-PlaybackControls__bpm-wrapper--hovered:not(.riff-PlaybackControls__bpm-wrapper--focused) {
+  border-color: var(--riff-color-border);
+}
+
+.riff-PlaybackControls__bpm-wrapper--focused {
+  border-color: var(--riff-color-primary) !important;
+}
+
+.riff-PlaybackControls__bpm-label {
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-1);
+  color: var(--riff-color-text-secondary);
+}
+
+.riff-PlaybackControls__bpm-note {
+  /* Bravura font styling handled inline or here if possible */
+  font-family: 'Bravura'; /* Assuming it's loaded globally or via font stack */
+  font-size: calc(var(--riff-music-icon-base) * 0.85);
+  line-height: 1;
+  margin-bottom: -0.75rem;
+  margin-right: 0.125rem;
+  margin-left: 0.125rem;
+}
+
+.riff-PlaybackControls__bpm-equals {
+  font-size: var(--riff-font-size-xs);
+  font-weight: var(--riff-font-weight-bold);
+  padding: var(--riff-spacing-0) var(--riff-spacing-1);
+}
+
+.riff-PlaybackControls__bpm-input {
+  width: var(--riff-spacing-8);
+  background-color: transparent;
+  font-size: var(--riff-font-size-sm);
+  font-weight: var(--riff-font-weight-bold);
+  text-align: center;
+  outline: none;
+  border: none;
+  color: var(--riff-color-primary);
+}
+
+/* --- Play Button Custom Styles --- */
+
+.riff-PlaybackControls__play-button {
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-2); /* Space between icon and label */
+  padding: var(--riff-spacing-0) var(--riff-spacing-2); /* 8px padding */
+  height: var(--riff-toolbar-button-size);
+  border-radius: var(--riff-border-radius);
+  border: var(--riff-border-width) solid var(--riff-color-primary); /* Defined border */
+
+  /* Inverted Highlight (Outlined) */
+  background-color: var(--riff-color-button-bg);
+  color: var(--riff-color-primary);
+
+  font-size: var(--riff-font-size-xs); /* 0.75rem */
+  font-weight: var(--riff-font-weight-bold);
+  cursor: pointer;
+  transition: all var(--riff-transition-normal);
+}
+
+.riff-PlaybackControls__play-button:hover {
+  background-color: var(--riff-color-primary);
+  border-color: transparent;
+  color: var(--riff-color-active-text);
+}
+
+/* Ghost variant removed to enforce highlight color style */
+/* Removing ghost override for play button to enforce highlight if that's the request. 
+   But "isGhost" prop is passed. 
+   If I want it to look like an "Active" toolbar button, it should be solid Teal. 
+   I will keep the solid style defined above. */
+
+.riff-PlaybackControls__label {
+  font-size: var(--riff-font-size-xs);
+  font-weight: var(--riff-font-weight-bold);
+  /* text-transform: uppercase; Removed */
+  letter-spacing: var(--riff-tracking-normal);
+}

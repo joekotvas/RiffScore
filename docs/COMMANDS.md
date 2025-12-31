@@ -4,7 +4,7 @@
 
 > Guide to the Command pattern used for all score and selection mutations.
 
-> **See also**: [Architecture](./ARCHITECTURE.md) • [Data Model](./DATA_MODEL.md) • [Testing](./TESTING.md)
+> **See also**: [Architecture](./ARCHITECTURE.md) • [Data Model](./DATA_MODEL.md) • [Testing](./TESTING.md) • [Coding Patterns](./CODING_PATTERNS.md)
 
 ---
 
@@ -59,6 +59,7 @@ Modify the `Selection` object (cursor, multi-select, range):
 | `ClearSelectionCommand` | Clear all selection |
 | `RangeSelectCommand` | Select range between anchor and focus |
 | `ExtendSelectionVerticallyCommand` | Vertical expand/contract |
+| `ExtendSelectionHorizontallyCommand` | Horizontal expand/contract |
 | `SelectAllCommand` | Progressive scope expansion |
 | `SelectAllInEventCommand` | Select all notes in chord |
 | `SelectMeasureCommand` | Select all in measure |

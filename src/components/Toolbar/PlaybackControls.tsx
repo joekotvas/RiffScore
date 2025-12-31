@@ -1,10 +1,15 @@
+/**
+ * PlaybackControls
+ *
+ * Toolbar section for playback management (Play/Pause, BPM).
+ * Includes custom instrument selection and transport controls.
+ */
 import React, { useState, useEffect } from 'react';
 import { Play, Pause } from 'lucide-react';
-import { useTheme } from '@/context/ThemeContext';
-import ToolbarButton from './ToolbarButton';
 import InstrumentSelector from './InstrumentSelector';
 import { PRECOMPOSED_NOTES_UP, BRAVURA_FONT } from '@/constants/SMuFL';
 import { InstrumentType } from '@/engines/toneEngine';
+import './styles/PlaybackControls.css';
 
 interface PlaybackControlsProps {
   isPlaying: boolean;
@@ -14,7 +19,6 @@ interface PlaybackControlsProps {
   selectedInstrument: InstrumentType;
   onInstrumentChange: (instrument: InstrumentType) => void;
   samplerLoaded: boolean;
-  height?: string;
   variant?: 'default' | 'ghost';
 }
 
@@ -26,10 +30,8 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   selectedInstrument,
   onInstrumentChange,
   samplerLoaded,
-  height = 'h-9',
   variant = 'default',
 }) => {
-  const { theme } = useTheme();
   const [bpmBuffer, setBpmBuffer] = useState(String(bpm));
   const [isFocused, setIsFocused] = useState(false);
   const [isBpmHovered, setIsBpmHovered] = useState(false);
@@ -53,51 +55,40 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
 
   const isGhost = variant === 'ghost';
 
+  const bpmWrapperClasses = [
+    'riff-PlaybackControls__bpm-wrapper',
+    isFocused ? 'riff-PlaybackControls__bpm-wrapper--focused' : '',
+    isGhost ? 'riff-PlaybackControls__bpm-wrapper--ghost' : '',
+    isBpmHovered ? 'riff-PlaybackControls__bpm-wrapper--hovered' : '',
+  ].join(' ');
+
   return (
-    <div className="flex items-center gap-2">
-      <ToolbarButton
-        icon={
-          isPlaying ? (
-            <Pause size={14} fill="currentColor" />
-          ) : (
-            <Play size={14} fill="currentColor" />
-          )
-        }
-        showLabel={true}
-        label={isPlaying ? 'Pause' : 'Play'}
+    <div className="riff-PlaybackControls">
+      <button
+        type="button"
+        className="riff-PlaybackControls__play-button"
         onClick={onPlayToggle}
-        isEmphasized={true}
-        height={height}
-        variant={variant}
-      />
+        aria-label={isPlaying ? 'Pause' : 'Play'}
+        title={isPlaying ? 'Pause' : 'Play'}
+      >
+        {isPlaying ? (
+          <Pause size={14} fill="currentColor" />
+        ) : (
+          <Play size={14} fill="currentColor" />
+        )}
+        <span className="riff-PlaybackControls__label">{isPlaying ? 'Pause' : 'Play'}</span>
+      </button>
 
       <div
-        className={`flex items-center gap-0 px-2 rounded border ${height} transition-colors`}
-        style={{
-          borderColor: isFocused
-            ? theme.accent
-            : isGhost && !isBpmHovered
-              ? 'transparent'
-              : theme.border,
-          backgroundColor: isGhost && !isBpmHovered && !isFocused ? 'transparent' : 'transparent',
-        }}
+        className={bpmWrapperClasses}
         onMouseEnter={() => setIsBpmHovered(true)}
         onMouseLeave={() => setIsBpmHovered(false)}
       >
-        <span className="flex items-center gap-0.5" style={{ color: theme.secondaryText }}>
-          <span
-            style={{
-              fontFamily: BRAVURA_FONT,
-              fontSize: '1.5rem',
-              lineHeight: 1,
-              marginBottom: '-1rem',
-              marginRight: '.25rem',
-              marginLeft: '.25rem',
-            }}
-          >
+        <span className="riff-PlaybackControls__bpm-label">
+          <span className="riff-PlaybackControls__bpm-note" style={{ fontFamily: BRAVURA_FONT }}>
             {PRECOMPOSED_NOTES_UP.quarter}
           </span>
-          <span className="text-xs font-bold px-2"> = </span>
+          <span className="riff-PlaybackControls__bpm-equals"> ＝ </span>
         </span>
         <input
           type="text"
@@ -105,8 +96,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
           onChange={(e) => setBpmBuffer(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={handleBpmBlur}
-          className="w-8 bg-transparent text-sm font-bold text-center outline-none"
-          style={{ color: theme.accent }}
+          className="riff-PlaybackControls__bpm-input"
         />
       </div>
 
@@ -115,7 +105,6 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         selectedInstrument={selectedInstrument}
         onInstrumentChange={onInstrumentChange}
         samplerLoaded={samplerLoaded}
-        height={height}
       />
     </div>
   );

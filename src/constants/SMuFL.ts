@@ -125,6 +125,21 @@ export const TIME_SIG_DIGITS = {
   cutCommon: '\uE08B', // Cut C (alla breve)
 } as const;
 
+// ========== TUPLET DIGITS ==========
+export const TUPLETS = {
+  tuplet0: '\uE880',
+  tuplet1: '\uE881',
+  tuplet2: '\uE882',
+  tuplet3: '\uE883', // Triplet
+  tuplet4: '\uE884',
+  tuplet5: '\uE885', // Quintuplet
+  tuplet6: '\uE886',
+  tuplet7: '\uE887',
+  tuplet8: '\uE888',
+  tuplet9: '\uE889',
+  tupletColon: '\uE88A',
+} as const;
+
 // ========== AUGMENTATION DOT ==========
 export const DOTS = {
   augmentationDot: '\uE1E7',

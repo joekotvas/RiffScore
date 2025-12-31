@@ -1,14 +1,15 @@
-// @ts-nocheck
 import React, { useMemo } from 'react';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
 import { getFirstNoteId } from '@/utils/core';
 import { isRestSelected, isBeamGroupSelected } from '@/utils/selection';
-import { useAccidentalContext } from '@/hooks/useAccidentalContext';
-import { useMeasureLayout } from '@/hooks/useMeasureLayout';
-import { useMeasureInteraction } from '@/hooks/useMeasureInteraction';
-import { usePreviewRender } from '@/hooks/usePreviewRender';
+import { useAccidentalContext } from '@/hooks/editor';
+import { useMeasureLayout } from '@/hooks/layout';
+import { useMeasureInteraction } from '@/hooks/interaction';
+import { usePreviewRender } from '@/hooks/layout';
 import { MeasureProps } from '../../componentTypes';
+import { BeamGroup, TupletBracketGroup } from '@/engines/layout/types';
+import { Theme } from '@/themes';
 
 // Components
 import ChordGroup from './ChordGroup';
@@ -19,7 +20,13 @@ import TupletBracket from './TupletBracket';
 
 // --- Sub-Components (Visual Helpers) ---
 
-const StaffLines = ({ width, theme, baseY }) => (
+interface StaffLinesProps {
+  width: number;
+  theme: Theme;
+  baseY: number;
+}
+
+const StaffLines: React.FC<StaffLinesProps> = ({ width, theme, baseY }) => (
   <g className="staff-lines" style={{ pointerEvents: 'none' }}>
     {[0, 1, 2, 3, 4].map((i) => (
       <line
@@ -35,16 +42,38 @@ const StaffLines = ({ width, theme, baseY }) => (
   </g>
 );
 
-const MeasureBarLine = ({ x, baseY, isLast, theme }) => (
-  <line
-    x1={x}
-    y1={baseY}
-    x2={x}
-    y2={baseY + CONFIG.lineHeight * 4}
-    stroke={theme.score.line}
-    strokeWidth={isLast ? 3 : 1}
-  />
-);
+interface MeasureBarLineProps {
+  x: number;
+  baseY: number;
+  isLast: boolean;
+  theme: Theme;
+}
+
+const MeasureBarLine: React.FC<MeasureBarLineProps> = ({ x, baseY, isLast, theme }) => {
+  const height = CONFIG.lineHeight * 4;
+
+  if (isLast) {
+    return (
+      <g>
+        {/* Thin line */}
+        <line
+          x1={x - 5}
+          y1={baseY}
+          x2={x - 5}
+          y2={baseY + height}
+          stroke={theme.text}
+          strokeWidth={1}
+        />
+        {/* Thick line */}
+        <line x1={x} y1={baseY} x2={x} y2={baseY + height} stroke={theme.text} strokeWidth={4} />
+      </g>
+    );
+  }
+
+  return (
+    <line x1={x} y1={baseY} x2={x} y2={baseY + height} stroke={theme.score.line} strokeWidth={1} />
+  );
+};
 
 // --- Main Component ---
 
@@ -56,23 +85,41 @@ const Measure: React.FC<MeasureProps> = ({
   forcedWidth,
   forcedEventPositions,
   layout,
+  measureLayout, // V2 Layout (SSOT)
   interaction,
 }) => {
   const { theme } = useTheme();
   const { events } = measureData;
   const { scale, baseY, clef, keySignature } = layout;
-  const { selection, previewNote, activeDuration, onAddNote, onHover } = interaction;
+  const {
+    selection,
+    previewNote,
+    activeDuration: _activeDuration,
+    onAddNote,
+    onHover,
+  } = interaction;
 
   // 1. Layout & Physics
-  const {
-    hitZones,
-    eventPositions,
-    totalWidth,
-    effectiveWidth,
-    centeredEvents,
-    beamGroups,
-    tupletGroups,
-  } = useMeasureLayout(events, clef, measureData.isPickup, forcedEventPositions, forcedWidth);
+  // Use centralized layout when available (SSOT), fallback to hook for compatibility
+  const fallbackLayout = useMeasureLayout(
+    events,
+    clef,
+    measureData.isPickup ?? false,
+    forcedEventPositions,
+    forcedWidth
+  );
+
+  // Extract layout data - prefer centralized source, fallback to hook
+  const hitZones = measureLayout?.legacyLayout?.hitZones ?? fallbackLayout.hitZones;
+  const eventPositions =
+    measureLayout?.legacyLayout?.eventPositions ?? fallbackLayout.eventPositions;
+  const totalWidth = measureLayout?.legacyLayout?.totalWidth ?? fallbackLayout.totalWidth;
+  const effectiveWidth = measureLayout?.width ?? fallbackLayout.effectiveWidth;
+  const centeredEvents =
+    measureLayout?.legacyLayout?.processedEvents ?? fallbackLayout.centeredEvents;
+  const beamGroups: BeamGroup[] = measureLayout?.beamGroups ?? fallbackLayout.beamGroups;
+  const tupletGroups: TupletBracketGroup[] =
+    measureLayout?.tupletGroups ?? fallbackLayout.tupletGroups;
 
   // 2. Accidental Logic
   const accidentalOverrides = useAccidentalContext(events, keySignature);
@@ -94,7 +141,6 @@ const Measure: React.FC<MeasureProps> = ({
     mouseLimits: layout.mouseLimits,
     measureIndex,
     isLast,
-    activeDuration,
     previewNote,
     selection,
     onHover,
@@ -116,7 +162,7 @@ const Measure: React.FC<MeasureProps> = ({
 
   // 5. Data Preparation
   const beamMap = useMemo(() => {
-    const map = {};
+    const map: Record<string, BeamGroup> = {};
     beamGroups.forEach((group) => {
       group.ids.forEach((id) => {
         map[id] = group;
@@ -163,7 +209,7 @@ const Measure: React.FC<MeasureProps> = ({
                       interaction.onSelectNote(
                         measureIndex,
                         event.id,
-                        getFirstNoteId(event),
+                        getFirstNoteId(event as import('@/types').ScoreEvent),
                         layout.staffIndex,
                         e.metaKey || e.ctrlKey
                       );
@@ -173,16 +219,22 @@ const Measure: React.FC<MeasureProps> = ({
           );
         }
 
+        // Non-rest events must have a chordLayout for rendering
+        if (!event.chordLayout) return null;
+
         return (
           <ChordGroup
             key={event.id}
             {...event}
+            chordLayout={event.chordLayout}
             eventId={event.id}
             beamSpec={beamMap[event.id]}
             layout={layout}
+            eventLayout={measureLayout?.events?.[event.id]}
             interaction={interaction}
             measureIndex={measureIndex}
-            onNoteHover={setIsNoteHovered}
+            staffIndex={layout.staffIndex}
+            onNoteHover={(noteId: string | null) => setIsNoteHovered(noteId !== null)}
             accidentalOverrides={accidentalOverrides}
             isGhost={false}
           />
@@ -193,7 +245,7 @@ const Measure: React.FC<MeasureProps> = ({
       {beamGroups.map((beam, idx) => {
         // Check if entire beam group is in lasso preview (all notes must be in preview)
         const isBeamInLassoPreview =
-          interaction.lassoPreviewIds?.size > 0 &&
+          (interaction.lassoPreviewIds?.size ?? 0) > 0 &&
           beam.ids.every((eventId) => {
             const ev = events.find((e) => e.id === eventId);
             if (!ev?.notes) return false;

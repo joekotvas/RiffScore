@@ -1,20 +1,25 @@
+/**
+ * InstrumentSelector
+ *
+ * Dropdown menu for selecting playback instruments.
+ * Manages sampler loading state and instrument selection.
+ */
 import React, { useState, useRef } from 'react';
 import { AudioWaveform, Check } from 'lucide-react';
 import { InstrumentType, setInstrument } from '@/engines/toneEngine';
 import DropdownOverlay, { DropdownItem, DropdownTrigger } from './Menus/DropdownOverlay';
+import './styles/InstrumentSelector.css';
 
 interface InstrumentSelectorProps {
   selectedInstrument: InstrumentType;
   onInstrumentChange: (instrument: InstrumentType) => void;
   samplerLoaded: boolean;
-  height?: string;
 }
 
 const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
   selectedInstrument,
   onInstrumentChange,
   samplerLoaded,
-  height = 'h-9',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -38,44 +43,37 @@ const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
     setIsOpen(false);
   };
 
-  // Calculate dropdown position
-  const getPosition = () => {
-    if (!buttonRef.current) return { x: 0, y: 0 };
-    const rect = buttonRef.current.getBoundingClientRect();
-    return { x: rect.left, y: rect.bottom + 4 };
-  };
-
   return (
-    <div className="relative">
+    <div className="riff-InstrumentSelector">
       <DropdownTrigger
         ref={buttonRef}
         label={selectedOption.name}
         icon={<AudioWaveform size={14} />}
         isOpen={isOpen}
         onClick={() => setIsOpen(!isOpen)}
-        height={height}
       />
 
       {isOpen && (
-        /* eslint-disable react-hooks/refs */
         <DropdownOverlay
           onClose={() => setIsOpen(false)}
-          position={getPosition()}
           triggerRef={buttonRef as React.RefObject<HTMLElement>}
           width={176}
         >
-          /* eslint-enable react-hooks/refs */
-          <div className="p-1">
+          <div className="riff-DropdownHeader">
+            <AudioWaveform size={16} />
+            <h3 className="riff-DropdownHeader__title">Voice</h3>
+          </div>
+          <div className="riff-InstrumentSelector__list">
             {options.map((option) => (
               <DropdownItem
                 key={option.id}
                 onClick={() => handleSelect(option.id)}
                 isSelected={option.id === selectedInstrument}
               >
-                <span className="flex items-center justify-between w-full">
+                <span className="riff-InstrumentSelector__option">
                   <span>{option.name}</span>
                   {option.id === selectedInstrument && (
-                    <Check size={12} className="text-green-600" />
+                    <Check size={12} className="riff-InstrumentSelector__check" />
                   )}
                 </span>
               </DropdownItem>

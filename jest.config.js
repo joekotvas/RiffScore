@@ -9,6 +9,9 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '/__tests__/helpers/', '/__tests__/fixtures/', 'setupTests.ts'],
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setupTests.ts'],
   moduleNameMapper: {
+    // Mock CSS imports for Jest
+    '\\.css$': '<rootDir>/src/__tests__/helpers/styleMock.js',
+    // Path aliases
     '^@context/(.*)$': '<rootDir>/src/context/$1',
     '^@hooks/(.*)$': '<rootDir>/src/hooks/$1',
     '^@components/(.*)$': '<rootDir>/src/components/$1',

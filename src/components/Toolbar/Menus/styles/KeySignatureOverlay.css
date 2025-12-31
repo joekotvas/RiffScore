@@ -1,0 +1,169 @@
+/* src/components/Toolbar/Menus/styles/KeySignatureOverlay.css */
+
+.riff-KeySignatureOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: var(--riff-color-backdrop-light);
+  backdrop-filter: blur(4px);
+  z-index: var(--riff-z-dropdown);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--riff-spacing-4);
+}
+
+.riff-KeySignatureOverlay__panel {
+  border-radius: var(--riff-border-radius-xl);
+  box-shadow: var(--riff-shadow-2xl);
+  width: 100%;
+  max-width: 36rem;
+  overflow: hidden;
+}
+
+.riff-KeySignatureOverlay__header {
+  padding: var(--riff-spacing-4);
+  border-bottom: var(--riff-border-width) solid var(--riff-color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.riff-KeySignatureOverlay__title-group {
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-2);
+}
+
+.riff-KeySignatureOverlay__title {
+  font-weight: var(--riff-font-weight-bold);
+  font-size: var(--riff-font-size-lg);
+}
+
+.riff-KeySignatureOverlay__close-btn {
+  padding: var(--riff-spacing-1);
+  border-radius: var(--riff-border-radius-full);
+  transition: background-color var(--riff-transition-normal);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.riff-KeySignatureOverlay__close-btn:hover {
+  background-color: var(--riff-color-hover-bg);
+}
+
+.riff-KeySignatureOverlay__content {
+  padding: var(--riff-spacing-4);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.riff-KeySignatureOverlay__footer {
+  padding: var(--riff-spacing-3);
+  border-top: var(--riff-border-width) solid var(--riff-color-border);
+  text-align: center;
+  font-size: var(--riff-font-size-xs);
+}
+
+/* Mode Toggle */
+.riff-ModeToggle {
+  display: flex;
+  border-radius: var(--riff-border-radius-lg);
+  padding: var(--riff-spacing-1);
+  margin-bottom: var(--riff-spacing-4);
+}
+
+.riff-ModeToggle__btn {
+  flex: 1;
+  padding: var(--riff-spacing-2) var(--riff-spacing-4);
+  font-size: var(--riff-font-size-sm);
+  font-weight: var(--riff-font-weight-medium);
+  border-radius: var(--riff-border-radius-md);
+  transition: all var(--riff-transition-normal);
+  border: none;
+  cursor: pointer;
+  background: transparent;
+}
+
+.riff-ModeToggle__btn--active {
+  background-color: var(--riff-color-primary);
+  color: #ffffff;
+}
+
+/* Key Section */
+.riff-KeySection {
+  margin-bottom: var(--riff-spacing-4);
+}
+
+.riff-KeySection__title {
+  font-size: var(--riff-font-size-xs);
+  font-weight: var(--riff-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--riff-tracking-wide);
+  margin-bottom: var(--riff-spacing-2);
+  padding: 0 var(--riff-spacing-1);
+}
+
+.riff-KeySection__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--riff-spacing-2);
+}
+
+@media (min-width: 768px) {
+  .riff-KeySection__grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Key Option Button */
+.riff-KeyOption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--riff-spacing-2);
+  border-radius: var(--riff-border-radius-md);
+  transition: all var(--riff-transition-normal);
+  border: var(--riff-border-width) solid transparent;
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.riff-KeyOption:hover {
+  background-color: var(--riff-color-hover-bg);
+}
+
+.riff-KeyOption--selected {
+  background-color: var(--riff-color-hover-bg);
+  border-color: var(--riff-color-primary);
+}
+
+.riff-KeyOption__preview {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.riff-KeyOption__label {
+  font-size: var(--riff-font-size-xs);
+  font-weight: var(--riff-font-weight-medium);
+  text-align: center;
+}
+
+/* Divider */
+.riff-KeySignatureOverlay__divider {
+  border: none;
+  border-top: var(--riff-border-width) solid var(--riff-color-border);
+  margin: var(--riff-spacing-3) 0;
+}
+
+/* Kbd element */
+.riff-KeySignatureOverlay__kbd {
+  padding: var(--riff-spacing-1) var(--riff-spacing-1);
+  border-radius: var(--riff-border-radius);
+  border: var(--riff-border-width) solid var(--riff-color-border);
+  /* font-family: var(--riff-font-mono); Removed */
+}

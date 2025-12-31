@@ -3,7 +3,7 @@ import { Menu, Copy, Check, Download, FileJson, Music, FileCode } from 'lucide-r
 import ToolbarButton from './ToolbarButton';
 import DropdownOverlay from './Menus/DropdownOverlay';
 import { useTheme } from '@/context/ThemeContext';
-import { useExport, ExportFormat } from '@/hooks/useExport';
+import { useExport, ExportFormat } from '@/hooks/api';
 import { Score } from '@/types';
 
 interface FileMenuProps {
@@ -37,15 +37,19 @@ const ExportButton: React.FC<ExportButtonProps> = ({
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="p-1.5 rounded transition-colors"
+      className="riff-ExportButton"
       style={{
+        padding: '0.375rem',
+        borderRadius: 'var(--riff-border-radius)',
+        transition: 'all var(--riff-transition-normal)',
         backgroundColor: isSuccess
           ? 'transparent'
           : isHovered
             ? theme.buttonHoverBackground
             : theme.buttonBackground,
         color: isSuccess ? '#4ade80' : theme.text,
-        borderColor: theme.border,
+        border: 'none',
+        cursor: 'pointer',
       }}
       title={label}
     >
@@ -77,14 +81,20 @@ const ExportRow: React.FC<ExportRowProps> = ({
 
   return (
     <div
-      className="flex items-center justify-between px-4 py-2 border-b last:border-b-0"
-      style={{ borderColor: theme.border }}
+      className="riff-ControlGroup"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0.5rem 1rem',
+        borderBottom: `1px solid ${theme.border}`,
+      }}
     >
-      <div className="flex items-center gap-2 text-sm" style={{ color: theme.text }}>
+      <div className="riff-ControlGroup" style={{ color: theme.text, fontSize: '0.875rem' }}>
         <span style={{ color: theme.secondaryText }}>{icon}</span>
         {label}
       </div>
-      <div className="flex gap-1">
+      <div className="riff-ControlGroup">
         <ExportButton
           onClick={() => onCopy(format)}
           icon={<Copy size={14} />}
@@ -106,7 +116,6 @@ const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = 'h-9', variant
   const [isOpen, setIsOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const { theme } = useTheme();
   const { copyToClipboard, downloadFile } = useExport(score, bpm);
 
   const handleAction = async (format: ExportFormat, action: 'copy' | 'download') => {
@@ -145,27 +154,14 @@ const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = 'h-9', variant
       />
 
       {isOpen && (
-        /* eslint-disable react-hooks/refs */
         <DropdownOverlay
           onClose={handleClose}
           triggerRef={buttonRef as React.RefObject<HTMLElement>}
-          position={{
-            x: buttonRef.current?.getBoundingClientRect().left || 0,
-            y: (buttonRef.current?.getBoundingClientRect().bottom || 0) + 5,
-          }}
+          gap={5}
           width={220}
         >
-          /* eslint-enable react-hooks/refs */
-          <div
-            className="px-4 py-2 border-b"
-            style={{
-              backgroundColor: theme.buttonHoverBackground,
-              borderColor: theme.border,
-            }}
-          >
-            <h3 className="font-semibold text-sm" style={{ color: theme.text }}>
-              Export
-            </h3>
+          <div className="riff-DropdownHeader">
+            <h3 className="riff-DropdownHeader__title">Export</h3>
           </div>
           <ExportRow
             label="JSON"

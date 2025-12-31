@@ -1,0 +1,43 @@
+/* src/components/Layout/styles/ScoreTitleField.css */
+
+.riff-ScoreEditor__title-wrapper {
+  position: relative;
+  z-index: 20;
+}
+
+.riff-ScoreTitleField,
+.riff-ScoreTitleField__input {
+  box-sizing: border-box;
+  /* font-family: var(--riff-font-serif); Removed to enforce inheritance */
+  font-family: inherit;
+  font-weight: var(--riff-font-weight-bold);
+  padding: var(--riff-spacing-0) var(--riff-spacing-1);
+  border-radius: var(--riff-border-radius);
+  color: var(--riff-color-text);
+  border: var(--riff-border-width) solid transparent;
+  background-color: transparent;
+  transition: background-color var(--riff-transition-normal);
+  margin: 1rem 1.6rem 0;
+  height: 2.25rem;
+  letter-spacing: 0;
+  font-kerning: normal;
+  vertical-align: top;
+  /* Font size is set via inline style since it depends on scale prop */
+}
+
+/* H2 specific (Display mode) */
+.riff-ScoreTitleField {
+  display: inline-block;
+  cursor: pointer;
+}
+
+.riff-ScoreTitleField:hover {
+  background-color: var(--riff-color-hover-bg);
+}
+
+/* Input specific (Edit mode) */
+.riff-ScoreTitleField__input {
+  outline: none;
+  border-color: var(--riff-color-border);
+  max-width: 100%;
+}

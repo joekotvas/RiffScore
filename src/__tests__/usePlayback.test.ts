@@ -4,7 +4,8 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
-import { usePlayback } from '@/hooks/usePlayback';
+import { usePlayback } from '@/hooks/audio';
+import type { Score } from '@/types';
 
 // Mock toneEngine
 const mockInitTone = jest.fn().mockResolvedValue(undefined);
@@ -19,6 +20,19 @@ jest.mock('../engines/toneEngine', () => ({
   getState: () => mockGetState(),
 }));
 
+// Mock RAF to execute immediately to bypass double-RAF wait in tests
+const originalRAF = window.requestAnimationFrame;
+beforeAll(() => {
+  window.requestAnimationFrame = (cb) => {
+    cb(0);
+    return 0;
+  };
+});
+
+afterAll(() => {
+  window.requestAnimationFrame = originalRAF;
+});
+
 // Mock TimelineService
 const mockCreateTimeline = jest.fn().mockReturnValue([
   { measureIndex: 0, quant: 0, time: 0, notes: [{ pitch: 'C4' }] },
@@ -31,17 +45,44 @@ jest.mock('../services/TimelineService', () => ({
 }));
 
 describe('usePlayback', () => {
-  const createMockScore = () => ({
-    staves: [
-      {
-        clef: 'treble',
-        measures: [
-          { events: [{ id: 'e1', notes: [{ pitch: 'C4' }], duration: 'quarter' }] },
-          { events: [{ id: 'e2', notes: [{ pitch: 'D4' }], duration: 'quarter' }] },
-        ],
-      },
-    ],
-  });
+  const createMockScore = (): Score =>
+    ({
+      title: 'Test Score',
+      timeSignature: '4/4',
+      keySignature: 'C',
+      bpm: 120,
+      staves: [
+        {
+          id: 'staff-1',
+          clef: 'treble' as const,
+          keySignature: 'C',
+          measures: [
+            {
+              id: 'm1',
+              events: [
+                {
+                  id: 'e1',
+                  notes: [{ id: 'n1', pitch: 'C4' }],
+                  duration: 'quarter',
+                  dotted: false,
+                },
+              ],
+            },
+            {
+              id: 'm2',
+              events: [
+                {
+                  id: 'e2',
+                  notes: [{ id: 'n2', pitch: 'D4' }],
+                  duration: 'quarter',
+                  dotted: false,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }) as Score;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -318,7 +359,13 @@ describe('usePlayback', () => {
 
   describe('edge cases', () => {
     it('should handle empty score', async () => {
-      const emptyScore = { staves: [{ measures: [] }] };
+      const emptyScore: Score = {
+        title: 'Empty Score',
+        timeSignature: '4/4',
+        keySignature: 'C',
+        bpm: 120,
+        staves: [{ id: 'staff-1', clef: 'treble' as const, keySignature: 'C', measures: [] }],
+      } as Score;
       mockCreateTimeline.mockReturnValueOnce([]);
 
       const { result } = renderHook(() => usePlayback(emptyScore, 120));

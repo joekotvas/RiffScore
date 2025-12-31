@@ -5,97 +5,124 @@ All notable changes to RiffScore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0-alpha.6] - 2025-12-31
+
+### Added
+- **Embedding Support (Issue #160)**: Added `ui.showBackground` config option (default `true`) and "Lightweight Display Mode" (removed shadows/borders) for cleaner embedding. See [Configuration Guide](docs/CONFIGURATION.md). ([PR #190](https://github.com/joekotvas/RiffScore/pull/190))
+- **Score Title Toggle**: `ui.showScoreTitle` config option to show/hide the title input ([Issue #160](https://github.com/joekotvas/RiffScore/issues/160)).
+- **Font Loading Animations**: Implemented `useFontLoaded` hook to prevent FOUC by hiding glyphs until Bravura font is ready ([PR #170](https://github.com/joekotvas/RiffScore/pull/170)).
+
+### Changed
+- **Tailwind Removal**: Complete migration from Tailwind CSS to Vanilla CSS for zero-dependency styling ([PR #189](https://github.com/joekotvas/RiffScore/pull/189)).
+- **Default Theme**: Changed default theme to **Light Mode** (previously Dark) for better initial integration ([Issue #163](https://github.com/joekotvas/RiffScore/issues/163)).
+- **Compact Toolbar**: Scaled toolbar to 0.83x and reduced spacing for tighter layout. Default score scale updated to 0.75 ([Issue #160](https://github.com/joekotvas/RiffScore/issues/160)).
+- **Pickup Icon**: Replaced "PK" text with a beamed eighth-note couplet icon (pickup measure).
+- **UI Polish**: Removed decorative chrome from `ScoreEditor` (`backdrop-filter`, borders) and improved title field interaction (Escape key now cancels editing) ([Issue #160](https://github.com/joekotvas/RiffScore/issues/160)).
+- **Pattern Governance**: Established explicit governance for architectural patterns ([PR #179](https://github.com/joekotvas/RiffScore/pull/179)). See [Coding Patterns](docs/CODING_PATTERNS.md).
+
+### Fixed
+- **Horizontal Selection**: Fixed bug where horizontal selection extension dropped notes on other staves ([#124](https://github.com/joekotvas/RiffScore/issues/124), [PR #183](https://github.com/joekotvas/RiffScore/pull/183)).
+- **TypeScript Compliance**: cleared ~55 outstanding TypeScript errors for a strictly typed, clean build ([PR #176](https://github.com/joekotvas/RiffScore/pull/176)).
+- **Theming**: Fixed various dark mode inconsistencies and scoping issues ([PR #171](https://github.com/joekotvas/RiffScore/pull/171), [Issue #164](https://github.com/joekotvas/RiffScore/issues/164)).
+- **Title Jump**: Fixed visual layout shift when editing score title ([Issue #160](https://github.com/joekotvas/RiffScore/issues/160)).
+
+### Refactoring
+- **Centralized Layout Engine**: Massive refactor consolidating layout logic into a unified engine (Issue #109, [PR #188](https://github.com/joekotvas/RiffScore/pull/188)). See [Layout Engine Docs](docs/LAYOUT_ENGINE.md).
+- **Hooks Architecture**: Restructured `src/hooks` with semantic groupings (audio, layout, editor, interaction) ([PR #182](https://github.com/joekotvas/RiffScore/pull/182)).
+- **ID Standardization**: Migrated all ID types to strict strings ([PR #177](https://github.com/joekotvas/RiffScore/pull/177)).
+- **Melody Data**: Refactored hardcoded melodies to JSON format ([PR #185](https://github.com/joekotvas/RiffScore/pull/185)).
+
 ## [1.0.0-alpha.5] - 2025-12-23
 
 ### Fixed
-- **MusicXML Export Null Safety**: Added null guard for `note.pitch` to handle unpitched notes without crashing ([#158](https://github.com/joekotvas/RiffScore/pull/158), [#157](https://github.com/joekotvas/RiffScore/issues/157))
-- **Cookbook Test Validation**: Comprehensive fixes to cookbook examples and test coverage ([#156](https://github.com/joekotvas/RiffScore/pull/156))
+- **MusicXML Export Null Safety**: Added null guard for `note.pitch` to handle unpitched notes without crashing ([PR #158](https://github.com/joekotvas/RiffScore/pull/158), [#157](https://github.com/joekotvas/RiffScore/issues/157))
+- **Cookbook Test Validation**: Comprehensive fixes to cookbook examples and test coverage ([PR #156](https://github.com/joekotvas/RiffScore/pull/156))
 
 ## [1.0.0-alpha.4] - 2025-12-23
 
 ### New Features & Enhancements
 
 #### Machine-Addressable API
-- **API Type Definitions**: Introduced `MusicEditorAPI` interface with ~50 method signatures, `RiffScoreRegistry`, and `APIEventType` types ([#94](https://github.com/joekotvas/RiffScore/pull/94), [#86](https://github.com/joekotvas/RiffScore/issues/86))
-- **Registry Pattern**: Added `window.riffScore.get(id)` for external script access to editor instances via `useScoreAPI` hook ([#95](https://github.com/joekotvas/RiffScore/pull/95), [#87](https://github.com/joekotvas/RiffScore/issues/87))
-- **Event Subscriptions**: `api.on('score'|'selection'|'batch', callback)` for reactive state observation ([#114](https://github.com/joekotvas/RiffScore/pull/114), [#90](https://github.com/joekotvas/RiffScore/issues/90))
-- **Transaction Batching**: `beginTransaction`/`commitTransaction`/`rollbackTransaction` for atomic operations with single undo steps ([#115](https://github.com/joekotvas/RiffScore/pull/115), [#91](https://github.com/joekotvas/RiffScore/issues/91))
+- **API Type Definitions**: Introduced `MusicEditorAPI` interface with ~50 method signatures, `RiffScoreRegistry`, and `APIEventType` types ([PR #94](https://github.com/joekotvas/RiffScore/pull/94), [#86](https://github.com/joekotvas/RiffScore/issues/86))
+- **Registry Pattern**: Added `window.riffScore.get(id)` for external script access to editor instances via `useScoreAPI` hook ([PR #95](https://github.com/joekotvas/RiffScore/pull/95), [#87](https://github.com/joekotvas/RiffScore/issues/87))
+- **Event Subscriptions**: `api.on('score'|'selection'|'batch', callback)` for reactive state observation ([PR #114](https://github.com/joekotvas/RiffScore/pull/114), [#90](https://github.com/joekotvas/RiffScore/issues/90))
+- **Transaction Batching**: `beginTransaction`/`commitTransaction`/`rollbackTransaction` for atomic operations with single undo steps ([PR #115](https://github.com/joekotvas/RiffScore/pull/115), [#91](https://github.com/joekotvas/RiffScore/issues/91))
 
 #### Selection Engine
-- **SelectionEngine**: New synchronous state machine replacing scattered selection logic ([#97](https://github.com/joekotvas/RiffScore/pull/97), [#89](https://github.com/joekotvas/RiffScore/issues/89))
-- **Selection Commands**: `ClearSelection`, `SelectAllInEvent`, `ToggleNote`, `RangeSelect`, `LassoSelect`, `SetSelection` ([#98](https://github.com/joekotvas/RiffScore/pull/98))
-- **SelectAll with Progressive Expansion**: Cmd+A cycles through Event→Measure→Staff→Score scopes ([#105](https://github.com/joekotvas/RiffScore/pull/105), [#99](https://github.com/joekotvas/RiffScore/issues/99))
-- **Vertical Selection**: Slice-based algorithm for Cmd+Shift+Up/Down cross-staff selection ([#105](https://github.com/joekotvas/RiffScore/pull/105), [#111](https://github.com/joekotvas/RiffScore/pull/111), [#101](https://github.com/joekotvas/RiffScore/issues/101))
+- **SelectionEngine**: New synchronous state machine replacing scattered selection logic ([PR #97](https://github.com/joekotvas/RiffScore/pull/97), [#89](https://github.com/joekotvas/RiffScore/issues/89))
+- **Selection Commands**: `ClearSelection`, `SelectAllInEvent`, `ToggleNote`, `RangeSelect`, `LassoSelect`, `SetSelection` ([PR #98](https://github.com/joekotvas/RiffScore/pull/98))
+- **SelectAll with Progressive Expansion**: Cmd+A cycles through Event→Measure→Staff→Score scopes ([PR #105](https://github.com/joekotvas/RiffScore/pull/105), [#99](https://github.com/joekotvas/RiffScore/issues/99))
+- **Vertical Selection**: Slice-based algorithm for Cmd+Shift+Up/Down cross-staff selection ([PR #105](https://github.com/joekotvas/RiffScore/pull/105), [PR #111](https://github.com/joekotvas/RiffScore/pull/111), [#101](https://github.com/joekotvas/RiffScore/issues/101))
 
 #### API Methods Wired
-- **Phase 7A**: `loadScore`, `export`, `deleteMeasure`, `deleteSelected`, `setClef`, `setKeySignature`, `setTimeSignature`, `transposeDiatonic`, `setStaffLayout` ([#144](https://github.com/joekotvas/RiffScore/pull/144), [#143](https://github.com/joekotvas/RiffScore/issues/143))
-- **Phase 7B**: `setBpm`, `setTheme`, `setScale`, `setInputMode`, `setAccidental`, `reset` ([#145](https://github.com/joekotvas/RiffScore/pull/145))
-- **Phase 7C**: `selectAtQuant`, `addToSelection`, `selectRangeTo`, `selectFullEvents` ([#147](https://github.com/joekotvas/RiffScore/pull/147), [#146](https://github.com/joekotvas/RiffScore/issues/146))
-- **Phase 7D**: `play`, `pause`, `stop`, `rewind`, `setInstrument` with Tone.js integration ([#149](https://github.com/joekotvas/RiffScore/pull/149), [#148](https://github.com/joekotvas/RiffScore/issues/148))
-- **Phase 7E**: `setDuration`, `transpose` (ChromaticTransposeCommand), `addMeasure(atIndex)` ([#151](https://github.com/joekotvas/RiffScore/pull/151), [#150](https://github.com/joekotvas/RiffScore/issues/150))
+- **Phase 7A**: `loadScore`, `export`, `deleteMeasure`, `deleteSelected`, `setClef`, `setKeySignature`, `setTimeSignature`, `transposeDiatonic`, `setStaffLayout` ([PR #144](https://github.com/joekotvas/RiffScore/pull/144), [#143](https://github.com/joekotvas/RiffScore/issues/143))
+- **Phase 7B**: `setBpm`, `setTheme`, `setScale`, `setInputMode`, `setAccidental`, `reset` ([PR #145](https://github.com/joekotvas/RiffScore/pull/145))
+- **Phase 7C**: `selectAtQuant`, `addToSelection`, `selectRangeTo`, `selectFullEvents` ([PR #147](https://github.com/joekotvas/RiffScore/pull/147), [#146](https://github.com/joekotvas/RiffScore/issues/146))
+- **Phase 7D**: `play`, `pause`, `stop`, `rewind`, `setInstrument` with Tone.js integration ([PR #149](https://github.com/joekotvas/RiffScore/pull/149), [#148](https://github.com/joekotvas/RiffScore/issues/148))
+- **Phase 7E**: `setDuration`, `transpose` (ChromaticTransposeCommand), `addMeasure(atIndex)` ([PR #151](https://github.com/joekotvas/RiffScore/pull/151), [#150](https://github.com/joekotvas/RiffScore/issues/150))
 
 #### Clef Support
-- **Alto & Tenor Clefs**: Full C-clef support with extensible `CLEF_REFERENCE` pattern, updated MusicXML/ABC exporters ([#142](https://github.com/joekotvas/RiffScore/pull/142))
+- **Alto & Tenor Clefs**: Full C-clef support with extensible `CLEF_REFERENCE` pattern, updated MusicXML/ABC exporters ([PR #142](https://github.com/joekotvas/RiffScore/pull/142))
 
 #### Robustness & Observability
-- **Input Validation**: Fail-soft validation for `addNote` (pitch), `setBpm` (range), `setDuration` (format), `setInstrument` (registry) ([#152](https://github.com/joekotvas/RiffScore/pull/152), [#153](https://github.com/joekotvas/RiffScore/pull/153))
-- **Batch Events**: `on('batch')` event with `BatchEventPayload` for transaction observability ([#152](https://github.com/joekotvas/RiffScore/pull/152))
+- **Input Validation**: Fail-soft validation for `addNote` (pitch), `setBpm` (range), `setDuration` (format), `setInstrument` (registry) ([PR #152](https://github.com/joekotvas/RiffScore/pull/152), [PR #153](https://github.com/joekotvas/RiffScore/pull/153))
+- **Batch Events**: `on('batch')` event with `BatchEventPayload` for transaction observability ([PR #152](https://github.com/joekotvas/RiffScore/pull/152))
 
 ### Fixed
-- **Stale `getScore()` Returns**: API queries now read directly from `ScoreEngine.getState()`, bypassing React's async render cycle ([#141](https://github.com/joekotvas/RiffScore/pull/141), [#140](https://github.com/joekotvas/RiffScore/issues/140))
-- **Shift+Arrow Gap Resilience**: Selection no longer clears when navigating through ghost cursor gaps ([#105](https://github.com/joekotvas/RiffScore/pull/105), [#100](https://github.com/joekotvas/RiffScore/issues/100))
-- **Subscription Callback Reliability**: Event callbacks now fire reliably with correct data ([#123](https://github.com/joekotvas/RiffScore/pull/123), [#122](https://github.com/joekotvas/RiffScore/issues/122))
+- **Stale `getScore()` Returns**: API queries now read directly from `ScoreEngine.getState()`, bypassing React's async render cycle ([PR #141](https://github.com/joekotvas/RiffScore/pull/141), [#140](https://github.com/joekotvas/RiffScore/issues/140))
+- **Shift+Arrow Gap Resilience**: Selection no longer clears when navigating through ghost cursor gaps ([PR #105](https://github.com/joekotvas/RiffScore/pull/105), [#100](https://github.com/joekotvas/RiffScore/issues/100))
+- **Subscription Callback Reliability**: Event callbacks now fire reliably with correct data ([PR #123](https://github.com/joekotvas/RiffScore/pull/123), [#122](https://github.com/joekotvas/RiffScore/issues/122))
 - **Lasso Selection Offset**: Fixed offset on pickup measures ([#107](https://github.com/joekotvas/RiffScore/issues/107))
-- **TypeScript Errors**: Resolved type errors and ESLint compliance issues ([#138](https://github.com/joekotvas/RiffScore/pull/138), [#139](https://github.com/joekotvas/RiffScore/pull/139), [#137](https://github.com/joekotvas/RiffScore/issues/137))
+- **TypeScript Errors**: Resolved type errors and ESLint compliance issues ([PR #138](https://github.com/joekotvas/RiffScore/pull/138), [PR #139](https://github.com/joekotvas/RiffScore/pull/139), [#137](https://github.com/joekotvas/RiffScore/issues/137))
 - **HitZone Type Safety**: Removed `any` types from HitZone parameter ([#132](https://github.com/joekotvas/RiffScore/issues/132))
 
 ### Refactoring
-- **API Factory Pattern**: Split `useScoreAPI` into domain-specific factories (`entry.ts`, `navigation.ts`, `selection.ts`, `playback.ts`, etc.) ([#120](https://github.com/joekotvas/RiffScore/pull/120))
-- **Interaction Modularization**: Extracted `interaction.ts` into navigation modules with facade pattern ([#118](https://github.com/joekotvas/RiffScore/pull/118), [#79](https://github.com/joekotvas/RiffScore/issues/79))
-- **Entry Utilities Extraction**: Split entry hooks and extracted reusable utilities ([#128](https://github.com/joekotvas/RiffScore/pull/128)-[#130](https://github.com/joekotvas/RiffScore/pull/130), [#125](https://github.com/joekotvas/RiffScore/issues/125)-[#127](https://github.com/joekotvas/RiffScore/issues/127))
-- **Selection Handler Consolidation**: Unified selection dispatch paths, deprecated direct `setSelection` calls ([#136](https://github.com/joekotvas/RiffScore/pull/136), [#135](https://github.com/joekotvas/RiffScore/issues/135))
+- **API Factory Pattern**: Split `useScoreAPI` into domain-specific factories (`entry.ts`, `navigation.ts`, `selection.ts`, `playback.ts`, etc.) ([PR #120](https://github.com/joekotvas/RiffScore/pull/120))
+- **Interaction Modularization**: Extracted `interaction.ts` into navigation modules with facade pattern ([PR #118](https://github.com/joekotvas/RiffScore/pull/118), [#79](https://github.com/joekotvas/RiffScore/issues/79))
+- **Entry Utilities Extraction**: Split entry hooks and extracted reusable utilities ([PR #128](https://github.com/joekotvas/RiffScore/pull/128)-[PR #130](https://github.com/joekotvas/RiffScore/pull/130), [#125](https://github.com/joekotvas/RiffScore/issues/125)-[#127](https://github.com/joekotvas/RiffScore/issues/127))
+- **Selection Handler Consolidation**: Unified selection dispatch paths, deprecated direct `setSelection` calls ([PR #136](https://github.com/joekotvas/RiffScore/pull/136), [#135](https://github.com/joekotvas/RiffScore/issues/135))
 
 ### Documentation
-- **7 New Documentation Pages**: [SELECTION.md](docs/SELECTION.md), [API.md](docs/API.md), [COOKBOOK.md](docs/COOKBOOK.md), [LAYOUT_ENGINE.md](docs/LAYOUT_ENGINE.md), [COMMANDS.md](docs/COMMANDS.md), [DATA_MODEL.md](docs/DATA_MODEL.md), [TESTING.md](docs/TESTING.md) ([#110](https://github.com/joekotvas/RiffScore/pull/110), [#88](https://github.com/joekotvas/RiffScore/issues/88))
+- **7 New Documentation Pages**: [SELECTION.md](docs/SELECTION.md), [API.md](docs/API.md), [COOKBOOK.md](docs/COOKBOOK.md), [LAYOUT_ENGINE.md](docs/LAYOUT_ENGINE.md), [COMMANDS.md](docs/COMMANDS.md), [DATA_MODEL.md](docs/DATA_MODEL.md), [TESTING.md](docs/TESTING.md) ([PR #110](https://github.com/joekotvas/RiffScore/pull/110), [#88](https://github.com/joekotvas/RiffScore/issues/88))
 - **8 Architecture Decision Records**:
-    - ADR-001: Slice-based vertical selection ([#111](https://github.com/joekotvas/RiffScore/pull/111))
+    - ADR-001: Slice-based vertical selection ([PR #111](https://github.com/joekotvas/RiffScore/pull/111))
     - ADR-002: Event subscriptions observer pattern
     - ADR-003: Transaction batching unit of work
     - ADR-004: API factory pattern
     - ADR-005: Selection dispatch command pattern
-    - ADR-006: Synchronous API engine access ([#141](https://github.com/joekotvas/RiffScore/pull/141))
-    - ADR-007: Open-closed clef reference pattern ([#142](https://github.com/joekotvas/RiffScore/pull/142))
-    - ADR-008: Observability patterns ([#152](https://github.com/joekotvas/RiffScore/pull/152))
-- **Copilot Instructions**: Added `.github/copilot-instructions.md` and [QUALITY_CHECK.md](docs/QUALITY_CHECK.md) for LLM coding agents ([#104](https://github.com/joekotvas/RiffScore/pull/104), [#134](https://github.com/joekotvas/RiffScore/pull/134), [#103](https://github.com/joekotvas/RiffScore/issues/103))
+    - ADR-006: Synchronous API engine access ([PR #141](https://github.com/joekotvas/RiffScore/pull/141))
+    - ADR-007: Open-closed clef reference pattern ([PR #142](https://github.com/joekotvas/RiffScore/pull/142))
+    - ADR-008: Observability patterns ([PR #152](https://github.com/joekotvas/RiffScore/pull/152))
+- **Copilot Instructions**: Added `.github/copilot-instructions.md` and [QUALITY_CHECK.md](docs/QUALITY_CHECK.md) for LLM coding agents ([PR #104](https://github.com/joekotvas/RiffScore/pull/104), [PR #134](https://github.com/joekotvas/RiffScore/pull/134), [#103](https://github.com/joekotvas/RiffScore/issues/103))
 
 ### Testing
 - **200+ New Tests**: Comprehensive coverage for SelectionEngine, API methods, validation utilities, and batch events
-- **Selection Test Helpers**: Enhanced fixtures and test utilities for selection scenarios ([#113](https://github.com/joekotvas/RiffScore/pull/113), [#112](https://github.com/joekotvas/RiffScore/issues/112))
-- **API Integration Tests**: Full test coverage for wired API methods ([#121](https://github.com/joekotvas/RiffScore/pull/121))
+- **Selection Test Helpers**: Enhanced fixtures and test utilities for selection scenarios ([PR #113](https://github.com/joekotvas/RiffScore/pull/113), [#112](https://github.com/joekotvas/RiffScore/issues/112))
+- **API Integration Tests**: Full test coverage for wired API methods ([PR #121](https://github.com/joekotvas/RiffScore/pull/121))
 
 ## [1.0.0-alpha.3] - 2025-12-19
 
 ### New Features & Enhancements
-- **Unified Navigation**: Added seamless vertical navigation (CMD+Up/Down) with chord traversal, boundary cycling, and cross-staff switching ([#78](https://github.com/joekotvas/RiffScore/pull/78))
-- **Ghost Cursor**: Enhanced ghost cursor behavior with cross-measure navigation and smart duration adjustments ([#78](https://github.com/joekotvas/RiffScore/pull/78))
-- **Clef Handling**: Implemented `SetClefCommand` for robust single-staff clef changes and refactored staff control menu positioning ([#82](https://github.com/joekotvas/RiffScore/pull/82))
-- **Visual improvements**: Improved `ClefIcon` rendering (especially for grand staff) and sizing ([#82](https://github.com/joekotvas/RiffScore/pull/82))
+- **Unified Navigation**: Added seamless vertical navigation (CMD+Up/Down) with chord traversal, boundary cycling, and cross-staff switching ([PR #78](https://github.com/joekotvas/RiffScore/pull/78))
+- **Ghost Cursor**: Enhanced ghost cursor behavior with cross-measure navigation and smart duration adjustments ([PR #78](https://github.com/joekotvas/RiffScore/pull/78))
+- **Clef Handling**: Implemented `SetClefCommand` for robust single-staff clef changes and refactored staff control menu positioning ([PR #82](https://github.com/joekotvas/RiffScore/pull/82))
+- **Visual improvements**: Improved `ClefIcon` rendering (especially for grand staff) and sizing ([PR #82](https://github.com/joekotvas/RiffScore/pull/82))
 
 ### Fixed
-- **Staff Switching**: Ghost cursor now properly tracks staff context and switches correctly with keyboard commands ([#78](https://github.com/joekotvas/RiffScore/pull/78))
+- **Staff Switching**: Ghost cursor now properly tracks staff context and switches correctly with keyboard commands ([PR #78](https://github.com/joekotvas/RiffScore/pull/78))
 - **Clef Switching**: Fixed issue where switching single-staff clefs did not work ([#83](https://github.com/joekotvas/RiffScore/issues/83))
-- **UI**: Score title now scales correctly with zoom level ([#77](https://github.com/joekotvas/RiffScore/pull/77))
+- **UI**: Score title now scales correctly with zoom level ([PR #77](https://github.com/joekotvas/RiffScore/pull/77))
 - **Build**: Resolved various build warnings and cleaned up stale test mocks ([#73](https://github.com/joekotvas/RiffScore/issues/73), [#71](https://github.com/joekotvas/RiffScore/issues/71))
 
 ### Refactoring
-- **Interaction Engine**: Major refactor of `interaction.ts` ([#79](https://github.com/joekotvas/RiffScore/issues/79), [#80](https://github.com/joekotvas/RiffScore/pull/80)):
+- **Interaction Engine**: Major refactor of `interaction.ts` ([#79](https://github.com/joekotvas/RiffScore/issues/79), [PR #80](https://github.com/joekotvas/RiffScore/pull/80)):
     - Standardized default pitch logic with `getDefaultPitchForClef`
     - DRY extraction of ghost cursor and audio feedback helpers
     - Comprehensive JSDoc and `@tested` annotations
-- **Type Safety**: Removed remaining `any` types in `types.ts` and `interaction.ts` for strict type checking ([#81](https://github.com/joekotvas/RiffScore/pull/81))
+- **Type Safety**: Removed remaining `any` types in `types.ts` and `interaction.ts` for strict type checking ([PR #81](https://github.com/joekotvas/RiffScore/pull/81))
 
 ### Documentation
-- **README**: Enhanced with status badges, new screenshots, and detailed feature list ([#76](https://github.com/joekotvas/RiffScore/pull/76))
+- **README**: Enhanced with status badges, new screenshots, and detailed feature list ([PR #76](https://github.com/joekotvas/RiffScore/pull/76))
 
 ## [1.0.0-alpha.2] - 2025-12-15
 

@@ -1,0 +1,17 @@
+/* src/components/Toolbar/styles/Divider.css */
+
+.riff-Divider {
+  background-color: var(--riff-color-border);
+}
+
+.riff-Divider--vertical {
+  width: var(--riff-divider-size);
+  height: var(--riff-divider-height);
+  margin: var(--riff-spacing-0) var(--riff-spacing-2);
+}
+
+.riff-Divider--horizontal {
+  width: 100%;
+  height: var(--riff-divider-size);
+  margin: var(--riff-spacing-2) var(--riff-spacing-0);
+}

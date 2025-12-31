@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RiffScore } from "@riffscore/RiffScore";
 import { ThemeProvider, useTheme } from "@riffscore/context/ThemeContext";
 import ConfigMenu from "demo/app/ConfigMenu";
+import type { Score } from "@riffscore/types";
 
 // Copy to clipboard button component
 function CopyButton({ text }: { text: string }) {
@@ -23,7 +24,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="px-3 py-1 text-xs rounded transition-all hover:opacity-80"
+      className="demo-copy-btn"
       style={{ 
         backgroundColor: copied ? theme.accent : theme.buttonBackground,
         color: copied ? '#fff' : theme.secondaryText,
@@ -54,7 +55,7 @@ const examples = [
     }
   },
   {
-    title: "Bass Clef Only",
+    title: "Bass Clef Only (Dark Mode)",
     description: "Single bass staff for bass parts",
     config: {
       score: { 
@@ -62,7 +63,8 @@ const examples = [
         staff: 'bass' as const, 
         measureCount: 4,
         keySignature: 'F'
-      }
+      },
+      ui: { theme: 'DARK' }
     }
   },
   {
@@ -92,43 +94,113 @@ const examples = [
   }
 ];
 
+// Component to render a RiffScore with live JSON output
+function ScoreWithJSON({ 
+  id, 
+  config, 
+  themeName, 
+  zoom 
+}: { 
+  id: string; 
+  config?: (typeof examples)[number]['config'];
+  themeName: string;
+  zoom: number;
+}) {
+  const [scoreJson, setScoreJson] = useState<Score | null>(null);
+  const { theme } = useTheme();
+  
+  useEffect(() => {
+    // Type for riffScore registry
+    type RiffScoreInstance = { 
+      getScore: () => Score;
+      on: (event: string, cb: (s: Score) => void) => () => void;
+    };
+    type RiffScoreRegistry = { 
+      get: (id: string) => RiffScoreInstance | undefined 
+    };
+    const riffScore = (window as unknown as { riffScore?: RiffScoreRegistry }).riffScore;
+    
+    let unsubscribe: (() => void) | undefined;
+    
+    // Small delay to allow RiffScore to register
+    const timer = setTimeout(() => {
+      const instance = riffScore?.get(id);
+      if (instance) {
+        // Get initial score
+        setScoreJson(instance.getScore());
+        // Subscribe to score changes
+        unsubscribe = instance.on('score', (score: Score) => {
+          setScoreJson(score);
+        });
+      }
+    }, 100);
+    
+    return () => {
+      clearTimeout(timer);
+      unsubscribe?.();
+    };
+  }, [id]);
+  
+  return (
+    <>
+      <RiffScore id={id} config={{
+        ...config,
+        ui: {
+          ...config?.ui,
+          scale: config?.ui?.scale ?? zoom,
+          // Use example's theme if specified, otherwise use global theme
+          theme: (config?.ui?.theme ?? themeName) as 'DARK' | 'COOL' | 'WARM' | 'LIGHT'
+        }
+      }} />
+      <pre 
+        className="demo-json" 
+        style={{ backgroundColor: theme.panelBackground, color: theme.secondaryText }}
+      >
+        <code>
+          {scoreJson ? JSON.stringify(scoreJson, null, 2) : '// Loading...'}
+        </code>
+      </pre>
+    </>
+  );
+}
+
 function ExamplesContent() {
   const { theme, themeName, zoom } = useTheme();
   
   return (
     <div 
-      className="min-h-screen p-2 md:p-8 font-sans transition-colors duration-300" 
+      className="demo-page" 
       style={{ backgroundColor: theme.background, color: theme.text }}
     >
       <ConfigMenu />
       
-      <header className="text-center mb-12">
-        <h1 className="text-7xl font-light mb-2" style={{ color: theme.text }}>
+      <header className="demo-header">
+        <h1 className="demo-title" style={{ color: theme.text }}>
           RiffScore
         </h1>
-        <p className="text-xl" style={{ color: theme.secondaryText }}>
+        <p className="demo-subtitle" style={{ color: theme.secondaryText }}>
           Easily embed an interactive sheet music editor in your React web app
         </p>
       </header>
 
-      <main className="max-w-6xl mx-auto space-y-16 pb-24">
+      <main className="demo-main">
         {examples.map((example, index) => {
           const codeSnippet = example.config 
             ? `<RiffScore config={${JSON.stringify(example.config, null, 2)}} />`
             : `<RiffScore />`;
           return (
-            <section key={index} className="space-y-4">
-              <div className="border-l-4 pl-4" style={{ borderColor: theme.accent }}>
-                <h2 className="text-2xl font-semibold" style={{ color: theme.text }}>
+            <section key={index} className="demo-section">
+              <div className="demo-section-header" style={{ borderColor: theme.accent }}>
+                <h2 className="demo-section-title" style={{ color: theme.text }}>
                   {example.title}
                 </h2>
-                <p style={{ color: theme.secondaryText }}>
+                <p className="demo-section-description" style={{ color: theme.secondaryText }}>
                   {example.description}
                 </p>
-                <div className="mt-2 relative">
-                  <div className="flex items-start gap-2">
+                <div className="demo-code-wrapper">
+                  <div className="demo-code-row">
                     <pre
-                      className="text-xs flex-1 p-3 rounded overflow-x-auto font-mono"
+                      className="demo-code"
                       style={{ backgroundColor: theme.panelBackground, color: theme.secondaryText }}
                     >
                       <code>{codeSnippet}</code>
@@ -137,32 +209,29 @@ function ExamplesContent() {
                   </div>
                 </div>
               </div>
-              <RiffScore config={{
-                ...example.config,
-                ui: {
-                  ...example.config?.ui,
-                  scale: example.config?.ui?.scale ?? zoom,
-                  theme: themeName // Pass currently active theme
-                }
-              }} />
+              <ScoreWithJSON 
+                id={`score-${index}`}
+                config={example.config}
+                themeName={themeName}
+                zoom={zoom}
+              />
             </section>
           );
         })}
       </main>
 
       <footer 
-        className="fixed bottom-0 left-0 right-0 p-4 text-center border-t backdrop-blur-sm" 
+        className="demo-footer" 
         style={{ 
-          backgroundColor: `transparent`, 
-          borderColor: theme.border, 
+          borderTop: `1px solid ${theme.border}`,
           color: theme.secondaryText 
         }}
       >
-        <p className="text-sm">
-          RiffScore is <span className="font-semibold">Open Source</span>. 
-          Developed by <a href="https://jokma.com/" className="underline hover:opacity-80 transition-opacity">Joe Kotvas</a>. 
-          <span className="mx-2">•</span>
-          <a href="https://github.com/joekotvas/riffscore" className="underline hover:opacity-80 transition-opacity">View on GitHub</a>
+        <p>
+          RiffScore is <span style={{ fontWeight: 600 }}>Open Source</span>. 
+          Developed by <a href="https://jokma.com/">Joe Kotvas</a>. 
+          <span style={{ margin: '0 0.5rem' }}>•</span>
+          <a href="https://github.com/joekotvas/riffscore">View on GitHub</a>
         </p>
       </footer>
     </div>

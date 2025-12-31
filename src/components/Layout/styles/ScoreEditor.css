@@ -1,0 +1,17 @@
+/* src/components/Layout/styles/ScoreEditor.css */
+
+.riff-ScoreEditor {
+  padding: 0;
+  display: flex; /* Ensure toolbars/content stack correctly if needed */
+  flex-direction: column;
+}
+
+.riff-ScoreEditor__content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  /* Note: Decorative styles (border, padding, radius) removed per Issue #160 */
+}

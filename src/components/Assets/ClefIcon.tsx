@@ -1,15 +1,31 @@
+/**
+ * ClefIcon
+ *
+ * SVG component for rendering musical clefs (G, F, C) using Bravura font glyphs.
+ * Supports standard and grand staff representations.
+ */
 import React from 'react';
 import { CLEFS, BRAVURA_FONT } from '@/constants/SMuFL';
 
 interface ClefIconProps extends React.SVGProps<SVGSVGElement> {
+  /** The clef type to display (treble, bass, alto, tenor, grand) */
   clef: string;
+  /** Whether to show a vertical barline at the start (standard placement) */
+  showLeftBarline?: boolean;
+  /** Whether to render with thinner strokes for small display contexts */
+  isSmall?: boolean;
 }
 
 /**
  * ClefIcon renders clef symbols using Bravura font glyphs.
  * Designed for use in toolbars and overlays.
  */
-const ClefIcon: React.FC<ClefIconProps> = ({ clef, ...props }) => {
+const ClefIcon: React.FC<ClefIconProps> = ({
+  clef,
+  showLeftBarline,
+  isSmall = false,
+  ...props
+}) => {
   // Default to 60x60 coordinate system
   const viewBox = props.viewBox || '0 0 60 60';
 
@@ -131,6 +147,18 @@ const ClefIcon: React.FC<ClefIconProps> = ({ clef, ...props }) => {
         </>
       ) : (
         <>
+          {/* Left Barline (if enabled) */}
+          {showLeftBarline && (
+            <line
+              x1="0"
+              y1="10"
+              x2="0"
+              y2="50"
+              stroke="currentColor"
+              strokeWidth={isSmall ? '2' : '1'}
+            />
+          )}
+
           {/* Staff lines for context */}
           {[0, 1, 2, 3, 4].map((i) => (
             <line
@@ -140,8 +168,8 @@ const ClefIcon: React.FC<ClefIconProps> = ({ clef, ...props }) => {
               x2="60"
               y2={10 + i * 10}
               stroke="currentColor"
-              strokeWidth="1"
-              opacity="0.3"
+              strokeWidth={isSmall ? '2' : '1'}
+              opacity={isSmall ? '0.5' : '0.3'}
             />
           ))}
 

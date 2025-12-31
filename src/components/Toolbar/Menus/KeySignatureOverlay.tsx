@@ -11,6 +11,8 @@ import { useTheme } from '@/context/ThemeContext';
 import { ACCIDENTALS, BRAVURA_FONT } from '@/constants/SMuFL';
 import { Theme } from '@/config';
 
+import './styles/KeySignatureOverlay.css';
+
 // ==========================================
 // 1. TYPES & INTERFACES
 // ==========================================
@@ -60,7 +62,7 @@ const StaffPreview = ({
   const accWidth = Math.max(40, count * 10 + 20);
 
   return (
-    <div className="h-16 flex items-center justify-center w-full">
+    <div className="riff-KeyOption__preview">
       <svg
         width={accWidth}
         height="60"
@@ -129,7 +131,7 @@ const KeyOptionButton = ({
   return (
     <button
       onClick={() => onSelect(keyId)}
-      className="flex flex-col items-center justify-center p-2 rounded-md transition-colors border"
+      className="riff-KeyOption"
       style={{
         backgroundColor: isSelected ? theme.buttonHoverBackground : 'transparent',
         borderColor: isSelected ? theme.accent : 'transparent',
@@ -146,7 +148,7 @@ const KeyOptionButton = ({
     >
       <StaffPreview data={data} clef={clef} theme={theme} />
 
-      <span className="text-xs font-medium text-center">{data.label}</span>
+      <span className="riff-KeyOption__label">{data.label}</span>
     </button>
   );
 };
@@ -163,10 +165,10 @@ const ModeToggle = ({
   setMode: (mode: 'major' | 'minor') => void;
   theme: Theme;
 }) => (
-  <div className="flex rounded-lg p-1 mb-4" style={{ backgroundColor: theme.buttonBackground }}>
+  <div className="riff-ModeToggle" style={{ backgroundColor: theme.buttonBackground }}>
     <button
       onClick={() => setMode('major')}
-      className="flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors"
+      className="riff-ModeToggle__btn"
       style={{
         backgroundColor: mode === 'major' ? theme.accent : 'transparent',
         color: mode === 'major' ? '#ffffff' : theme.secondaryText,
@@ -176,7 +178,7 @@ const ModeToggle = ({
     </button>
     <button
       onClick={() => setMode('minor')}
-      className="flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors"
+      className="riff-ModeToggle__btn"
       style={{
         backgroundColor: mode === 'minor' ? theme.accent : 'transparent',
         color: mode === 'minor' ? '#ffffff' : theme.secondaryText,
@@ -207,14 +209,11 @@ const KeySection = ({
   onSelect: (key: string) => void;
   mode: 'major' | 'minor';
 }) => (
-  <div className="mb-4">
-    <h3
-      className="text-xs font-semibold uppercase tracking-wide mb-2 px-1"
-      style={{ color: theme.secondaryText }}
-    >
+  <div className="riff-KeySection">
+    <h3 className="riff-KeySection__title" style={{ color: theme.secondaryText }}>
       {title}
     </h3>
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+    <div className="riff-KeySection__grid">
       {keys.map(([majorKey, minorKey]) => (
         <KeyOptionButton
           key={mode === 'major' ? majorKey : minorKey}
@@ -256,29 +255,26 @@ const KeySignatureOverlay: React.FC<KeySignatureOverlayProps> = ({
   }, [onClose]);
 
   return (
-    <div
-      className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
+    <div className="riff-KeySignatureOverlay" onClick={onClose}>
       <div
-        className="rounded-xl shadow-2xl w-full max-w-xl overflow-hidden"
+        className="riff-KeySignatureOverlay__panel"
         style={{ backgroundColor: theme.panelBackground }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
-          className="p-4 border-b flex items-center justify-between"
+          className="riff-KeySignatureOverlay__header"
           style={{ backgroundColor: theme.background, borderColor: theme.border }}
         >
-          <div className="flex items-center gap-2">
+          <div className="riff-KeySignatureOverlay__title-group">
             <Music size={20} style={{ color: theme.accent }} />
-            <h2 className="font-bold text-lg" style={{ color: theme.text }}>
+            <h2 className="riff-KeySignatureOverlay__title" style={{ color: theme.text }}>
               Key Signature
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-full transition-colors hover:bg-white/10"
+            className="riff-KeySignatureOverlay__close-btn"
             style={{ color: theme.secondaryText }}
           >
             <X size={20} />
@@ -286,7 +282,7 @@ const KeySignatureOverlay: React.FC<KeySignatureOverlayProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-4 max-h-[70vh] overflow-y-auto">
+        <div className="riff-KeySignatureOverlay__content">
           {/* Major/Minor Toggle */}
           <ModeToggle mode={mode} setMode={setMode} theme={theme} />
 
@@ -301,7 +297,7 @@ const KeySignatureOverlay: React.FC<KeySignatureOverlayProps> = ({
             mode={mode}
           />
 
-          <hr className="border-t my-3" style={{ borderColor: theme.border }} />
+          <hr className="riff-KeySignatureOverlay__divider" style={{ borderColor: theme.border }} />
 
           <KeySection
             title="Sharps"
@@ -316,7 +312,7 @@ const KeySignatureOverlay: React.FC<KeySignatureOverlayProps> = ({
 
         {/* Footer */}
         <div
-          className="p-3 border-t text-center text-xs"
+          className="riff-KeySignatureOverlay__footer"
           style={{
             backgroundColor: theme.background,
             borderColor: theme.border,
@@ -325,7 +321,7 @@ const KeySignatureOverlay: React.FC<KeySignatureOverlayProps> = ({
         >
           Press{' '}
           <kbd
-            className="px-1 py-0.5 rounded border font-mono"
+            className="riff-KeySignatureOverlay__kbd"
             style={{
               backgroundColor: theme.buttonBackground,
               borderColor: theme.border,
