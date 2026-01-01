@@ -64,6 +64,9 @@ export const createIOMethods = (
       return this;
     },
 
+    /**
+     * @tested src/__tests__/ScoreAPI.feedback.test.tsx
+     */
     export(format) {
       const score = scoreRef.current;
       let output = '';

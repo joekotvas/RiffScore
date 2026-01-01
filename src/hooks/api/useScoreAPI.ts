@@ -275,6 +275,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
 
       // Feedback & Status helpers
       clearStatus: () => {
+        /** @tested src/__tests__/ScoreAPI.feedback.test.tsx */
         hasErrorRef.current = false;
         setResult({
           ok: true,
@@ -285,6 +286,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
         return instance as MusicEditorAPI;
       },
       debug: (enabled: boolean) => {
+        /** @tested src/__tests__/ScoreAPI.feedback.test.tsx */
         debugModeRef.current = enabled;
         setResult({
           ok: true,
@@ -295,6 +297,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
         return instance as MusicEditorAPI;
       },
       collect: (callback: (api: MusicEditorAPI) => void) => {
+        /** @tested src/__tests__/ScoreAPI.feedback.test.tsx */
         // Start collection
         const captured: import('@/api.types').Result[] = [];
         const prevCollector = collectorRef.current; // Support nested collection (restore prev)
