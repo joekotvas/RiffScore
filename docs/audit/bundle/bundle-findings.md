@@ -17,7 +17,10 @@
 ### Hypothesis
 > Tone.js (audio synthesis / playback) may be reachable from the default import graph (`import { RiffScore } from 'riffscore'`), potentially increasing baseline bundle size even when playback is unused.
 
-### Finding: **CONFIRMED**
+### Finding: **CONFIRMED → RESOLVED**
+
+> [!NOTE]
+> This issue has been addressed via dynamic import. See PR #197.
 
 **Evidence**: Bundle header inspection
 
@@ -46,10 +49,14 @@ src/index.tsx
 2. Import is static, not dynamic (`import()`)
 3. Consumer bundlers will include Tone.js in their output
 
-### Impact
+### Impact (Pre-Fix)
 
-- **Bundle tax**: Consumers pay for Tone.js (~400KB minified) even for visual-only use
-- **Parse time**: Tone.js module initialization runs regardless of usage
+- **Consumer bundle tax**: Consumers' bundlers included Tone.js (~400KB) even for visual-only use
+- **Parse time**: Tone.js module initialization ran regardless of usage
+
+### Resolution
+
+Converted to dynamic `import('tone')`. Consumer bundlers can now code-split or exclude Tone.js entirely for visual-only use cases.
 
 ---
 
@@ -92,11 +99,12 @@ Consumer bundlers can tree-shake unused Tonal.js modules.
 
 ## Dependency Summary
 
-| Dependency | Import Style | Tree-Shakeable | In Bundle |
-|------------|--------------|----------------|-----------|
-| `tone` | `import * as Tone` | ❌ Namespace | External |
+| Dependency | Import Style | Tree-Shakeable | In riffscore Bundle |
+|------------|--------------|----------------|---------------------|
+| `tone` | Dynamic `import()` | ✅ Code-splittable | External |
 | `tonal` | Named imports | ✅ Yes | External |
 | `lucide-react` | Named imports | ✅ Yes | External |
 | `react` | Named imports | ✅ Yes | External |
 
-**Note**: All dependencies are external (not bundled inline). Consumer bundler handles resolution.
+> [!IMPORTANT]
+> **"External" means**: Not bundled into riffscore's dist files. Consumer bundler resolves these from `node_modules`. The consumer's final bundle size depends on their bundler's tree-shaking and code-splitting capabilities.
