@@ -235,12 +235,14 @@ score.on('batch', (payload) => {
 ```javascript
 const score = window.riffScore.active;
 
-// Playback API is fully integrated with Tone.js
+// Playback API is integrated with Tone.js (lazy-loaded)
 score.play();     // Start playback
 score.pause();    // Pause (retains position)
 score.stop();     // Stop and reset to beginning
 score.rewind(2);  // Jump to measure 2
 ```
+
+> **Note**: First playback may have a brief delay (~1-2s) while Tone.js loads. Subsequent playback is instant.
 
 ---
 

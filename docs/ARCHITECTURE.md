@@ -734,7 +734,7 @@ flowchart TD
 | Package | Purpose |
 |---------|---------|
 | [tonal](https://github.com/tonaljs/tonal) | Music theory |
-| [tone](https://tonejs.github.io/) | Audio synthesis |
+| [tone](https://tonejs.github.io/) | Audio synthesis (lazy-loaded) |
 | react | UI framework |
 | lucide-react | Icons |
 | Bravura | SMuFL font (bundled in dist/fonts/) |
