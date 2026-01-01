@@ -99,7 +99,7 @@ describe('ScoreAPI Entry Methods', () => {
       });
 
       // Verify first tuplet was created
-      let score = api.getScore();
+      const score = api.getScore();
       expect(score.staves[0].measures[0].events[0].tuplet).toBeDefined();
 
       // Try to create another tuplet starting from event 0 (which is already in a tuplet)

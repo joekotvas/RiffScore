@@ -325,8 +325,8 @@ export const createNavigationMethods = (
         if (eIdx !== -1) {
           // Find note index if noteId provided
           let noteIndex = 0;
-            if (noteId && measure.events[eIdx].notes) {
-              const nIdx = measure.events[eIdx].notes.findIndex((n) => n.id === noteId);
+          if (noteId && measure.events[eIdx].notes) {
+            const nIdx = measure.events[eIdx].notes.findIndex((n) => n.id === noteId);
             if (nIdx !== -1) noteIndex = nIdx;
           }
           selectionEngine.dispatch(
