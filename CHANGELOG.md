@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Structured API Feedback**: Public API (`window.riffScore`) now implements a **Fail-Soft** pattern. Methods return a structured `Result` object (`ok`, `status`, `message`, `code`) instead of failing silently or logging console warnings ([Issue #169](https://github.com/joekotvas/RiffScore/issues/169), [PR #198](https://github.com/joekotvas/RiffScore/pull/198)).
 - **Sticky Error State**: Added `api.hasError` flag which persists if any operation in a fluent chain fails, making validation easier.
 - **Batch Result Collection**: Added `api.collect(callback)` to aggregate results from multiple operations into a single report.
-- **Documentation**: New [ADR 011: Structured API Feedback](docs/adr/011-structured-api-feedback.md) detailing the architectural decision.
+- **Documentation**: New [ADR 011: Structured API Feedback](docs/adr/011-structured-api-feedback.md) and [ADR 012: Bundled Font Assets](docs/adr/012-bundled-font-assets.md).
 
 ### Changed
 - **API Error Handling**: API methods no longer throw errors for recoverable issues (e.g., invalid pitch format, out-of-bounds selection). They return `ok: false` with an error code.
