@@ -139,7 +139,6 @@ describe('ScoreAPI Feedback & Error Handling', () => {
       expect(addNoteResults?.[0].ok).toBe(true);
       expect(addNoteResults?.[1].ok).toBe(true);
 
-
       expect(addNoteResults?.[2].ok).toBe(false); // InvalidPitch
 
       expect(batchResult?.ok).toBe(false); // Because one failed
@@ -206,6 +205,25 @@ describe('ScoreAPI Feedback & Error Handling', () => {
       expect(errSpy).toHaveBeenCalledWith(
         expect.objectContaining({ method: 'addNote', ok: false })
       );
+    });
+  });
+
+  describe('Debug Mode', () => {
+    test('toggles debug mode', () => {
+      render(<RiffScore id="debug-test" />);
+      const api = getAPI('debug-test');
+
+      act(() => {
+        api.debug(true);
+      });
+      expect(api.result.ok).toBe(true);
+      expect(api.result.message).toContain('enabled');
+
+      act(() => {
+        api.debug(false);
+      });
+      expect(api.result.ok).toBe(true);
+      expect(api.result.message).toContain('disabled');
     });
   });
 });

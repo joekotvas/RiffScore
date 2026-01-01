@@ -164,9 +164,9 @@ The most recently focused or mounted instance.
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `loadScore` | `loadScore(score)` | ✅ | Load/replace score. |
+| `loadScore` | `loadScore(json)` | ✅ | Load score object. |
 | `reset` | `reset(template?, measures?)` | ✅ | Reset to blank score/template. |
-| `export` | `export(format)` | ✅ | `'json'`, `'abc'`, `'musicxml'`. |
+| `export` | `export(format)` | ✅ | Returns string (empty on error). `'json' \| 'abc' \| 'musicxml'`. |
 
 ---
 
@@ -216,6 +216,7 @@ The most recently focused or mounted instance.
 | `ok` | `get ok()` | ✅ | Helper check for `result.ok`. |
 | `hasError` | `get hasError()` | ✅ | Sticky flag if *any* error occurred since clear. |
 | `clearStatus` | `clearStatus()` | ✅ | Reset sticky `hasError` flag. |
+| `debug` | `debug(enabled)` | ✅ | Enable or disable verbose batch/debug output for development. |
 
 ---
 

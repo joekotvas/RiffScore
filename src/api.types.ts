@@ -32,7 +32,7 @@ export interface BatchEventPayload {
  * Result of a single API operation.
  */
 export interface Result {
-  /** True unless level is 'error' */
+  /** True when status is 'info' or 'warning' (false for 'error') */
   ok: boolean;
   /** 'info' = success, 'warning' = success w/ caveat, 'error' = failure */
   status: 'info' | 'warning' | 'error';
