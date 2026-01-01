@@ -1,5 +1,7 @@
 # Font Delivery Proposal
 
+**Status**: ✅ IMPLEMENTED (see Issue #193)
+
 ## Problem Statement
 
 ### Hypothesis (RFC §2.B)
