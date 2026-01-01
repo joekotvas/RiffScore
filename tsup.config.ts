@@ -1,6 +1,4 @@
 import { defineConfig } from 'tsup';
-import { copyFileSync, mkdirSync } from 'fs';
-import { dirname } from 'path';
 
 export default defineConfig({
   entry: ['src/index.tsx'],
@@ -12,24 +10,12 @@ export default defineConfig({
   treeshake: true,
   minify: false,
   esbuildOptions(options) {
-    // Configure loader for font files
+    // Configure loader for font files - esbuild will emit to dist/fonts/
     options.loader = {
       ...options.loader,
       '.woff2': 'file',
     };
-    // Set asset output directory
+    // Set asset output directory relative to outdir
     options.assetNames = 'fonts/[name]';
-  },
-  onSuccess: async () => {
-    // Copy font assets to dist (backup in case loader doesn't handle it)
-    const fontSrc = 'src/assets/fonts/Bravura.woff2';
-    const fontDest = 'dist/fonts/Bravura.woff2';
-    try {
-      mkdirSync(dirname(fontDest), { recursive: true });
-      copyFileSync(fontSrc, fontDest);
-      console.log('📦 Copied Bravura.woff2 to dist/fonts/');
-    } catch {
-      // Font may already be copied by loader
-    }
   },
 });

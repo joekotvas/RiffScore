@@ -7,24 +7,19 @@
 ### Hypothesis (RFC §2.B)
 > Bravura font assets may be delivered in a way that impacts first paint or JavaScript parse time.
 
-### Observed Evidence
+### Pre-Implementation State
 
-- Font **not bundled** in library
-- Consumer must provide `@font-face` declaration
-- `useFontLoaded` hook hides glyphs until font loads
+- Font was NOT bundled in library
+- Consumer had to provide `@font-face` declaration
+- `useFontLoaded` hook hid glyphs until font loaded
 
 ---
 
-## Solution Options
+## Solution Options Evaluated
 
-### Option 1: Document Consumer Requirement (Recommended)
+### Option 1: Document Consumer Requirement
 
-**Strategy**: Maintain current behavior, improve documentation.
-
-Current behavior is correct:
-- Font externally loaded (no bundle impact)
-- FOUC prevented via CSS hiding
-- Non-blocking via `document.fonts.ready`
+**Strategy**: Maintain external behavior, improve documentation.
 
 | Tradeoff | Impact |
 |----------|--------|
@@ -32,13 +27,13 @@ Current behavior is correct:
 | Consumer ergonomics | ↓ Must add font themselves |
 | First paint | Optimal |
 
-### Option 2: Bundle Font as Asset
+### Option 2: Bundle Font as Asset ✅ CHOSEN
 
 **Strategy**: Include `Bravura.woff2` in `dist/fonts/`.
 
 | Tradeoff | Impact |
 |----------|--------|
-| Bundle size | ↑ ~300KB |
+| Bundle size | ↑ ~241KB |
 | Consumer ergonomics | ↑ Zero config |
 | CDN caching | ↓ Coupled to lib version |
 
@@ -54,19 +49,27 @@ Current behavior is correct:
 
 ---
 
-## Recommendation
+## Implemented Solution
 
-**Option 1: Document Consumer Requirement**
+**Option 2: Bundle Font as Asset**
 
 **Rationale**:
-- Current implementation is correct
-- No bundle bloat
-- Standard web font practice
+- Zero-config experience aligns with "plug and play" goal
+- Music notation is visual-first — broken fonts = broken library
+- 241KB is reasonable for a one-time cached download
+- Advanced users can still override via CSS cascade
+
+**Changes Made**:
+- Added `Bravura.woff2` to `src/assets/fonts/`
+- Configured tsup to copy font to `dist/fonts/`
+- Added `@font-face` to `src/styles/theme.css`
+- Updated README to note fonts are bundled
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] README documents font requirement
-- [ ] Example `@font-face` snippet provided
-- [ ] Demo app demonstrates correct setup
+- [x] Font bundled in `dist/fonts/Bravura.woff2`
+- [x] `@font-face` declaration in bundled CSS
+- [x] README documents zero-config experience
+- [x] Demo app works without manual font setup

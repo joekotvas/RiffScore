@@ -5,7 +5,7 @@
 ### Hypothesis
 > Bravura (SMuFL) font assets may be delivered in a way that impacts first paint or JavaScript parse time, depending on whether they are bundled, inlined, or externally loaded.
 
-### Finding: **CONFIRMED (External)**
+### Finding: **CONFIRMED (Bundled)**
 
 ---
 
@@ -13,15 +13,29 @@
 
 | Location | Status |
 |----------|--------|
-| `dist/` (published package) | ❌ Not present |
-| `src/` (library source) | ❌ Not present |
-| `demo/public/fonts/Bravura.woff2` | ✅ Present (demo only) |
+| `dist/fonts/Bravura.woff2` | ✅ Bundled with package |
+| `src/assets/fonts/Bravura.woff2` | ✅ Source asset |
+| `dist/index.css` | ✅ Contains `@font-face` declaration |
 
-**Observation**: The Bravura font is NOT bundled with the library. Consumers must provide their own `@font-face` declaration.
+**Observation**: Bravura font is bundled with the library. Zero consumer configuration required.
 
 ---
 
 ## Font Loading Mechanism
+
+### `@font-face` Declaration
+
+**File**: `src/styles/theme.css` (bundled in `dist/index.css`)
+
+```css
+@font-face {
+  font-family: 'Bravura';
+  src: url('./fonts/Bravura.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+```
 
 ### `useFontLoaded` Hook
 
@@ -47,9 +61,7 @@ export const useFontLoaded = (timeoutMs = 3000): FontLoadedResult => {
 };
 ```
 
-### Fallback Behavior
-
-CSS rules hide glyphs during loading:
+### CSS Hide/Reveal
 
 ```css
 .RiffScore.font-loading svg text {
@@ -79,24 +91,6 @@ CSS rules hide glyphs during loading:
 
 ✅ **No FOUC** — Glyphs are hidden, not displayed with fallback font.
 
-### Potential Issue
-
-⚠️ **Consumer Responsibility**: If consumer does not provide `@font-face`, glyphs remain hidden for 3 seconds then render with fallback font (broken appearance).
-
----
-
-## Consumer Requirements
-
-To use RiffScore, consumers must add:
-
-```css
-@font-face {
-  font-family: 'Bravura';
-  src: url('/path/to/Bravura.woff2') format('woff2');
-  font-display: swap;
-}
-```
-
 ---
 
 ## Design Objective Assessment
@@ -104,7 +98,7 @@ To use RiffScore, consumers must add:
 | Objective | Status |
 |-----------|--------|
 | Font loading should be non-blocking | ✅ Uses `document.fonts.ready` |
-| Externally delivered | ✅ Not bundled |
-| Not delay first contentful paint | ✅ Container renders immediately |
+| Bundled with library | ✅ Bravura font is included in the package |
+| Not delay first contentful paint | ✅ Container renders immediately; glyphs reveal after font ready/timeout |
 
-**Verdict**: Font delivery is correctly externalized and non-blocking.
+**Verdict**: Font delivery is correctly bundled with the library and remains non-blocking.

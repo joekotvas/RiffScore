@@ -1,12 +1,13 @@
 # Size Baseline
 
-## Build Output
+## Build Output (with bundled font)
 
 | Artifact | Size | Notes |
 |----------|------|-------|
 | `dist/index.mjs` | 627.88 KB | ESM bundle |
 | `dist/index.js` | 635.32 KB | CJS bundle |
-| `dist/index.css` | 28.79 KB | Unified stylesheet |
+| `dist/index.css` | 28.95 KB | Unified stylesheet (includes `@font-face`) |
+| `dist/fonts/Bravura.woff2` | 241.41 KB | Bundled music font |
 | `dist/index.d.ts` | 28.76 KB | TypeScript declarations |
 | `dist/index.mjs.map` | 1.50 MB | ESM source map |
 | `dist/index.js.map` | 1.50 MB | CJS source map |
@@ -15,9 +16,9 @@
 
 ```
 npm notice 📦  riffscore@1.0.0-alpha.6
-npm notice package size: 800.7 kB
-npm notice unpacked size: 4.6 MB
-npm notice total files: 11
+npm notice package size: 1.0 MB
+npm notice unpacked size: 4.9 MB
+npm notice total files: 12
 ```
 
 ### Files Included
@@ -26,6 +27,7 @@ npm notice total files: 11
 |------|------|
 | `LICENSE` | 1.1 KB |
 | `README.md` | 7.0 KB |
+| `dist/fonts/Bravura.woff2` | 247.2 KB |
 | `dist/index.css` | 29.5 KB |
 | `dist/index.css.map` | 50.0 KB |
 | `dist/index.d.mts` | 29.4 KB |
@@ -48,8 +50,8 @@ These are NOT included in the riffscore bundle but add to consumer bundle:
 
 ## Baseline Summary
 
-| Scenario | Estimated Consumer Bundle Impact |
-|----------|----------------------------------|
-| Visual-only (current) | ~640 KB riffscore + ~400 KB Tone.js |
-| Visual-only (decoupled) | ~640 KB riffscore (Tone.js excluded) |
-| With playback | ~640 KB + ~400 KB + lazy load overhead |
+| Scenario | Package Size | Consumer Bundle Impact |
+|----------|--------------|------------------------|
+| Pre-font bundling | 800 KB | ~640 KB riffscore + ~400 KB Tone.js |
+| With bundled font | 1.0 MB | ~640 KB riffscore + 241 KB font + ~400 KB Tone.js |
+| Visual-only (Tone.js decoupled) | 1.0 MB | ~640 KB riffscore + 241 KB font |

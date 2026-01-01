@@ -41,16 +41,18 @@ This audit tested 5 hypotheses from the RFC: *"Bundle & Runtime Performance Audi
 
 ---
 
-### 2. Font Delivery (No Change)
+### 2. Font Delivery (Implemented)
 
-**Primary Recommendation**: Document consumer requirements
+**Primary Recommendation**: Bundle Bravura font with the library (Option 2)
 
-Current implementation is correct:
-- External delivery (not bundled)
-- FOUC prevention via CSS
-- Non-blocking load
+Implemented behavior:
+- Bravura font bundled in `dist/fonts/`
+- `@font-face` declaration in bundled CSS
+- Zero-config setup for consumers
+- FOUC prevention via CSS hide/reveal
+- Non-blocking font load preserved
 
-**Action**: Update README with font setup instructions.
+**Action**: README updated to document zero-config experience.
 
 ---
 
