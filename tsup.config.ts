@@ -9,4 +9,13 @@ export default defineConfig({
   external: ['react', 'react-dom'],
   treeshake: true,
   minify: false,
+  esbuildOptions(options) {
+    // Configure loader for font files - esbuild will emit to dist/fonts/
+    options.loader = {
+      ...options.loader,
+      '.woff2': 'file',
+    };
+    // Set asset output directory relative to outdir
+    options.assetNames = 'fonts/[name]';
+  },
 });
