@@ -214,12 +214,14 @@ describe('ScoreAPI Feedback & Error Handling', () => {
       const api = getAPI('debug-test');
 
       act(() => {
+        // eslint-disable-next-line testing-library/no-debugging-utils
         api.debug(true);
       });
       expect(api.result.ok).toBe(true);
       expect(api.result.message).toContain('enabled');
 
       act(() => {
+        // eslint-disable-next-line testing-library/no-debugging-utils
         api.debug(false);
       });
       expect(api.result.ok).toBe(true);
