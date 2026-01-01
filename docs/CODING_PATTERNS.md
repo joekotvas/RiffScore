@@ -126,7 +126,42 @@ export const getMidi = (pitch: string): number => Note.midi(pitch) ?? 60;
 
 See also: [docs/ARCHITECTURE.md](./ARCHITECTURE.md)
 
----
+### API Feedback Pattern
+ 
+ 
+ Public API methods must never throw errors (except for critical system failures). Instead, they follow a **Fail-Soft** pattern with structured feedback.
+ 
+ 1. **Return `this`**: Always allow method chaining.
+ 2. **Set `result`**: internal state captures `{ ok, code, message }`.
+ 3. **Sticky `hasError`**: Flags if *any* operation in a chain failed.
+ 
+ ```typescript
+ // src/hooks/api/entry.ts
+ addNote(pitch) {
+   if (!isValid(pitch)) {
+     setResult({
+       ok: false,
+       status: 'error',
+       code: 'INVALID_PITCH',
+       message: '...'
+     });
+     return this; // Allow chain to continue safely
+   }
+   // ... success path
+ }
+ ```
+ 
+ **Batch Collection**:
+ Use `collect()` context to gather results from multiple operations without stopping execution.
+ 
+ ```typescript
+ api.collect((a) => {
+   a.addNote('C4'); // result pushed to collector
+   a.addNote('Bad'); // error pushed, execution continues
+ });
+ ```
+ 
+ ---
 
 ## 2. Directory Structure
 

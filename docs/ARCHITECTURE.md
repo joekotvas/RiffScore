@@ -555,7 +555,8 @@ See [verticalStack.ts](../src/utils/verticalStack.ts) for the `calculateVertical
 ### Observability Patterns
 The system separates **Transactional Observability** (success) from **Failure Observability** (logging).
 - **Batch Events**: Emitted by `ScoreEngine` to signal complete units of work (transactions), decoupling external listeners from internal micro-mutations.
-- **Fail-Soft Validation**: API methods return `this` and log warnings instead of crashing, ensuring stability for external scripts.
+- **Structured Feedback**: API methods return standardized `Result` objects (`{ ok, status, code }`) and emit `operation` / `error` events for granular tracking.
+- **Fail-Soft Validation**: API methods return `this` and set internal error flags instead of crashing, ensuring stability for external scripts. A sticky `hasError` state allows verifying chains after execution.
 
 </details>
 

@@ -84,6 +84,7 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 *   **Fluent Chaining**: `api.select(1).addNote('C4').play()` — chainable methods for concise scripting.
 *   **Event Subscriptions**: React to state changes with `api.on('score', callback)` and `api.on('batch', callback)`.
 *   **Transaction Batching**: Atomic operations with `beginTransaction`/`commitTransaction` for single undo steps.
+*   **Structured Feedback**: Unified `result` objects and sticky error states for robust scripting.
 *   **Playback API**: `play()`, `pause()`, `stop()`, `rewind()`, `setInstrument()` for programmatic audio control.
 
 ### Engines
