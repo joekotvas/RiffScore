@@ -19,6 +19,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useAPISubscriptions } from './useAPISubscriptions';
 import type { MusicEditorAPI, RiffScoreRegistry } from '@/api.types';
 import type { RiffScoreConfig } from '@/types';
+import { getTimestamp } from '@/utils/core';
 import { SetSelectionCommand } from '@/commands/selection';
 import {
   createNavigationMethods,
@@ -129,7 +130,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
     status: 'info',
     method: 'init',
     message: 'API Initialized',
-    timestamp: Date.now(),
+    timestamp: getTimestamp(),
   });
   const hasErrorRef = useRef(false);
   const debugModeRef = useRef(false);
@@ -141,7 +142,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
    */
   const setResult = useCallback(
     (partial: Omit<import('@/api.types').Result, 'timestamp'>) => {
-      const timestamp = Date.now();
+      const timestamp = getTimestamp();
       const result: import('@/api.types').Result = { ...partial, timestamp };
 
       // Update Result State

@@ -1,4 +1,4 @@
-# 13. Deferred Audio Loading
+# 013. Deferred Audio Loading
 
 Date: 2026-01-01
 

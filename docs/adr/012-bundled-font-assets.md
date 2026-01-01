@@ -1,4 +1,4 @@
-# 12. Bundled Font Assets
+# 012. Bundled Font Assets
 
 Date: 2026-01-01
 
