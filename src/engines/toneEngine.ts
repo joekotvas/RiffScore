@@ -28,22 +28,31 @@ type ToneModule = typeof import('tone');
 
 // --- DYNAMIC LOADER ---
 
-let ToneModule: ToneModule | null = null;
+let toneModuleCache: ToneModule | null = null;
 let toneLoadPromise: Promise<ToneModule> | null = null;
 
 /**
  * Dynamically loads Tone.js on first use.
  * Subsequent calls return cached module.
+ * Resets promise on failure to allow retry.
  */
 const loadTone = async (): Promise<ToneModule> => {
-  if (ToneModule) return ToneModule;
+  if (toneModuleCache) return toneModuleCache;
 
   if (!toneLoadPromise) {
     updateState({ instrumentState: 'loading' });
-    toneLoadPromise = import('tone').then((module) => {
-      ToneModule = module;
-      return module;
-    });
+    toneLoadPromise = import('tone')
+      .then((module) => {
+        toneModuleCache = module;
+        return module;
+      })
+      .catch((error) => {
+        // Reset promise to allow retry
+        toneLoadPromise = null;
+        updateState({ instrumentState: 'not-loaded' });
+        console.error('Failed to load Tone.js:', error);
+        throw error;
+      });
   }
 
   return toneLoadPromise;
@@ -53,7 +62,7 @@ const loadTone = async (): Promise<ToneModule> => {
  * Gets the loaded Tone module, or null if not yet loaded.
  * Use for synchronous checks only.
  */
-const getTone = (): ToneModule | null => ToneModule;
+const getTone = (): ToneModule | null => toneModuleCache;
 
 // --- STATE ---
 
@@ -306,8 +315,7 @@ export const scheduleTonePlayback = async (
   if (!instrument) {
     // Not initialized yet, auto-init
     await initTone();
-    scheduleTonePlayback(timeline, bpm, startTimeOffset, onPositionUpdate, onComplete);
-    return;
+    return scheduleTonePlayback(timeline, bpm, startTimeOffset, onPositionUpdate, onComplete);
   }
 
   stopTonePlayback();
@@ -407,4 +415,4 @@ export const getState = (): ToneEngineState => ({ ...state });
 /**
  * Checks if Tone.js is loaded (for UI indicators).
  */
-export const isToneLoaded = (): boolean => ToneModule !== null;
+export const isToneLoaded = (): boolean => toneModuleCache !== null;
