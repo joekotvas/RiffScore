@@ -416,10 +416,15 @@ export const playNote = async (pitch: string, duration: string = '8n'): Promise<
 
 // --- STATE GETTERS ---
 
+/** Returns current instrument loading state. */
 export const getInstrumentState = (): InstrumentState => state.instrumentState;
+/** Returns currently selected instrument type. */
 export const getSelectedInstrument = (): InstrumentType => state.selectedInstrument;
+/** Returns true if piano samples are loaded. */
 export const isSamplerLoaded = (): boolean => state.samplerLoaded;
+/** Returns true if playback is active. */
 export const isPlaying = (): boolean => state.isPlaying;
+/** Returns a copy of the full engine state. */
 export const getState = (): ToneEngineState => ({ ...state });
 
 /**
