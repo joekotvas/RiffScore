@@ -14,7 +14,12 @@ import { TimelineEvent } from '@/services/TimelineService';
 
 export type InstrumentType = 'bright' | 'mellow' | 'organ' | 'piano';
 
-export type InstrumentState = 'not-loaded' | 'loading' | 'initializing' | 'ready' | 'loading-samples';
+export type InstrumentState =
+  | 'not-loaded'
+  | 'loading'
+  | 'initializing'
+  | 'ready'
+  | 'loading-samples';
 
 interface ToneEngineState {
   instrumentState: InstrumentState;
