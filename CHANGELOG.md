@@ -5,6 +5,18 @@ All notable changes to RiffScore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0-alpha.7] - 2026-01-01
+
+### Added
+- **Structured API Feedback**: Public API (`window.riffScore`) now implements a **Fail-Soft** pattern. Methods return a structured `Result` object (`ok`, `status`, `message`, `code`) instead of failing silently or logging console warnings ([Issue #169](https://github.com/joekotvas/RiffScore/issues/169), [PR #198](https://github.com/joekotvas/RiffScore/pull/198)).
+- **Sticky Error State**: Added `api.hasError` flag which persists if any operation in a fluent chain fails, making validation easier.
+- **Batch Result Collection**: Added `api.collect(callback)` to aggregate results from multiple operations into a single report.
+- **Documentation**: New [ADR 011: Structured API Feedback](docs/adr/011-structured-api-feedback.md) detailing the architectural decision.
+
+### Changed
+- **API Error Handling**: API methods no longer throw errors for recoverable issues (e.g., invalid pitch format, out-of-bounds selection). They return `ok: false` with an error code.
+- **Fail-Soft Export**: `api.export()` now returns an empty string (instead of throwing) on failure or invalid format, setting an error result.
+
 ## [1.0.0-alpha.6] - 2025-12-31
 
 ### Added
