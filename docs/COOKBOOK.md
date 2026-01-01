@@ -170,19 +170,46 @@ score.select(3)  // Measure 3
 
 ### Safe Input Handling
 
-The API validates inputs and logs warnings instead of throwing errors, allowing safe method chaining.
+The API validates inputs and returns a result object. You can check the operation status immediately or inspect persistent error flags.
 
 ```javascript
 const score = window.riffScore.active;
 
-// This will log a warning (LogLevel.WARN) and continue
-score.addNote('InvalidPitch')
-   .setBpm(1000) // Clamped to 300
-   .setDuration('invalid'); // Ignored
+// This will log an error and set hasError=true
+score.addNote('InvalidPitch');
 
-// Check console for:
-// [WARN] [RiffScore API] addNote failed: Invalid pitch format 'InvalidPitch'
-// [WARN] [RiffScore API] setDuration failed: Invalid duration: "invalid"
+if (!score.ok) {
+  console.error('Operation failed:', score.result.message);
+  console.error('Error code:', score.result.code);
+}
+
+// Sticky error state allows checking after a chain
+score.select(1).addNote('C4').addNote('InvalidPitch').addNote('E4');
+
+if (score.hasError) {
+  console.warn('One or more operations in the chain failed');
+  score.clearStatus(); // Reset the error flag
+}
+```
+
+### Batch Result Collection
+
+Use `collect()` to capture results from multiple operations for validation or reporting.
+
+```javascript
+const score = window.riffScore.active;
+
+const report = score.collect((api) => {
+  api.select(1)
+     .addNote('C4', 'quarter')
+     .addNote('InvalidPitch') // Will result in error
+     .addNote('E4', 'quarter');
+});
+
+console.log(`Batch processed with ${report.errors.length} errors.`);
+if (!report.ok) {
+  report.errors.forEach(err => console.error(err.message));
+}
 ```
 
 ---

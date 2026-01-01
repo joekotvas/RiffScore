@@ -15,7 +15,7 @@ import type { Score, ScoreEvent, Selection, RiffScoreConfig } from './types';
 export type Unsubscribe = () => void;
 
 /** Supported API event types */
-export type APIEventType = 'score' | 'selection' | 'playback' | 'batch';
+export type APIEventType = 'score' | 'selection' | 'playback' | 'batch' | 'operation' | 'error';
 
 /**
  * Payload for 'batch' events, providing a digest of composite operations.
@@ -26,6 +26,40 @@ export interface BatchEventPayload {
   timestamp: number;
   commands: { type: string; summary?: string }[];
   affectedMeasures: number[];
+}
+
+/**
+ * Result of a single API operation.
+ */
+export interface Result {
+  /** True unless level is 'error' */
+  ok: boolean;
+  /** 'info' = success, 'warning' = success w/ caveat, 'error' = failure */
+  status: 'info' | 'warning' | 'error';
+  /** Name of the method that produced this result */
+  method: string;
+  /** Human-readable message */
+  message: string;
+  /** Timestamp of the operation */
+  timestamp: number;
+  /** Optional machine-readable error/status code */
+  code?: string;
+  /** Additional context (counts, measures affected, etc.) */
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Result of a batch collection.
+ */
+export interface BatchResult {
+  /** True if all operations were warning/info (no errors) */
+  ok: boolean;
+  /** All captured results */
+  results: Result[];
+  /** Subset of results with status='warning' */
+  warnings: Result[];
+  /** Subset of results with status='error' */
+  errors: Result[];
 }
 
 // ========== REGISTRY ==========
@@ -82,6 +116,39 @@ export interface MusicEditorAPI {
    * @status implemented
    */
   selectById(eventId: string, noteId?: string): this;
+
+  // --- Feedback & Status ---
+  /**
+   * Result of the last operation.
+   * @status implemented
+   */
+  readonly result: Result;
+  /**
+   * True if the last operation succeeded (info or warning).
+   * @status implemented
+   */
+  readonly ok: boolean;
+  /**
+   * True if ANY error has occurred since the last clearStatus().
+   * @status implemented
+   */
+  readonly hasError: boolean;
+  /**
+   * Clear the sticky error state and reset result to generic success.
+   * @status implemented
+   */
+  clearStatus(): this;
+  /**
+   * Enable/disable verbose debug logging to console.
+   * @status implemented
+   */
+  debug(enabled: boolean): this;
+  /**
+   * Collect results from a batch of operations without affecting global state history.
+   * Useful for validating chains or "dry runs".
+   * @status implemented
+   */
+  collect(callback: (api: MusicEditorAPI) => void): BatchResult;
 
   // --- Selection (Multi-Select) ---
   /**
@@ -399,6 +466,8 @@ export interface MusicEditorAPI {
   on(event: 'score', callback: (state: Score) => void): Unsubscribe;
   on(event: 'selection', callback: (state: Selection) => void): Unsubscribe;
   on(event: 'playback', callback: (state: unknown) => void): Unsubscribe;
+  on(event: 'operation', callback: (result: Result) => void): Unsubscribe;
+  on(event: 'error', callback: (result: Result) => void): Unsubscribe;
   on(event: 'batch', callback: (payload: BatchEventPayload) => void): Unsubscribe;
   on(event: APIEventType, callback: (state: unknown) => void): Unsubscribe;
 }

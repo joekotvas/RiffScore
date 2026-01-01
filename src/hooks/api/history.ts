@@ -26,17 +26,29 @@ type HistoryMethodNames =
 export const createHistoryMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, HistoryMethodNames> & ThisType<MusicEditorAPI> => {
-  const { history } = ctx;
+  const { history, setResult } = ctx;
   const { undo, redo, begin, commit, rollback } = history;
 
   return {
     undo() {
       undo();
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'undo',
+        message: 'Undid last action',
+      });
       return this;
     },
 
     redo() {
       redo();
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'redo',
+        message: 'Redid last action',
+      });
       return this;
     },
 
@@ -46,6 +58,12 @@ export const createHistoryMethods = (
      */
     beginTransaction() {
       begin();
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'beginTransaction',
+        message: 'Transaction started',
+      });
       return this;
     },
 
@@ -57,6 +75,13 @@ export const createHistoryMethods = (
      */
     commitTransaction(label?: string) {
       commit(label);
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'commitTransaction',
+        message: 'Transaction committed',
+        details: { label },
+      });
       return this;
     },
 
@@ -66,21 +91,48 @@ export const createHistoryMethods = (
      */
     rollbackTransaction() {
       rollback();
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'rollbackTransaction',
+        message: 'Transaction rolled back',
+      });
       return this;
     },
 
     copy() {
       // TODO: Implement
+      setResult({
+        ok: true,
+        status: 'warning',
+        method: 'copy',
+        message: 'Copy not implemented yet',
+        code: 'NOT_IMPLEMENTED',
+      });
       return this;
     },
 
     cut() {
       // TODO: Implement
+      setResult({
+        ok: true,
+        status: 'warning',
+        method: 'cut',
+        message: 'Cut not implemented yet',
+        code: 'NOT_IMPLEMENTED',
+      });
       return this;
     },
 
     paste() {
       // TODO: Implement
+      setResult({
+        ok: true,
+        status: 'warning',
+        method: 'paste',
+        message: 'Paste not implemented yet',
+        code: 'NOT_IMPLEMENTED',
+      });
       return this;
     },
   };
