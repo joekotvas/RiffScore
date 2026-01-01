@@ -76,15 +76,14 @@ export const createIOMethods = (
         } else if (format === 'musicxml') {
           output = generateMusicXML(score);
         } else {
-          const msg = `Export format '${format}' not yet implemented`;
           setResult({
             ok: false,
             status: 'error',
             method: 'export',
-            message: msg,
+            message: `Export format '${format}' not yet implemented`,
             code: 'NOT_IMPLEMENTED',
           });
-          throw new Error(msg);
+          return ''; // Fail-safe: return empty string
         }
 
         setResult({
@@ -97,20 +96,14 @@ export const createIOMethods = (
 
         return output;
       } catch (e) {
-        // Ensure result is set on error if not already set by explicit else block
-        // (though re-throwing error is standard behavior for return types)
-        if (format !== 'json' && format !== 'abc' && format !== 'musicxml') {
-            // Already handled above
-        } else {
-             setResult({
-                ok: false,
-                status: 'error',
-                method: 'export',
-                message: `Export failed: ${e instanceof Error ? e.message : String(e)}`,
-                code: 'EXPORT_FAILED',
-             });
-        }
-        throw e;
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'export',
+          message: `Export failed: ${e instanceof Error ? e.message : String(e)}`,
+          code: 'EXPORT_FAILED',
+        });
+        return ''; // Fail-safe: return empty string
       }
     },
   };

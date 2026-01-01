@@ -10,7 +10,6 @@ import {
 } from '@/engines/toneEngine';
 import { createTimeline } from '@/services/TimelineService';
 
-
 /**
  * Playback method names provided by this factory
  */
@@ -68,7 +67,8 @@ export const createPlaybackMethods = (
         // Find start time offset
         let startTimeOffset = 0;
         const startEvent = timeline.find(
-          (e) => e.measureIndex >= measureIndex && (e.measureIndex > measureIndex || e.quant >= quant)
+          (e) =>
+            e.measureIndex >= measureIndex && (e.measureIndex > measureIndex || e.quant >= quant)
         );
 
         if (startEvent) {

@@ -132,17 +132,14 @@ describe('ScoreAPI Feedback & Error Handling', () => {
 
       expect(batchResult).toBeDefined();
       expect(batchResult?.results.length).toBeGreaterThanOrEqual(3); // select + 3 addNotes
-      
+
       const addNoteResults = batchResult?.results.filter((r) => r.method === 'addNote');
       expect(addNoteResults).toHaveLength(3);
 
       expect(addNoteResults?.[0].ok).toBe(true);
       expect(addNoteResults?.[1].ok).toBe(true);
-      
-      // Debug logging
-      if (addNoteResults?.[2].ok) {
-        console.log('UNEXPECTED SUCCESS RESULT:', JSON.stringify(addNoteResults[2], null, 2));
-      }
+
+
       expect(addNoteResults?.[2].ok).toBe(false); // InvalidPitch
 
       expect(batchResult?.ok).toBe(false); // Because one failed
@@ -171,8 +168,10 @@ describe('ScoreAPI Feedback & Error Handling', () => {
       // collectorRef is swapped. Inner collect takes over.
       // Inner ops go to inner collector.
       // Outer collector does NOT see inner ops while swapped out.
-      
-      const addNoteResults = outerResult?.results.filter((r: import('../api.types').Result) => r.method === 'addNote');
+
+      const addNoteResults = outerResult?.results.filter(
+        (r: import('../api.types').Result) => r.method === 'addNote'
+      );
       expect(addNoteResults).toHaveLength(2); // C4 and E4. D4 is "hidden" inside inner collect.
     });
   });
@@ -204,7 +203,9 @@ describe('ScoreAPI Feedback & Error Handling', () => {
       });
 
       expect(opSpy).toHaveBeenCalledWith(expect.objectContaining({ method: 'addNote', ok: false }));
-      expect(errSpy).toHaveBeenCalledWith(expect.objectContaining({ method: 'addNote', ok: false }));
+      expect(errSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ method: 'addNote', ok: false })
+      );
     });
   });
 });

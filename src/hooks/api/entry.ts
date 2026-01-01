@@ -17,7 +17,6 @@ import { canAddEventToMeasure, isValidPitch } from '@/utils/validation';
 import { noteId, eventId as createEventId } from '@/utils/id';
 import { createNotePayload } from '@/utils/entry';
 
-
 /**
  * Entry method names provided by this factory
  */

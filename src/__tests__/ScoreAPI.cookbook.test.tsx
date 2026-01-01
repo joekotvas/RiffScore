@@ -451,11 +451,11 @@ describe('Cookbook: Validation & Errors', () => {
     act(() => {
       score.addNote('InvalidPitch');
     });
-    
+
     expect(score.ok).toBe(false);
     expect(score.result.code).toBe('INVALID_PITCH');
     expect(score.hasError).toBe(true);
-    
+
     // Clear status
     act(() => {
       score.clearStatus();
@@ -470,15 +470,12 @@ describe('Cookbook: Validation & Errors', () => {
   test('Batch Result Collection - collect returns aggregation', () => {
     render(<RiffScore id="cookbook-collect" />);
     const score = getAPI('cookbook-collect');
-    
+
     let report: ReturnType<MusicEditorAPI['collect']> | undefined;
 
     act(() => {
       report = score.collect((api) => {
-        api.select(1)
-           .addNote('C4', 'quarter')
-           .addNote('InvalidPitch')
-           .addNote('E4', 'quarter');
+        api.select(1).addNote('C4', 'quarter').addNote('InvalidPitch').addNote('E4', 'quarter');
       });
     });
 
@@ -487,7 +484,7 @@ describe('Cookbook: Validation & Errors', () => {
     expect(report?.ok).toBe(false);
     expect(report?.errors.length).toBe(1);
     expect(report?.errors[0].code).toBe('INVALID_PITCH');
-    
+
     // Verify valid notes were still added
     const data = score.getScore();
     const pitches = getPitchesInMeasure(data, 0);
@@ -495,7 +492,6 @@ describe('Cookbook: Validation & Errors', () => {
     expect(pitches).toContain('E4');
   });
 });
-
 
 // =============================================================================
 // INTEGRATION RECIPES

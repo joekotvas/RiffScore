@@ -24,7 +24,7 @@ Every API method will update an internal state property `result` with a standard
 ```typescript
 interface Result {
   ok: boolean;           // Success/Failure flag
-  status: 'success' | 'warning' | 'error';
+  status: 'info' | 'warning' | 'error';
   code: string;          // Machine-readable code (e.g., 'INVALID_PITCH')
   message: string;       // Human-readable description
   method: string;        // The method that generated this result

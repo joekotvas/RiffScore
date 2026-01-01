@@ -135,8 +135,6 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
   const debugModeRef = useRef(false);
   const collectorRef = useRef<{ results: import('@/api.types').Result[] } | null>(null);
 
-
-
   /**
    * Internal helper to report operation results.
    * Updates state, emits events, and logs to console if needed.
@@ -360,7 +358,6 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
     ctx.tools,
     setResult,
   ]);
-  
   // 5. Registry registration/cleanup
   useEffect(() => {
     initRegistry();

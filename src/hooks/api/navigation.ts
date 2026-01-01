@@ -65,7 +65,10 @@ export const createNavigationMethods = (
           status: 'info',
           method: 'move',
           message: `Moved ${direction}`,
-          details: { direction, newSelection: { measure: newSel.measureIndex, event: newSel.eventId } },
+          details: {
+            direction,
+            newSelection: { measure: newSel.measureIndex, event: newSel.eventId },
+          },
         });
       } else if (direction === 'up' || direction === 'down') {
         // Use calculateVerticalNavigation for cross-staff and chord navigation
