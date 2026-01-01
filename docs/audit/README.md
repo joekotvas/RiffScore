@@ -22,22 +22,21 @@ This audit tested 5 hypotheses from the RFC: *"Bundle & Runtime Performance Audi
 
 ## Mediated Recommendations
 
-### 1. Audio Decoupling (High Priority)
+### 1. Audio Decoupling (Implemented)
 
 **Primary Recommendation**: Dynamic import of Tone.js
 
-**Alternatives**:
-1. Separate entry point (`riffscore/audio`)
-2. Move to peer dependency
+**Clarification**: Tone.js was always an external dependency (not bundled into riffscore). The issue was that consumer bundlers couldn't code-split it due to the static import.
 
-| Criteria | Dynamic Import | Separate Entry | Peer Dep |
-|----------|---------------|----------------|----------|
-| Bundle impact | ↓ 400KB | ↓ 400KB | None |
-| Breaking change | None | Minor | Medium |
-| Effort | Low | High | Low |
-| Rollback risk | Low | Medium | Low |
+| Use Case | Benefit |
+|----------|---------|
+| Visual-only embedding | ~400KB eliminated (never loaded) |
+| Playback users | ~400KB deferred (loaded on first play) |
+| SSR/SSG | No AudioContext on server |
 
-**Decision**: Implement dynamic import. Zero breaking changes, significant bundle savings.
+**Trade-off**: First playback has 1-2s network latency.
+
+**Decision**: Implemented via dynamic `import('tone')`. Zero breaking changes.
 
 ---
 
