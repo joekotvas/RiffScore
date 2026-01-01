@@ -737,6 +737,6 @@ flowchart TD
 | [tone](https://tonejs.github.io/) | Audio synthesis |
 | react | UI framework |
 | lucide-react | Icons |
-| Bravura | SMuFL font |
+| Bravura | SMuFL font (bundled in dist/fonts/) |
 
 </details>

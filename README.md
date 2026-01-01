@@ -27,7 +27,7 @@ function App() {
 
 That's it! RiffScore renders a fully interactive grand staff editor with sensible defaults.
 
-> **Note**: Styles are bundled automatically — no separate CSS import required.
+> **Note**: Styles and fonts are bundled automatically — no separate CSS import or font setup required.
 
 ### With Configuration
 
