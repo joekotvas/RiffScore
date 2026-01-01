@@ -416,6 +416,84 @@ describe('Cookbook: Observability', () => {
 });
 
 // =============================================================================
+// VALIDATION & ERRORS
+// =============================================================================
+
+describe('Cookbook: Validation & Errors', () => {
+  beforeEach(() => {
+    Element.prototype.scrollTo = jest.fn();
+  });
+
+  afterEach(() => {
+    if (window.riffScore) {
+      window.riffScore.instances.clear();
+      window.riffScore.active = null;
+    }
+    jest.restoreAllMocks();
+  });
+
+  /**
+   * Recipe: Safe Input Handling
+   * Verifies checking result status and valid input vs invalid input
+   */
+  test('Safe Input Handling - check ok and result message', () => {
+    render(<RiffScore id="cookbook-safe-input" />);
+    const score = getAPI('cookbook-safe-input');
+
+    // Valid
+    act(() => {
+      score.addNote('C4');
+    });
+    expect(score.ok).toBe(true);
+    expect(score.hasError).toBe(false);
+
+    // Invalid - logs error but doesn't throw
+    act(() => {
+      score.addNote('InvalidPitch');
+    });
+
+    expect(score.ok).toBe(false);
+    expect(score.result.code).toBe('INVALID_PITCH');
+    expect(score.hasError).toBe(true);
+
+    // Clear status
+    act(() => {
+      score.clearStatus();
+    });
+    expect(score.hasError).toBe(false);
+  });
+
+  /**
+   * Recipe: Batch Result Collection
+   * Verifies collecting results from multiple operations
+   */
+  test('Batch Result Collection - collect returns aggregation', () => {
+    render(<RiffScore id="cookbook-collect" />);
+    const score = getAPI('cookbook-collect');
+
+    let report: ReturnType<MusicEditorAPI['collect']> | undefined;
+
+    act(() => {
+      report = score.collect((api) => {
+        api.select(1).addNote('C4', 'quarter').addNote('InvalidPitch').addNote('E4', 'quarter');
+      });
+    });
+
+    expect(report).toBeDefined();
+    expect(report?.results.length).toBe(4); // select, addNote, addNote, addNote
+    expect(report?.ok).toBe(false);
+    expect(report?.errors.length).toBe(1);
+    expect(report?.errors[0].code).toBe('INVALID_PITCH');
+
+    // Verify valid notes were still added
+    const data = score.getScore();
+    const pitches = getPitchesInMeasure(data, 0);
+    expect(pitches).toContain('C4');
+    expect(pitches).toContain('E4');
+  });
+});
+
+// =============================================================================
 // INTEGRATION RECIPES
 // =============================================================================
 

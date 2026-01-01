@@ -14,7 +14,7 @@
  */
 
 import { useRef, useEffect, useCallback } from 'react';
-import type { Unsubscribe, BatchEventPayload } from '@/api.types';
+import type { Unsubscribe, BatchEventPayload, Result } from '@/api.types';
 import type { Score, Selection } from '@/types';
 import type { ScoreEngine } from '@/engines/ScoreEngine';
 
@@ -25,6 +25,8 @@ interface Listeners {
   selection: Set<Listener<Selection>>;
   playback: Set<Listener<unknown>>;
   batch: Set<Listener<BatchEventPayload>>;
+  operation: Set<Listener<Result>>;
+  error: Set<Listener<Result>>;
 }
 
 /**
@@ -44,6 +46,7 @@ function safeCall<T>(callback: Listener<T>, state: T): void {
  *
  * - Score/Selection: Notified via React useEffect (stable state)
  * - Batch: Notified via ScoreEngine subscription (imperative event)
+ * - Operation/Error: Notified imperatively via api.setResult()
  */
 export function useAPISubscriptions(score: Score, selection: Selection, engine?: ScoreEngine) {
   // Store listeners in a Ref to avoid re-creation on render
@@ -52,6 +55,8 @@ export function useAPISubscriptions(score: Score, selection: Selection, engine?:
     selection: new Set(),
     playback: new Set(),
     batch: new Set(),
+    operation: new Set(),
+    error: new Set(),
   });
 
   // Notify SCORE listeners when React state updates
@@ -84,10 +89,19 @@ export function useAPISubscriptions(score: Score, selection: Selection, engine?:
     return unsubscribeEngine;
   }, [engine]);
 
+  // Expose imperative notify method for non-React events (operation results)
+  const notify = useCallback((event: 'operation' | 'error', result: Result) => {
+    if (event === 'operation') {
+      listenersRef.current.operation.forEach((cb) => safeCall(cb, result));
+    } else if (event === 'error') {
+      listenersRef.current.error.forEach((cb) => safeCall(cb, result));
+    }
+  }, []);
+
   // Public subscription method
   const on = useCallback(
     (
-      event: 'score' | 'selection' | 'playback' | 'batch' | string,
+      event: 'score' | 'selection' | 'playback' | 'batch' | 'operation' | 'error' | string,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       callback: any
     ): Unsubscribe => {
@@ -104,6 +118,10 @@ export function useAPISubscriptions(score: Score, selection: Selection, engine?:
         targetSet = listeners.playback;
       } else if (event === 'batch') {
         targetSet = listeners.batch;
+      } else if (event === 'operation') {
+        targetSet = listeners.operation;
+      } else if (event === 'error') {
+        targetSet = listeners.error;
       }
 
       if (targetSet) {
@@ -122,5 +140,5 @@ export function useAPISubscriptions(score: Score, selection: Selection, engine?:
     []
   );
 
-  return { on };
+  return { on, notify };
 }

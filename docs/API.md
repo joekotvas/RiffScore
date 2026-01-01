@@ -28,7 +28,7 @@
 | **Fluent/Chainable** | All mutation/navigation methods return `this`. |
 | **Synchronous** | State updates are immediate; React render is decoupled. |
 | **Multi-Instance** | Registry supports multiple editors on one page. |
-| **Fail-Safe** | Invalid inputs are no-ops or clamped to valid ranges. Logs structured warnings. |
+| **Fail-Safe** | Invalid inputs are no-ops or clamped to valid ranges. Returns `Result` object. |
 
 ---
 
@@ -164,9 +164,9 @@ The most recently focused or mounted instance.
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `loadScore` | `loadScore(score)` | ✅ | Load/replace score. |
+| `loadScore` | `loadScore(json)` | ✅ | Load score object. |
 | `reset` | `reset(template?, measures?)` | ✅ | Reset to blank score/template. |
-| `export` | `export(format)` | ✅ | `'json'`, `'abc'`, `'musicxml'`. |
+| `export` | `export(format)` | ✅ | Returns string (empty on error). `'json' \| 'abc' \| 'musicxml'`. |
 
 ---
 
@@ -207,6 +207,19 @@ The most recently focused or mounted instance.
 
 ---
 
+## 12. Batch & Feedback
+
+| Method | Signature | Status | Description |
+| :--- | :--- | :--- | :--- |
+| `collect` | `collect(callback)` | ✅ | Execute batch and aggregate results. |
+| `result` | `get result()` | ✅ | Get result of last operation (`{ ok, code, message }`). |
+| `ok` | `get ok()` | ✅ | Helper check for `result.ok`. |
+| `hasError` | `get hasError()` | ✅ | Sticky flag if *any* error occurred since clear. |
+| `clearStatus` | `clearStatus()` | ✅ | Reset sticky `hasError` flag. |
+| `debug` | `debug(enabled)` | ✅ | Enable or disable verbose batch/debug output for development. |
+
+---
+
 ## 12. Events & Subscriptions
 
 | Method | Signature | Status | Description |
@@ -218,6 +231,8 @@ The most recently focused or mounted instance.
 - `'selection'` — Selection changes
 - `'playback'` — Play/pause state (Pending)
 - `'batch'` — Batch transaction commit (Payload: `{ type: 'batch', commands: CommandSummary[], timestamp: number }`)
+- `'operation'` — Any API method call (Payload: `Result`)
+- `'error'` — Any API error (Payload: `Result`)
 
 **Returns:** `() => void` — Unsubscribe function.
 
@@ -236,15 +251,32 @@ await waitFor(() => {
 
 ---
 
-## 13. Error Handling
+## 14. Error Handling
+
+API methods implement a **Fail-Soft** pattern. They never throw errors (except for critical system failures).
+
+### Structured Feedback
+Every method updates the internal `result` state:
+- **`ok`**: `true` / `false`
+- **`code`**: string error code (e.g., `'INVALID_PITCH'`)
+- **`message`**: Human-readable description
+- **`details`**: Optional context object
+
+### Sticky Error State
+The `hasError` flag is "sticky"—it remains `true` if *any* operation in a chain fails, until explicitly cleared.
+
+```javascript
+api.addNote('Bad').addNote('Good');
+console.log(api.hasError); // true (from first op)
+api.clearStatus();
+```
 
 | Scenario | Behavior |
 | :--- | :--- |
-| Invalid `measureNum` | Clamped to valid range or no-op. |
-| Invalid `pitch` format | No-op; console warning. |
-| `addTone` on Rest/Empty | No-op (requires selected chord). |
-| `addNote`/`addRest` on full measure | No-op; console warning. |
-| `export` unknown format | Throws `Error`. |
+| Invalid `measureNum` | Clamped to valid range. |
+| Invalid `pitch` format | `ok: false`, `code: 'INVALID_PITCH'`. |
+| `addNote` on full measure | `ok: false`, `code: 'MEASURE_FULL'`. |
+| `export` unknown format | Throws `Error` ( Critical). |
 
 ---
 

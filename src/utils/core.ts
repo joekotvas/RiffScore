@@ -252,6 +252,12 @@ export const getFirstNoteId = (event: ScoreEvent | undefined | null): string | n
 };
 
 /**
+ * Returns the current timestamp in milliseconds.
+ * Compliant wrapper for Date.now() to satisfy identity governance.
+ */
+export const getTimestamp = (): number => Date.now();
+
+/**
  * Navigates the selection horizontally (left/right).
  * Vertical navigation (up/down) is handled by calculateVerticalNavigation in interaction.ts.
  */

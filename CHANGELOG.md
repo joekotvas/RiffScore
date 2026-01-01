@@ -5,6 +5,20 @@ All notable changes to RiffScore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0-alpha.7] - 2026-01-01
+
+### Added
+- **Structured API Feedback**: Public API (`window.riffScore`) now implements a **Fail-Soft** pattern. Methods return a structured `Result` object (`ok`, `status`, `message`, `code`) instead of failing silently or logging console warnings ([Issue #169](https://github.com/joekotvas/RiffScore/issues/169), [PR #198](https://github.com/joekotvas/RiffScore/pull/198)).
+- **Sticky Error State**: Added `api.hasError` flag which persists if any operation in a fluent chain fails, making validation easier.
+- **Batch Result Collection**: Added `api.collect(callback)` to aggregate results from multiple operations into a single report.
+- **Bundled Font Assets**: The Bravura (SMuFL) font is now bundled with the library assets (~280KB) and auto-loaded via CSS, providing a zero-config experience for consumers ([Issue #193](https://github.com/joekotvas/RiffScore/issues/193), [PR #195](https://github.com/joekotvas/RiffScore/pull/195)).
+- **Documentation**: New [ADR 011: Structured API Feedback](docs/adr/011-structured-api-feedback.md), [ADR 012: Bundled Font Assets](docs/adr/012-bundled-font-assets.md), and [ADR 013: Deferred Audio Loading](docs/adr/013-deferred-audio-loading.md).
+
+### Changed
+- **API Error Handling**: API methods no longer throw errors for recoverable issues (e.g., invalid pitch format, out-of-bounds selection). They return `ok: false` with an error code.
+- **Fail-Soft Export**: `api.export()` now returns an empty string (instead of throwing) on failure or invalid format, setting an error result.
+- **Dynamic Audio Loading**: Tone.js is now dynamically imported only when playback is initialized. This reduces the initial bundle size by ~400KB for visual-only use cases. Only the first playback capability check incurs a network request ([Issue #196](https://github.com/joekotvas/RiffScore/issues/196), [PR #197](https://github.com/joekotvas/RiffScore/pull/197)).
+
 ## [1.0.0-alpha.6] - 2025-12-31
 
 ### Added

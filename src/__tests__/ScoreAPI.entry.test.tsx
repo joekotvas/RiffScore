@@ -29,17 +29,20 @@ describe('ScoreAPI Entry Methods', () => {
   });
 
   describe('makeTuplet', () => {
-    test('warns when no selection exists', () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    test('reports error when no selection exists', () => {
       render(<RiffScore id="tuplet-no-sel" />);
       const api = getAPI('tuplet-no-sel');
 
-      // No selection yet - makeTuplet should warn
+      // No selection yet - makeTuplet should error
       act(() => {
         api.makeTuplet(3, 2);
       });
 
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('No selection'));
+      expect(api.result).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'NO_SELECTION',
+      });
     });
 
     test('creates tuplet on consecutive events', () => {
@@ -77,8 +80,7 @@ describe('ScoreAPI Entry Methods', () => {
       expect(events[0].tuplet?.groupSize).toBe(3);
     });
 
-    test('warns when target events already contain a tuplet', () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    test('reports warning when target events already contain a tuplet', () => {
       render(<RiffScore id="tuplet-nested" />);
       const api = getAPI('tuplet-nested');
 
@@ -97,27 +99,23 @@ describe('ScoreAPI Entry Methods', () => {
       });
 
       // Verify first tuplet was created
-      let score = api.getScore();
+      const score = api.getScore();
       expect(score.staves[0].measures[0].events[0].tuplet).toBeDefined();
-
-      warnSpy.mockClear();
 
       // Try to create another tuplet starting from event 0 (which is already in a tuplet)
       act(() => {
         api.select(1, 0, 0, 0); // Select first event (already in tuplet)
       });
 
-      // Verify selection points to event with tuplet
-      const sel = api.getSelection();
-      score = api.getScore();
-      const event = score.staves[0].measures[0].events.find((e) => e.id === sel.eventId);
-      expect(event?.tuplet).toBeDefined();
-
       act(() => {
         api.makeTuplet(3, 2);
       });
 
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('already contain a tuplet'));
+      expect(api.result).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'NESTED_TUPLET_NOT_SUPPORTED',
+      });
     });
 
     test('supports method chaining', () => {
@@ -139,8 +137,7 @@ describe('ScoreAPI Entry Methods', () => {
   });
 
   describe('unmakeTuplet', () => {
-    test('warns when selected event is not part of a tuplet', () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    test('reports error when selected event is not part of a tuplet', () => {
       render(<RiffScore id="unmake-no-tuplet" />);
       const api = getAPI('unmake-no-tuplet');
 
@@ -149,7 +146,11 @@ describe('ScoreAPI Entry Methods', () => {
         api.unmakeTuplet();
       });
 
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('not part of a tuplet'));
+      expect(api.result).toMatchObject({
+        ok: true,
+        status: 'warning',
+        code: 'NOT_A_TUPLET',
+      });
     });
 
     test('removes tuplet from events', () => {
@@ -196,8 +197,7 @@ describe('ScoreAPI Entry Methods', () => {
   });
 
   describe('toggleTie', () => {
-    test('warns when no note selected', () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    test('reports error when no note selected', () => {
       render(<RiffScore id="tie-no-sel" />);
       const api = getAPI('tie-no-sel');
 
@@ -205,7 +205,11 @@ describe('ScoreAPI Entry Methods', () => {
         api.toggleTie();
       });
 
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('No note selected'));
+      expect(api.result).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'NO_NOTE_SELECTED',
+      });
     });
 
     test('toggles tie on selected note', () => {
@@ -235,8 +239,7 @@ describe('ScoreAPI Entry Methods', () => {
   });
 
   describe('setTie', () => {
-    test('warns when no note selected', () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    test('reports error when no note selected', () => {
       render(<RiffScore id="tie-set-no-sel" />);
       const api = getAPI('tie-set-no-sel');
 
@@ -244,7 +247,11 @@ describe('ScoreAPI Entry Methods', () => {
         api.setTie(true);
       });
 
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('No note selected'));
+      expect(api.result).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'NO_NOTE_SELECTED',
+      });
     });
 
     test('sets tie explicitly', () => {

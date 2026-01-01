@@ -16,7 +16,6 @@ import { UpdateNoteCommand } from '@/commands/UpdateNoteCommand';
 import { canAddEventToMeasure, isValidPitch } from '@/utils/validation';
 import { noteId, eventId as createEventId } from '@/utils/id';
 import { createNotePayload } from '@/utils/entry';
-import { logger, LogLevel } from '@/utils/debug';
 
 /**
  * Entry method names provided by this factory
@@ -43,17 +42,20 @@ type EntryMethodNames =
 export const createEntryMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, EntryMethodNames> & ThisType<MusicEditorAPI> => {
-  const { getScore, getSelection, syncSelection, dispatch } = ctx;
+  const { getScore, getSelection, syncSelection, dispatch, setResult } = ctx;
 
   return {
     addNote(pitch, duration = 'quarter', dotted = false) {
       // Validate pitch format
       if (!isValidPitch(pitch)) {
-        logger.log(
-          `[RiffScore API] addNote failed: Invalid pitch format '${pitch}'. Expected format: 'C4', 'F#5', 'Bb3', etc.`,
-          undefined,
-          LogLevel.WARN
-        );
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'addNote',
+          message: `Invalid pitch format '${pitch}'. Expected format: 'C4', 'F#5', 'Bb3', etc.`,
+          code: 'INVALID_PITCH',
+          details: { pitch },
+        });
         return this;
       }
 
@@ -69,31 +71,37 @@ export const createEntryMethods = (
 
       const staff = getScore().staves[staffIndex];
       if (!staff || staff.measures.length === 0) {
-        logger.log(
-          '[RiffScore API] addNote failed: No measures exist in the score',
-          undefined,
-          LogLevel.WARN
-        );
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'addNote',
+          message: 'No measures exist in the score',
+          code: 'NO_MEASURES',
+        });
         return this;
       }
 
       const measure = staff.measures[measureIndex];
       if (!measure) {
-        logger.log(
-          `[RiffScore API] addNote failed: Measure ${measureIndex + 1} does not exist`,
-          undefined,
-          LogLevel.WARN
-        );
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'addNote',
+          message: `Measure ${measureIndex + 1} does not exist`,
+          code: 'MEASURE_NOT_FOUND',
+        });
         return this;
       }
 
       // Check if measure has capacity for this note
       if (!canAddEventToMeasure(measure.events, duration, dotted)) {
-        logger.log(
-          `[RiffScore API] addNote failed: Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} note.`,
-          undefined,
-          LogLevel.WARN
-        );
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'addNote',
+          message: `Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} note.`,
+          code: 'MEASURE_FULL',
+        });
         return this;
       }
 
@@ -126,6 +134,14 @@ export const createEntryMethods = (
       };
       syncSelection(newSelection);
 
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'addNote',
+        message: `Added note ${pitch}`,
+        details: { pitch, duration, dotted, measureIndex, staffIndex },
+      });
+
       return this;
     },
 
@@ -142,31 +158,37 @@ export const createEntryMethods = (
 
       const staff = getScore().staves[staffIndex];
       if (!staff || staff.measures.length === 0) {
-        logger.log(
-          '[RiffScore API] addRest failed: No measures exist in the score',
-          undefined,
-          LogLevel.WARN
-        );
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'addRest',
+          message: 'No measures exist in the score',
+          code: 'NO_MEASURES',
+        });
         return this;
       }
 
       const measure = staff.measures[measureIndex];
       if (!measure) {
-        logger.log(
-          `[RiffScore API] addRest failed: Measure ${measureIndex + 1} does not exist`,
-          undefined,
-          LogLevel.WARN
-        );
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'addRest',
+          message: `Measure ${measureIndex + 1} does not exist`,
+          code: 'MEASURE_NOT_FOUND',
+        });
         return this;
       }
 
       // Check if measure has capacity for this rest
       if (!canAddEventToMeasure(measure.events, duration, dotted)) {
-        logger.log(
-          `[RiffScore API] addRest failed: Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} rest.`,
-          undefined,
-          LogLevel.WARN
-        );
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'addRest',
+          message: `Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} rest.`,
+          code: 'MEASURE_FULL',
+        });
         return this;
       }
 
@@ -197,22 +219,42 @@ export const createEntryMethods = (
       };
       syncSelection(newSelection);
 
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'addRest',
+        message: `Added rest (${duration})`,
+        details: { duration, dotted, measureIndex, staffIndex },
+      });
+
       return this;
     },
 
     addTone(pitch) {
       // Validate pitch format
       if (!isValidPitch(pitch)) {
-        logger.log(
-          `[RiffScore API] addTone failed: Invalid pitch format '${pitch}'. Expected format: 'C4', 'F#5', 'Bb3', etc.`,
-          undefined,
-          LogLevel.WARN
-        );
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'addTone',
+          message: `Invalid pitch format '${pitch}'. Expected format: 'C4', 'F#5', 'Bb3', etc.`,
+          code: 'INVALID_PITCH',
+          details: { pitch },
+        });
         return this;
       }
 
       const sel = getSelection();
-      if (sel.measureIndex === null || sel.eventId === null) return this;
+      if (sel.measureIndex === null || sel.eventId === null) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'addTone',
+          message: 'No event selected to add tone to',
+          code: 'NO_SELECTION',
+        });
+        return this;
+      }
 
       const staffIndex = sel.staffIndex;
       const measureIndex = sel.measureIndex;
@@ -232,42 +274,78 @@ export const createEntryMethods = (
       };
       syncSelection(newSelection);
 
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'addTone',
+        message: `Added tone ${pitch} to chord`,
+        details: { pitch, eventId },
+      });
+
       return this;
     },
 
     makeTuplet(numNotes = 3, inSpaceOf = 2) {
       const sel = getSelection();
       if (sel.measureIndex === null || sel.eventId === null) {
-        console.warn('[RiffScore API] makeTuplet failed: No selection');
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'makeTuplet',
+          message: 'No selection to make tuplet from',
+          code: 'NO_SELECTION',
+        });
         return this;
       }
 
       const staff = getScore().staves[sel.staffIndex];
       const measure = staff?.measures[sel.measureIndex];
       if (!measure) {
-        console.warn('[RiffScore API] makeTuplet failed: Measure not found');
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'makeTuplet',
+          message: 'Measure not found',
+          code: 'MEASURE_NOT_FOUND',
+        });
         return this;
       }
 
       // Find the index of the selected event
       const eventIndex = measure.events.findIndex((e) => e.id === sel.eventId);
       if (eventIndex === -1) {
-        console.warn('[RiffScore API] makeTuplet failed: Event not found');
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'makeTuplet',
+          message: 'Event not found',
+          code: 'EVENT_NOT_FOUND',
+        });
         return this;
       }
 
       // Check if we have enough events for the tuplet
       if (eventIndex + numNotes > measure.events.length) {
-        console.warn(
-          `[RiffScore API] makeTuplet failed: Not enough events (need ${numNotes}, have ${measure.events.length - eventIndex})`
-        );
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'makeTuplet',
+          message: `Not enough events (need ${numNotes}, have ${measure.events.length - eventIndex})`,
+          code: 'INSUFFICIENT_EVENTS',
+        });
         return this;
       }
 
       // Check if any target events are already in a tuplet
       for (let i = 0; i < numNotes; i++) {
         if (measure.events[eventIndex + i]?.tuplet) {
-          console.warn('[RiffScore API] makeTuplet failed: Target events already contain a tuplet');
+          setResult({
+            ok: false,
+            status: 'error',
+            method: 'makeTuplet',
+            message: 'Target events already contain a tuplet',
+            code: 'NESTED_TUPLET_NOT_SUPPORTED',
+          });
           return this;
         }
       }
@@ -282,20 +360,40 @@ export const createEntryMethods = (
         )
       );
 
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'makeTuplet',
+        message: `Created ${numNotes}:${inSpaceOf} tuplet`,
+        details: { numNotes, inSpaceOf, measureIndex: sel.measureIndex },
+      });
+
       return this;
     },
 
     unmakeTuplet() {
       const sel = getSelection();
       if (sel.measureIndex === null || sel.eventId === null) {
-        console.warn('[RiffScore API] unmakeTuplet failed: No selection');
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'unmakeTuplet',
+          message: 'No selection',
+          code: 'NO_SELECTION',
+        });
         return this;
       }
 
       const staff = getScore().staves[sel.staffIndex];
       const measure = staff?.measures[sel.measureIndex];
       if (!measure) {
-        console.warn('[RiffScore API] unmakeTuplet failed: Measure not found');
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'unmakeTuplet',
+          message: 'Measure not found',
+          code: 'MEASURE_NOT_FOUND',
+        });
         return this;
       }
 
@@ -303,11 +401,25 @@ export const createEntryMethods = (
       const eventIndex = measure.events.findIndex((e) => e.id === sel.eventId);
       const event = eventIndex >= 0 ? measure.events[eventIndex] : null;
       if (!event?.tuplet) {
-        console.warn('[RiffScore API] unmakeTuplet failed: Selected event is not part of a tuplet');
+        setResult({
+          ok: true, // Warning, not error (idempotent-ish)
+          status: 'warning',
+          method: 'unmakeTuplet',
+          message: 'Selected event is not part of a tuplet',
+          code: 'NOT_A_TUPLET',
+        });
         return this;
       }
 
       dispatch(new RemoveTupletCommand(sel.measureIndex, eventIndex, sel.staffIndex));
+
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'unmakeTuplet',
+        message: 'Removed tuplet',
+        details: { measureIndex: sel.measureIndex },
+      });
 
       return this;
     },
@@ -315,7 +427,13 @@ export const createEntryMethods = (
     toggleTie() {
       const sel = getSelection();
       if (sel.measureIndex === null || sel.eventId === null || sel.noteId === null) {
-        console.warn('[RiffScore API] toggleTie failed: No note selected');
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'toggleTie',
+          message: 'No note selected',
+          code: 'NO_NOTE_SELECTED',
+        });
         return this;
       }
 
@@ -325,7 +443,13 @@ export const createEntryMethods = (
       const note = event?.notes?.find((n) => n.id === sel.noteId);
 
       if (!note) {
-        console.warn('[RiffScore API] toggleTie failed: Note not found');
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'toggleTie',
+          message: 'Note not found',
+          code: 'NOTE_NOT_FOUND',
+        });
         return this;
       }
 
@@ -339,13 +463,27 @@ export const createEntryMethods = (
         )
       );
 
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'toggleTie',
+        message: `Tie ${!note.tied ? 'added' : 'removed'}`,
+        details: { tied: !note.tied, noteId: sel.noteId },
+      });
+
       return this;
     },
 
     setTie(tied) {
       const sel = getSelection();
       if (sel.measureIndex === null || sel.eventId === null || sel.noteId === null) {
-        console.warn('[RiffScore API] setTie failed: No note selected');
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'setTie',
+          message: 'No note selected',
+          code: 'NO_NOTE_SELECTED',
+        });
         return this;
       }
 
@@ -355,7 +493,13 @@ export const createEntryMethods = (
       const note = event?.notes?.find((n) => n.id === sel.noteId);
 
       if (!note) {
-        console.warn('[RiffScore API] setTie failed: Note not found');
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'setTie',
+          message: 'Note not found',
+          code: 'NOTE_NOT_FOUND',
+        });
         return this;
       }
 
@@ -363,11 +507,20 @@ export const createEntryMethods = (
         new UpdateNoteCommand(sel.measureIndex, sel.eventId, sel.noteId, { tied }, sel.staffIndex)
       );
 
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'setTie',
+        message: `Tie set to ${tied}`,
+        details: { tied, noteId: sel.noteId },
+      });
+
       return this;
     },
 
     setInputMode(mode) {
       if (ctx.setInputMode) {
+        // useScoreAPI handles the result for this delegation
         ctx.setInputMode(mode);
       }
       return this;

@@ -23,13 +23,20 @@ type IOMethodNames = 'loadScore' | 'reset' | 'export';
 export const createIOMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, IOMethodNames> & ThisType<MusicEditorAPI> => {
-  const { scoreRef } = ctx;
+  const { scoreRef, setResult } = ctx;
 
   return {
     loadScore(newScore) {
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
       const { dispatch } = ctx;
       dispatch(new LoadScoreCommand(newScore));
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'loadScore',
+        message: 'Score loaded',
+        details: { title: newScore.title, measures: newScore.staves[0]?.measures.length },
+      });
       return this;
     },
 
@@ -47,21 +54,60 @@ export const createIOMethods = (
       };
 
       dispatch(new LoadScoreCommand(newScore));
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'reset',
+        message: 'Score reset',
+        details: { template, measures },
+      });
       return this;
     },
 
+    /**
+     * @tested src/__tests__/ScoreAPI.feedback.test.tsx
+     */
     export(format) {
       const score = scoreRef.current;
-      if (format === 'json') {
-        return JSON.stringify(score, null, 2);
+      let output = '';
+
+      try {
+        if (format === 'json') {
+          output = JSON.stringify(score, null, 2);
+        } else if (format === 'abc') {
+          output = generateABC(score, score.bpm);
+        } else if (format === 'musicxml') {
+          output = generateMusicXML(score);
+        } else {
+          setResult({
+            ok: false,
+            status: 'error',
+            method: 'export',
+            message: `Export format '${format}' not yet implemented`,
+            code: 'NOT_IMPLEMENTED',
+          });
+          return ''; // Fail-safe: return empty string
+        }
+
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'export',
+          message: `Exported to ${format}`,
+          details: { format, length: output.length },
+        });
+
+        return output;
+      } catch (e) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'export',
+          message: `Export failed: ${e instanceof Error ? e.message : String(e)}`,
+          code: 'EXPORT_FAILED',
+        });
+        return ''; // Fail-safe: return empty string
       }
-      if (format === 'abc') {
-        return generateABC(score, score.bpm);
-      }
-      if (format === 'musicxml') {
-        return generateMusicXML(score);
-      }
-      throw new Error(`Export format '${format}' not yet implemented`);
     },
   };
 };

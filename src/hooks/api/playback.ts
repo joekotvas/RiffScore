@@ -9,7 +9,6 @@ import {
   InstrumentType,
 } from '@/engines/toneEngine';
 import { createTimeline } from '@/services/TimelineService';
-import { logger, LogLevel } from '@/utils/debug';
 
 /**
  * Playback method names provided by this factory
@@ -35,6 +34,8 @@ let isInitialized = false;
 export const createPlaybackMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, PlaybackMethodNames> & ThisType<MusicEditorAPI> => {
+  const { setResult } = ctx;
+
   /**
    * Ensures Tone.js is initialized before playback.
    * Must be called from user gesture context (click/tap).
@@ -47,45 +48,65 @@ export const createPlaybackMethods = (
 
   return {
     async play(startMeasure, startQuant) {
-      await ensureInit();
+      try {
+        await ensureInit();
 
-      // Use provided start position, or resume from last, or start from beginning
-      const measureIndex = startMeasure ?? lastPlayPosition.measureIndex;
-      const quant = startQuant ?? lastPlayPosition.quant;
+        // Use provided start position, or resume from last, or start from beginning
+        const measureIndex = startMeasure ?? lastPlayPosition.measureIndex;
+        const quant = startQuant ?? lastPlayPosition.quant;
 
-      // Save for potential resume
-      lastPlayPosition = { measureIndex, quant };
+        // Save for potential resume
+        lastPlayPosition = { measureIndex, quant };
 
-      const score = ctx.getScore();
-      const bpm = score.bpm || 120;
+        const score = ctx.getScore();
+        const bpm = score.bpm || 120;
 
-      // Generate timeline
-      const timeline = createTimeline(score, bpm);
+        // Generate timeline
+        const timeline = createTimeline(score, bpm);
 
-      // Find start time offset
-      let startTimeOffset = 0;
-      const startEvent = timeline.find(
-        (e) => e.measureIndex >= measureIndex && (e.measureIndex > measureIndex || e.quant >= quant)
-      );
+        // Find start time offset
+        let startTimeOffset = 0;
+        const startEvent = timeline.find(
+          (e) =>
+            e.measureIndex >= measureIndex && (e.measureIndex > measureIndex || e.quant >= quant)
+        );
 
-      if (startEvent) {
-        startTimeOffset = startEvent.time;
-      }
-
-      // Schedule playback
-      scheduleTonePlayback(
-        timeline,
-        bpm,
-        startTimeOffset,
-        // Position update callback - store for potential resume
-        (m, q) => {
-          lastPlayPosition = { measureIndex: m, quant: q };
-        },
-        // Completion callback
-        () => {
-          lastPlayPosition = { measureIndex: 0, quant: 0 };
+        if (startEvent) {
+          startTimeOffset = startEvent.time;
         }
-      );
+
+        // Schedule playback
+        scheduleTonePlayback(
+          timeline,
+          bpm,
+          startTimeOffset,
+          // Position update callback - store for potential resume
+          (m, q) => {
+            lastPlayPosition = { measureIndex: m, quant: q };
+          },
+          // Completion callback
+          () => {
+            lastPlayPosition = { measureIndex: 0, quant: 0 };
+          }
+        );
+
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'play',
+          message: 'Playback started',
+          details: { startMeasure: measureIndex, startQuant: quant, bpm },
+        });
+      } catch (error) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'play',
+          message: `Playback failed: ${error instanceof Error ? error.message : String(error)}`,
+          code: 'PLAYBACK_ERROR',
+        });
+        console.error(error);
+      }
 
       return this;
     },
@@ -94,6 +115,13 @@ export const createPlaybackMethods = (
       // Stop transport but retain position for resume
       stopTonePlayback();
       // lastPlayPosition is already updated during playback
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'pause',
+        message: 'Playback paused',
+        details: { position: lastPlayPosition },
+      });
       return this;
     },
 
@@ -101,6 +129,12 @@ export const createPlaybackMethods = (
       stopTonePlayback();
       // Reset to beginning
       lastPlayPosition = { measureIndex: 0, quant: 0 };
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'stop',
+        message: 'Playback stopped',
+      });
       return this;
     },
 
@@ -120,6 +154,14 @@ export const createPlaybackMethods = (
         }, 0);
       }
 
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'rewind',
+        message: `Rewound to measure ${measureNum + 1}`,
+        details: { measureIndex: measureNum, wasPlaying },
+      });
+
       return this;
     },
 
@@ -128,15 +170,25 @@ export const createPlaybackMethods = (
       const validInstruments: InstrumentType[] = ['bright', 'mellow', 'organ', 'piano'];
 
       if (!validInstruments.includes(instrumentId as InstrumentType)) {
-        logger.log(
-          `[RiffScore API] setInstrument failed: Invalid instrument '${instrumentId}'. Valid instruments: ${validInstruments.join(', ')}`,
-          undefined,
-          LogLevel.WARN
-        );
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'setInstrument',
+          message: `Invalid instrument '${instrumentId}'. Valid instruments: ${validInstruments.join(', ')}`,
+          code: 'INVALID_INSTRUMENT',
+          details: { instrumentId, validInstruments },
+        });
         return this;
       }
 
       toneSetInstrument(instrumentId as InstrumentType);
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'setInstrument',
+        message: `Instrument set to ${instrumentId}`,
+        details: { instrumentId },
+      });
       return this;
     },
   };
