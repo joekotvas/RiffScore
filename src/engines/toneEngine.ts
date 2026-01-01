@@ -55,7 +55,7 @@ const loadTone = async (): Promise<ToneModule> => {
         // Reset promise to allow retry
         toneLoadPromise = null;
         updateState({ instrumentState: 'not-loaded' });
-        console.error('Failed to load Tone.js:', error);
+        console.warn('Failed to load Tone.js:', error);
         throw error;
       });
   }
@@ -320,7 +320,7 @@ export const scheduleTonePlayback = async (
   if (!instrument) {
     // Not initialized yet, auto-init
     await initTone();
-    return scheduleTonePlayback(timeline, bpm, startTimeOffset, onPositionUpdate, onComplete);
+    return await scheduleTonePlayback(timeline, bpm, startTimeOffset, onPositionUpdate, onComplete);
   }
 
   stopTonePlayback();
@@ -399,7 +399,12 @@ export const setTempo = (bpm: number): void => {
  * Initializes Tone.js if not already loaded.
  */
 export const playNote = async (pitch: string, duration: string = '8n'): Promise<void> => {
-  if (state.instrumentState === 'not-loaded' || state.instrumentState === 'loading') {
+  // Wait for initialization if not ready
+  if (
+    state.instrumentState === 'not-loaded' ||
+    state.instrumentState === 'loading' ||
+    state.instrumentState === 'initializing'
+  ) {
     await initTone();
   }
 

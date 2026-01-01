@@ -75,7 +75,7 @@ const loadTone = async () => {
 - Refactored `toneEngine.ts` to use `import('tone')`
 - Added `'not-loaded'` and `'loading'` instrument states
 - Added error handling with retry logic
-- Recursive `scheduleTonePlayback` properly awaited
+- Recursive `scheduleTonePlayback` properly returns awaited promise
 
 ---
 
