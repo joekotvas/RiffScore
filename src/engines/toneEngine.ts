@@ -3,16 +3,18 @@
  *
  * Provides multiple instrument options with progressive loading.
  * Users can choose between synth types and piano samples.
+ *
+ * DYNAMIC LOADING: Tone.js is loaded on first use to reduce bundle size
+ * for visual-only consumers. See Issue #196.
  */
 
-import * as Tone from 'tone';
 import { TimelineEvent } from '@/services/TimelineService';
 
 // --- TYPES ---
 
 export type InstrumentType = 'bright' | 'mellow' | 'organ' | 'piano';
 
-export type InstrumentState = 'initializing' | 'ready' | 'loading-samples';
+export type InstrumentState = 'not-loaded' | 'loading' | 'initializing' | 'ready' | 'loading-samples';
 
 interface ToneEngineState {
   instrumentState: InstrumentState;
@@ -21,9 +23,74 @@ interface ToneEngineState {
   isPlaying: boolean;
 }
 
-// --- SYNTH PRESETS ---
+// Tone.js module type (dynamic import)
+type ToneModule = typeof import('tone');
 
-const SYNTH_PRESETS = {
+// --- DYNAMIC LOADER ---
+
+let ToneModule: ToneModule | null = null;
+let toneLoadPromise: Promise<ToneModule> | null = null;
+
+/**
+ * Dynamically loads Tone.js on first use.
+ * Subsequent calls return cached module.
+ */
+const loadTone = async (): Promise<ToneModule> => {
+  if (ToneModule) return ToneModule;
+
+  if (!toneLoadPromise) {
+    updateState({ instrumentState: 'loading' });
+    toneLoadPromise = import('tone').then((module) => {
+      ToneModule = module;
+      return module;
+    });
+  }
+
+  return toneLoadPromise;
+};
+
+/**
+ * Gets the loaded Tone module, or null if not yet loaded.
+ * Use for synchronous checks only.
+ */
+const getTone = (): ToneModule | null => ToneModule;
+
+// --- STATE ---
+
+// Mutable registry of synth instances. Properties are added dynamically as instruments are loaded.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const synths: Record<string, any> = {};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let sampler: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let currentPart: any = null;
+let state: ToneEngineState = {
+  instrumentState: 'not-loaded',
+  selectedInstrument: 'bright',
+  samplerLoaded: false,
+  isPlaying: false,
+};
+
+// Callbacks for state changes
+let onStateChange: ((state: ToneEngineState) => void) | null = null;
+
+// --- HELPERS ---
+
+const freqToNote = (frequency: number): string => {
+  const Tone = getTone();
+  if (!Tone) return 'C4'; // Fallback
+  return Tone.Frequency(frequency).toNote();
+};
+
+const updateState = (partial: Partial<ToneEngineState>) => {
+  state = { ...state, ...partial };
+  onStateChange?.(state);
+};
+
+// --- SYNTH PRESET FACTORIES ---
+// These return factory functions that create synths using the loaded Tone module
+
+const createSynthPresets = (Tone: ToneModule) => ({
   bright: {
     name: 'Bright Synth',
     create: () =>
@@ -53,10 +120,10 @@ const SYNTH_PRESETS = {
       new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'sine' as const },
         envelope: {
-          attack: 0.05, // Slower attack for warmth
+          attack: 0.05,
           decay: 0.6,
           sustain: 0.3,
-          release: 2.0, // Long, smooth release
+          release: 2.0,
         },
       }),
     volume: -8,
@@ -65,7 +132,7 @@ const SYNTH_PRESETS = {
     name: 'Organ Synth',
     create: () =>
       new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: 'triangle' as const }, // Original audioEngine sound
+        oscillator: { type: 'triangle' as const },
         envelope: {
           attack: 0.02,
           decay: 0.3,
@@ -75,49 +142,29 @@ const SYNTH_PRESETS = {
       }),
     volume: -6,
   },
-};
-
-// --- STATE ---
-
-// Mutable registry of synth instances. Properties are added dynamically as instruments are loaded.
-const synths: Record<string, Tone.PolySynth> = {};
-let sampler: Tone.Sampler | null = null;
-let currentPart: Tone.Part | null = null;
-let state: ToneEngineState = {
-  instrumentState: 'initializing',
-  selectedInstrument: 'bright',
-  samplerLoaded: false,
-  isPlaying: false,
-};
-
-// Callbacks for state changes
-let onStateChange: ((state: ToneEngineState) => void) | null = null;
-
-// --- HELPERS ---
-
-const freqToNote = (frequency: number): string => {
-  return Tone.Frequency(frequency).toNote();
-};
-
-const updateState = (partial: Partial<ToneEngineState>) => {
-  state = { ...state, ...partial };
-  onStateChange?.(state);
-};
+});
 
 // --- INITIALIZATION ---
 
 /**
  * Initializes Tone.js audio context and instruments.
  * Must be called from a user gesture (click/tap) due to browser autoplay policy.
+ * Dynamically loads Tone.js on first call.
  */
 export const initTone = async (onState?: (state: ToneEngineState) => void): Promise<void> => {
   if (onState) onStateChange = onState;
+
+  // Load Tone.js dynamically
+  const Tone = await loadTone();
+
+  updateState({ instrumentState: 'initializing' });
 
   // Start audio context (requires user gesture)
   await Tone.start();
 
   // Initialize all synth presets
-  for (const [key, preset] of Object.entries(SYNTH_PRESETS)) {
+  const presets = createSynthPresets(Tone);
+  for (const [key, preset] of Object.entries(presets)) {
     if (!synths[key]) {
       const synth = preset.create().toDestination();
       synth.volume.value = preset.volume;
@@ -129,13 +176,13 @@ export const initTone = async (onState?: (state: ToneEngineState) => void): Prom
   updateState({ instrumentState: 'ready' });
 
   // Begin loading piano samples in background
-  loadPianoSampler();
+  loadPianoSampler(Tone);
 };
 
 /**
  * Loads piano samples in background.
  */
-const loadPianoSampler = () => {
+const loadPianoSampler = (Tone: ToneModule) => {
   if (sampler) return;
 
   // eslint-disable-next-line no-console
@@ -183,7 +230,7 @@ const loadPianoSampler = () => {
       console.log('🎹 Piano samples loaded');
       updateState({ samplerLoaded: true, instrumentState: 'ready' });
     },
-    onerror: (error) => {
+    onerror: (error: Error) => {
       console.warn('Failed to load piano samples:', error);
       updateState({ instrumentState: 'ready' });
     },
@@ -202,7 +249,8 @@ export const setInstrument = (type: InstrumentType): void => {
 /**
  * Gets the currently active instrument for playback.
  */
-const getActiveInstrument = (): Tone.PolySynth | Tone.Sampler | null => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const getActiveInstrument = (): any => {
   const selected = state.selectedInstrument;
 
   // Piano samples - use if loaded, else fallback to bright synth
@@ -242,17 +290,23 @@ export const getInstrumentOptions = (): {
 
 /**
  * Schedules the score for playback using Tone.js Transport and Part.
+ * Ensures Tone.js is loaded before playback.
  */
-export const scheduleTonePlayback = (
+export const scheduleTonePlayback = async (
   timeline: TimelineEvent[],
   bpm: number,
   startTimeOffset: number = 0,
   onPositionUpdate?: (measureIndex: number, quant: number, duration: number) => void,
   onComplete?: () => void
-): void => {
+): Promise<void> => {
+  // Ensure Tone is loaded
+  const Tone = await loadTone();
+
   const instrument = getActiveInstrument();
   if (!instrument) {
-    console.error('Tone engine not initialized');
+    // Not initialized yet, auto-init
+    await initTone();
+    scheduleTonePlayback(timeline, bpm, startTimeOffset, onPositionUpdate, onComplete);
     return;
   }
 
@@ -278,7 +332,7 @@ export const scheduleTonePlayback = (
     quant: e.quant,
   }));
 
-  currentPart = new Tone.Part((time, event) => {
+  currentPart = new Tone.Part((time: number, event: (typeof events)[0]) => {
     instrument.triggerAttackRelease(event.note, event.duration, time);
     Tone.Draw.schedule(() => {
       onPositionUpdate?.(event.measureIndex, event.quant, event.duration);
@@ -303,6 +357,9 @@ export const scheduleTonePlayback = (
  * Stops playback and cleans up resources.
  */
 export const stopTonePlayback = (): void => {
+  const Tone = getTone();
+  if (!Tone) return;
+
   Tone.Transport.stop();
   Tone.Transport.cancel();
 
@@ -318,14 +375,18 @@ export const stopTonePlayback = (): void => {
  * Sets the tempo (BPM) - can be called during playback.
  */
 export const setTempo = (bpm: number): void => {
-  Tone.Transport.bpm.value = bpm;
+  const Tone = getTone();
+  if (Tone) {
+    Tone.Transport.bpm.value = bpm;
+  }
 };
 
 /**
  * Plays a single note (for preview/click feedback).
+ * Initializes Tone.js if not already loaded.
  */
 export const playNote = async (pitch: string, duration: string = '8n'): Promise<void> => {
-  if (state.instrumentState === 'initializing') {
+  if (state.instrumentState === 'not-loaded' || state.instrumentState === 'loading') {
     await initTone();
   }
 
@@ -342,3 +403,8 @@ export const getSelectedInstrument = (): InstrumentType => state.selectedInstrum
 export const isSamplerLoaded = (): boolean => state.samplerLoaded;
 export const isPlaying = (): boolean => state.isPlaying;
 export const getState = (): ToneEngineState => ({ ...state });
+
+/**
+ * Checks if Tone.js is loaded (for UI indicators).
+ */
+export const isToneLoaded = (): boolean => ToneModule !== null;
