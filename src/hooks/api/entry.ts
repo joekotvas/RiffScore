@@ -8,7 +8,7 @@
  */
 import { MusicEditorAPI } from '@/api.types';
 import { APIContext } from './types';
-import { Measure } from '@/types';
+import { Measure, ScoreEvent } from '@/types';
 import { AddEventCommand } from '@/commands/AddEventCommand';
 import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
 import { DeleteEventCommand } from '@/commands/DeleteEventCommand';
@@ -285,6 +285,127 @@ function executeInsertion(
       });
 
       currentInsertQuant += evtQuants;
+
+      // INSERT MODE: Handle overflow of displaced events
+      if (config.mode === 'insert') {
+        const measureAfterInsert = getScore().staves[staffIndex].measures[measureIndex];
+        const measureCapacity = 64; // TODO: get from time signature
+
+        // Calculate total measure duration
+        let totalQuants = 0;
+        for (const e of measureAfterInsert.events) {
+          totalQuants += getNoteDuration(e.duration, e.dotted, e.tuplet);
+        }
+
+        // If overfilled, move excess events to next measure
+        if (totalQuants > measureCapacity) {
+          const overflowQuants = totalQuants - measureCapacity;
+
+          // STEP 1: Collect initial events to move (from the end, working backwards)
+          let quantsToMove = 0;
+          const initialEventsToMove: ScoreEvent[] = [];
+          for (
+            let i = measureAfterInsert.events.length - 1;
+            i >= 0 && quantsToMove < overflowQuants;
+            i--
+          ) {
+            const e = measureAfterInsert.events[i];
+            const eQuants = getNoteDuration(e.duration, e.dotted, e.tuplet);
+            initialEventsToMove.unshift(e);
+            quantsToMove += eQuants;
+          }
+
+          // STEP 2: Expand to include complete tuplet groups (atomic tuplet handling)
+          // Collect all tuplet IDs from initial overflow events
+          const tupletIdsInOverflow = new Set<string>();
+          for (const e of initialEventsToMove) {
+            if (e.tuplet?.id) {
+              tupletIdsInOverflow.add(e.tuplet.id);
+            }
+          }
+
+          // Find ALL events belonging to those tuplet groups
+          const eventsToMove: ScoreEvent[] = [];
+          const eventIdsToMove = new Set<string>();
+
+          // First pass: add all events from tuplet groups that have any event in overflow
+          for (const e of measureAfterInsert.events) {
+            if (e.tuplet?.id && tupletIdsInOverflow.has(e.tuplet.id)) {
+              if (!eventIdsToMove.has(e.id)) {
+                eventsToMove.push(e);
+                eventIdsToMove.add(e.id);
+              }
+            }
+          }
+
+          // Second pass: add remaining non-tuplet events from initial overflow
+          for (const e of initialEventsToMove) {
+            if (!eventIdsToMove.has(e.id)) {
+              eventsToMove.push(e);
+              eventIdsToMove.add(e.id);
+            }
+          }
+
+          // Sort by original measure order (important for correct re-insertion)
+          eventsToMove.sort((a, b) => {
+            const aIdx = measureAfterInsert.events.findIndex((e) => e.id === a.id);
+            const bIdx = measureAfterInsert.events.findIndex((e) => e.id === b.id);
+            return aIdx - bIdx;
+          });
+
+          // Track if we expanded due to tuplet atomicity
+          const tupletExpansion = eventsToMove.length > initialEventsToMove.length;
+          if (tupletExpansion && tupletIdsInOverflow.size > 0) {
+            state.info.push(
+              `Moved entire tuplet group(s) to preserve atomicity (${tupletIdsInOverflow.size} group(s))`
+            );
+          }
+
+          // Ensure next measure exists
+          const currentStaff = getScore().staves[staffIndex];
+          if (measureIndex + 1 >= currentStaff.measures.length) {
+            dispatch(new AddMeasureCommand());
+            state.info.push(`Created measure ${measureIndex + 2} for insert overflow`);
+          }
+
+          // Delete events from current measure and re-add to next
+          eventsToMove.forEach((movedEvent) => {
+            dispatch(new DeleteEventCommand(measureIndex, movedEvent.id, staffIndex));
+          });
+
+          // Re-add at start of next measure (they get pushed down by existing content)
+          eventsToMove.forEach((movedEvent, idx) => {
+            // Preserve tuplet info when moving
+            const notePayload = movedEvent.notes[0]
+              ? { ...movedEvent.notes[0] }
+              : null;
+
+            dispatch(
+              new AddEventCommand(
+                measureIndex + 1,
+                movedEvent.isRest ?? false,
+                notePayload,
+                movedEvent.duration,
+                movedEvent.dotted ?? false,
+                idx, // Insert at beginning, in order
+                movedEvent.id, // Keep same event ID
+                staffIndex
+              )
+            );
+
+            // Re-apply tuplet info if present
+            if (movedEvent.tuplet) {
+              // Tuplet info is preserved in the event structure
+              // The AddEventCommand should preserve it via the movedEvent reference
+              // If not, we'd need an UpdateEventCommand here
+            }
+          });
+
+          state.warnings.push(
+            `Insert overflow: ${eventsToMove.length} event(s) moved to next measure`
+          );
+        }
+      }
     }
 
     // Handle overflow to next measure

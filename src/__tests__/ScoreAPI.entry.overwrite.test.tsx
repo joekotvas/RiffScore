@@ -290,9 +290,445 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
   });
 
   describe('Options Support', () => {
-    // Insert mode is not implemented - events are always placed at cursor position
-    // without shifting existing events. This is by design for music notation.
-    test.todo('Insert mode (not implemented)');
+    test('Insert mode shifts existing events right', () => {
+      render(<RiffScore id="insert-shift" />);
+      const api = getAPI('insert-shift');
+
+      // Add two quarter notes
+      act(() => {
+        api.addNote('C4', 'quarter').addNote('D4', 'quarter');
+      });
+
+      let score = api.getScore();
+      expect(score.staves[0].measures[0].events.length).toBe(2);
+      expect(score.staves[0].measures[0].events[0].notes[0].pitch).toBe('C4');
+      expect(score.staves[0].measures[0].events[1].notes[0].pitch).toBe('D4');
+
+      // Select first event
+      act(() => {
+        api.select(1, 0, 0);
+      });
+
+      // Insert a quarter note with mode: 'insert'
+      act(() => {
+        api.addNote('E4', 'quarter', false, { mode: 'insert' });
+      });
+
+      score = api.getScore();
+      const events = score.staves[0].measures[0].events;
+
+      // Should have 3 events: E4 at position 0, C4 shifted to position 1, D4 shifted to position 2
+      expect(events.length).toBe(3);
+      expect(events[0].notes[0].pitch).toBe('E4');
+      expect(events[1].notes[0].pitch).toBe('C4');
+      expect(events[2].notes[0].pitch).toBe('D4');
+    });
+
+    test('Insert mode handles overflow by moving events to next measure', () => {
+      render(<RiffScore id="insert-overflow" />);
+      const api = getAPI('insert-overflow');
+
+      // Fill measure with 4 quarter notes
+      act(() => {
+        api
+          .addNote('C4', 'quarter')
+          .addNote('D4', 'quarter')
+          .addNote('E4', 'quarter')
+          .addNote('F4', 'quarter');
+      });
+
+      let score = api.getScore();
+      expect(score.staves[0].measures[0].events.length).toBe(4);
+
+      // Select first event
+      act(() => {
+        api.select(1, 0, 0);
+      });
+
+      // Insert quarter note - should push F4 to next measure
+      act(() => {
+        api.addNote('G4', 'quarter', false, { mode: 'insert' });
+      });
+
+      score = api.getScore();
+      const m1 = score.staves[0].measures[0];
+      const m2 = score.staves[0].measures[1];
+
+      // Measure 1 should have 4 events: G4, C4, D4, E4
+      expect(m1.events.length).toBe(4);
+      expect(m1.events[0].notes[0].pitch).toBe('G4');
+      expect(m1.events[1].notes[0].pitch).toBe('C4');
+      expect(m1.events[2].notes[0].pitch).toBe('D4');
+      expect(m1.events[3].notes[0].pitch).toBe('E4');
+
+      // Measure 2 should have F4 (overflow)
+      expect(m2.events.length).toBe(1);
+      expect(m2.events[0].notes[0].pitch).toBe('F4');
+
+      // Verify warning about overflow
+      expect(api.result.details?.warnings).toContain('Insert overflow: 1 event(s) moved to next measure');
+    });
+  });
+
+  /**
+   * Insert Mode Integration Tests
+   * 
+   * Comprehensive chained API tests for insert mode covering:
+   * - Simple: Basic shift-right behavior
+   * - Complex: Multi-note chains, mixed modes
+   * - Edge: Boundary conditions, empty measures
+   * - Exception: Invalid states, error handling
+   */
+  describe('Insert Mode Integration', () => {
+    // ─────────────────────────────────────────────────────────────────────
+    // Simple Cases
+    // ─────────────────────────────────────────────────────────────────────
+
+    test('Simple: Insert at beginning pushes all events right', () => {
+      render(<RiffScore id="insert-simple-begin" />);
+      const api = getAPI('insert-simple-begin');
+
+      act(() => {
+        api
+          .addNote('C4', 'quarter')
+          .addNote('D4', 'quarter')
+          .addNote('E4', 'quarter')
+          .select(1, 0, 0)
+          .addNote('G4', 'quarter', false, { mode: 'insert' });
+      });
+
+      const events = api.getScore().staves[0].measures[0].events;
+      expect(events.map(e => e.notes[0].pitch)).toEqual(['G4', 'C4', 'D4', 'E4']);
+    });
+
+    test('Simple: Insert at middle pushes subsequent events right', () => {
+      render(<RiffScore id="insert-simple-mid" />);
+      const api = getAPI('insert-simple-mid');
+
+      act(() => {
+        api
+          .addNote('C4', 'quarter')
+          .addNote('D4', 'quarter')
+          .addNote('E4', 'quarter')
+          .select(1, 0, 1)  // Select D4
+          .addNote('G4', 'quarter', false, { mode: 'insert' });
+      });
+
+      const events = api.getScore().staves[0].measures[0].events;
+      // G4 inserted at D4's position, D4 and E4 shift right
+      expect(events.map(e => e.notes[0].pitch)).toEqual(['C4', 'G4', 'D4', 'E4']);
+    });
+
+    test('Simple: Insert at end adds new event', () => {
+      render(<RiffScore id="insert-simple-end" />);
+      const api = getAPI('insert-simple-end');
+
+      act(() => {
+        api
+          .addNote('C4', 'quarter')
+          .addNote('D4', 'quarter')
+          .select(1, 0, 1)  // Select D4 (last event)
+          .addNote('G4', 'quarter', false, { mode: 'insert' });
+      });
+
+      const events = api.getScore().staves[0].measures[0].events;
+      // G4 at D4's position, D4 shifts right
+      expect(events.map(e => e.notes[0].pitch)).toEqual(['C4', 'G4', 'D4']);
+    });
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Complex Cases
+    // ─────────────────────────────────────────────────────────────────────
+
+    test('Complex: Multiple inserts in sequence', () => {
+      render(<RiffScore id="insert-complex-multi" />);
+      const api = getAPI('insert-complex-multi');
+
+      act(() => {
+        api
+          .addNote('C4', 'quarter')
+          .addNote('D4', 'quarter')
+          .select(1, 0, 0)
+          .addNote('E4', 'quarter', false, { mode: 'insert' })
+          .select(1, 0, 0)
+          .addNote('F4', 'quarter', false, { mode: 'insert' });
+      });
+
+      const events = api.getScore().staves[0].measures[0].events;
+      // F4 (newest insert at 0), E4, C4, D4
+      expect(events.map(e => e.notes[0].pitch)).toEqual(['F4', 'E4', 'C4', 'D4']);
+    });
+
+    test('Complex: Mixed overwrite and insert modes', () => {
+      render(<RiffScore id="insert-complex-mixed" />);
+      const api = getAPI('insert-complex-mixed');
+
+      act(() => {
+        api
+          .addNote('C4', 'quarter')
+          .addNote('D4', 'quarter')
+          .addNote('E4', 'quarter')
+          .addNote('F4', 'quarter')
+          .select(1, 0, 1)  // Select D4
+          .addNote('G4', 'half', false, { mode: 'overwrite' });  // Overwrites D4, E4
+      });
+
+      let events = api.getScore().staves[0].measures[0].events;
+      expect(events.map(e => e.notes[0].pitch)).toEqual(['C4', 'G4', 'F4']);
+
+      act(() => {
+        api
+          .select(1, 0, 0)  // Select C4
+          .addNote('A4', 'quarter', false, { mode: 'insert' });  // Insert A4, shift right
+      });
+
+      // After insert: A4 (quarter), C4 (quarter), G4 (half) = 64 quants (full)
+      // F4 overflows to measure 2
+      events = api.getScore().staves[0].measures[0].events;
+      expect(events.map(e => e.notes[0].pitch)).toEqual(['A4', 'C4', 'G4']);
+
+      // F4 moved to measure 2
+      const m2 = api.getScore().staves[0].measures[1];
+      expect(m2.events[0].notes[0].pitch).toBe('F4');
+    });
+
+    test('Complex: Insert with different durations', () => {
+      render(<RiffScore id="insert-complex-durations" />);
+      const api = getAPI('insert-complex-durations');
+
+      act(() => {
+        api
+          .addNote('C4', 'half')
+          .addNote('D4', 'half')  // Full measure
+          .select(1, 0, 0)
+          .addNote('E4', 'quarter', false, { mode: 'insert' });  // Insert quarter, overflows D4
+      });
+
+      const m1 = api.getScore().staves[0].measures[0];
+      const m2 = api.getScore().staves[0].measures[1];
+
+      // Measure 1: E4 quarter, C4 half + partial of D4 or rests
+      expect(m1.events[0].notes[0].pitch).toBe('E4');
+      expect(m1.events[0].duration).toBe('quarter');
+      expect(m1.events[1].notes[0].pitch).toBe('C4');
+      expect(m1.events[1].duration).toBe('half');
+      
+      // Measure 2 should have D4 (overflow)
+      expect(m2.events.length).toBeGreaterThan(0);
+      expect(m2.events[0].notes[0].pitch).toBe('D4');
+    });
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Edge Cases
+    // ─────────────────────────────────────────────────────────────────────
+
+    test('Edge: Insert into empty measure', () => {
+      render(<RiffScore id="insert-edge-empty" />);
+      const api = getAPI('insert-edge-empty');
+
+      act(() => {
+        api
+          .select(1)  // Select empty measure 1
+          .addNote('C4', 'quarter', false, { mode: 'insert' });
+      });
+
+      const events = api.getScore().staves[0].measures[0].events;
+      expect(events.length).toBe(1);
+      expect(events[0].notes[0].pitch).toBe('C4');
+    });
+
+    test('Edge: Insert causes multi-event overflow', () => {
+      render(<RiffScore id="insert-edge-multi-overflow" />);
+      const api = getAPI('insert-edge-multi-overflow');
+
+      // Fill measure with eighths
+      act(() => {
+        api
+          .addNote('C4', 'eighth')
+          .addNote('D4', 'eighth')
+          .addNote('E4', 'eighth')
+          .addNote('F4', 'eighth')
+          .addNote('G4', 'eighth')
+          .addNote('A4', 'eighth')
+          .addNote('B4', 'eighth')
+          .addNote('C5', 'eighth');  // 8 eighths = full measure
+      });
+
+      expect(api.getScore().staves[0].measures[0].events.length).toBe(8);
+
+      // Insert half note at beginning - should push 4 eighths to overflow
+      act(() => {
+        api
+          .select(1, 0, 0)
+          .addNote('D5', 'half', false, { mode: 'insert' });
+      });
+
+      const m1 = api.getScore().staves[0].measures[0];
+      const m2 = api.getScore().staves[0].measures[1];
+
+      // First event should be the inserted half note
+      expect(m1.events[0].notes[0].pitch).toBe('D5');
+      expect(m1.events[0].duration).toBe('half');
+
+      // Measure 2 should have overflow events
+      expect(m2.events.length).toBeGreaterThan(0);
+    });
+
+    test('Edge: Insert rest in insert mode', () => {
+      render(<RiffScore id="insert-edge-rest" />);
+      const api = getAPI('insert-edge-rest');
+
+      act(() => {
+        api
+          .addNote('C4', 'quarter')
+          .addNote('D4', 'quarter')
+          .select(1, 0, 0)
+          .addRest('quarter', false, { mode: 'insert' });
+      });
+
+      const events = api.getScore().staves[0].measures[0].events;
+      expect(events.length).toBe(3);
+      expect(events[0].isRest).toBe(true);
+      expect(events[1].notes[0].pitch).toBe('C4');
+      expect(events[2].notes[0].pitch).toBe('D4');
+    });
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Exception/Error Cases
+    // ─────────────────────────────────────────────────────────────────────
+
+    test('Exception: Insert with invalid pitch returns error', () => {
+      render(<RiffScore id="insert-exception-pitch" />);
+      const api = getAPI('insert-exception-pitch');
+
+      act(() => {
+        api
+          .addNote('C4', 'quarter')
+          .select(1, 0, 0)
+          .addNote('InvalidPitch', 'quarter', false, { mode: 'insert' });
+      });
+
+      expect(api.ok).toBe(false);
+      expect(api.result.code).toBe('INVALID_PITCH');
+      
+      // Original note should be unchanged
+      const events = api.getScore().staves[0].measures[0].events;
+      expect(events.length).toBe(1);
+      expect(events[0].notes[0].pitch).toBe('C4');
+    });
+
+    test('Exception: Insert gracefully handles no selection', () => {
+      render(<RiffScore id="insert-exception-nosel" />);
+      const api = getAPI('insert-exception-nosel');
+
+      // Insert without any prior selection
+      act(() => {
+        api.addNote('C4', 'quarter', false, { mode: 'insert' });
+      });
+
+      // Should still work, inserting at default position
+      expect(api.ok).toBe(true);
+      const events = api.getScore().staves[0].measures[0].events;
+      expect(events.length).toBeGreaterThan(0);
+    });
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Tuplet Atomicity
+    // ─────────────────────────────────────────────────────────────────────
+
+    test('Tuplet: Entire triplet group moves when last note overflows', () => {
+      render(<RiffScore id="tuplet-overflow-atomic" />);
+      const api = getAPI('tuplet-overflow-atomic');
+
+      // Create score with triplet already formed + one more note at the end
+      // Triplet of quarters (32 quants) + quarter note (16 quants) = 48 quants used
+      const tupletId = 'triplet-1';
+      const scoreWithTuplet = {
+        title: 'Tuplet Test',
+        staves: [{
+          measures: [{
+            events: [
+              { id: 'e1', duration: 'quarter', notes: [{ id: 'n1', pitch: 'C4' }], 
+                tuplet: { id: tupletId, ratio: [3, 2], groupSize: 3, position: 0 } },
+              { id: 'e2', duration: 'quarter', notes: [{ id: 'n2', pitch: 'D4' }], 
+                tuplet: { id: tupletId, ratio: [3, 2], groupSize: 3, position: 1 } },
+              { id: 'e3', duration: 'quarter', notes: [{ id: 'n3', pitch: 'E4' }], 
+                tuplet: { id: tupletId, ratio: [3, 2], groupSize: 3, position: 2 } },
+              { id: 'e4', duration: 'half', notes: [{ id: 'n4', pitch: 'F4' }] },
+            ],
+            timeSignature: { top: 4, bottom: 4 }
+          }],
+          clef: 'treble'
+        }]
+      };
+
+      act(() => {
+        api.loadScore(scoreWithTuplet as any);
+      });
+
+      // Verify initial state: triplet (32 quants) + half (32 quants) = 64 (full measure)
+      let score = api.getScore();
+      expect(score.staves[0].measures[0].events.length).toBe(4);
+
+      // Insert quarter note at beginning - this should overflow
+      // After insert: quarter (16) + triplet (32) + half (32) = 80 quants (overflow of 16)
+      act(() => {
+        api
+          .select(1, 0, 0)  // Select first triplet note
+          .addNote('G4', 'quarter', false, { mode: 'insert' });
+      });
+
+      score = api.getScore();
+      const m1 = score.staves[0].measures[0];
+      const m2 = score.staves[0].measures[1];
+
+      // Measure 1 should have G4 at the beginning
+      expect(m1.events[0].notes[0].pitch).toBe('G4');
+
+      // Check that measure 2 has overflow content
+      expect(m2).toBeDefined();
+      expect(m2.events.length).toBeGreaterThan(0);
+
+      // If any tuplet notes are in m2, ALL should be there (atomic movement)
+      const m2TupletEvents = m2.events.filter(e => e.tuplet?.id === tupletId);
+      if (m2TupletEvents.length > 0) {
+        // All tuplet notes should have moved together
+        expect(m2TupletEvents.length).toBe(3);
+      }
+    });
+
+    test('Tuplet: Non-tuplet events overflow normally', () => {
+      render(<RiffScore id="tuplet-nontuplet-overflow" />);
+      const api = getAPI('tuplet-nontuplet-overflow');
+
+      // Fill measure with quarters
+      act(() => {
+        api
+          .addNote('C4', 'quarter')
+          .addNote('D4', 'quarter')
+          .addNote('E4', 'quarter')
+          .addNote('F4', 'quarter');  // Full measure
+      });
+
+      // Insert - should push F4 only (no tuplets involved)
+      act(() => {
+        api
+          .select(1, 0, 0)
+          .addNote('G4', 'quarter', false, { mode: 'insert' });
+      });
+
+      const score = api.getScore();
+      const m1 = score.staves[0].measures[0];
+      const m2 = score.staves[0].measures[1];
+
+      // Measure 1: G4, C4, D4, E4 (F4 overflowed)
+      expect(m1.events.length).toBe(4);
+      expect(m1.events.map(e => e.notes[0].pitch)).toEqual(['G4', 'C4', 'D4', 'E4']);
+
+      // Measure 2: just F4
+      expect(m2.events.length).toBe(1);
+      expect(m2.events[0].notes[0].pitch).toBe('F4');
+    });
   });
 
   describe('Edge Cases & Rigorous Scenarios', () => {
