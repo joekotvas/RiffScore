@@ -141,7 +141,7 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     clearSelection,
     lastSelection,
     engine: selectionEngine,
-  } = useSelection({ score });
+  } = useSelection({ score, scoreGetter: () => engine.getState() });
   const [previewNote, setPreviewNote] = useState<PreviewNote | null>(null);
 
   // --- COMPUTED VALUES ---
