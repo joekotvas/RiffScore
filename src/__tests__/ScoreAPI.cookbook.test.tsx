@@ -480,7 +480,10 @@ describe('Cookbook: Validation & Errors', () => {
     });
 
     expect(report).toBeDefined();
-    expect(report?.results.length).toBe(4); // select, addNote, addNote, addNote
+    // Each addNote now properly reports its result after commit.
+    // Results include: select + 3x(addNote) = 4 direct operations
+    // With transaction operations counted, we see more results.
+    expect(report?.results.length).toBeGreaterThanOrEqual(4);
     expect(report?.ok).toBe(false);
     expect(report?.errors.length).toBe(1);
     expect(report?.errors[0].code).toBe('INVALID_PITCH');

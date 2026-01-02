@@ -226,11 +226,7 @@ export interface MusicEditorAPI {
    * @param dotted - Whether the rest is dotted (default: false)
    * @param options - Entry options
    */
-  addRest(
-    duration?: string,
-    dotted?: boolean,
-    options?: { mode?: 'overwrite' | 'insert' }
-  ): this;
+  addRest(duration?: string, dotted?: boolean, options?: { mode?: 'overwrite' | 'insert' }): this;
   /**
    * Add a pitch to the current chord.
    * @status implemented

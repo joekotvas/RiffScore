@@ -109,7 +109,7 @@ export const createRestsForRange = (
   eventIdGenerator: () => string = eventId
 ): ScoreEvent[] => {
   const parts = getBreakdownOfQuants(durationQuants);
-  return parts.map(part => {
+  return parts.map((part) => {
     const id = eventIdGenerator();
     const restNoteId = `${id}-rest`;
     return {
@@ -117,11 +117,13 @@ export const createRestsForRange = (
       duration: part.duration,
       dotted: part.dotted,
       isRest: true,
-      notes: [{
-        id: restNoteId,
-        pitch: null,
-        isRest: true
-      }]
+      notes: [
+        {
+          id: restNoteId,
+          pitch: null,
+          isRest: true,
+        },
+      ],
     };
   });
 };

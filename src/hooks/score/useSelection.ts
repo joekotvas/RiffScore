@@ -56,10 +56,9 @@ export const useSelection = ({ score, scoreGetter }: UseSelectionProps) => {
   // 1. Engine Initialization
   // ─────────────────────────────────────────────────────────────────────────────
   // Use scoreGetter if provided (for synchronous access), otherwise fall back to score
-  const [engine] = useState(() => new SelectionEngine(
-    createDefaultSelection(), 
-    scoreGetter ?? (() => score)
-  ));
+  const [engine] = useState(
+    () => new SelectionEngine(createDefaultSelection(), scoreGetter ?? (() => score))
+  );
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 2. Sync Engine with React State
