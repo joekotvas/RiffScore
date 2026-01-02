@@ -20,12 +20,12 @@ type NavigationMethodNames = 'move' | 'jump' | 'select' | 'selectById' | 'select
 export const createNavigationMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, NavigationMethodNames> & ThisType<MusicEditorAPI> => {
-  const { scoreRef, selectionRef, syncSelection, selectionEngine, setResult } = ctx;
+  const { getScore, selectionRef, syncSelection, selectionEngine, setResult } = ctx;
 
   return {
     move(direction) {
       const sel = selectionRef.current;
-      const score = scoreRef.current;
+      const score = getScore();
       const staff = score.staves[sel.staffIndex];
       if (!staff) {
         setResult({
@@ -121,7 +121,7 @@ export const createNavigationMethods = (
 
     jump(target) {
       const sel = selectionRef.current;
-      const staff = scoreRef.current.staves[sel.staffIndex];
+      const staff = getScore().staves[sel.staffIndex];
       if (!staff || staff.measures.length === 0) {
         setResult({
           ok: false,
@@ -206,7 +206,7 @@ export const createNavigationMethods = (
     select(measureNum, staffIndex = 0, eventIndex = 0, noteIndex = 0) {
       // Convert 1-based measureNum to 0-based index
       const measureIndex = measureNum - 1;
-      const staff = scoreRef.current.staves[staffIndex];
+      const staff = getScore().staves[staffIndex];
 
       if (!staff?.measures[measureIndex]) {
         setResult({
@@ -245,7 +245,7 @@ export const createNavigationMethods = (
 
     selectAtQuant(measureNum, quant, staffIndex = 0) {
       const measureIndex = measureNum - 1;
-      const staff = scoreRef.current.staves[staffIndex];
+      const staff = getScore().staves[staffIndex];
       if (!staff?.measures[measureIndex]) {
         setResult({
           ok: false,
@@ -304,7 +304,7 @@ export const createNavigationMethods = (
 
     selectById(eventId, noteId) {
       const sel = selectionRef.current;
-      const staff = scoreRef.current.staves[sel.staffIndex];
+      const staff = getScore().staves[sel.staffIndex];
       if (!staff) {
         setResult({
           ok: false,

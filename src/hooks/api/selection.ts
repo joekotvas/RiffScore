@@ -35,12 +35,12 @@ type SelectionMethodNames =
 export const createSelectionMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, SelectionMethodNames> & ThisType<MusicEditorAPI> => {
-  const { scoreRef, selectionRef, syncSelection, selectionEngine, setResult } = ctx;
+  const { getScore, selectionRef, syncSelection, selectionEngine, setResult } = ctx;
 
   return {
     addToSelection(measureNum, staffIndex, eventIndex, noteIndex = 0) {
       const measureIndex = measureNum - 1;
-      const staff = scoreRef.current.staves[staffIndex];
+      const staff = getScore().staves[staffIndex];
       const event = staff?.measures[measureIndex]?.events[eventIndex];
       if (!event) {
         setResult({
@@ -76,7 +76,7 @@ export const createSelectionMethods = (
 
     selectRangeTo(measureNum, staffIndex, eventIndex, noteIndex = 0) {
       const measureIndex = measureNum - 1;
-      const staff = scoreRef.current.staves[staffIndex];
+      const staff = getScore().staves[staffIndex];
       const event = staff?.measures[measureIndex]?.events[eventIndex];
       if (!event) {
         setResult({
@@ -174,7 +174,7 @@ export const createSelectionMethods = (
         return this;
       }
 
-      const staff = scoreRef.current.staves[sIdx];
+      const staff = getScore().staves[sIdx];
       if (!staff) {
         setResult({
           ok: false,
