@@ -45,9 +45,10 @@
 
 | Task | Status |
 |------|--------|
-| Create `InsertEventCommand` (accepts full `ScoreEvent`) | ⬜ |
-| Update `entry.ts` overflow to use `InsertEventCommand` | ⬜ |
-| Verify tuplet properties survive overflow | ⬜ |
+| Create `InsertEventCommand` (accepts full `ScoreEvent`) | ✅ |
+| Create unit tests for `InsertEventCommand` | ✅ |
+| Update `entry.ts` overflow to use `InsertEventCommand` | ✅ |
+| Verify tuplet properties survive overflow | ✅ |
 
 > [!TIP]
 > `DeleteEventCommand` already exists in `src/commands/DeleteEventCommand.ts`.

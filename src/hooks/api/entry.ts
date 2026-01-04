@@ -12,6 +12,7 @@ import { Measure, ScoreEvent } from '@/types';
 import { AddEventCommand } from '@/commands/AddEventCommand';
 import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
 import { DeleteEventCommand } from '@/commands/DeleteEventCommand';
+import { InsertEventCommand } from '@/commands/InsertEventCommand';
 import { ApplyTupletCommand } from '@/commands/TupletCommands';
 import { RemoveTupletCommand } from '@/commands/RemoveTupletCommand';
 import { UpdateNoteCommand } from '@/commands/UpdateNoteCommand';
@@ -373,32 +374,10 @@ function executeInsertion(
             dispatch(new DeleteEventCommand(measureIndex, movedEvent.id, staffIndex));
           });
 
-          // Re-add at start of next measure (they get pushed down by existing content)
+          // Re-add at start of next measure using InsertEventCommand to preserve ALL properties
           eventsToMove.forEach((movedEvent, idx) => {
-            // Preserve tuplet info when moving
-            const notePayload = movedEvent.notes[0]
-              ? { ...movedEvent.notes[0] }
-              : null;
-
-            dispatch(
-              new AddEventCommand(
-                measureIndex + 1,
-                movedEvent.isRest ?? false,
-                notePayload,
-                movedEvent.duration,
-                movedEvent.dotted ?? false,
-                idx, // Insert at beginning, in order
-                movedEvent.id, // Keep same event ID
-                staffIndex
-              )
-            );
-
-            // Re-apply tuplet info if present
-            if (movedEvent.tuplet) {
-              // Tuplet info is preserved in the event structure
-              // The AddEventCommand should preserve it via the movedEvent reference
-              // If not, we'd need an UpdateEventCommand here
-            }
+            // InsertEventCommand accepts the complete ScoreEvent, preserving tuplet, tied, etc.
+            dispatch(new InsertEventCommand(measureIndex + 1, movedEvent, idx, staffIndex));
           });
 
           state.warnings.push(

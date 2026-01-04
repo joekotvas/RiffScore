@@ -5,6 +5,7 @@ export * from './BatchCommand';
 export * from './ChangePitchCommand';
 export * from './ChromaticTransposeCommand';
 export * from './DeleteEventCommand';
+export * from './InsertEventCommand';
 export * from './DeleteNoteCommand';
 export * from './LoadScoreCommand';
 export * from './MeasureCommands';
