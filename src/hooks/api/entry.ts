@@ -51,6 +51,8 @@ interface InsertEventConfig {
   duration: string;
   dotted: boolean;
   mode: 'overwrite' | 'insert';
+  /** If set, when selectedEventId matches this, we insert AFTER it (cursor auto-advance) */
+  previousInsertedEventId?: string | null;
 }
 
 interface InsertionLoopState {
@@ -60,6 +62,8 @@ interface InsertionLoopState {
   info: string[];
   /** When true, next iteration should start at quant 0 (not append) */
   isOverflowContinuation: boolean;
+  /** ID of the last event inserted in this insertion operation */
+  lastInsertedEventId: string | null;
 }
 
 // ============================================================================
@@ -68,46 +72,45 @@ interface InsertionLoopState {
 
 /**
  * Computes the start quant for insertion based on current selection.
- * FIX: Uses nullish coalescing to prevent NaN from null arithmetic.
+ * 
+ * When cursor was auto-advanced after insertion (selectedEventId === previousInsertedEventId),
+ * we insert AFTER that event to enable sequential chaining (addNote().addNote()).
+ * 
+ * When user explicitly selected an event (via selectById), we insert AT that position
+ * for overwrite mode compatibility.
+ * 
+ * When no event is selected, inserts at end of measure (append mode).
  */
-function computeStartQuant(measure: Measure, selectedEventId: string | null): number {
+function computeStartQuant(
+  measure: Measure, 
+  selectedEventId: string | null,
+  previousInsertedEventId: string | null | undefined
+): number {
   if (selectedEventId) {
+    // Check if this is the cursor that was auto-advanced after our own insertion
+    // If so, insert AFTER this event (append behavior for chaining)
+    if (previousInsertedEventId && selectedEventId === previousInsertedEventId) {
+      const eventStart = calculateInsertionQuant(measure, selectedEventId) ?? 0;
+      const event = measure.events.find((e) => e.id === selectedEventId);
+      if (event) {
+        return eventStart + getNoteDuration(event.duration, event.dotted, event.tuplet);
+      }
+      return eventStart;
+    }
+    
+    // Explicit selection - insert AT the selected event's position (overwrite)
     return calculateInsertionQuant(measure, selectedEventId) ?? 0;
   }
 
+  // No event selected - append to end of measure
   const events = measure.events;
   if (events.length === 0) {
     return 0;
   }
 
   const lastEvent = events[events.length - 1];
-  // FIX: Use ?? 0 to prevent null arithmetic
   const lastStart = calculateInsertionQuant(measure, lastEvent.id) ?? 0;
   return lastStart + getNoteDuration(lastEvent.duration, lastEvent.dotted, lastEvent.tuplet);
-}
-
-/**
- * Computes cursor target from the ORIGINAL measure state.
- * FIX: Computes BEFORE insertion to avoid stale reference issues.
- */
-function computeCursorTarget(
-  originalMeasure: Measure,
-  insertIndex: number,
-  deletedIds: Set<string>
-): { eventId: string | null; noteId: string | null } {
-  // Look for next non-deleted event starting from insertIndex
-  for (let i = insertIndex; i < originalMeasure.events.length; i++) {
-    const e = originalMeasure.events[i];
-    if (!deletedIds.has(e.id)) {
-      return {
-        eventId: e.id,
-        noteId: e.notes[0]?.id || null,
-      };
-    }
-  }
-
-  // No next event = end of measure (append mode)
-  return { eventId: null, noteId: null };
 }
 
 /**
@@ -129,6 +132,7 @@ function executeInsertion(
     warnings: [],
     info: [],
     isOverflowContinuation: false,
+    lastInsertedEventId: null,
   };
 
   // Overflow loop - handles note splitting across measures
@@ -153,7 +157,7 @@ function executeInsertion(
     // If this is an overflow continuation, start at quant 0 to overwrite existing content
     const startQuant = state.isOverflowContinuation
       ? 0
-      : computeStartQuant(originalMeasure, sel.eventId);
+      : computeStartQuant(originalMeasure, sel.eventId, config.previousInsertedEventId);
     state.isOverflowContinuation = false; // Reset flag after use
 
     const capacity = getRemainingCapacity(originalMeasure, startQuant);
@@ -243,6 +247,8 @@ function executeInsertion(
 
       // Insert the event
       const eventId = createEventId();
+      let insertedNoteId: string | null = null;
+      
       if (config.isRest) {
         dispatch(
           new AddEventCommand(
@@ -257,7 +263,8 @@ function executeInsertion(
           )
         );
       } else {
-        const note = createNotePayload({ pitch: config.pitch!, tied: evt.tied, id: noteId() });
+        insertedNoteId = noteId();
+        const note = createNotePayload({ pitch: config.pitch!, tied: evt.tied, id: insertedNoteId });
         dispatch(
           new AddEventCommand(
             measureIndex,
@@ -272,18 +279,19 @@ function executeInsertion(
         );
       }
 
-      // FIX: Compute cursor target from ORIGINAL measure state using stored plan
-      const deletedIds = new Set(overwritePlan.toRemove);
-      const cursorTarget = computeCursorTarget(originalMeasure, insertIndex, deletedIds);
-
+      // FIX: Select the JUST-INSERTED event and note so chaining works
+      // (toggleTie, setTie, etc. need noteId to be set)
       syncSelection({
         staffIndex,
         measureIndex,
-        eventId: cursorTarget.eventId,
-        noteId: cursorTarget.noteId,
+        eventId: eventId,
+        noteId: insertedNoteId,
         selectedNotes: [],
         anchor: null,
       });
+
+      // Track the inserted event ID for cursor-advance detection
+      state.lastInsertedEventId = eventId;
 
       currentInsertQuant += evtQuants;
 
@@ -436,7 +444,7 @@ function executeInsertion(
 export const createEntryMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, EntryMethodNames> & ThisType<MusicEditorAPI> => {
-  const { getScore, getSelection, syncSelection, dispatch, setResult } = ctx;
+  const { getScore, getSelection, syncSelection, dispatch, setResult, lastInsertedEventIdRef } = ctx;
 
   return {
     addNote(pitch, duration = 'quarter', dotted = false, options = { mode: 'overwrite' }) {
@@ -462,7 +470,11 @@ export const createEntryMethods = (
           duration,
           dotted,
           mode: options.mode ?? 'overwrite',
+          previousInsertedEventId: lastInsertedEventIdRef.current,
         });
+
+        // Track for next sequential addNote call
+        lastInsertedEventIdRef.current = result.lastInsertedEventId;
 
         this.commitTransaction();
 
@@ -504,7 +516,11 @@ export const createEntryMethods = (
           duration,
           dotted,
           mode: options.mode ?? 'overwrite',
+          previousInsertedEventId: lastInsertedEventIdRef.current,
         });
+
+        // Track for next sequential addNote/addRest call
+        lastInsertedEventIdRef.current = result.lastInsertedEventId;
 
         this.commitTransaction();
 

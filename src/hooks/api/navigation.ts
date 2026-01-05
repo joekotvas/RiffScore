@@ -20,7 +20,7 @@ type NavigationMethodNames = 'move' | 'jump' | 'select' | 'selectById' | 'select
 export const createNavigationMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, NavigationMethodNames> & ThisType<MusicEditorAPI> => {
-  const { getScore, selectionRef, syncSelection, selectionEngine, setResult } = ctx;
+  const { getScore, selectionRef, syncSelection, selectionEngine, setResult, lastInsertedEventIdRef } = ctx;
 
   return {
     move(direction) {
@@ -219,6 +219,10 @@ export const createNavigationMethods = (
         return this;
       }
 
+      // Reset cursor-advance tracking since this is an explicit selection
+      // This ensures subsequent addNote() calls insert AT this position
+      lastInsertedEventIdRef.current = null;
+
       // Use SelectEventCommand for proper selection
       selectionEngine.dispatch(
         new SelectEventCommand({
@@ -268,6 +272,9 @@ export const createNavigationMethods = (
 
         if (currentQuant <= quant && quant < currentQuant + eventDuration) {
           // Found the event at this quant position
+          // Reset cursor-advance tracking since this is an explicit selection
+          lastInsertedEventIdRef.current = null;
+          
           selectionEngine.dispatch(
             new SelectEventCommand({
               staffIndex,
@@ -329,6 +336,9 @@ export const createNavigationMethods = (
             const nIdx = measure.events[eIdx].notes.findIndex((n) => n.id === noteId);
             if (nIdx !== -1) noteIndex = nIdx;
           }
+          // Reset cursor-advance tracking since this is an explicit selection
+          lastInsertedEventIdRef.current = null;
+          
           selectionEngine.dispatch(
             new SelectEventCommand({
               staffIndex: sel.staffIndex,

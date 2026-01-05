@@ -135,6 +135,10 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
   const hasErrorRef = useRef(false);
   const debugModeRef = useRef(false);
   const collectorRef = useRef<{ results: import('@/api.types').Result[] } | null>(null);
+  
+  // 4c. Cursor-advance tracking for sequential chaining
+  // Persists across useMemo recreations to detect addNote().addNote() vs selectById().addNote()
+  const lastInsertedEventIdRef = useRef<string | null>(null);
 
   /**
    * Internal helper to report operation results.
@@ -254,6 +258,8 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
       get debugMode() {
         return debugModeRef.current;
       },
+      // Cursor-advance tracking for entry methods
+      lastInsertedEventIdRef,
     };
 
     // Factory methods access refs via context, not directly during render.
