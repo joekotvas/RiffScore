@@ -37,8 +37,11 @@ export class InsertEventCommand implements Command {
       const newEvents = [...measure.events];
 
       // Deep clone to ensure independence from input
-      // Using JSON parse/stringify for Node.js compatibility (structuredClone requires Node 17+)
-      const clonedEvent = JSON.parse(JSON.stringify(this.event)) as ScoreEvent;
+      // Prefer structuredClone (Node 17+), with JSON fallback for older runtimes
+      const clonedEvent =
+        typeof globalThis.structuredClone === 'function'
+          ? (globalThis.structuredClone(this.event) as ScoreEvent)
+          : (JSON.parse(JSON.stringify(this.event)) as ScoreEvent);
 
       if (
         this.insertIndex !== undefined &&

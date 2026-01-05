@@ -27,6 +27,7 @@ import {
   createRestsForRange,
 } from '@/utils/entry/insertion';
 import { getBreakdownOfQuants, getNoteDuration } from '@/utils/core';
+import { TIME_SIGNATURES } from '@/constants';
 
 /**
  * Entry method names provided by this factory
@@ -132,12 +133,13 @@ function executeInsertion(
     const originalMeasure = staff.measures[measureIndex];
     if (!originalMeasure) throw new Error(`Measure ${measureIndex} not found`);
 
+    // Capture and clear overflow continuation flag to avoid relying on mutable shared state
+    const isOverflowContinuation = state.isOverflowContinuation;
+    state.isOverflowContinuation = false; // Reset flag after use
+
     // Compute insertion point
     // If this is an overflow continuation, start at quant 0 to overwrite existing content
-    const startQuant = state.isOverflowContinuation
-      ? 0
-      : computeStartQuant(originalMeasure, sel.eventId);
-    state.isOverflowContinuation = false; // Reset flag after use
+    const startQuant = isOverflowContinuation ? 0 : computeStartQuant(originalMeasure, sel.eventId);
 
     const capacity = getRemainingCapacity(originalMeasure, startQuant);
     const noteQuants = getNoteDuration(state.currentDuration, state.currentDotted);
@@ -282,7 +284,8 @@ function executeInsertion(
       // INSERT MODE: Handle overflow of displaced events
       if (config.mode === 'insert') {
         const measureAfterInsert = getScore().staves[staffIndex].measures[measureIndex];
-        const measureCapacity = 64; // TODO: get from time signature
+        const timeSig = getScore().timeSignature;
+        const measureCapacity = TIME_SIGNATURES[timeSig] || 64;
 
         // Calculate total measure duration
         let totalQuants = 0;

@@ -25,6 +25,14 @@ import {
 } from './previewNote';
 import { notesToAudioNotes } from './transposition';
 
+// --- Constants ---
+
+/**
+ * Sentinel value used to force duration acceptance in the last measure
+ * regardless of remaining quants (overflow mode).
+ */
+const FORCE_FIT_SENTINEL = 99999;
+
 // --- Helpers ---
 
 /**
@@ -378,14 +386,13 @@ const handleEventNavigation = (
     if (available > 0 || isLastMeasure) {
       // If we are overflowing the last measure, just pass the raw duration (available=0 usually implies full)
       // If we have space, pass the calculated space.
-      const _quantsToCheck = available > 0 ? available : 0; // 0 forces 'fit whatever' logic in helper if we change it, but here we use simple logic:
 
       const ghostResult = createGhostResultIfFits(
         measures,
         measureIndex,
         staffIndex,
         // Pass a high number if it's the last measure to force acceptance, or actual available
-        available > 0 ? available : 99999,
+        available > 0 ? available : FORCE_FIT_SENTINEL,
         activeDuration,
         isDotted,
         pitch,

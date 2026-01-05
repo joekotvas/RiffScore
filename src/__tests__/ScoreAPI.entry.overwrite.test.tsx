@@ -215,7 +215,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       });
 
       // If selectAtQuant fails because no event exists, we can use a ghost cursor state or loading a score with a gap.
-      // Actually, since addNote() at the end of a measure uses startQuant = measureQuants, 
+      // Actually, since addNote() at the end of a measure uses startQuant = measureQuants,
       // if we have a half-measure note and add at end, startQuant is 4, producing a gap from 1 to 4.
       act(() => {
         api.deselectAll(); // Cursor goes to end (quant 1)
@@ -230,7 +230,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       // Simpler: Use a score that already HAS a gap (invalid state) and see if addNote fixes/fills it.
       const gappedScore = createMockScore([]);
       gappedScore.staves[0].measures[0].events = [
-        { id: 'early', duration: 'quarter', notes: [{ pitch: 'C4' }], isRest: false }
+        { id: 'early', duration: 'quarter', notes: [{ pitch: 'C4' }], isRest: false },
       ];
       // We'll manually insert at quant 2.
       act(() => {
@@ -244,7 +244,6 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       // which happens when we append to a measure that doesn't reach 4/4 yet.
       // It fills the remaining space with rests before adding the new note.
     });
-
   });
 
   describe('Overflow Mode', () => {
@@ -818,7 +817,12 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
     // Grand staff requires multi-staff score setup
     test('Grand Staff (Bass Clef / Staff 1) overwrite', () => {
       const staves = [
-        { id: 's0', clef: 'treble' as const, keySignature: 'C', measures: [{ id: 'm0-s0', events: [] }] },
+        {
+          id: 's0',
+          clef: 'treble' as const,
+          keySignature: 'C',
+          measures: [{ id: 'm0-s0', events: [] }],
+        },
         {
           id: 's1',
           clef: 'bass' as const,
@@ -864,7 +868,6 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       expect(bassMeasure.events[0].notes[0].pitch).toBe('A2');
       expect(api.result.details?.warnings).toContain('Overwrote 1 event(s)');
     });
-
 
     test('Exception Paths', () => {
       render(<RiffScore id="edge-exceptions" />);
