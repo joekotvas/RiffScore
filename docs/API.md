@@ -6,7 +6,7 @@
 
 > **See also**: [Cookbook](./COOKBOOK.md) • [Configuration](./CONFIGURATION.md) • [Architecture](./ARCHITECTURE.md) • [Coding Patterns](./CODING_PATTERNS.md)
 
-**Version:** 1.0.0-alpha.5  
+**Version:** 1.0.0-alpha.6  
 **Access:**
 -   **React**: `const ref = useRef<MusicEditorAPI>(null)`
 -   **Global**: `window.riffScore.get('my-score-id')` or `window.riffScore.active`
@@ -275,8 +275,7 @@ api.clearStatus();
 | :--- | :--- |
 | Invalid `measureNum` | Clamped to valid range. |
 | Invalid `pitch` format | `ok: false`, `code: 'INVALID_PITCH'`. |
-| `addNote` on full measure | `ok: false`, `code: 'MEASURE_FULL'`. |
-| `export` unknown format | Throws `Error` ( Critical). |
+| `export` unknown format | Throws `Error` (Critical). |
 
 ---
 
@@ -289,7 +288,7 @@ api.select(1).addNote('C4').addNote('D4').addNote('E4');
 
 ### Build Chord ✅
 ```javascript
-api.select(1).addNote('C4').addTone('E4').addTone('G4');
+api.select(1).addNote('C4').move('left').addTone('E4').addTone('G4');
 ```
 
 ### Query State ✅

@@ -292,6 +292,42 @@ describe('Cookbook: Editing Recipes', () => {
     expect(event.duration).toBe('eighth');
     expect(event.dotted).toBe(true);
   });
+
+  /**
+   * Recipe: Transpose Selection Up an Octave
+   */
+  test('transposeDiatonic - transposes selection up 7 steps', () => {
+    render(<RiffScore id="cookbook-transpose" />);
+    const score = getAPI('cookbook-transpose');
+
+    act(() => {
+      score.select(1).addNote('C4', 'quarter');
+    });
+
+    // Selection should still be on C4 (or we move back to it)
+    act(() => {
+      score.move('left').transposeDiatonic(7);
+    });
+
+    const data = score.getScore();
+    expect(data.staves[0].measures[0].events[0].notes[0].pitch).toBe('C5');
+  });
+
+  /**
+   * Recipe: Convert Notes to Rests (setInputMode)
+   */
+  test('setInputMode - changes the editor input mode', () => {
+    render(<RiffScore id="cookbook-input-mode" />);
+    const score = getAPI('cookbook-input-mode');
+
+    act(() => {
+      score.setInputMode('rest');
+    });
+
+    // In a real app, this would affect UI buttons. 
+    // Here we just verify it doesn't crash and returns the API for chaining.
+    expect(score.ok).toBe(true);
+  });
 });
 
 // =============================================================================
@@ -569,6 +605,22 @@ describe('Cookbook: Integration Recipes', () => {
 
     unsub();
   });
+
+  /**
+   * Recipe: Control Playback
+   */
+  test('playback controls - play, pause, stop, rewind', async () => {
+    render(<RiffScore id="cookbook-playback" />);
+    const score = getAPI('cookbook-playback');
+
+    // play() returns a Promise, so we can't chain it synchronously.
+    await act(async () => {
+      await score.play();
+      score.pause().stop().rewind(2);
+    });
+
+    expect(score.ok).toBe(true);
+  });
 });
 
 // =============================================================================
@@ -610,6 +662,20 @@ describe('Cookbook: Export Recipes', () => {
     const parsed = JSON.parse(json);
     expect(parsed.staves).toBeDefined();
     expect(parsed.staves[0].measures[0].events.length).toBe(1);
+  });
+
+  /**
+   * Recipe: Save as MusicXML
+   */
+  test('export MusicXML - returns valid XML header', () => {
+    render(<RiffScore id="cookbook-export-xml" />);
+    const score = getAPI('cookbook-export-xml');
+
+    const xml = score.export('musicxml');
+
+    expect(typeof xml).toBe('string');
+    expect(xml.trim().toLowerCase().startsWith('<?xml')).toBe(true);
+    expect(xml.toLowerCase()).toContain('score-partwise');
   });
 
   /**

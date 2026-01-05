@@ -178,9 +178,8 @@ function executeInsertion(
       const evtQuants = getNoteDuration(evt.duration, evt.dotted);
 
       // FIX: Store overwrite plan ONCE before any modifications
-      let overwritePlan: { toRemove: string[] } = { toRemove: [] };
       if (config.mode === 'overwrite') {
-        overwritePlan = getOverwritePlan(originalMeasure, currentInsertQuant, evtQuants);
+        const overwritePlan = getOverwritePlan(originalMeasure, currentInsertQuant, evtQuants);
 
         // Delete conflicting events
         if (overwritePlan.toRemove.length > 0) {

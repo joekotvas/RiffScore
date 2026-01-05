@@ -32,7 +32,7 @@ Selection {
 
 | State | Detection | Meaning |
 |-------|-----------|---------|
-| **Ghost Cursor** | `eventId === null` | Ready to insert new note |
+| **Ghost Cursor** | `eventId === null` (`measureIndex === null` OR `previewNote !== null`) | Ready to insert new note |
 | **Single Selection** | `selectedNotes.length === 1` | One note highlighted |
 | **Multi-Selection** | `selectedNotes.length > 1` | Multiple notes selected |
 | **Range Active** | `anchor !== null` | Shift+navigation in progress |
