@@ -289,18 +289,22 @@ riffscore/
 │   │   ├── ScoreContext.tsx
 │   │   └── ThemeContext.tsx
 │
-│   ├── utils/                # Utility functions (11 files)
-│   │   ├── core.ts           # Duration math
+│   ├── utils/                # Utility functions
+│   │   ├── core.ts           # Duration math, score reflow
 │   │   ├── generateScore.ts  # Template → staves
 │   │   ├── mergeConfig.ts    # Deep merge
 │   │   ├── selection.ts      # Selection utilities
-│   │   ├── interaction.ts    # Interaction utilities
+│   │   ├── interaction.ts    # Deprecated façade for navigation/
 │   │   ├── verticalStack.ts  # Vertical selection (metrics, stacks)
 │   │   ├── validation.ts     # Score validation
 │   │   ├── accidentalContext.ts
 │   │   ├── commandHelpers.ts
 │   │   ├── debug.ts          # Debug logging
-│   │   └── focusScore.ts     # Focus management
+│   │   ├── focusScore.ts     # Focus management
+│   │   ├── id.ts             # ID generation (noteId, eventId)
+│   │   ├── clef.ts           # Clef range and pitch defaults
+│   │   ├── navigation/       # Horizontal/Vertical handlers
+│   │   └── entry/            # Note insertion helpers
 │
 │   ├── data/                 # Static data
 │   │   └── melodies.ts       # Sample melodies

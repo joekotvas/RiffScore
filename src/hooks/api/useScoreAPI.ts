@@ -272,7 +272,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
       // Data Accessors (Bound Closures)
       getScore: () => ctx.engines.engine.getState(),
       getConfig: () => config,
-      getSelection: () => selectionRef.current,
+      getSelection: () => selectionEngine.getState(),
 
       // Feedback & Status helpers
       clearStatus: () => {

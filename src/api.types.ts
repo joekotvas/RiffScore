@@ -212,12 +212,21 @@ export interface MusicEditorAPI {
    * Add a note at the cursor position.
    * @status implemented
    */
-  addNote(pitch: string, duration?: string, dotted?: boolean): this;
+  addNote(
+    pitch: string,
+    duration?: string,
+    dotted?: boolean,
+    options?: { mode?: 'overwrite' | 'insert' }
+  ): this;
+
   /**
-   * Add a rest at the cursor position.
-   * @status implemented
+   * Adds a rest at the current cursor position.
+   *
+   * @param duration - Duration of the rest (default: 'quarter')
+   * @param dotted - Whether the rest is dotted (default: false)
+   * @param options - Entry options
    */
-  addRest(duration?: string, dotted?: boolean): this;
+  addRest(duration?: string, dotted?: boolean, options?: { mode?: 'overwrite' | 'insert' }): this;
   /**
    * Add a pitch to the current chord.
    * @status implemented

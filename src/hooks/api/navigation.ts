@@ -1,7 +1,8 @@
 import { MusicEditorAPI } from '@/api.types';
 import { APIContext } from './types';
-import { navigateSelection, getFirstNoteId, getNoteDuration } from '@/utils/core';
+import { getFirstNoteId, getNoteDuration } from '@/utils/core';
 import { calculateVerticalNavigation } from '@/utils/navigation/vertical';
+import { calculateNextSelection } from '@/utils/navigation/horizontal';
 import { SelectEventCommand } from '@/commands/selection';
 
 /**
@@ -20,12 +21,12 @@ type NavigationMethodNames = 'move' | 'jump' | 'select' | 'selectById' | 'select
 export const createNavigationMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, NavigationMethodNames> & ThisType<MusicEditorAPI> => {
-  const { scoreRef, selectionRef, syncSelection, selectionEngine, setResult } = ctx;
+  const { getScore, selectionRef, syncSelection, selectionEngine, setResult } = ctx;
 
   return {
     move(direction) {
       const sel = selectionRef.current;
-      const score = scoreRef.current;
+      const score = getScore();
       const staff = score.staves[sel.staffIndex];
       if (!staff) {
         setResult({
@@ -41,25 +42,52 @@ export const createNavigationMethods = (
       const measures = staff.measures;
 
       if (direction === 'left' || direction === 'right') {
-        // Use existing navigateSelection utility for horizontal movement
-        const newSel = navigateSelection(measures, sel, direction);
+        // Use calculateNextSelection for horizontal movement (same as keyboard)
+        const navResult = calculateNextSelection(
+          measures,
+          sel,
+          direction
+          // All other params use defaults: previewNote=null, activeDuration='quarter', etc.
+        );
 
-        const fullSelection = {
-          ...newSel,
-          selectedNotes:
-            newSel.eventId && newSel.measureIndex !== null
-              ? [
-                  {
-                    staffIndex: newSel.staffIndex,
-                    measureIndex: newSel.measureIndex,
-                    eventId: newSel.eventId,
-                    noteId: newSel.noteId,
-                  },
-                ]
-              : [],
-          anchor: null,
-        };
-        syncSelection(fullSelection);
+        if (!navResult) {
+          setResult({
+            ok: true,
+            status: 'info',
+            method: 'move',
+            message: `Cannot move ${direction} (boundary)`,
+            code: 'BOUNDARY_REACHED',
+          });
+          return this;
+        }
+
+        // When navigating to append position, selection has measureIndex: null
+        // but previewNote contains the actual measure. Merge them for API selection.
+        const newSel = navResult.selection;
+        const measureIndex =
+          newSel?.measureIndex ?? navResult.previewNote?.measureIndex ?? sel.measureIndex;
+
+        if (newSel || navResult.previewNote) {
+          const fullSelection = {
+            ...sel,
+            ...(newSel || {}),
+            measureIndex, // Use merged measureIndex
+            selectedNotes:
+              newSel?.eventId && measureIndex !== null
+                ? [
+                    {
+                      staffIndex: newSel.staffIndex ?? sel.staffIndex,
+                      measureIndex,
+                      eventId: newSel.eventId,
+                      noteId: newSel.noteId,
+                    },
+                  ]
+                : [],
+            anchor: null,
+          };
+          syncSelection(fullSelection);
+        }
+
         setResult({
           ok: true,
           status: 'info',
@@ -67,7 +95,7 @@ export const createNavigationMethods = (
           message: `Moved ${direction}`,
           details: {
             direction,
-            newSelection: { measure: newSel.measureIndex, event: newSel.eventId },
+            newSelection: { measure: measureIndex, event: newSel?.eventId ?? null },
           },
         });
       } else if (direction === 'up' || direction === 'down') {
@@ -121,7 +149,7 @@ export const createNavigationMethods = (
 
     jump(target) {
       const sel = selectionRef.current;
-      const staff = scoreRef.current.staves[sel.staffIndex];
+      const staff = getScore().staves[sel.staffIndex];
       if (!staff || staff.measures.length === 0) {
         setResult({
           ok: false,
@@ -206,7 +234,7 @@ export const createNavigationMethods = (
     select(measureNum, staffIndex = 0, eventIndex = 0, noteIndex = 0) {
       // Convert 1-based measureNum to 0-based index
       const measureIndex = measureNum - 1;
-      const staff = scoreRef.current.staves[staffIndex];
+      const staff = getScore().staves[staffIndex];
 
       if (!staff?.measures[measureIndex]) {
         setResult({
@@ -245,7 +273,7 @@ export const createNavigationMethods = (
 
     selectAtQuant(measureNum, quant, staffIndex = 0) {
       const measureIndex = measureNum - 1;
-      const staff = scoreRef.current.staves[staffIndex];
+      const staff = getScore().staves[staffIndex];
       if (!staff?.measures[measureIndex]) {
         setResult({
           ok: false,
@@ -304,7 +332,7 @@ export const createNavigationMethods = (
 
     selectById(eventId, noteId) {
       const sel = selectionRef.current;
-      const staff = scoreRef.current.staves[sel.staffIndex];
+      const staff = getScore().staves[sel.staffIndex];
       if (!staff) {
         setResult({
           ok: false,

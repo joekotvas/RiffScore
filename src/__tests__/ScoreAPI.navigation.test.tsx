@@ -10,7 +10,7 @@
  * - selectById() - lookup by ID
  */
 
-import { render } from '@testing-library/react';
+import { render, act } from '@testing-library/react';
 import { RiffScore } from '../RiffScore';
 import type { MusicEditorAPI } from '../api.types';
 import type { Staff, DeepPartial, RiffScoreConfig } from '../types';
@@ -138,7 +138,7 @@ describe('Navigation - Horizontal Boundaries', () => {
     expect(afterMove.eventId).toBe('e1');
   });
 
-  test('move("right") at end of measure advances to next measure', () => {
+  test('move("right") at end of measure enters ghost mode if space remains', () => {
     render(
       <RiffScore id="nav-right-measure" config={configWithStaves(createGrandStaffStaves())} />
     );
@@ -148,14 +148,14 @@ describe('Navigation - Horizontal Boundaries', () => {
     api.select(1, 0, 1);
     expect(api.getSelection().eventId).toBe('e2-t');
 
-    // Move right - should go to first event of second measure
+    // Move right - should enter ghost mode in current measure (because it's not full)
     api.move('right');
     const afterMove = api.getSelection();
-    expect(afterMove.measureIndex).toBe(1);
-    expect(afterMove.eventId).toBe('e3-t');
+    expect(afterMove.measureIndex).toBe(0);
+    expect(afterMove.eventId).toBeNull();
   });
 
-  test('move("right") at end of score stays at last event', () => {
+  test('move("right") at end of score enters ghost append mode', () => {
     render(
       <RiffScore id="nav-right-boundary" config={configWithStaves(createGrandStaffStaves())} />
     );
@@ -165,10 +165,11 @@ describe('Navigation - Horizontal Boundaries', () => {
     api.select(2, 0, 0);
     expect(api.getSelection().eventId).toBe('e3-t');
 
-    // Move right - should stay at last event
+    // Move right - should move to append position
     api.move('right');
     const afterMove = api.getSelection();
-    expect(afterMove.eventId).toBe('e3-t');
+    expect(afterMove.eventId).toBeNull();
+    expect(afterMove.measureIndex).toBe(1);
   });
 
   test('move returns this for chaining', () => {
@@ -322,8 +323,50 @@ describe('Navigation - Vertical (Chord Traversal)', () => {
 
     // Move up at top - single staff, should be no-op
     api.move('up');
-    // Still on same chord, same or different note depending on implementation
+    // Still on same chord
     expect(api.getSelection().eventId).toBe('chord-event');
+  });
+
+  test('move("down") to empty staff → enters ghost cursor/append mode', () => {
+    // Create grand staff where bass clef (staff 1) is empty in measure 1
+    const staves = createGrandStaffStaves();
+    staves[1].measures[0].events = []; // Clear bass measure 1
+
+    render(<RiffScore id="nav-v-ghost-enter" config={configWithStaves(staves)} />);
+    const api = getAPI('nav-v-ghost-enter');
+
+    // Select first event in treble staff
+    api.select(1, 0, 0);
+    expect(api.getSelection().eventId).toBe('e1-t');
+
+    // Move down - should enter ghost cursor on bass staff
+    act(() => {
+      api.move('down');
+    });
+    const selection = api.getSelection();
+    expect(selection.staffIndex).toBe(1);
+    expect(selection.eventId).toBeNull(); // Ghost cursor
+    expect(selection.measureIndex).toBeNull(); // API selection measureIndex is null for ghost cursors (in previewNote)
+  });
+
+  test('move("up") from empty staff → enters ghost cursor on top staff', () => {
+    const staves = createGrandStaffStaves();
+    staves[0].measures[0].events = []; // Clear treble measure 1
+
+    render(<RiffScore id="nav-v-ghost-up" config={configWithStaves(staves)} />);
+    const api = getAPI('nav-v-ghost-up');
+
+    // Select first event in bass staff
+    api.select(1, 1, 0);
+    expect(api.getSelection().eventId).toBe('e1-b');
+
+    // Move up - should enter ghost cursor on treble staff
+    act(() => {
+      api.move('up');
+    });
+    const selection = api.getSelection();
+    expect(selection.staffIndex).toBe(0);
+    expect(selection.eventId).toBeNull();
   });
 });
 

@@ -118,21 +118,45 @@ describe('ScoreAPI Entry Methods', () => {
       });
     });
 
-    test('supports method chaining', () => {
-      render(<RiffScore id="tuplet-chain" />);
-      const api = getAPI('tuplet-chain');
+    test('preserves tuplet properties during insert-mode overflow', () => {
+      render(<RiffScore id="tuplet-overflow" />);
+      const api = getAPI('tuplet-overflow');
 
-      // Should be able to chain after makeTuplet
+      // Fill measure 1 with 3 eighth notes (= 24 quants)
       act(() => {
         api.select(1).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
       });
 
-      let result: MusicEditorAPI | undefined;
+      // Create triplet on all 3 events
       act(() => {
-        result = api.select(1, 0, 0, 0).makeTuplet(3, 2);
+        api.select(1, 0, 0, 0);
+      });
+      act(() => {
+        api.makeTuplet(3, 2);
       });
 
-      expect(result).toBe(api);
+      // Verify tuplet created
+      let score = api.getScore();
+      const tupletId = score.staves[0].measures[0].events[0].tuplet?.id;
+      expect(tupletId).toBeDefined();
+
+      // Now insert a whole note at the start (64 quants) with insert mode
+      // This should push the tuplet events to the next measure
+      act(() => {
+        api.select(1, 0, 0, 0).addNote('G3', 'whole', false, { mode: 'insert' });
+      });
+
+      // Verify the tuplet events were moved AND their tuplet info is preserved
+      score = api.getScore();
+      const measure2Events = score.staves[0].measures[1]?.events || [];
+
+      // At least one of the moved events should have tuplet info
+      const hasPreservedTuplet = measure2Events.some((e) => e.tuplet !== undefined);
+      expect(hasPreservedTuplet).toBe(true);
+
+      // Verify the tuplet ID is the same (group integrity preserved)
+      const movedTupletEvent = measure2Events.find((e) => e.tuplet !== undefined);
+      expect(movedTupletEvent?.tuplet?.id).toBe(tupletId);
     });
   });
 
@@ -143,7 +167,7 @@ describe('ScoreAPI Entry Methods', () => {
 
       act(() => {
         api.select(1).addNote('C4', 'quarter');
-        api.unmakeTuplet();
+        api.move('left').unmakeTuplet();
       });
 
       expect(api.result).toMatchObject({
@@ -220,17 +244,17 @@ describe('ScoreAPI Entry Methods', () => {
         api.select(1).addNote('C4', 'quarter');
       });
 
-      // Toggle on
+      // Toggle on - with advance cursor model, must move back to select inserted note
       act(() => {
-        api.toggleTie();
+        api.move('left').toggleTie();
       });
 
       let score = api.getScore();
       expect(score.staves[0].measures[0].events[0].notes[0].tied).toBe(true);
 
-      // Toggle off
+      // Toggle off - with advance cursor model, must move back to select inserted note
       act(() => {
-        api.toggleTie();
+        api.move('left').toggleTie();
       });
 
       score = api.getScore();
@@ -263,14 +287,14 @@ describe('ScoreAPI Entry Methods', () => {
       });
 
       act(() => {
-        api.setTie(true);
+        api.move('left').setTie(true);
       });
 
       let score = api.getScore();
       expect(score.staves[0].measures[0].events[0].notes[0].tied).toBe(true);
 
       act(() => {
-        api.setTie(false);
+        api.move('left').setTie(false);
       });
 
       score = api.getScore();
@@ -279,7 +303,7 @@ describe('ScoreAPI Entry Methods', () => {
   });
 
   describe('setInputMode', () => {
-    test('changes input mode via context setter', () => {
+    test('changes input mode and returns this for chaining', () => {
       render(<RiffScore id="mode-set" />);
       const api = getAPI('mode-set');
 
@@ -290,18 +314,6 @@ describe('ScoreAPI Entry Methods', () => {
       });
 
       // Method should return this for chaining
-      expect(result).toBe(api);
-    });
-
-    test('supports method chaining', () => {
-      render(<RiffScore id="mode-chain" />);
-      const api = getAPI('mode-chain');
-
-      let result: MusicEditorAPI | undefined;
-      act(() => {
-        result = api.setInputMode('note');
-      });
-
       expect(result).toBe(api);
     });
   });

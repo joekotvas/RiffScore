@@ -1,8 +1,8 @@
 # The Machine-Addressable API: A Migration Story
 
-> - **Implementation Status:** ✅ All 8 Implementation Phases Complete (v1.0.0-alpha.3)
-> - **Timeframe:** December 15-23, 2025 (~8 days intensive development)
-> - **Scope:** 36 PRs merged, 33 issues closed, 8 ADRs documented
+> - **Implementation Status:** ✅ All 9 Implementation Phases Complete (v1.0.0-alpha.7)
+> - **Timeframe:** Dec 15, 2025 - Jan 5, 2026 (~20 days development)
+> - **Scope:** 37 PRs merged, 36 issues closed, 14 ADRs documented
 
 ---
 
@@ -215,16 +215,38 @@ The API is now stable and observable—a solid foundation for production use.
 
 ---
 
+## Phase 9: Command Unification & Data Integrity
+
+**January 1-5, 2026**
+
+### The Challenge
+
+As the `ScoreEvent` model became more complex (tuplets, ties, multiple notes per chord), existing commands like `AddEventCommand` struggled to preserve all properties during complex operations like measure overflow or "Insert Mode" entry. Each property added to the model required updating every command signature.
+
+### The Approach
+
+We shifted from property-based commands to object-based commands:
+
+- **[ADR-014](../adr/014-complete-event-objects.md)**: Established the "Complete Event Objects" principle ([PR #199](https://github.com/joekotvas/RiffScore/pull/199)).
+- **`InsertEventCommand`**: Created a unified, atomic command that handles complete `ScoreEvent` objects, ensuring data integrity for tuplets and future properties.
+- **Placement Utilities**: Extracted placement logic (calculating where to insert or split) into a dedicated utility layer, separating "finding the spot" from "performing the mutation."
+
+### The Result
+
+A substantially more robust entry system. Complex musical structures like tuplets now reliably survive measure reflows and insert-mode operations. Command signatures are future-proofed against further data model evolution.
+
+---
+
 ## By The Numbers
 
 | Metric | Value |
 |:-------|------:|
-| PRs Merged | 36 |
-| Issues Closed | 33 |
-| ADRs Written | 8 |
-| New Tests | 200+ |
-| API Methods Implemented | ~50 |
-| Days of Development | 8 |
+| PRs Merged | 37 |
+| Issues Closed | 36 |
+| ADRs Written | 14 |
+| New Tests | 250+ |
+| API Methods Implemented | ~50 (v1.0.0-alpha.7) |
+| Days of Development | ~20 |
 
 ---
 

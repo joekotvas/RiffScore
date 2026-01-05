@@ -8,14 +8,26 @@
  */
 import { MusicEditorAPI } from '@/api.types';
 import { APIContext } from './types';
+import { Measure, ScoreEvent } from '@/types';
 import { AddEventCommand } from '@/commands/AddEventCommand';
 import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
+import { DeleteEventCommand } from '@/commands/DeleteEventCommand';
+import { InsertEventCommand } from '@/commands/InsertEventCommand';
 import { ApplyTupletCommand } from '@/commands/TupletCommands';
 import { RemoveTupletCommand } from '@/commands/RemoveTupletCommand';
 import { UpdateNoteCommand } from '@/commands/UpdateNoteCommand';
-import { canAddEventToMeasure, isValidPitch } from '@/utils/validation';
+import { AddMeasureCommand } from '@/commands/MeasureCommands';
+import { isValidPitch } from '@/utils/validation';
 import { noteId, eventId as createEventId } from '@/utils/id';
 import { createNotePayload } from '@/utils/entry';
+import {
+  calculateInsertionQuant,
+  getRemainingCapacity,
+  getOverwritePlan,
+  createRestsForRange,
+} from '@/utils/entry/insertion';
+import { getBreakdownOfQuants, getNoteDuration } from '@/utils/core';
+import { TIME_SIGNATURES } from '@/constants';
 
 /**
  * Entry method names provided by this factory
@@ -29,6 +41,383 @@ type EntryMethodNames =
   | 'toggleTie'
   | 'setTie'
   | 'setInputMode';
+
+// ============================================================================
+// Internal Types
+// ============================================================================
+
+interface InsertEventConfig {
+  isRest: boolean;
+  pitch: string | null;
+  duration: string;
+  dotted: boolean;
+  mode: 'overwrite' | 'insert';
+}
+
+interface InsertionLoopState {
+  currentDuration: string;
+  currentDotted: boolean;
+  warnings: string[];
+  info: string[];
+  /** When true, next iteration should start at quant 0 (not append) */
+  isOverflowContinuation: boolean;
+}
+
+// ============================================================================
+// Core Insertion Logic (DRY - shared by addNote and addRest)
+// ============================================================================
+
+/**
+ * Computes the start quant for insertion based on current selection.
+ *
+ * With the "advance cursor" model:
+ * - If event is selected → insert AT that position (overwrite mode)
+ * - If no event selected → append to end of measure
+ *
+ * After insertion, the cursor is advanced to the NEXT position,
+ * enabling natural sequential chaining (addNote().addNote()).
+ */
+function computeStartQuant(measure: Measure, selectedEventId: string | null): number {
+  if (selectedEventId) {
+    // Insert AT the selected event's position (overwrite mode)
+    return calculateInsertionQuant(measure, selectedEventId) ?? 0;
+  }
+
+  // No event selected - append to end of measure
+  const events = measure.events;
+  if (events.length === 0) {
+    return 0;
+  }
+
+  const lastEvent = events[events.length - 1];
+  const lastStart = calculateInsertionQuant(measure, lastEvent.id) ?? 0;
+  return lastStart + getNoteDuration(lastEvent.duration, lastEvent.dotted, lastEvent.tuplet);
+}
+
+/**
+ * Unified event insertion logic shared by addNote and addRest.
+ * This eliminates the 95% code duplication between the two methods.
+ *
+ * Returns the state (warnings, info) so caller can set result AFTER commit.
+ */
+function executeInsertion(
+  ctx: APIContext,
+  api: MusicEditorAPI,
+  config: InsertEventConfig
+): InsertionLoopState {
+  const { getScore, getSelection, syncSelection, dispatch } = ctx;
+
+  const state: InsertionLoopState = {
+    currentDuration: config.duration,
+    currentDotted: config.dotted,
+    warnings: [],
+    info: [],
+    isOverflowContinuation: false,
+  };
+
+  // Overflow loop - handles note splitting across measures
+  while (true) {
+    const sel = getSelection();
+    let staffIndex = sel.staffIndex;
+    let measureIndex = sel.measureIndex;
+
+    if (measureIndex === null) {
+      staffIndex = 0;
+      measureIndex = 0;
+    }
+
+    const staff = getScore().staves[staffIndex];
+    if (!staff) throw new Error('No staff found');
+
+    // Capture original measure state BEFORE any modifications
+    const originalMeasure = staff.measures[measureIndex];
+    if (!originalMeasure) throw new Error(`Measure ${measureIndex} not found`);
+
+    // Capture and clear overflow continuation flag to avoid relying on mutable shared state
+    const isOverflowContinuation = state.isOverflowContinuation;
+    state.isOverflowContinuation = false; // Reset flag after use
+
+    // Compute insertion point
+    // If this is an overflow continuation, start at quant 0 to overwrite existing content
+    const startQuant = isOverflowContinuation ? 0 : computeStartQuant(originalMeasure, sel.eventId);
+
+    const capacity = getRemainingCapacity(originalMeasure, startQuant);
+    const noteQuants = getNoteDuration(state.currentDuration, state.currentDotted);
+
+    // Determine what to insert in this measure
+    const eventsToInsert: { duration: string; dotted: boolean; tied: boolean }[] = [];
+    let remainingQuants = noteQuants;
+
+    if (noteQuants > capacity) {
+      if (capacity > 0) {
+        const headParts = getBreakdownOfQuants(capacity);
+        headParts.forEach((p) =>
+          eventsToInsert.push({
+            duration: p.duration,
+            dotted: p.dotted,
+            tied: !config.isRest, // Notes get tied, rests don't
+          })
+        );
+        remainingQuants -= capacity;
+        state.info.push(
+          config.isRest ? 'Rest split across measures' : 'Note split across measures'
+        );
+      }
+      // If capacity is 0, we insert nothing here and move to next measure
+    } else {
+      eventsToInsert.push({
+        duration: state.currentDuration,
+        dotted: state.currentDotted,
+        tied: false,
+      });
+      remainingQuants = 0;
+    }
+
+    // Process each event to insert
+    let currentInsertQuant = startQuant;
+
+    for (const evt of eventsToInsert) {
+      const evtQuants = getNoteDuration(evt.duration, evt.dotted);
+
+      // FIX: Store overwrite plan ONCE before any modifications
+      if (config.mode === 'overwrite') {
+        const overwritePlan = getOverwritePlan(originalMeasure, currentInsertQuant, evtQuants);
+
+        // Delete conflicting events
+        if (overwritePlan.toRemove.length > 0) {
+          overwritePlan.toRemove.forEach((id) => {
+            dispatch(new DeleteEventCommand(measureIndex, id, staffIndex));
+          });
+          state.warnings.push(`Overwrote ${overwritePlan.toRemove.length} event(s)`);
+        }
+      }
+
+      // Get fresh measure state after deletions
+      const currentMeasure = getScore().staves[staffIndex].measures[measureIndex];
+
+      // Find insertion index
+      let insertIndex = 0;
+      let scannedQuant = 0;
+      while (insertIndex < currentMeasure.events.length && scannedQuant < currentInsertQuant) {
+        const e = currentMeasure.events[insertIndex];
+        scannedQuant += getNoteDuration(e.duration, e.dotted, e.tuplet);
+        insertIndex++;
+      }
+
+      // Fill gap if needed
+      if (scannedQuant < currentInsertQuant) {
+        const gap = currentInsertQuant - scannedQuant;
+        const gapRests = createRestsForRange(gap, createEventId);
+        gapRests.forEach((r) => {
+          dispatch(
+            new AddEventCommand(
+              measureIndex,
+              true,
+              null,
+              r.duration,
+              r.dotted,
+              insertIndex,
+              r.id,
+              staffIndex
+            )
+          );
+          insertIndex++;
+        });
+      }
+
+      // Insert the event
+      const eventId = createEventId();
+      let insertedNoteId: string | null = null;
+
+      if (config.isRest) {
+        dispatch(
+          new AddEventCommand(
+            measureIndex,
+            true,
+            null,
+            evt.duration,
+            evt.dotted,
+            insertIndex,
+            eventId,
+            staffIndex
+          )
+        );
+      } else {
+        insertedNoteId = noteId();
+        const note = createNotePayload({
+          pitch: config.pitch!,
+          tied: evt.tied,
+          id: insertedNoteId,
+        });
+        dispatch(
+          new AddEventCommand(
+            measureIndex,
+            false,
+            note,
+            evt.duration,
+            evt.dotted,
+            insertIndex,
+            eventId,
+            staffIndex
+          )
+        );
+      }
+
+      // ADVANCE CURSOR MODEL: Set cursor to the NEXT position after insertion
+      // This enables natural sequential chaining: addNote().addNote() appends
+      // If no next event exists, clear selection to trigger append mode on next insertion
+      const measureAfterEvent = getScore().staves[staffIndex].measures[measureIndex];
+      const nextEventIndex = insertIndex + 1;
+      const nextEvent = measureAfterEvent?.events[nextEventIndex];
+
+      syncSelection({
+        staffIndex,
+        measureIndex,
+        eventId: nextEvent?.id ?? null,
+        noteId: nextEvent?.notes[0]?.id ?? null,
+        selectedNotes: [],
+        anchor: null,
+      });
+
+      currentInsertQuant += evtQuants;
+
+      // INSERT MODE: Handle overflow of displaced events
+      if (config.mode === 'insert') {
+        const measureAfterInsert = getScore().staves[staffIndex].measures[measureIndex];
+        const timeSig = getScore().timeSignature;
+        const measureCapacity = TIME_SIGNATURES[timeSig] || 64;
+
+        // Calculate total measure duration
+        let totalQuants = 0;
+        for (const e of measureAfterInsert.events) {
+          totalQuants += getNoteDuration(e.duration, e.dotted, e.tuplet);
+        }
+
+        // If overfilled, move excess events to next measure
+        if (totalQuants > measureCapacity) {
+          const overflowQuants = totalQuants - measureCapacity;
+
+          // STEP 1: Collect initial events to move (from the end, working backwards)
+          let quantsToMove = 0;
+          const initialEventsToMove: ScoreEvent[] = [];
+          for (
+            let i = measureAfterInsert.events.length - 1;
+            i >= 0 && quantsToMove < overflowQuants;
+            i--
+          ) {
+            const e = measureAfterInsert.events[i];
+            const eQuants = getNoteDuration(e.duration, e.dotted, e.tuplet);
+            initialEventsToMove.unshift(e);
+            quantsToMove += eQuants;
+          }
+
+          // STEP 2: Expand to include complete tuplet groups (atomic tuplet handling)
+          // Collect all tuplet IDs from initial overflow events
+          const tupletIdsInOverflow = new Set<string>();
+          for (const e of initialEventsToMove) {
+            if (e.tuplet?.id) {
+              tupletIdsInOverflow.add(e.tuplet.id);
+            }
+          }
+
+          // Find ALL events belonging to those tuplet groups
+          const eventsToMove: ScoreEvent[] = [];
+          const eventIdsToMove = new Set<string>();
+
+          // First pass: add all events from tuplet groups that have any event in overflow
+          for (const e of measureAfterInsert.events) {
+            if (e.tuplet?.id && tupletIdsInOverflow.has(e.tuplet.id)) {
+              if (!eventIdsToMove.has(e.id)) {
+                eventsToMove.push(e);
+                eventIdsToMove.add(e.id);
+              }
+            }
+          }
+
+          // Second pass: add remaining non-tuplet events from initial overflow
+          for (const e of initialEventsToMove) {
+            if (!eventIdsToMove.has(e.id)) {
+              eventsToMove.push(e);
+              eventIdsToMove.add(e.id);
+            }
+          }
+
+          // Sort by original measure order (important for correct re-insertion)
+          eventsToMove.sort((a, b) => {
+            const aIdx = measureAfterInsert.events.findIndex((e) => e.id === a.id);
+            const bIdx = measureAfterInsert.events.findIndex((e) => e.id === b.id);
+            return aIdx - bIdx;
+          });
+
+          // Track if we expanded due to tuplet atomicity
+          const tupletExpansion = eventsToMove.length > initialEventsToMove.length;
+          if (tupletExpansion && tupletIdsInOverflow.size > 0) {
+            state.info.push(
+              `Moved entire tuplet group(s) to preserve atomicity (${tupletIdsInOverflow.size} group(s))`
+            );
+          }
+
+          // Ensure next measure exists
+          const currentStaff = getScore().staves[staffIndex];
+          if (measureIndex + 1 >= currentStaff.measures.length) {
+            dispatch(new AddMeasureCommand());
+            state.info.push(`Created measure ${measureIndex + 2} for insert overflow`);
+          }
+
+          // Delete events from current measure and re-add to next
+          eventsToMove.forEach((movedEvent) => {
+            dispatch(new DeleteEventCommand(measureIndex, movedEvent.id, staffIndex));
+          });
+
+          // Re-add at start of next measure using InsertEventCommand to preserve ALL properties
+          eventsToMove.forEach((movedEvent, idx) => {
+            // InsertEventCommand accepts the complete ScoreEvent, preserving tuplet, tied, etc.
+            dispatch(new InsertEventCommand(measureIndex + 1, movedEvent, idx, staffIndex));
+          });
+
+          state.warnings.push(
+            `Insert overflow: ${eventsToMove.length} event(s) moved to next measure`
+          );
+        }
+      }
+    }
+
+    // Handle overflow to next measure
+    if (remainingQuants > 0) {
+      const parts = getBreakdownOfQuants(remainingQuants);
+      const nextMeasureIndex = measureIndex + 1;
+
+      if (nextMeasureIndex >= staff.measures.length) {
+        dispatch(new AddMeasureCommand());
+        state.info.push(`Created measure ${nextMeasureIndex + 1}`);
+      }
+
+      syncSelection({
+        staffIndex,
+        measureIndex: nextMeasureIndex,
+        eventId: null,
+        noteId: null,
+        selectedNotes: [],
+        anchor: null,
+      });
+
+      state.currentDuration = parts[0].duration;
+      state.currentDotted = parts[0].dotted;
+      state.isOverflowContinuation = true; // Signal next iteration to start at quant 0
+
+      // Continue loop to handle next measure
+    } else {
+      // Done
+      break;
+    }
+  }
+
+  return state;
+}
+
+// ============================================================================
+// Factory
+// ============================================================================
 
 /**
  * Factory for creating Entry API methods.
@@ -45,7 +434,7 @@ export const createEntryMethods = (
   const { getScore, getSelection, syncSelection, dispatch, setResult } = ctx;
 
   return {
-    addNote(pitch, duration = 'quarter', dotted = false) {
+    addNote(pitch, duration = 'quarter', dotted = false, options = { mode: 'overwrite' }) {
       // Validate pitch format
       if (!isValidPitch(pitch)) {
         setResult({
@@ -59,173 +448,84 @@ export const createEntryMethods = (
         return this;
       }
 
-      const sel = getSelection();
-      let staffIndex = sel.staffIndex;
-      let measureIndex = sel.measureIndex;
+      this.beginTransaction();
 
-      // If no measure is selected, default to first measure
-      if (measureIndex === null) {
-        staffIndex = 0;
-        measureIndex = 0;
-      }
-
-      const staff = getScore().staves[staffIndex];
-      if (!staff || staff.measures.length === 0) {
-        setResult({
-          ok: false,
-          status: 'error',
-          method: 'addNote',
-          message: 'No measures exist in the score',
-          code: 'NO_MEASURES',
-        });
-        return this;
-      }
-
-      const measure = staff.measures[measureIndex];
-      if (!measure) {
-        setResult({
-          ok: false,
-          status: 'error',
-          method: 'addNote',
-          message: `Measure ${measureIndex + 1} does not exist`,
-          code: 'MEASURE_NOT_FOUND',
-        });
-        return this;
-      }
-
-      // Check if measure has capacity for this note
-      if (!canAddEventToMeasure(measure.events, duration, dotted)) {
-        setResult({
-          ok: false,
-          status: 'error',
-          method: 'addNote',
-          message: `Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} note.`,
-          code: 'MEASURE_FULL',
-        });
-        return this;
-      }
-
-      // Create note payload using shared utility
-      const note = createNotePayload({ pitch, id: noteId() });
-
-      // Dispatch AddEventCommand
-      const eventId = createEventId();
-      dispatch(
-        new AddEventCommand(
-          measureIndex,
-          false,
-          note,
+      try {
+        const result = executeInsertion(ctx, this, {
+          isRest: false,
+          pitch,
           duration,
           dotted,
-          undefined,
-          eventId,
-          staffIndex
-        )
-      );
+          mode: options.mode ?? 'overwrite',
+        });
 
-      // Advance cursor to the new event
-      const newSelection = {
-        staffIndex,
-        measureIndex,
-        eventId,
-        noteId: note.id,
-        selectedNotes: [{ staffIndex, measureIndex, eventId, noteId: note.id }],
-        anchor: null,
-      };
-      syncSelection(newSelection);
+        this.commitTransaction();
 
-      setResult({
-        ok: true,
-        status: 'info',
-        method: 'addNote',
-        message: `Added note ${pitch}`,
-        details: { pitch, duration, dotted, measureIndex, staffIndex },
-      });
+        // Set result AFTER commit so it doesn't get overwritten
+        setResult({
+          ok: true,
+          status: result.warnings.length > 0 ? 'warning' : 'info',
+          method: 'addNote',
+          message: `Added note ${pitch}`,
+          details: {
+            pitch,
+            duration,
+            dotted,
+            warnings: result.warnings,
+            info: result.info,
+          },
+        });
+      } catch (e) {
+        this.rollbackTransaction();
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'addNote',
+          message: e instanceof Error ? e.message : 'Unknown error',
+          code: 'ADD_NOTE_FAILED',
+        });
+      }
 
       return this;
     },
 
-    addRest(duration = 'quarter', dotted = false) {
-      const sel = getSelection();
-      let staffIndex = sel.staffIndex;
-      let measureIndex = sel.measureIndex;
+    addRest(duration = 'quarter', dotted = false, options = { mode: 'overwrite' }) {
+      this.beginTransaction();
 
-      // If no measure is selected, default to first measure
-      if (measureIndex === null) {
-        staffIndex = 0;
-        measureIndex = 0;
-      }
-
-      const staff = getScore().staves[staffIndex];
-      if (!staff || staff.measures.length === 0) {
-        setResult({
-          ok: false,
-          status: 'error',
-          method: 'addRest',
-          message: 'No measures exist in the score',
-          code: 'NO_MEASURES',
-        });
-        return this;
-      }
-
-      const measure = staff.measures[measureIndex];
-      if (!measure) {
-        setResult({
-          ok: false,
-          status: 'error',
-          method: 'addRest',
-          message: `Measure ${measureIndex + 1} does not exist`,
-          code: 'MEASURE_NOT_FOUND',
-        });
-        return this;
-      }
-
-      // Check if measure has capacity for this rest
-      if (!canAddEventToMeasure(measure.events, duration, dotted)) {
-        setResult({
-          ok: false,
-          status: 'error',
-          method: 'addRest',
-          message: `Measure ${measureIndex + 1} is full. Cannot add ${dotted ? 'dotted ' : ''}${duration} rest.`,
-          code: 'MEASURE_FULL',
-        });
-        return this;
-      }
-
-      // Dispatch AddEventCommand with isRest=true
-      const eventId = createEventId();
-      dispatch(
-        new AddEventCommand(
-          measureIndex,
-          true,
-          null,
+      try {
+        const result = executeInsertion(ctx, this, {
+          isRest: true,
+          pitch: null,
           duration,
           dotted,
-          undefined,
-          eventId,
-          staffIndex
-        )
-      );
+          mode: options.mode ?? 'overwrite',
+        });
 
-      // Advance cursor - use the same rest note ID pattern as AddEventCommand
-      const restNoteId = `${eventId}-rest`;
-      const newSelection = {
-        staffIndex,
-        measureIndex,
-        eventId,
-        noteId: restNoteId,
-        selectedNotes: [{ staffIndex, measureIndex, eventId, noteId: restNoteId }],
-        anchor: null,
-      };
-      syncSelection(newSelection);
+        this.commitTransaction();
 
-      setResult({
-        ok: true,
-        status: 'info',
-        method: 'addRest',
-        message: `Added rest (${duration})`,
-        details: { duration, dotted, measureIndex, staffIndex },
-      });
+        // Set result AFTER commit so it doesn't get overwritten
+        setResult({
+          ok: true,
+          status: result.warnings.length > 0 ? 'warning' : 'info',
+          method: 'addRest',
+          message: 'Added rest',
+          details: {
+            duration,
+            dotted,
+            warnings: result.warnings,
+            info: result.info,
+          },
+        });
+      } catch (e) {
+        this.rollbackTransaction();
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'addRest',
+          message: e instanceof Error ? e.message : 'Unknown error',
+          code: 'ADD_REST_FAILED',
+        });
+      }
 
       return this;
     },

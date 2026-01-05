@@ -38,6 +38,8 @@ import {
 
 interface UseSelectionProps {
   score: Score;
+  /** Optional synchronous score getter for engine initialization */
+  scoreGetter?: () => Score;
 }
 
 /** Helper return type for looking up score data */
@@ -49,12 +51,14 @@ interface SelectionTarget {
   noteIndex: number;
 }
 
-export const useSelection = ({ score }: UseSelectionProps) => {
+export const useSelection = ({ score, scoreGetter }: UseSelectionProps) => {
   // ─────────────────────────────────────────────────────────────────────────────
   // 1. Engine Initialization
   // ─────────────────────────────────────────────────────────────────────────────
-  // Using lazy initializer to avoid React Compiler side-effect warnings
-  const [engine] = useState(() => new SelectionEngine(createDefaultSelection(), () => score));
+  // Use scoreGetter if provided (for synchronous access), otherwise fall back to score
+  const [engine] = useState(
+    () => new SelectionEngine(createDefaultSelection(), scoreGetter ?? (() => score))
+  );
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 2. Sync Engine with React State
@@ -63,8 +67,9 @@ export const useSelection = ({ score }: UseSelectionProps) => {
   const [lastSelection, setLastSelection] = useState<Selection | null>(null);
 
   useEffect(() => {
-    engine.setScoreGetter(() => score);
-  }, [score, engine]);
+    // Update score getter to use scoreGetter if provided, otherwise wrap current score
+    engine.setScoreGetter(scoreGetter ?? (() => score));
+  }, [score, scoreGetter, engine]);
 
   useEffect(() => {
     const unsubscribe = engine.subscribe(setSelectionState);

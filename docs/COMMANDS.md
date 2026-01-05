@@ -32,6 +32,7 @@ Modify the `Score` object (notes, measures, key signatures, etc.):
 | Command | Purpose |
 |---------|---------|
 | `AddEventCommand` | Insert note/rest at position |
+| `InsertEventCommand` | Composite insertion preserving all properties |
 | `AddNoteToEventCommand` | Add note to chord |
 | `ChangePitchCommand` | Change single note pitch |
 | `ChromaticTransposeCommand` | Chromatic transposition by semitones |

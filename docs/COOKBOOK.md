@@ -57,23 +57,31 @@ const score = window.riffScore.active;
 // Measure 1: C major chord (half note)
 score.select(1)
    .addNote('C4', 'half')
+   .move('left')
    .addTone('E4')
-   .addTone('G4');
+   .addTone('G4')
+   .move('right');
 
 // Same measure: F major (cursor auto-advances after addNote)
 score.addNote('F4', 'half')
+   .move('left')
    .addTone('A4')
-   .addTone('C5');
+   .addTone('C5')
+   .move('right');
 
 // Measure 2: G major then C major
 score.select(2)
    .addNote('G4', 'half')
+   .move('left')
    .addTone('B4')
-   .addTone('D5');
+   .addTone('D5')
+   .move('right');
 
 score.addNote('C4', 'half')
+   .move('left')
    .addTone('E4')
-   .addTone('G4');
+   .addTone('G4')
+   .move('right');
 ```
 
 ### Enter Rests
@@ -109,8 +117,8 @@ const score = window.riffScore.active;
 // First add a note, then modify its duration
 score.select(1).addNote('C4', 'quarter');
 
-// Select the event and change duration
-score.setDuration('eighth', true);  // true = dotted
+// Move back to the note and change duration
+score.move('left').setDuration('eighth', true);  // true = dotted
 ```
 
 ### Convert Notes to Rests
@@ -184,7 +192,7 @@ if (!score.ok) {
 }
 
 // Sticky error state allows checking after a chain
-score.select(1).addNote('C4').addNote('InvalidPitch').addNote('E4');
+score.select(1).addNote('C4').move('left').addNote('InvalidPitch').move('right').addNote('E4');
 
 if (score.hasError) {
   console.warn('One or more operations in the chain failed');

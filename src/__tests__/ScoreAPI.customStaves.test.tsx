@@ -31,12 +31,17 @@ describe('ScoreAPI Custom Staves & Alto Clef (Phase 6B)', () => {
     render(<RiffScore id={TEST_ID} config={{ score: { staves: singleStaffScore.staves } }} />);
     const api = getAPI(TEST_ID);
 
-    // Select first measure
+    // Select first measure (sets measure context for addNote)
     await act(async () => {
       api.select(1);
     });
 
-    // Add note
+    // Deselect event to trigger append mode (instead of overwrite at selected event)
+    await act(async () => {
+      api.deselectAll();
+    });
+
+    // Add note - should append to end of measure
     await act(async () => {
       api.addNote('C4', 'quarter', false);
     });
