@@ -1,7 +1,8 @@
 import { MusicEditorAPI } from '@/api.types';
 import { APIContext } from './types';
-import { navigateSelection, getFirstNoteId, getNoteDuration } from '@/utils/core';
+import { getFirstNoteId, getNoteDuration } from '@/utils/core';
 import { calculateVerticalNavigation } from '@/utils/navigation/vertical';
+import { calculateNextSelection } from '@/utils/navigation/horizontal';
 import { SelectEventCommand } from '@/commands/selection';
 
 /**
@@ -20,7 +21,7 @@ type NavigationMethodNames = 'move' | 'jump' | 'select' | 'selectById' | 'select
 export const createNavigationMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, NavigationMethodNames> & ThisType<MusicEditorAPI> => {
-  const { getScore, selectionRef, syncSelection, selectionEngine, setResult, lastInsertedEventIdRef } = ctx;
+  const { getScore, selectionRef, syncSelection, selectionEngine, setResult } = ctx;
 
   return {
     move(direction) {
@@ -41,25 +42,52 @@ export const createNavigationMethods = (
       const measures = staff.measures;
 
       if (direction === 'left' || direction === 'right') {
-        // Use existing navigateSelection utility for horizontal movement
-        const newSel = navigateSelection(measures, sel, direction);
+        // Use calculateNextSelection for horizontal movement (same as keyboard)
+        const navResult = calculateNextSelection(
+          measures,
+          sel,
+          direction
+          // All other params use defaults: previewNote=null, activeDuration='quarter', etc.
+        );
 
-        const fullSelection = {
-          ...newSel,
-          selectedNotes:
-            newSel.eventId && newSel.measureIndex !== null
-              ? [
-                  {
-                    staffIndex: newSel.staffIndex,
-                    measureIndex: newSel.measureIndex,
-                    eventId: newSel.eventId,
-                    noteId: newSel.noteId,
-                  },
-                ]
-              : [],
-          anchor: null,
-        };
-        syncSelection(fullSelection);
+        if (!navResult) {
+          setResult({
+            ok: true,
+            status: 'info',
+            method: 'move',
+            message: `Cannot move ${direction} (boundary)`,
+            code: 'BOUNDARY_REACHED',
+          });
+          return this;
+        }
+
+        // When navigating to append position, selection has measureIndex: null
+        // but previewNote contains the actual measure. Merge them for API selection.
+        const newSel = navResult.selection;
+        const measureIndex =
+          newSel?.measureIndex ?? navResult.previewNote?.measureIndex ?? sel.measureIndex;
+
+        if (newSel || navResult.previewNote) {
+          const fullSelection = {
+            ...sel,
+            ...(newSel || {}),
+            measureIndex, // Use merged measureIndex
+            selectedNotes:
+              newSel?.eventId && measureIndex !== null
+                ? [
+                    {
+                      staffIndex: newSel.staffIndex ?? sel.staffIndex,
+                      measureIndex,
+                      eventId: newSel.eventId,
+                      noteId: newSel.noteId,
+                    },
+                  ]
+                : [],
+            anchor: null,
+          };
+          syncSelection(fullSelection);
+        }
+
         setResult({
           ok: true,
           status: 'info',
@@ -67,7 +95,7 @@ export const createNavigationMethods = (
           message: `Moved ${direction}`,
           details: {
             direction,
-            newSelection: { measure: newSel.measureIndex, event: newSel.eventId },
+            newSelection: { measure: measureIndex, event: newSel?.eventId ?? null },
           },
         });
       } else if (direction === 'up' || direction === 'down') {
@@ -219,10 +247,6 @@ export const createNavigationMethods = (
         return this;
       }
 
-      // Reset cursor-advance tracking since this is an explicit selection
-      // This ensures subsequent addNote() calls insert AT this position
-      lastInsertedEventIdRef.current = null;
-
       // Use SelectEventCommand for proper selection
       selectionEngine.dispatch(
         new SelectEventCommand({
@@ -272,9 +296,6 @@ export const createNavigationMethods = (
 
         if (currentQuant <= quant && quant < currentQuant + eventDuration) {
           // Found the event at this quant position
-          // Reset cursor-advance tracking since this is an explicit selection
-          lastInsertedEventIdRef.current = null;
-          
           selectionEngine.dispatch(
             new SelectEventCommand({
               staffIndex,
@@ -336,9 +357,6 @@ export const createNavigationMethods = (
             const nIdx = measure.events[eIdx].notes.findIndex((n) => n.id === noteId);
             if (nIdx !== -1) noteIndex = nIdx;
           }
-          // Reset cursor-advance tracking since this is an explicit selection
-          lastInsertedEventIdRef.current = null;
-          
           selectionEngine.dispatch(
             new SelectEventCommand({
               staffIndex: sel.staffIndex,

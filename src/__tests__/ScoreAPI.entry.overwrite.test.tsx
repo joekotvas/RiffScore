@@ -366,13 +366,15 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       expect(m2.events[0].notes[0].pitch).toBe('F4');
 
       // Verify warning about overflow
-      expect(api.result.details?.warnings).toContain('Insert overflow: 1 event(s) moved to next measure');
+      expect(api.result.details?.warnings).toContain(
+        'Insert overflow: 1 event(s) moved to next measure'
+      );
     });
   });
 
   /**
    * Insert Mode Integration Tests
-   * 
+   *
    * Comprehensive chained API tests for insert mode covering:
    * - Simple: Basic shift-right behavior
    * - Complex: Multi-note chains, mixed modes
@@ -398,7 +400,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       });
 
       const events = api.getScore().staves[0].measures[0].events;
-      expect(events.map(e => e.notes[0].pitch)).toEqual(['G4', 'C4', 'D4', 'E4']);
+      expect(events.map((e) => e.notes[0].pitch)).toEqual(['G4', 'C4', 'D4', 'E4']);
     });
 
     test('Simple: Insert at middle pushes subsequent events right', () => {
@@ -410,13 +412,13 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
           .addNote('C4', 'quarter')
           .addNote('D4', 'quarter')
           .addNote('E4', 'quarter')
-          .select(1, 0, 1)  // Select D4
+          .select(1, 0, 1) // Select D4
           .addNote('G4', 'quarter', false, { mode: 'insert' });
       });
 
       const events = api.getScore().staves[0].measures[0].events;
       // G4 inserted at D4's position, D4 and E4 shift right
-      expect(events.map(e => e.notes[0].pitch)).toEqual(['C4', 'G4', 'D4', 'E4']);
+      expect(events.map((e) => e.notes[0].pitch)).toEqual(['C4', 'G4', 'D4', 'E4']);
     });
 
     test('Simple: Insert at end adds new event', () => {
@@ -427,13 +429,13 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
         api
           .addNote('C4', 'quarter')
           .addNote('D4', 'quarter')
-          .select(1, 0, 1)  // Select D4 (last event)
+          .select(1, 0, 1) // Select D4 (last event)
           .addNote('G4', 'quarter', false, { mode: 'insert' });
       });
 
       const events = api.getScore().staves[0].measures[0].events;
       // G4 at D4's position, D4 shifts right
-      expect(events.map(e => e.notes[0].pitch)).toEqual(['C4', 'G4', 'D4']);
+      expect(events.map((e) => e.notes[0].pitch)).toEqual(['C4', 'G4', 'D4']);
     });
 
     // ─────────────────────────────────────────────────────────────────────
@@ -456,7 +458,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
 
       const events = api.getScore().staves[0].measures[0].events;
       // F4 (newest insert at 0), E4, C4, D4
-      expect(events.map(e => e.notes[0].pitch)).toEqual(['F4', 'E4', 'C4', 'D4']);
+      expect(events.map((e) => e.notes[0].pitch)).toEqual(['F4', 'E4', 'C4', 'D4']);
     });
 
     test('Complex: Mixed overwrite and insert modes', () => {
@@ -469,23 +471,23 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
           .addNote('D4', 'quarter')
           .addNote('E4', 'quarter')
           .addNote('F4', 'quarter')
-          .select(1, 0, 1)  // Select D4
-          .addNote('G4', 'half', false, { mode: 'overwrite' });  // Overwrites D4, E4
+          .select(1, 0, 1) // Select D4
+          .addNote('G4', 'half', false, { mode: 'overwrite' }); // Overwrites D4, E4
       });
 
       let events = api.getScore().staves[0].measures[0].events;
-      expect(events.map(e => e.notes[0].pitch)).toEqual(['C4', 'G4', 'F4']);
+      expect(events.map((e) => e.notes[0].pitch)).toEqual(['C4', 'G4', 'F4']);
 
       act(() => {
         api
-          .select(1, 0, 0)  // Select C4
-          .addNote('A4', 'quarter', false, { mode: 'insert' });  // Insert A4, shift right
+          .select(1, 0, 0) // Select C4
+          .addNote('A4', 'quarter', false, { mode: 'insert' }); // Insert A4, shift right
       });
 
       // After insert: A4 (quarter), C4 (quarter), G4 (half) = 64 quants (full)
       // F4 overflows to measure 2
       events = api.getScore().staves[0].measures[0].events;
-      expect(events.map(e => e.notes[0].pitch)).toEqual(['A4', 'C4', 'G4']);
+      expect(events.map((e) => e.notes[0].pitch)).toEqual(['A4', 'C4', 'G4']);
 
       // F4 moved to measure 2
       const m2 = api.getScore().staves[0].measures[1];
@@ -499,9 +501,9 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       act(() => {
         api
           .addNote('C4', 'half')
-          .addNote('D4', 'half')  // Full measure
+          .addNote('D4', 'half') // Full measure
           .select(1, 0, 0)
-          .addNote('E4', 'quarter', false, { mode: 'insert' });  // Insert quarter, overflows D4
+          .addNote('E4', 'quarter', false, { mode: 'insert' }); // Insert quarter, overflows D4
       });
 
       const m1 = api.getScore().staves[0].measures[0];
@@ -512,7 +514,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       expect(m1.events[0].duration).toBe('quarter');
       expect(m1.events[1].notes[0].pitch).toBe('C4');
       expect(m1.events[1].duration).toBe('half');
-      
+
       // Measure 2 should have D4 (overflow)
       expect(m2.events.length).toBeGreaterThan(0);
       expect(m2.events[0].notes[0].pitch).toBe('D4');
@@ -528,7 +530,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
 
       act(() => {
         api
-          .select(1)  // Select empty measure 1
+          .select(1) // Select empty measure 1
           .addNote('C4', 'quarter', false, { mode: 'insert' });
       });
 
@@ -551,16 +553,14 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
           .addNote('G4', 'eighth')
           .addNote('A4', 'eighth')
           .addNote('B4', 'eighth')
-          .addNote('C5', 'eighth');  // 8 eighths = full measure
+          .addNote('C5', 'eighth'); // 8 eighths = full measure
       });
 
       expect(api.getScore().staves[0].measures[0].events.length).toBe(8);
 
       // Insert half note at beginning - should push 4 eighths to overflow
       act(() => {
-        api
-          .select(1, 0, 0)
-          .addNote('D5', 'half', false, { mode: 'insert' });
+        api.select(1, 0, 0).addNote('D5', 'half', false, { mode: 'insert' });
       });
 
       const m1 = api.getScore().staves[0].measures[0];
@@ -610,7 +610,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
 
       expect(api.ok).toBe(false);
       expect(api.result.code).toBe('INVALID_PITCH');
-      
+
       // Original note should be unchanged
       const events = api.getScore().staves[0].measures[0].events;
       expect(events.length).toBe(1);
@@ -645,21 +645,37 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       const tupletId = 'triplet-1';
       const scoreWithTuplet = {
         title: 'Tuplet Test',
-        staves: [{
-          measures: [{
-            events: [
-              { id: 'e1', duration: 'quarter', notes: [{ id: 'n1', pitch: 'C4' }], 
-                tuplet: { id: tupletId, ratio: [3, 2], groupSize: 3, position: 0 } },
-              { id: 'e2', duration: 'quarter', notes: [{ id: 'n2', pitch: 'D4' }], 
-                tuplet: { id: tupletId, ratio: [3, 2], groupSize: 3, position: 1 } },
-              { id: 'e3', duration: 'quarter', notes: [{ id: 'n3', pitch: 'E4' }], 
-                tuplet: { id: tupletId, ratio: [3, 2], groupSize: 3, position: 2 } },
-              { id: 'e4', duration: 'half', notes: [{ id: 'n4', pitch: 'F4' }] },
+        staves: [
+          {
+            measures: [
+              {
+                events: [
+                  {
+                    id: 'e1',
+                    duration: 'quarter',
+                    notes: [{ id: 'n1', pitch: 'C4' }],
+                    tuplet: { id: tupletId, ratio: [3, 2], groupSize: 3, position: 0 },
+                  },
+                  {
+                    id: 'e2',
+                    duration: 'quarter',
+                    notes: [{ id: 'n2', pitch: 'D4' }],
+                    tuplet: { id: tupletId, ratio: [3, 2], groupSize: 3, position: 1 },
+                  },
+                  {
+                    id: 'e3',
+                    duration: 'quarter',
+                    notes: [{ id: 'n3', pitch: 'E4' }],
+                    tuplet: { id: tupletId, ratio: [3, 2], groupSize: 3, position: 2 },
+                  },
+                  { id: 'e4', duration: 'half', notes: [{ id: 'n4', pitch: 'F4' }] },
+                ],
+                timeSignature: { top: 4, bottom: 4 },
+              },
             ],
-            timeSignature: { top: 4, bottom: 4 }
-          }],
-          clef: 'treble'
-        }]
+            clef: 'treble',
+          },
+        ],
       };
 
       act(() => {
@@ -674,7 +690,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       // After insert: quarter (16) + triplet (32) + half (32) = 80 quants (overflow of 16)
       act(() => {
         api
-          .select(1, 0, 0)  // Select first triplet note
+          .select(1, 0, 0) // Select first triplet note
           .addNote('G4', 'quarter', false, { mode: 'insert' });
       });
 
@@ -690,7 +706,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       expect(m2.events.length).toBeGreaterThan(0);
 
       // If any tuplet notes are in m2, ALL should be there (atomic movement)
-      const m2TupletEvents = m2.events.filter(e => e.tuplet?.id === tupletId);
+      const m2TupletEvents = m2.events.filter((e) => e.tuplet?.id === tupletId);
       if (m2TupletEvents.length > 0) {
         // All tuplet notes should have moved together
         expect(m2TupletEvents.length).toBe(3);
@@ -707,14 +723,12 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
           .addNote('C4', 'quarter')
           .addNote('D4', 'quarter')
           .addNote('E4', 'quarter')
-          .addNote('F4', 'quarter');  // Full measure
+          .addNote('F4', 'quarter'); // Full measure
       });
 
       // Insert - should push F4 only (no tuplets involved)
       act(() => {
-        api
-          .select(1, 0, 0)
-          .addNote('G4', 'quarter', false, { mode: 'insert' });
+        api.select(1, 0, 0).addNote('G4', 'quarter', false, { mode: 'insert' });
       });
 
       const score = api.getScore();
@@ -723,7 +737,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
 
       // Measure 1: G4, C4, D4, E4 (F4 overflowed)
       expect(m1.events.length).toBe(4);
-      expect(m1.events.map(e => e.notes[0].pitch)).toEqual(['G4', 'C4', 'D4', 'E4']);
+      expect(m1.events.map((e) => e.notes[0].pitch)).toEqual(['G4', 'C4', 'D4', 'E4']);
 
       // Measure 2: just F4
       expect(m2.events.length).toBe(1);

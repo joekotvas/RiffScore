@@ -54,10 +54,4 @@ export interface APIContext {
 
   /** Internal: Check if debug mode is enabled */
   debugMode: boolean;
-
-  /** 
-   * Internal: Tracks the last event inserted by addNote/addRest.
-   * Used to distinguish cursor auto-advance (sequential chaining) from explicit selection (overwrite).
-   */
-  lastInsertedEventIdRef: React.MutableRefObject<string | null>;
 }

@@ -40,7 +40,11 @@ export class InsertEventCommand implements Command {
       // Using JSON parse/stringify for Node.js compatibility (structuredClone requires Node 17+)
       const clonedEvent = JSON.parse(JSON.stringify(this.event)) as ScoreEvent;
 
-      if (this.insertIndex !== undefined && this.insertIndex >= 0 && this.insertIndex <= newEvents.length) {
+      if (
+        this.insertIndex !== undefined &&
+        this.insertIndex >= 0 &&
+        this.insertIndex <= newEvents.length
+      ) {
         newEvents.splice(this.insertIndex, 0, clonedEvent);
       } else {
         newEvents.push(clonedEvent);

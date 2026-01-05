@@ -55,7 +55,7 @@ The `previewNote` object defines the ghost cursor position:
 | `dotted` | `boolean` | Whether dotted |
 | `mode` | `string` | "APPEND" for end-of-measure |
 
-**Ghost cursor detection**: `selection.eventId === null && selection.measureIndex === null`
+**Ghost cursor detection**: `selection.eventId === null && (selection.measureIndex === null || previewNote !== null)`
 
 ---
 
@@ -312,11 +312,11 @@ This is critical after vertical navigation places a ghost on a different staff.
 | File | Function | Responsibility |
 |------|----------|----------------|
 | [useNavigation.ts](../src/hooks/useNavigation.ts) | `moveSelection()` | Orchestrates navigation, determines active staff |
-| [interaction.ts](../src/utils/interaction.ts) | `calculateNextSelection()` | Horizontal navigation logic |
-| [interaction.ts](../src/utils/interaction.ts) | `calculateVerticalNavigation()` | Vertical navigation and cross-staff logic |
-| [interaction.ts](../src/utils/interaction.ts) | `getAdjustedDuration()` | Finds largest duration that fits space |
-| [interaction.ts](../src/utils/interaction.ts) | `getAppendPreviewNote()` | Creates ghost cursor at append position |
-| [core.ts](../src/utils/core.ts) | `navigateSelection()` | Low-level event-to-event navigation |
+| [horizontal.ts](../src/utils/navigation/horizontal.ts) | `calculateNextSelection()` | Horizontal navigation logic |
+| [vertical.ts](../src/utils/navigation/vertical.ts) | `calculateVerticalNavigation()` | Vertical navigation and cross-staff logic |
+| [horizontal.ts](../src/utils/navigation/horizontal.ts) | `getAdjustedDuration()` | Finds largest duration that fits space |
+| [previewNote.ts](../src/utils/navigation/previewNote.ts) | `getAppendPreviewNote()` | Creates ghost cursor at append position |
+| [horizontal.ts](../src/utils/navigation/horizontal.ts) | `navigateSelection()` | Low-level event-to-event navigation |
 
 ---
 

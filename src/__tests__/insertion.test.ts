@@ -87,17 +87,13 @@ describe('insertion utilities', () => {
     });
 
     test('should return null for null eventId', () => {
-      const measure = createMeasure([
-        { id: 'e1', duration: 'quarter', dotted: false, notes: [] },
-      ]);
+      const measure = createMeasure([{ id: 'e1', duration: 'quarter', dotted: false, notes: [] }]);
 
       expect(calculateInsertionQuant(measure, null)).toBeNull();
     });
 
     test('should return null for non-existent eventId', () => {
-      const measure = createMeasure([
-        { id: 'e1', duration: 'quarter', dotted: false, notes: [] },
-      ]);
+      const measure = createMeasure([{ id: 'e1', duration: 'quarter', dotted: false, notes: [] }]);
 
       expect(calculateInsertionQuant(measure, 'non-existent')).toBeNull();
     });

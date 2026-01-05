@@ -51,8 +51,6 @@ interface InsertEventConfig {
   duration: string;
   dotted: boolean;
   mode: 'overwrite' | 'insert';
-  /** If set, when selectedEventId matches this, we insert AFTER it (cursor auto-advance) */
-  previousInsertedEventId?: string | null;
 }
 
 interface InsertionLoopState {
@@ -62,8 +60,6 @@ interface InsertionLoopState {
   info: string[];
   /** When true, next iteration should start at quant 0 (not append) */
   isOverflowContinuation: boolean;
-  /** ID of the last event inserted in this insertion operation */
-  lastInsertedEventId: string | null;
 }
 
 // ============================================================================
@@ -72,33 +68,17 @@ interface InsertionLoopState {
 
 /**
  * Computes the start quant for insertion based on current selection.
- * 
- * When cursor was auto-advanced after insertion (selectedEventId === previousInsertedEventId),
- * we insert AFTER that event to enable sequential chaining (addNote().addNote()).
- * 
- * When user explicitly selected an event (via selectById), we insert AT that position
- * for overwrite mode compatibility.
- * 
- * When no event is selected, inserts at end of measure (append mode).
+ *
+ * With the "advance cursor" model:
+ * - If event is selected → insert AT that position (overwrite mode)
+ * - If no event selected → append to end of measure
+ *
+ * After insertion, the cursor is advanced to the NEXT position,
+ * enabling natural sequential chaining (addNote().addNote()).
  */
-function computeStartQuant(
-  measure: Measure, 
-  selectedEventId: string | null,
-  previousInsertedEventId: string | null | undefined
-): number {
+function computeStartQuant(measure: Measure, selectedEventId: string | null): number {
   if (selectedEventId) {
-    // Check if this is the cursor that was auto-advanced after our own insertion
-    // If so, insert AFTER this event (append behavior for chaining)
-    if (previousInsertedEventId && selectedEventId === previousInsertedEventId) {
-      const eventStart = calculateInsertionQuant(measure, selectedEventId) ?? 0;
-      const event = measure.events.find((e) => e.id === selectedEventId);
-      if (event) {
-        return eventStart + getNoteDuration(event.duration, event.dotted, event.tuplet);
-      }
-      return eventStart;
-    }
-    
-    // Explicit selection - insert AT the selected event's position (overwrite)
+    // Insert AT the selected event's position (overwrite mode)
     return calculateInsertionQuant(measure, selectedEventId) ?? 0;
   }
 
@@ -132,7 +112,6 @@ function executeInsertion(
     warnings: [],
     info: [],
     isOverflowContinuation: false,
-    lastInsertedEventId: null,
   };
 
   // Overflow loop - handles note splitting across measures
@@ -157,7 +136,7 @@ function executeInsertion(
     // If this is an overflow continuation, start at quant 0 to overwrite existing content
     const startQuant = state.isOverflowContinuation
       ? 0
-      : computeStartQuant(originalMeasure, sel.eventId, config.previousInsertedEventId);
+      : computeStartQuant(originalMeasure, sel.eventId);
     state.isOverflowContinuation = false; // Reset flag after use
 
     const capacity = getRemainingCapacity(originalMeasure, startQuant);
@@ -248,7 +227,7 @@ function executeInsertion(
       // Insert the event
       const eventId = createEventId();
       let insertedNoteId: string | null = null;
-      
+
       if (config.isRest) {
         dispatch(
           new AddEventCommand(
@@ -264,7 +243,11 @@ function executeInsertion(
         );
       } else {
         insertedNoteId = noteId();
-        const note = createNotePayload({ pitch: config.pitch!, tied: evt.tied, id: insertedNoteId });
+        const note = createNotePayload({
+          pitch: config.pitch!,
+          tied: evt.tied,
+          id: insertedNoteId,
+        });
         dispatch(
           new AddEventCommand(
             measureIndex,
@@ -279,19 +262,21 @@ function executeInsertion(
         );
       }
 
-      // FIX: Select the JUST-INSERTED event and note so chaining works
-      // (toggleTie, setTie, etc. need noteId to be set)
+      // ADVANCE CURSOR MODEL: Set cursor to the NEXT position after insertion
+      // This enables natural sequential chaining: addNote().addNote() appends
+      // If no next event exists, clear selection to trigger append mode on next insertion
+      const measureAfterEvent = getScore().staves[staffIndex].measures[measureIndex];
+      const nextEventIndex = insertIndex + 1;
+      const nextEvent = measureAfterEvent?.events[nextEventIndex];
+
       syncSelection({
         staffIndex,
         measureIndex,
-        eventId: eventId,
-        noteId: insertedNoteId,
+        eventId: nextEvent?.id ?? null,
+        noteId: nextEvent?.notes[0]?.id ?? null,
         selectedNotes: [],
         anchor: null,
       });
-
-      // Track the inserted event ID for cursor-advance detection
-      state.lastInsertedEventId = eventId;
 
       currentInsertQuant += evtQuants;
 
@@ -444,7 +429,7 @@ function executeInsertion(
 export const createEntryMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, EntryMethodNames> & ThisType<MusicEditorAPI> => {
-  const { getScore, getSelection, syncSelection, dispatch, setResult, lastInsertedEventIdRef } = ctx;
+  const { getScore, getSelection, syncSelection, dispatch, setResult } = ctx;
 
   return {
     addNote(pitch, duration = 'quarter', dotted = false, options = { mode: 'overwrite' }) {
@@ -470,11 +455,7 @@ export const createEntryMethods = (
           duration,
           dotted,
           mode: options.mode ?? 'overwrite',
-          previousInsertedEventId: lastInsertedEventIdRef.current,
         });
-
-        // Track for next sequential addNote call
-        lastInsertedEventIdRef.current = result.lastInsertedEventId;
 
         this.commitTransaction();
 
@@ -516,11 +497,7 @@ export const createEntryMethods = (
           duration,
           dotted,
           mode: options.mode ?? 'overwrite',
-          previousInsertedEventId: lastInsertedEventIdRef.current,
         });
-
-        // Track for next sequential addNote/addRest call
-        lastInsertedEventIdRef.current = result.lastInsertedEventId;
 
         this.commitTransaction();
 

@@ -263,7 +263,9 @@ describe('InsertEventCommand', () => {
       const afterUndo = command.undo(afterInsert);
 
       expect(afterUndo.staves[0].measures[0].events).toHaveLength(2);
-      expect(afterUndo.staves[0].measures[0].events.find((e) => e.id === 'to-remove')).toBeUndefined();
+      expect(
+        afterUndo.staves[0].measures[0].events.find((e) => e.id === 'to-remove')
+      ).toBeUndefined();
     });
 
     test('should restore original order after undo', () => {

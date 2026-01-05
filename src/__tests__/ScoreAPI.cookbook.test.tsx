@@ -180,18 +180,18 @@ describe('Cookbook: Entry Recipes', () => {
 
     act(() => {
       // Measure 1: C major chord
-      score.select(1).addNote('C4', 'half').addTone('E4').addTone('G4');
+      score.select(1).addNote('C4', 'half').move('left').addTone('E4').addTone('G4').move('right');
 
       // Same measure: F major (cursor auto-advances after addNote)
-      score.addNote('F4', 'half').addTone('A4').addTone('C5');
+      score.addNote('F4', 'half').move('left').addTone('A4').addTone('C5').move('right');
     });
 
     act(() => {
       // Measure 2: G major
-      score.select(2).addNote('G4', 'half').addTone('B4').addTone('D5');
+      score.select(2).addNote('G4', 'half').move('left').addTone('B4').addTone('D5').move('right');
 
       // Same measure: C major
-      score.addNote('C4', 'half').addTone('E4').addTone('G4');
+      score.addNote('C4', 'half').move('left').addTone('E4').addTone('G4').move('right');
     });
 
     const data = score.getScore();
@@ -283,7 +283,7 @@ describe('Cookbook: Editing Recipes', () => {
 
     // Change duration of the selected event
     act(() => {
-      score.setDuration('eighth', true);
+      score.move('left').setDuration('eighth', true);
     });
 
     const data = score.getScore();
@@ -548,14 +548,15 @@ describe('Cookbook: Integration Recipes', () => {
     const score = getAPI('cookbook-sync-selection');
 
     act(() => {
-      score.select(1, 0, 0);
+      score.select(1).addNote('C4').addNote('D4');
+      score.select(1, 0, 0); // Select first note
     });
 
     const callback = jest.fn();
     const unsub = score.on('selection', callback);
 
     act(() => {
-      score.move('right');
+      score.move('right'); // Move to second note
     });
 
     await waitFor(() => {

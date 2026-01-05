@@ -8,7 +8,7 @@
 import { render, act } from '@testing-library/react';
 import { RiffScore } from '../RiffScore';
 import type { MusicEditorAPI } from '../api.types';
-import { Note } from '../types';
+import type { Note } from '../types';
 
 const getAPI = (id: string): MusicEditorAPI => {
   return window.riffScore.get(id) as MusicEditorAPI;
@@ -33,12 +33,27 @@ describe('ScoreAPI Accidental Methods', () => {
   });
 
   describe('setAccidental', () => {
+    test('reports error when no note selected', () => {
+      render(<RiffScore id="acc-set-no-sel" />);
+      const api = getAPI('acc-set-no-sel');
+
+      act(() => {
+        api.setAccidental('sharp');
+      });
+
+      expect(api.result).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'NO_NOTE_SELECTED',
+      });
+    });
+
     test('sets accidental for selected note', () => {
       render(<RiffScore id="acc-set" />);
       const api = getAPI('acc-set');
 
       act(() => {
-        api.select(0).addNote('C4', 'quarter');
+        api.select(1).addNote('C4', 'quarter');
       });
 
       // By default, notes have no explicit accidental (follows key signature)
@@ -46,7 +61,7 @@ describe('ScoreAPI Accidental Methods', () => {
 
       // Select note
       act(() => {
-        api.select(0, 0, 0, 0);
+        api.select(1, 0, 0, 0);
       });
 
       // Set Sharp
@@ -68,7 +83,7 @@ describe('ScoreAPI Accidental Methods', () => {
 
       act(() => {
         // Measure 1: C4, D4
-        api.select(0).addNote('C4', 'quarter').addNote('D4', 'quarter');
+        api.select(1).addNote('C4', 'quarter').addNote('D4', 'quarter');
       });
 
       // Select both notes (simulate multi-select via array if possible, or selecting range)
@@ -95,13 +110,33 @@ describe('ScoreAPI Accidental Methods', () => {
   });
 
   describe('toggleAccidental', () => {
+    test('reports error when no note selected', () => {
+      render(<RiffScore id="acc-toggle-no-sel" />);
+      const api = getAPI('acc-toggle-no-sel');
+
+      act(() => {
+        api.toggleAccidental();
+      });
+
+      expect(api.result).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'NO_NOTE_SELECTED',
+      });
+    });
+
     test('cycles through accidentals (Sharp -> Flat -> Natural -> Null)', () => {
       render(<RiffScore id="acc-toggle" />);
       const api = getAPI('acc-toggle');
 
       act(() => {
-        api.select(0).addNote('C4', 'quarter');
-        api.select(0, 0, 0, 0);
+        api.select(1).addNote('C4', 'quarter');
+      });
+
+      // Advance cursor model means cursor is now AFTER the note.
+      // Must move left to select it for modification.
+      act(() => {
+        api.move('left');
       });
 
       // Initial state: no accidental (undefined). First toggle applies 'sharp'.

@@ -138,7 +138,7 @@ describe('Navigation - Horizontal Boundaries', () => {
     expect(afterMove.eventId).toBe('e1');
   });
 
-  test('move("right") at end of measure advances to next measure', () => {
+  test('move("right") at end of measure enters ghost mode if space remains', () => {
     render(
       <RiffScore id="nav-right-measure" config={configWithStaves(createGrandStaffStaves())} />
     );
@@ -148,14 +148,14 @@ describe('Navigation - Horizontal Boundaries', () => {
     api.select(1, 0, 1);
     expect(api.getSelection().eventId).toBe('e2-t');
 
-    // Move right - should go to first event of second measure
+    // Move right - should enter ghost mode in current measure (because it's not full)
     api.move('right');
     const afterMove = api.getSelection();
-    expect(afterMove.measureIndex).toBe(1);
-    expect(afterMove.eventId).toBe('e3-t');
+    expect(afterMove.measureIndex).toBe(0);
+    expect(afterMove.eventId).toBeNull();
   });
 
-  test('move("right") at end of score stays at last event', () => {
+  test('move("right") at end of score enters ghost append mode', () => {
     render(
       <RiffScore id="nav-right-boundary" config={configWithStaves(createGrandStaffStaves())} />
     );
@@ -165,10 +165,11 @@ describe('Navigation - Horizontal Boundaries', () => {
     api.select(2, 0, 0);
     expect(api.getSelection().eventId).toBe('e3-t');
 
-    // Move right - should stay at last event
+    // Move right - should move to append position
     api.move('right');
     const afterMove = api.getSelection();
-    expect(afterMove.eventId).toBe('e3-t');
+    expect(afterMove.eventId).toBeNull();
+    expect(afterMove.measureIndex).toBe(1);
   });
 
   test('move returns this for chaining', () => {
