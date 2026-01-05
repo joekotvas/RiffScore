@@ -324,7 +324,7 @@ describe('Cookbook: Editing Recipes', () => {
       score.setInputMode('rest');
     });
 
-    // In a real app, this would affect UI buttons. 
+    // In a real app, this would affect UI buttons.
     // Here we just verify it doesn't crash and returns the API for chaining.
     expect(score.ok).toBe(true);
   });

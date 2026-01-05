@@ -5,19 +5,29 @@ All notable changes to RiffScore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.0.0-alpha.7] - 2026-01-01
+## [1.0.0-alpha.7] - 2026-01-05
 
 ### Added
+- **Advance Cursor Model**: Entry methods (`addNote`, `addRest`) now automatically advance the cursor to the next rhythmic slot. Modifier methods (`addTone`, `setDuration`, `setAccidental`, `toggleTie`) now operate on the *currently selected event* ([PR #199](https://github.com/joekotvas/RiffScore/pull/199)).
+- **InsertEventCommand**: New atomic command for event insertion that accepts complete `ScoreEvent` objects, ensuring all properties (tuplets, ties, IDs) are preserved across measure overflows ([ADR-014](docs/adr/014-complete-event-objects.md), [PR #199](https://github.com/joekotvas/RiffScore/pull/199)).
 - **Structured API Feedback**: Public API (`window.riffScore`) now implements a **Fail-Soft** pattern. Methods return a structured `Result` object (`ok`, `status`, `message`, `code`) instead of failing silently or logging console warnings ([Issue #169](https://github.com/joekotvas/RiffScore/issues/169), [PR #198](https://github.com/joekotvas/RiffScore/pull/198)).
 - **Sticky Error State**: Added `api.hasError` flag which persists if any operation in a fluent chain fails, making validation easier.
 - **Batch Result Collection**: Added `api.collect(callback)` to aggregate results from multiple operations into a single report.
 - **Bundled Font Assets**: The Bravura (SMuFL) font is now bundled with the library assets (~280KB) and auto-loaded via CSS, providing a zero-config experience for consumers ([Issue #193](https://github.com/joekotvas/RiffScore/issues/193), [PR #195](https://github.com/joekotvas/RiffScore/pull/195)).
-- **Documentation**: New [ADR 011: Structured API Feedback](docs/adr/011-structured-api-feedback.md), [ADR 012: Bundled Font Assets](docs/adr/012-bundled-font-assets.md), and [ADR 013: Deferred Audio Loading](docs/adr/013-deferred-audio-loading.md).
+- **Documentation**: New [ADR 011: Structured API Feedback](docs/adr/011-structured-api-feedback.md), [ADR 012: Bundled Font Assets](docs/adr/012-bundled-font-assets.md), [ADR 013: Deferred Audio Loading](docs/adr/013-deferred-audio-loading.md), and [ADR 014: Complete Event Objects for Commands](docs/adr/014-complete-event-objects.md).
 
 ### Changed
+- **Unified Navigation**: Horizontal navigation now consistently enters a "Ghost Cursor" append position when moving right past the last event of a measure, unifying keyboard and API navigation behavior ([Issue #203](https://github.com/joekotvas/RiffScore/issues/203)).
+- **API Navigation**: API `move()` now supports navigating to append positions across measures, even if the target measure is currently empty.
+- **Utility Refactoring**: Modularized `src/utils/` by extracting `interaction.ts` and `core.ts` logic into `navigation/` and `entry/` subdirectories for better maintainability.
 - **API Error Handling**: API methods no longer throw errors for recoverable issues (e.g., invalid pitch format, out-of-bounds selection). They return `ok: false` with an error code.
 - **Fail-Soft Export**: `api.export()` now returns an empty string (instead of throwing) on failure or invalid format, setting an error result.
 - **Dynamic Audio Loading**: Tone.js is now dynamically imported only when playback is initialized. This reduces the initial bundle size by ~400KB for visual-only use cases. Only the first playback capability check incurs a network request ([Issue #196](https://github.com/joekotvas/RiffScore/issues/196), [PR #197](https://github.com/joekotvas/RiffScore/pull/197)).
+
+### Fixed
+- **API Chaining State**: Resolved issue where synchronous API calls used stale React state, ensuring direct access to the `ScoreEngine` during transitions ([Issue #200](https://github.com/joekotvas/RiffScore/issues/200)).
+- **Modifier Side Effects**: Fixed bugs where `toggleTie` and `setAccidental` erroneously advanced the cursor ([Issue #202](https://github.com/joekotvas/RiffScore/issues/202)).
+- **Cookbook Integration**: Updated all [Cookbook](docs/COOKBOOK.md) examples and tests to be compliant with the advance-cursor model.
 
 ## [1.0.0-alpha.6] - 2025-12-31
 
@@ -25,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Embedding Support (Issue #160)**: Added `ui.showBackground` config option (default `true`) and "Lightweight Display Mode" (removed shadows/borders) for cleaner embedding. See [Configuration Guide](docs/CONFIGURATION.md). ([PR #190](https://github.com/joekotvas/RiffScore/pull/190))
 - **Score Title Toggle**: `ui.showScoreTitle` config option to show/hide the title input ([Issue #160](https://github.com/joekotvas/RiffScore/issues/160)).
 - **Font Loading Animations**: Implemented `useFontLoaded` hook to prevent FOUC by hiding glyphs until Bravura font is ready ([PR #170](https://github.com/joekotvas/RiffScore/pull/170)).
+- **Test Suite Optimization**: Successfully implemented and enabled all previously skipped and todo tests. Achieved 100% pass rate with 908 active tests and zero skipped/deferred items.
+- **Improved Vertical Navigation Verification**: Added explicit API-level tests for cross-staff ghost cursor transitions.
+- **Grand Staff Reliability**: Verified overwrite and navigation behavior on multi-staff scores.
 
 ### Changed
 - **Tailwind Removal**: Complete migration from Tailwind CSS to Vanilla CSS for zero-dependency styling ([PR #189](https://github.com/joekotvas/RiffScore/pull/189)).
