@@ -3,7 +3,7 @@
  *
  * Manages chord track editing state and handlers. Selection state (chordId,
  * chordTrackFocused) lives in SelectionEngine, while editing state (editingChordId,
- * creatingAtQuant, initialValue) is local to this hook.
+ * creatingAt, initialValue) is local to this hook.
  *
  * Key design decisions:
  * - Selection state in SelectionEngine for single source of truth
@@ -19,6 +19,7 @@ import { Score, ChordSymbol } from '@/types';
 import { Command } from '@/commands/types';
 import { SelectionEngine } from '@/engines/SelectionEngine';
 import { AddChordCommand, UpdateChordCommand, RemoveChordCommand } from '@/commands/chord';
+import { ChordPosition } from '@/commands/chord/AddChordCommand';
 import { getValidChordQuants } from '@/services/ChordService';
 
 // ============================================================================
@@ -50,8 +51,8 @@ export interface ChordTrackEditingState {
   /** ID of chord currently being edited (null if not editing) */
   editingChordId: string | null;
 
-  /** Quant position where a new chord is being created (null if not creating) */
-  creatingAtQuant: number | null;
+  /** Position where a new chord is being created (null if not creating) */
+  creatingAt: ChordPosition | null;
 
   /** Initial value for the editing input (for cancel/restore) */
   initialValue: string | null;
@@ -73,11 +74,11 @@ export interface StartEditingOptions {
  */
 export interface UseChordTrackReturn {
   // --- Derived from score ---
-  /** All chords in the chord track (sorted by quant) */
+  /** All chords in the chord track (sorted by measure, then quant) */
   chords: ChordSymbol[];
 
-  /** Valid quant positions where chords can be placed */
-  validQuants: Set<number>;
+  /** Valid positions where chords can be placed (Map<measure, Set<quant>>) */
+  validPositions: Map<number, Set<number>>;
 
   // --- From SelectionEngine ---
   /** Currently selected chord ID (null if none) */
@@ -90,8 +91,8 @@ export interface UseChordTrackReturn {
   /** ID of chord currently being edited */
   editingChordId: string | null;
 
-  /** Quant position where a new chord is being created */
-  creatingAtQuant: number | null;
+  /** Position where a new chord is being created */
+  creatingAt: ChordPosition | null;
 
   /** Initial value for the editing input */
   initialValue: string | null;
@@ -105,10 +106,10 @@ export interface UseChordTrackReturn {
   startEditing: (chordId: string, options?: StartEditingOptions) => void;
 
   /**
-   * Start creating a new chord at a quant position.
-   * @param quant - Global quant position for the new chord
+   * Start creating a new chord at a position.
+   * @param position - Measure-local position for the new chord
    */
-  startCreating: (quant: number) => void;
+  startCreating: (position: ChordPosition) => void;
 
   /**
    * Complete the edit operation (create or update).
@@ -127,6 +128,11 @@ export interface UseChordTrackReturn {
    * @param chordId - ID of the chord to delete
    */
   deleteChord: (chordId: string) => void;
+
+  /**
+   * Check if a position is valid for chord placement.
+   */
+  isValidPosition: (position: ChordPosition) => boolean;
 }
 
 // ============================================================================
@@ -139,7 +145,7 @@ export interface UseChordTrackReturn {
  */
 const INITIAL_EDITING_STATE: ChordTrackEditingState = {
   editingChordId: null,
-  creatingAtQuant: null,
+  creatingAt: null,
   initialValue: null,
 };
 
@@ -152,7 +158,7 @@ const INITIAL_EDITING_STATE: ChordTrackEditingState = {
  *
  * Manages the interaction between:
  * - SelectionEngine (selection state: chordId, chordTrackFocused)
- * - Local state (editing state: editingChordId, creatingAtQuant, initialValue)
+ * - Local state (editing state: editingChordId, creatingAt, initialValue)
  * - ScoreEngine (score mutations via dispatch)
  *
  * @param props - Hook configuration
@@ -213,10 +219,18 @@ export const useChordTrack = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally narrow: only recompute when chordTrack changes
   }, [score.chordTrack]);
 
-  const validQuants = useMemo((): Set<number> => {
-    if (!score) return new Set();
+  const validPositions = useMemo((): Map<number, Set<number>> => {
+    if (!score) return new Map();
     return getValidChordQuants(score);
   }, [score]);
+
+  const isValidPosition = useCallback(
+    (position: ChordPosition): boolean => {
+      const measureQuants = validPositions.get(position.measure);
+      return measureQuants?.has(position.quant) ?? false;
+    },
+    [validPositions]
+  );
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 4. Actions
@@ -243,7 +257,7 @@ export const useChordTrack = ({
 
       setEditingState({
         editingChordId: chordId,
-        creatingAtQuant: null,
+        creatingAt: null,
         initialValue,
       });
     },
@@ -251,18 +265,18 @@ export const useChordTrack = ({
   );
 
   /**
-   * Start creating a new chord at a quant position.
+   * Start creating a new chord at a position.
    * Clears any existing chord selection (unified selection: can't have
    * a chord selected while creating a new one).
    */
   const startCreating = useCallback(
-    (quant: number) => {
+    (position: ChordPosition) => {
       // Clear any existing chord selection (creating is a separate state)
       selectionEngine.selectChord(null);
 
       setEditingState({
         editingChordId: 'new',
-        creatingAtQuant: quant,
+        creatingAt: position,
         initialValue: '',
       });
     },
@@ -285,15 +299,15 @@ export const useChordTrack = ({
       if (chordId) {
         // Update existing chord
         dispatch(new UpdateChordCommand(chordId, { symbol: trimmedValue }));
-      } else if (editingState.creatingAtQuant !== null) {
-        // Create new chord at quant position
-        dispatch(new AddChordCommand(editingState.creatingAtQuant, trimmedValue));
+      } else if (editingState.creatingAt !== null) {
+        // Create new chord at position
+        dispatch(new AddChordCommand(editingState.creatingAt, trimmedValue));
       }
 
       // Clear editing state
       setEditingState(INITIAL_EDITING_STATE);
     },
-    [dispatch, editingState.creatingAtQuant]
+    [dispatch, editingState.creatingAt]
   );
 
   /**
@@ -325,7 +339,7 @@ export const useChordTrack = ({
   return {
     // Derived from score
     chords,
-    validQuants,
+    validPositions,
 
     // From SelectionEngine
     selectedChordId,
@@ -333,7 +347,7 @@ export const useChordTrack = ({
 
     // Local editing state
     editingChordId: editingState.editingChordId,
-    creatingAtQuant: editingState.creatingAtQuant,
+    creatingAt: editingState.creatingAt,
     initialValue: editingState.initialValue,
 
     // Actions
@@ -342,5 +356,6 @@ export const useChordTrack = ({
     completeEdit,
     cancelEdit,
     deleteChord,
+    isValidPosition,
   };
 };
