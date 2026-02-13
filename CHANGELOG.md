@@ -5,6 +5,17 @@ All notable changes to RiffScore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0-alpha.9] - 2026-02-13
+
+### Added
+- **TypeScript Maintenance**: Added `typecheck` script to `package.json` for isolated TypeScript validation (`npm run typecheck`).
+
+### Fixed
+- **Playback Logic**: Resolved a critical bug where playback from selection used event indices instead of rhythmic quants, causing incorrect positioning in complex rhythms.
+- **Test Isolation**: Improved `generateScore.test.ts` to ensure consistent ID generation and true test isolation.
+- **Code Quality**: Eliminated redundant type definitions in the demo page by leveraging shared API types.
+- **Style Mock**: Cleaned up `styleMock.js` while maintaining ESLint compatibility.
+
 ## [1.0.0-alpha.8] - 2026-02-12
 
 ### Added
