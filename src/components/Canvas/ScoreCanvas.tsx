@@ -32,6 +32,8 @@ import { getChordVoicing } from '@/services/ChordService';
 import './styles/ScoreCanvas.css';
 import type { UseChordTrackReturn } from '@/hooks/chord/useChordTrack';
 
+import './styles/ScoreCanvas.css';
+
 interface ScoreCanvasProps {
   scale: number;
   playbackPosition?: { measureIndex: number | null; quant: number | null; duration: number };
