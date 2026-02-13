@@ -57,7 +57,7 @@
   flex-direction: column;
   align-items: center;
   /* Required for foreignObject in SVG - use XHTML namespace */
-  xmlns: "http://www.w3.org/1999/xhtml";
+  xmlns: 'http://www.w3.org/1999/xhtml';
 }
 
 .riff-ChordInput {

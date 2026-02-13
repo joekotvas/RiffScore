@@ -13,18 +13,20 @@ import type { ChordSymbol as ChordSymbolType, ChordDisplayConfig } from '@/types
 
 // Mock ChordService functions
 jest.mock('@/services/ChordService', () => ({
-  convertNotation: jest.fn((symbol: string, notation: string, _key: string, useSymbols: boolean) => {
-    // Simple mock: apply symbols for maj7 -> triangle
-    if (useSymbols && symbol.includes('maj7')) {
-      return symbol.replace('maj7', 'Δ7');
+  convertNotation: jest.fn(
+    (symbol: string, notation: string, _key: string, useSymbols: boolean) => {
+      // Simple mock: apply symbols for maj7 -> triangle
+      if (useSymbols && symbol.includes('maj7')) {
+        return symbol.replace('maj7', 'Δ7');
+      }
+      if (notation === 'roman') {
+        // Simple mock conversion
+        if (symbol === 'C') return 'I';
+        if (symbol === 'Am7') return 'vi7';
+      }
+      return symbol;
     }
-    if (notation === 'roman') {
-      // Simple mock conversion
-      if (symbol === 'C') return 'I';
-      if (symbol === 'Am7') return 'vi7';
-    }
-    return symbol;
-  }),
+  ),
   getAccessibleChordName: jest.fn((symbol: string) => {
     // Simple mock: expand chord names
     if (symbol === 'Cmaj7') return 'C major seventh';
@@ -115,12 +117,7 @@ describe('ChordSymbol', () => {
         </svg>
       );
 
-      expect(convertNotation).toHaveBeenCalledWith(
-        'Cmaj7',
-        'letter',
-        'C',
-        false
-      );
+      expect(convertNotation).toHaveBeenCalledWith('Cmaj7', 'letter', 'C', false);
     });
 
     it('converts to roman numerals when notation is roman', () => {
@@ -137,11 +134,7 @@ describe('ChordSymbol', () => {
 
       render(
         <svg>
-          <ChordSymbol
-            {...defaultProps}
-            chord={amChord}
-            displayConfig={romanConfig}
-          />
+          <ChordSymbol {...defaultProps} chord={amChord} displayConfig={romanConfig} />
         </svg>
       );
 

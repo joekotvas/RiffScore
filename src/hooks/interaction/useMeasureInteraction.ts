@@ -71,7 +71,8 @@ export function useMeasureInteraction({
       // Y is relative to measure bounding box (hit area).
       // MEASURE_HIT_AREA_TOP_OFFSET is the distance from hit area top to first staff line,
       // derived from OUTER_ZONE_LINES to ensure we cover all valid ledger line positions.
-      const yOffset = Math.round((y - MEASURE_HIT_AREA_TOP_OFFSET) / MOUSE_OFFSET_SNAP) * MOUSE_OFFSET_SNAP;
+      const yOffset =
+        Math.round((y - MEASURE_HIT_AREA_TOP_OFFSET) / MOUSE_OFFSET_SNAP) * MOUSE_OFFSET_SNAP;
 
       // Check visual limits
       // Default: 4 ledger lines above/below.
@@ -103,16 +104,7 @@ export function useMeasureInteraction({
         setCursorStyle('crosshair');
       }
     },
-    [
-      isNoteHovered,
-      hitZones,
-      clef,
-      scale,
-      mouseLimits,
-      measureIndex,
-      hoveredMeasure,
-      onHover,
-    ]
+    [isNoteHovered, hitZones, clef, scale, mouseLimits, measureIndex, hoveredMeasure, onHover]
   );
 
   const handleMeasureMouseLeave = useCallback(() => {

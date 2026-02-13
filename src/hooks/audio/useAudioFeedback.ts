@@ -8,8 +8,8 @@
  * @tested src/__tests__/hooks/audio/useAudioFeedback.test.ts
  */
 
-import { useCallback } from "react";
-import { playNote } from "@/engines/toneEngine";
+import { useCallback } from 'react';
+import { playNote } from '@/engines/toneEngine';
 
 /**
  * Shape of a note that can provide audio feedback.

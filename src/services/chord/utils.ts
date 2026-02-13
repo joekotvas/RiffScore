@@ -48,9 +48,7 @@ export const isAugmentedChord = (symbol: string): boolean => {
 /**
  * Parse a key signature to extract root and mode.
  */
-export const parseKeySignature = (
-  keySignature: string
-): { keyRoot: string; isMinor: boolean } => {
+export const parseKeySignature = (keySignature: string): { keyRoot: string; isMinor: boolean } => {
   const isMinor = keySignature.includes('m') && !keySignature.includes('maj');
   const keyRoot = isMinor ? keySignature.replace('m', '') : keySignature;
   return { keyRoot, isMinor };
@@ -62,9 +60,7 @@ export const parseKeySignature = (
  */
 export const getScaleForKey = (keySignature: string): readonly string[] => {
   const { keyRoot, isMinor } = parseKeySignature(keySignature);
-  return isMinor
-    ? Key.minorKey(keyRoot).natural.scale
-    : Key.majorKey(keyRoot).scale;
+  return isMinor ? Key.minorKey(keyRoot).natural.scale : Key.majorKey(keyRoot).scale;
 };
 
 // ============================================================================

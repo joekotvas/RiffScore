@@ -9,7 +9,13 @@
 import { Chord, Note } from 'tonal';
 import type { ChordNotation } from './types';
 import { ROMAN_NUMERALS, ROMAN_TO_DEGREE, SOLFEGE_MAP } from './constants';
-import { getScaleForKey, parseKeySignature, isMinorChord, isDiminishedChord, isAugmentedChord } from './utils';
+import {
+  getScaleForKey,
+  parseKeySignature,
+  isMinorChord,
+  isDiminishedChord,
+  isAugmentedChord,
+} from './utils';
 
 // ============================================================================
 // SCALE DEGREE HELPERS
@@ -46,10 +52,21 @@ export const getScaleDegree = (root: string, keySignature: string): number => {
   // Fallback to chromatic calculation
   const keyMidi = Note.midi(keyRoot + '4') || 60;
   const noteMidi = Note.midi(pc + '4') || 60;
-  const semitones = ((noteMidi - keyMidi) % 12 + 12) % 12;
+  const semitones = (((noteMidi - keyMidi) % 12) + 12) % 12;
 
   const degreeMap: Record<number, number> = {
-    0: 1, 1: 1, 2: 2, 3: 2, 4: 3, 5: 4, 6: 4, 7: 5, 8: 5, 9: 6, 10: 7, 11: 7,
+    0: 1,
+    1: 1,
+    2: 2,
+    3: 2,
+    4: 3,
+    5: 4,
+    6: 4,
+    7: 5,
+    8: 5,
+    9: 6,
+    10: 7,
+    11: 7,
   };
   return degreeMap[semitones];
 };
@@ -275,11 +292,7 @@ export const toFixedDo = (symbol: string, useSymbols: boolean): string => {
 /**
  * Convert canonical chord to movable-do solfege.
  */
-export const toMovableDo = (
-  symbol: string,
-  keySignature: string,
-  _useSymbols: boolean
-): string => {
+export const toMovableDo = (symbol: string, keySignature: string, _useSymbols: boolean): string => {
   const parsed = Chord.get(symbol.split('/')[0]);
   if (!parsed.tonic) return symbol;
 

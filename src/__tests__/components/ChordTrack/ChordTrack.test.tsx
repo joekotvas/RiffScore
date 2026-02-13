@@ -46,7 +46,7 @@ beforeAll(() => {
   // Mock createSVGPoint for SVGSVGElement
   // Note: Uses the mutable mockClientX/mockClientY which are reset in beforeEach
   Object.defineProperty(SVGSVGElement.prototype, 'createSVGPoint', {
-    value: function() {
+    value: function () {
       return {
         x: mockClientX,
         y: mockClientY,
@@ -91,8 +91,10 @@ jest.mock('@/components/Canvas/ChordTrack/ChordInput', () => ({
           if (e.key === 'Enter') onComplete(e.currentTarget.value);
           if (e.key === 'Escape') onCancel();
           if (e.key === 'Delete' && onDelete) onDelete();
-          if (e.key === 'Tab' && !e.shiftKey && onNavigateNext) onNavigateNext(e.currentTarget.value);
-          if (e.key === 'Tab' && e.shiftKey && onNavigatePrevious) onNavigatePrevious(e.currentTarget.value);
+          if (e.key === 'Tab' && !e.shiftKey && onNavigateNext)
+            onNavigateNext(e.currentTarget.value);
+          if (e.key === 'Tab' && e.shiftKey && onNavigatePrevious)
+            onNavigatePrevious(e.currentTarget.value);
         }}
       />
     </foreignObject>
@@ -260,11 +262,7 @@ describe('ChordTrack', () => {
 
       render(
         <svg data-testid="test-svg">
-          <ChordTrack
-            {...defaultProps}
-            onChordClick={onChordClick}
-            onChordSelect={onChordSelect}
-          />
+          <ChordTrack {...defaultProps} onChordClick={onChordClick} onChordSelect={onChordSelect} />
         </svg>
       );
 
@@ -284,11 +282,7 @@ describe('ChordTrack', () => {
 
       render(
         <svg data-testid="test-svg">
-          <ChordTrack
-            {...defaultProps}
-            onChordClick={onChordClick}
-            onChordSelect={onChordSelect}
-          />
+          <ChordTrack {...defaultProps} onChordClick={onChordClick} onChordSelect={onChordSelect} />
         </svg>
       );
 
@@ -312,11 +306,7 @@ describe('ChordTrack', () => {
 
       render(
         <svg data-testid="test-svg">
-          <ChordTrack
-            {...defaultProps}
-            validQuants={validQuants}
-            onEmptyClick={onEmptyClick}
-          />
+          <ChordTrack {...defaultProps} validQuants={validQuants} onEmptyClick={onEmptyClick} />
         </svg>
       );
 
@@ -392,11 +382,7 @@ describe('ChordTrack', () => {
     it('uses initialValue prop when provided for editing', () => {
       render(
         <svg>
-          <ChordTrack
-            {...defaultProps}
-            editingChordId="chord-2"
-            initialValue="G"
-          />
+          <ChordTrack {...defaultProps} editingChordId="chord-2" initialValue="G" />
         </svg>
       );
 
@@ -407,11 +393,7 @@ describe('ChordTrack', () => {
     it('shows ChordInput for new chord creation', () => {
       render(
         <svg>
-          <ChordTrack
-            {...defaultProps}
-            editingChordId="new"
-            creatingAtQuant={72}
-          />
+          <ChordTrack {...defaultProps} editingChordId="new" creatingAtQuant={72} />
         </svg>
       );
 
@@ -423,11 +405,7 @@ describe('ChordTrack', () => {
     it('passes empty string as initialValue for new chord', () => {
       render(
         <svg>
-          <ChordTrack
-            {...defaultProps}
-            editingChordId="new"
-            creatingAtQuant={72}
-          />
+          <ChordTrack {...defaultProps} editingChordId="new" creatingAtQuant={72} />
         </svg>
       );
 
@@ -442,11 +420,7 @@ describe('ChordTrack', () => {
 
       render(
         <svg>
-          <ChordTrack
-            {...defaultProps}
-            editingChordId="chord-1"
-            onEditComplete={onEditComplete}
-          />
+          <ChordTrack {...defaultProps} editingChordId="chord-1" onEditComplete={onEditComplete} />
         </svg>
       );
 
@@ -483,11 +457,7 @@ describe('ChordTrack', () => {
 
       render(
         <svg>
-          <ChordTrack
-            {...defaultProps}
-            editingChordId="chord-1"
-            onEditCancel={onEditCancel}
-          />
+          <ChordTrack {...defaultProps} editingChordId="chord-1" onEditCancel={onEditCancel} />
         </svg>
       );
 
@@ -502,11 +472,7 @@ describe('ChordTrack', () => {
 
       render(
         <svg>
-          <ChordTrack
-            {...defaultProps}
-            editingChordId="chord-1"
-            onDelete={onDelete}
-          />
+          <ChordTrack {...defaultProps} editingChordId="chord-1" onDelete={onDelete} />
         </svg>
       );
 
@@ -521,11 +487,7 @@ describe('ChordTrack', () => {
 
       render(
         <svg>
-          <ChordTrack
-            {...defaultProps}
-            editingChordId="chord-1"
-            onNavigateNext={onNavigateNext}
-          />
+          <ChordTrack {...defaultProps} editingChordId="chord-1" onNavigateNext={onNavigateNext} />
         </svg>
       );
 

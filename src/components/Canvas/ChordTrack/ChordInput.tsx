@@ -173,12 +173,7 @@ export const ChordInput = memo(function ChordInput({
           spellCheck={false}
         />
         {error && (
-          <div
-            id={errorId}
-            className="riff-ChordInput__error"
-            role="alert"
-            aria-live="polite"
-          >
+          <div id={errorId} className="riff-ChordInput__error" role="alert" aria-live="polite">
             {error}
           </div>
         )}

@@ -65,7 +65,12 @@ const parseChordForMusicXML = (
     kind = 'major';
   }
 
-  const result: { root: string; alter: number; kind: string; bass?: { step: string; alter: number } } = {
+  const result: {
+    root: string;
+    alter: number;
+    kind: string;
+    bass?: { step: string; alter: number };
+  } = {
     root: rootStep,
     alter: rootAlter,
     kind,
@@ -95,16 +100,24 @@ const generateHarmonyElement = (chord: ChordSymbol): string => {
   let xml = `
     <harmony>
       <root>
-        <root-step>${parsed.root}</root-step>${parsed.alter !== 0 ? `
-        <root-alter>${parsed.alter}</root-alter>` : ''}
+        <root-step>${parsed.root}</root-step>${
+          parsed.alter !== 0
+            ? `
+        <root-alter>${parsed.alter}</root-alter>`
+            : ''
+        }
       </root>
       <kind>${parsed.kind}</kind>`;
 
   if (parsed.bass) {
     xml += `
       <bass>
-        <bass-step>${parsed.bass.step}</bass-step>${parsed.bass.alter !== 0 ? `
-        <bass-alter>${parsed.bass.alter}</bass-alter>` : ''}
+        <bass-step>${parsed.bass.step}</bass-step>${
+          parsed.bass.alter !== 0
+            ? `
+        <bass-alter>${parsed.bass.alter}</bass-alter>`
+            : ''
+        }
       </bass>`;
   }
 

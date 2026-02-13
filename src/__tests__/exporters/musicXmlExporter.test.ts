@@ -164,9 +164,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports basic major chord as harmony element', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'C' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'C' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<harmony>');
@@ -176,9 +174,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports minor chord correctly', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'Am' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'Am' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>A</root-step>');
@@ -186,9 +182,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports dominant seventh chord correctly', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'G7' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'G7' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>G</root-step>');
@@ -196,9 +190,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports major seventh chord correctly', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'Cmaj7' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'Cmaj7' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>C</root-step>');
@@ -206,9 +198,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports minor seventh chord correctly', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'Dm7' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'Dm7' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>D</root-step>');
@@ -216,9 +206,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports diminished chord correctly', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'Bdim' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'Bdim' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>B</root-step>');
@@ -226,9 +214,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports augmented chord correctly', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'Caug' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'Caug' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>C</root-step>');
@@ -236,9 +222,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports half-diminished chord correctly', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'Bm7b5' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'Bm7b5' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>B</root-step>');
@@ -246,9 +230,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports suspended fourth chord correctly', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'Dsus4' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'Dsus4' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>D</root-step>');
@@ -256,9 +238,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports suspended second chord correctly', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'Gsus2' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'Gsus2' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>G</root-step>');
@@ -266,9 +246,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports sharp root note with root-alter', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'F#m' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'F#m' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>F</root-step>');
@@ -277,9 +255,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports flat root note with root-alter', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'Bb7' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'Bb7' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>B</root-step>');
@@ -288,9 +264,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports slash chord with bass element', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'C/E' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'C/E' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>C</root-step>');
@@ -301,9 +275,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('exports slash chord with accidental bass note', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'Am/G#' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'Am/G#' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>A</root-step>');
@@ -313,9 +285,7 @@ describe('MusicXML Chord Symbol Export', () => {
 
   it('places harmony element before note at correct quant position', () => {
     // Chord at quant 16 (second quarter note)
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 16, symbol: 'G' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 16, symbol: 'G' }]);
     const xml = generateMusicXML(score);
 
     // Harmony should appear in the XML
@@ -407,9 +377,7 @@ describe('MusicXML Chord Symbol Export', () => {
   });
 
   it('omits root-alter when root has no accidental', () => {
-    const score = createScoreWithChords([
-      { id: 'chord-1', quant: 0, symbol: 'C' },
-    ]);
+    const score = createScoreWithChords([{ id: 'chord-1', quant: 0, symbol: 'C' }]);
     const xml = generateMusicXML(score);
 
     expect(xml).toContain('<root-step>C</root-step>');

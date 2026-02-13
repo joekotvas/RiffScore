@@ -469,16 +469,10 @@ export const calculateVerticalNavigation = (
 
   // 4. At staff boundary - check for chord track navigation on DOWN cycle
   // When going DOWN from the last staff, cycle to chord track if chord exists
-  if (
-    direction === 'down' &&
-    staffIndex === score.staves.length - 1 &&
-    score.chordTrack?.length
-  ) {
+  if (direction === 'down' && staffIndex === score.staves.length - 1 && score.chordTrack?.length) {
     // Check if we're at the bottom note
     const isAtBottomNote =
-      sortedNotes.length <= 1 ||
-      !selection.noteId ||
-      sortedNotes[0]?.id === selection.noteId;
+      sortedNotes.length <= 1 || !selection.noteId || sortedNotes[0]?.id === selection.noteId;
 
     if (isAtBottomNote) {
       // Calculate global quant for current position

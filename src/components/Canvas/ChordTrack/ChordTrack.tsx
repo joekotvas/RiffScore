@@ -199,90 +199,99 @@ export const ChordTrack = memo(function ChordTrack({
    * Note: In most cases, system-level collision handles all notes uniformly.
    * Per-chord collision is a safety net for edge cases.
    */
-  const getChordYOffset = useCallback((quant: number): number => {
-    const noteY = noteYByQuant.get(quant);
-    if (noteY === undefined) return 0;
+  const getChordYOffset = useCallback(
+    (quant: number): number => {
+      const noteY = noteYByQuant.get(quant);
+      if (noteY === undefined) return 0;
 
-    // The chord should be PADDING_ABOVE_NOTES pixels above the note
-    const idealChordY = noteY - collisionConfig.PADDING_ABOVE_NOTES;
+      // The chord should be PADDING_ABOVE_NOTES pixels above the note
+      const idealChordY = noteY - collisionConfig.PADDING_ABOVE_NOTES;
 
-    // If the ideal position is above the track baseline, return the offset
-    // (negative = move up in SVG coordinates)
-    if (idealChordY < trackY) {
-      // Clamp to PER_CHORD_MIN_Y (can go all the way to 0 for extreme cases)
-      const clampedY = Math.max(collisionConfig.PER_CHORD_MIN_Y, idealChordY);
-      return clampedY - trackY;
-    }
-
-    return 0;
-  }, [noteYByQuant, collisionConfig, trackY]);
-
-  const handleTrackClick = useCallback((e: React.MouseEvent<SVGRectElement>) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    const svg = e.currentTarget.ownerSVGElement;
-    if (!svg) return;
-
-    // Use the parent group's CTM to account for transforms (e.g., leftMargin translate)
-    const parentGroup = e.currentTarget.parentElement as SVGGraphicsElement | null;
-    const ctm = parentGroup?.getScreenCTM() ?? svg.getScreenCTM();
-
-    const pt = svg.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
-
-    const svgP = pt.matrixTransform(ctm?.inverse());
-    const x = svgP.x;
-
-    const quant = xToNearestQuant(x, validQuants, quantToX);
-
-    if (quant !== null) {
-      const existingChord = chords.find((c) => c.quant === quant);
-      if (existingChord) {
-        // CMD/CTRL+click selects without editing
-        if (e.metaKey || e.ctrlKey) {
-          onChordSelect(existingChord.id);
-        } else {
-          onChordClick(existingChord.id);
-        }
-      } else {
-        onEmptyClick(quant);
+      // If the ideal position is above the track baseline, return the offset
+      // (negative = move up in SVG coordinates)
+      if (idealChordY < trackY) {
+        // Clamp to PER_CHORD_MIN_Y (can go all the way to 0 for extreme cases)
+        const clampedY = Math.max(collisionConfig.PER_CHORD_MIN_Y, idealChordY);
+        return clampedY - trackY;
       }
-    }
-  }, [validQuants, quantToX, chords, onChordClick, onChordSelect, onEmptyClick]);
 
-  const handleTrackMouseMove = useCallback((e: React.MouseEvent<SVGGElement>) => {
-    const svg = e.currentTarget.ownerSVGElement;
-    if (!svg) return;
+      return 0;
+    },
+    [noteYByQuant, collisionConfig, trackY]
+  );
 
-    // Use the element's CTM to account for transforms (e.g., leftMargin translate)
-    const ctm = (e.currentTarget as SVGGraphicsElement).getScreenCTM() ?? svg.getScreenCTM();
+  const handleTrackClick = useCallback(
+    (e: React.MouseEvent<SVGRectElement>) => {
+      e.stopPropagation();
+      e.preventDefault();
 
-    const pt = svg.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
+      const svg = e.currentTarget.ownerSVGElement;
+      if (!svg) return;
 
-    const svgP = pt.matrixTransform(ctm?.inverse());
-    const x = svgP.x;
+      // Use the parent group's CTM to account for transforms (e.g., leftMargin translate)
+      const parentGroup = e.currentTarget.parentElement as SVGGraphicsElement | null;
+      const ctm = parentGroup?.getScreenCTM() ?? svg.getScreenCTM();
 
-    const quant = xToNearestQuant(x, validQuants, quantToX);
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
 
-    if (quant !== null) {
-      const existingChord = chords.find((c) => c.quant === quant);
-      setHoveredChordId(existingChord?.id ?? null);
-      // Show preview at empty valid positions (not over existing chords)
-      setPreviewQuant(existingChord ? null : quant);
-      // Show pointer when CMD/CTRL is held over a chord (selection mode)
-      // Show text cursor otherwise (edit mode)
-      const hasMetaKey = e.metaKey || e.ctrlKey;
-      setCursorStyle(existingChord && hasMetaKey ? 'pointer' : 'text');
-    } else {
-      setHoveredChordId(null);
-      setPreviewQuant(null);
-      setCursorStyle('default');
-    }
-  }, [validQuants, quantToX, chords]);
+      const svgP = pt.matrixTransform(ctm?.inverse());
+      const x = svgP.x;
+
+      const quant = xToNearestQuant(x, validQuants, quantToX);
+
+      if (quant !== null) {
+        const existingChord = chords.find((c) => c.quant === quant);
+        if (existingChord) {
+          // CMD/CTRL+click selects without editing
+          if (e.metaKey || e.ctrlKey) {
+            onChordSelect(existingChord.id);
+          } else {
+            onChordClick(existingChord.id);
+          }
+        } else {
+          onEmptyClick(quant);
+        }
+      }
+    },
+    [validQuants, quantToX, chords, onChordClick, onChordSelect, onEmptyClick]
+  );
+
+  const handleTrackMouseMove = useCallback(
+    (e: React.MouseEvent<SVGGElement>) => {
+      const svg = e.currentTarget.ownerSVGElement;
+      if (!svg) return;
+
+      // Use the element's CTM to account for transforms (e.g., leftMargin translate)
+      const ctm = (e.currentTarget as SVGGraphicsElement).getScreenCTM() ?? svg.getScreenCTM();
+
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+
+      const svgP = pt.matrixTransform(ctm?.inverse());
+      const x = svgP.x;
+
+      const quant = xToNearestQuant(x, validQuants, quantToX);
+
+      if (quant !== null) {
+        const existingChord = chords.find((c) => c.quant === quant);
+        setHoveredChordId(existingChord?.id ?? null);
+        // Show preview at empty valid positions (not over existing chords)
+        setPreviewQuant(existingChord ? null : quant);
+        // Show pointer when CMD/CTRL is held over a chord (selection mode)
+        // Show text cursor otherwise (edit mode)
+        const hasMetaKey = e.metaKey || e.ctrlKey;
+        setCursorStyle(existingChord && hasMetaKey ? 'pointer' : 'text');
+      } else {
+        setHoveredChordId(null);
+        setPreviewQuant(null);
+        setCursorStyle('default');
+      }
+    },
+    [validQuants, quantToX, chords]
+  );
 
   const handleTrackMouseLeave = useCallback(() => {
     setHoveredChordId(null);
@@ -296,9 +305,11 @@ export const ChordTrack = memo(function ChordTrack({
   }, []);
 
   // Calculate track width based on measure positions
-  const trackWidth = measurePositions.length > 0
-    ? measurePositions[measurePositions.length - 1].x + measurePositions[measurePositions.length - 1].width
-    : 800;
+  const trackWidth =
+    measurePositions.length > 0
+      ? measurePositions[measurePositions.length - 1].x +
+        measurePositions[measurePositions.length - 1].width
+      : 800;
 
   // Pre-compute chord positions to avoid recalculating on every render
   const chordPositions = useMemo(() => {
@@ -394,7 +405,6 @@ export const ChordTrack = memo(function ChordTrack({
           </text>
         </g>
       )}
-
     </g>
   );
 });

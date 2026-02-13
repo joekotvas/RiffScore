@@ -16,12 +16,12 @@ jest.mock('@/services/ChordService', () => ({
   parseChord: jest.fn((input: string) => {
     // Valid chords
     const validChords: Record<string, string> = {
-      'C': 'C',
-      'Cmaj7': 'Cmaj7',
-      'Am7': 'Am7',
-      'G7': 'G7',
-      'Dm': 'Dm',
-      'F': 'F',
+      C: 'C',
+      Cmaj7: 'Cmaj7',
+      Am7: 'Am7',
+      G7: 'G7',
+      Dm: 'Dm',
+      F: 'F',
     };
 
     const trimmed = input.trim();
@@ -217,11 +217,7 @@ describe('ChordInput', () => {
 
       render(
         <svg>
-          <ChordInput
-            {...defaultProps}
-            onComplete={onComplete}
-            onCancel={onCancel}
-          />
+          <ChordInput {...defaultProps} onComplete={onComplete} onCancel={onCancel} />
         </svg>
       );
 
@@ -364,11 +360,7 @@ describe('ChordInput', () => {
 
       render(
         <svg>
-          <ChordInput
-            {...defaultProps}
-            onComplete={onComplete}
-            onCancel={onCancel}
-          />
+          <ChordInput {...defaultProps} onComplete={onComplete} onCancel={onCancel} />
         </svg>
       );
 

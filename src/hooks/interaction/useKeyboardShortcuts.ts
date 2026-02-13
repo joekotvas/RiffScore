@@ -1,16 +1,16 @@
-import { useEffect, useCallback, useRef } from "react";
-import { handlePlayback } from "../handlers/handlePlayback";
-import { handleNavigation } from "../handlers/handleNavigation";
-import { handleMutation } from "../handlers/handleMutation";
-import { getActiveStaff, ScoreEvent, Note, SelectedNote } from "@/types";
-import { UseScoreLogicGroupedReturn } from "@/hooks/score/types";
-import { UsePlaybackReturn } from "../audio";
+import { useEffect, useCallback, useRef } from 'react';
+import { handlePlayback } from '../handlers/handlePlayback';
+import { handleNavigation } from '../handlers/handleNavigation';
+import { handleMutation } from '../handlers/handleMutation';
+import { getActiveStaff, ScoreEvent, Note, SelectedNote } from '@/types';
+import { UseScoreLogicGroupedReturn } from '@/hooks/score/types';
+import { UsePlaybackReturn } from '../audio';
 import {
   SelectAllInEventCommand,
   ClearSelectionCommand,
   SelectAllCommand,
   ExtendSelectionVerticallyCommand,
-} from "@/commands/selection";
+} from '@/commands/selection';
 
 /**
  * Hook to handle global keyboard shortcuts.
@@ -31,7 +31,7 @@ interface UIState {
 
 interface ChordTrackHandlers {
   /** Navigate to next/previous valid chord position and start editing */
-  navigateAndEdit?: (direction: "next" | "previous") => void;
+  navigateAndEdit?: (direction: 'next' | 'previous') => void;
   /** ESC from selected chord - return focus to topmost note at chord's quant */
   escapeToNotes?: () => void;
 }
@@ -79,9 +79,9 @@ export const useKeyboardShortcuts = (
   // ─────────────────────────────────────────────────────────────────────────────
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      const tagName = (e.target as HTMLElement).tagName?.toLowerCase() || "";
-      if (tagName === "input" || tagName === "textarea") {
-        if (e.key === "Enter" && isEditingTitle) {
+      const tagName = (e.target as HTMLElement).tagName?.toLowerCase() || '';
+      if (tagName === 'input' || tagName === 'textarea') {
+        if (e.key === 'Enter' && isEditingTitle) {
           e.preventDefault();
           handleTitleCommit();
         }
@@ -101,7 +101,7 @@ export const useKeyboardShortcuts = (
         }
       }
 
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault(); // Prevent default browser behavior for Escape key
 
         // First priority: Pause playback if playing
@@ -118,7 +118,11 @@ export const useKeyboardShortcuts = (
         }
 
         // ESC from selected chord - return focus to topmost note at chord's quant
-        if (selection.chordTrackFocused && selection.chordId && chordTrackRef.current?.escapeToNotes) {
+        if (
+          selection.chordTrackFocused &&
+          selection.chordId &&
+          chordTrackRef.current?.escapeToNotes
+        ) {
           chordTrackRef.current.escapeToNotes();
           return;
         }
@@ -161,7 +165,7 @@ export const useKeyboardShortcuts = (
       }
 
       // Cmd/Ctrl+A: Select all with progressive expansion
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         selectionEngine.dispatch(
           new SelectAllCommand({
@@ -177,10 +181,10 @@ export const useKeyboardShortcuts = (
       if (
         (e.metaKey || e.ctrlKey) &&
         e.shiftKey &&
-        (e.key === "ArrowUp" || e.key === "ArrowDown")
+        (e.key === 'ArrowUp' || e.key === 'ArrowDown')
       ) {
         e.preventDefault();
-        const direction = e.key === "ArrowUp" ? "up" : "down";
+        const direction = e.key === 'ArrowUp' ? 'up' : 'down';
         selectionEngine.dispatch(new ExtendSelectionVerticallyCommand({ direction }));
         return;
       }
@@ -189,14 +193,14 @@ export const useKeyboardShortcuts = (
       if (handlePlayback(e, playback, selection, score)) return;
 
       // 1.5. Tab navigation for chord track (selected chord -> navigate and edit next/previous)
-      if (e.key === "Tab" && selection.chordTrackFocused && selection.chordId) {
+      if (e.key === 'Tab' && selection.chordTrackFocused && selection.chordId) {
         e.preventDefault();
         if (chordTrackRef.current?.navigateAndEdit) {
           // Navigate to next/previous valid position and start editing
-          chordTrackRef.current.navigateAndEdit(e.shiftKey ? "previous" : "next");
+          chordTrackRef.current.navigateAndEdit(e.shiftKey ? 'previous' : 'next');
         } else {
           // Fallback: just navigate between existing chords
-          moveSelection(e.shiftKey ? "left" : "right", false);
+          moveSelection(e.shiftKey ? 'left' : 'right', false);
         }
         return;
       }
@@ -223,8 +227,8 @@ export const useKeyboardShortcuts = (
   );
 
   useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
   return handleKeyDown;

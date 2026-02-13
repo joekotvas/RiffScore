@@ -247,12 +247,15 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   );
 
   // Chord track collision avoidance constants
-  const CHORD_COLLISION = useMemo(() => ({
-    MIN_DISTANCE_FROM_STAFF: 28, // Minimum gap above staff top line
-    PADDING_ABOVE_NOTES: 20, // Gap between highest note and chord track
-    MIN_Y: 30, // System baseline won't go higher than this
-    PER_CHORD_MIN_Y: 0, // Individual chords can go all the way to top
-  }), []);
+  const CHORD_COLLISION = useMemo(
+    () => ({
+      MIN_DISTANCE_FROM_STAFF: 28, // Minimum gap above staff top line
+      PADDING_ABOVE_NOTES: 20, // Gap between highest note and chord track
+      MIN_Y: 30, // System baseline won't go higher than this
+      PER_CHORD_MIN_Y: 0, // Individual chords can go all the way to top
+    }),
+    []
+  );
 
   // Build a map of quant -> highest note Y at that quant position
   // Used for per-chord collision avoidance
@@ -393,7 +396,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
           const maxQuant = mIdx === measureIndex ? localQuant : quantsPerMeasure;
           let currentQuant = 0;
-          let lastValidEvent: { event: typeof measure.events[0]; quant: number } | null = null;
+          let lastValidEvent: { event: (typeof measure.events)[0]; quant: number } | null = null;
 
           for (const event of measure.events) {
             if (currentQuant < maxQuant && !event.isRest && event.notes?.length) {
@@ -408,7 +411,12 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               const midiB = b.pitch ? (Note.midi(b.pitch) ?? 0) : 0;
               return midiB - midiA;
             });
-            handleNoteSelection(mIdx, lastValidEvent.event.id, sortedNotes[0]?.id || null, staffIdx);
+            handleNoteSelection(
+              mIdx,
+              lastValidEvent.event.id,
+              sortedNotes[0]?.id || null,
+              staffIdx
+            );
             return true;
           }
         }

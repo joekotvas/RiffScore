@@ -54,10 +54,7 @@ export const getValidChordQuants = (score: Score): Set<number> => {
  * @param updatedScore - Score after the change
  * @returns Array of orphaned chord IDs
  */
-export const findOrphanedChords = (
-  currentScore: Score,
-  updatedScore: Score
-): string[] => {
+export const findOrphanedChords = (currentScore: Score, updatedScore: Score): string[] => {
   if (!currentScore.chordTrack?.length) return [];
 
   const newValidQuants = getValidChordQuants(updatedScore);
@@ -74,10 +71,7 @@ export const findOrphanedChords = (
  * @param orphanedIds - IDs of chords to remove
  * @returns Score with orphaned chords removed
  */
-export const removeOrphanedChords = (
-  score: Score,
-  orphanedIds: string[]
-): Score => {
+export const removeOrphanedChords = (score: Score, orphanedIds: string[]): Score => {
   if (!orphanedIds.length || !score.chordTrack) return score;
 
   return {

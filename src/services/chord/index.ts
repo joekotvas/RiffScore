@@ -40,11 +40,7 @@ export {
 } from './utils';
 
 // Parser
-export {
-  detectNotation,
-  parseChord,
-  normalizeChordSymbol,
-} from './ChordParser';
+export { detectNotation, parseChord, normalizeChordSymbol } from './ChordParser';
 
 // Notation Converter
 export {
@@ -67,8 +63,4 @@ export { getChordVoicing } from './ChordVoicing';
 export { getAccessibleChordName } from './ChordAccessibility';
 
 // Quants
-export {
-  getValidChordQuants,
-  findOrphanedChords,
-  removeOrphanedChords,
-} from './ChordQuants';
+export { getValidChordQuants, findOrphanedChords, removeOrphanedChords } from './ChordQuants';

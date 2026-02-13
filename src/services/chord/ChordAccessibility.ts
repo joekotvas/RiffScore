@@ -33,9 +33,7 @@ export const getAccessibleChordName = (symbol: string): string => {
   if (!parsed.tonic) return symbol;
 
   // Expand root accidentals
-  const rootName = parsed.tonic
-    .replace(/#/g, ' sharp')
-    .replace(/b/g, ' flat');
+  const rootName = parsed.tonic.replace(/#/g, ' sharp').replace(/b/g, ' flat');
 
   // Determine quality name - order matters! Check specific patterns first
   let qualityName = 'major';

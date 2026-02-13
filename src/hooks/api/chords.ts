@@ -501,7 +501,9 @@ export const createChordMethods = (
       }
 
       const sel = getSelection();
-      const currentIndex = sel.chordId ? findChordIndex(chordTrack, sel.chordId) : chordTrack.length;
+      const currentIndex = sel.chordId
+        ? findChordIndex(chordTrack, sel.chordId)
+        : chordTrack.length;
       const prevIndex = currentIndex - 1;
 
       if (prevIndex < 0) {

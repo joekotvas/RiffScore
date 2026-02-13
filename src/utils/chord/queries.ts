@@ -46,10 +46,7 @@ export const findChordAtQuant = (
  * @param chordId - ID of the chord to find
  * @returns The index if found, -1 otherwise
  */
-export const findChordIndex = (
-  chordTrack: ChordSymbol[] | undefined,
-  chordId: string
-): number => {
+export const findChordIndex = (chordTrack: ChordSymbol[] | undefined, chordId: string): number => {
   if (!chordTrack) return -1;
   return chordTrack.findIndex((c) => c.id === chordId);
 };

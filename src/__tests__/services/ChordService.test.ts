@@ -729,8 +729,18 @@ describe('ChordService - Valid Quant Calculation', () => {
               {
                 id: 'm1-bass',
                 events: [
-                  { id: 'e2', duration: 'quarter', dotted: false, notes: [{ id: 'n2', pitch: 'C3' }] },
-                  { id: 'e3', duration: 'quarter', dotted: false, notes: [{ id: 'n3', pitch: 'E3' }] },
+                  {
+                    id: 'e2',
+                    duration: 'quarter',
+                    dotted: false,
+                    notes: [{ id: 'n2', pitch: 'C3' }],
+                  },
+                  {
+                    id: 'e3',
+                    duration: 'quarter',
+                    dotted: false,
+                    notes: [{ id: 'n3', pitch: 'E3' }],
+                  },
                 ],
               },
             ],
@@ -760,13 +770,23 @@ describe('ChordService - Valid Quant Calculation', () => {
               {
                 id: 'm1',
                 events: [
-                  { id: 'e1', duration: 'whole', dotted: false, notes: [{ id: 'n1', pitch: 'C4' }] },
+                  {
+                    id: 'e1',
+                    duration: 'whole',
+                    dotted: false,
+                    notes: [{ id: 'n1', pitch: 'C4' }],
+                  },
                 ],
               },
               {
                 id: 'm2',
                 events: [
-                  { id: 'e2', duration: 'whole', dotted: false, notes: [{ id: 'n2', pitch: 'D4' }] },
+                  {
+                    id: 'e2',
+                    duration: 'whole',
+                    dotted: false,
+                    notes: [{ id: 'n2', pitch: 'D4' }],
+                  },
                 ],
               },
             ],
@@ -796,8 +816,18 @@ describe('ChordService - Valid Quant Calculation', () => {
               {
                 id: 'm1',
                 events: [
-                  { id: 'e1', duration: 'quarter', dotted: true, notes: [{ id: 'n1', pitch: 'C4' }] },
-                  { id: 'e2', duration: 'eighth', dotted: false, notes: [{ id: 'n2', pitch: 'D4' }] },
+                  {
+                    id: 'e1',
+                    duration: 'quarter',
+                    dotted: true,
+                    notes: [{ id: 'n1', pitch: 'C4' }],
+                  },
+                  {
+                    id: 'e2',
+                    duration: 'eighth',
+                    dotted: false,
+                    notes: [{ id: 'n2', pitch: 'D4' }],
+                  },
                 ],
               },
             ],

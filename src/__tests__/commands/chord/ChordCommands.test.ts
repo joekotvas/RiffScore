@@ -25,10 +25,7 @@ import { RemoveChordCommand } from '@/commands/chord/RemoveChordCommand';
  * @param chords - Optional array of chords to include. Defaults to empty (no chord track).
  * @param measureCount - Number of measures. Defaults to 2.
  */
-const createTestScore = (
-  chords?: ChordSymbol[],
-  measureCount: number = 2
-): Score => ({
+const createTestScore = (chords?: ChordSymbol[], measureCount: number = 2): Score => ({
   title: 'Test Score',
   timeSignature: '4/4',
   keySignature: 'C',

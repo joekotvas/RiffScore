@@ -505,10 +505,7 @@ export const scheduleChordPlayback = async (
       ...e,
       time: Math.max(0, e.time - startTimeOffset),
       // Adjust duration if starting mid-chord
-      duration:
-        e.time < startTimeOffset
-          ? e.duration - (startTimeOffset - e.time)
-          : e.duration,
+      duration: e.time < startTimeOffset ? e.duration - (startTimeOffset - e.time) : e.duration,
     }));
 
   if (adjustedEvents.length === 0) return;

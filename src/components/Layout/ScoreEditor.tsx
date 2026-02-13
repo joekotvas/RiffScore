@@ -216,7 +216,7 @@ const ScoreEditorContent = ({
 
         const maxQuant = mIdx === measureIndex ? localQuant : quantsPerMeasure;
         let currentQuant = 0;
-        let lastValidEvent: { event: typeof measure.events[0]; quant: number } | null = null;
+        let lastValidEvent: { event: (typeof measure.events)[0]; quant: number } | null = null;
 
         for (const event of measure.events) {
           if (currentQuant < maxQuant && !event.isRest && event.notes?.length) {
@@ -236,7 +236,14 @@ const ScoreEditorContent = ({
         }
       }
     }
-  }, [selection.chordId, chordTrackHook.chords, score.staves, quantsPerMeasure, selectionEngine, handleNoteSelection]);
+  }, [
+    selection.chordId,
+    chordTrackHook.chords,
+    score.staves,
+    quantsPerMeasure,
+    selectionEngine,
+    handleNoteSelection,
+  ]);
 
   useKeyboardShortcuts(
     scoreLogic,

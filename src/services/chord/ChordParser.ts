@@ -19,9 +19,7 @@ import { fromRomanNumeral, fromNashville } from './ChordNotationConverter';
 /**
  * Detect the notation system of input string.
  */
-export const detectNotation = (
-  input: string
-): 'letter' | 'roman' | 'nashville' | 'solfege' => {
+export const detectNotation = (input: string): 'letter' | 'roman' | 'nashville' | 'solfege' => {
   // Roman numerals - match valid numerals I-VII with optional accidentals
   const romanPattern = /^(bb?|#)?(VII|VI|IV|V|III|II|I|vii|vi|iv|v|iii|ii|i)/i;
   if (romanPattern.test(input)) return 'roman';
@@ -173,7 +171,11 @@ export const normalizeChordSymbol = (input: string): string => {
   if (input.includes('sus2') || chord.type?.includes('suspended second')) {
     symbol += 'sus2';
     return symbol;
-  } else if (input.includes('sus4') || input.includes('sus') || chord.type?.includes('suspended fourth')) {
+  } else if (
+    input.includes('sus4') ||
+    input.includes('sus') ||
+    chord.type?.includes('suspended fourth')
+  ) {
     symbol += 'sus4';
     return symbol;
   }
@@ -210,10 +212,7 @@ export const normalizeChordSymbol = (input: string): string => {
  * @param keySignature - Key signature for relative notation (default 'C')
  * @returns Parse result with canonical symbol and components, or error
  */
-export const parseChord = (
-  input: string,
-  keySignature: string = 'C'
-): ChordParseResult => {
+export const parseChord = (input: string, keySignature: string = 'C'): ChordParseResult => {
   const trimmed = input.trim();
   if (!trimmed) {
     return { ok: false, code: 'CHORD_EMPTY', message: 'Enter a chord symbol' };
@@ -252,7 +251,7 @@ export const parseChord = (
     .replace(/-7/g, 'm7')
     .replace(/min/gi, 'm')
     .replace(/minor/gi, 'm')
-    .replace(/-$/g, 'm')  // Trailing dash = minor
+    .replace(/-$/g, 'm') // Trailing dash = minor
     .replace(/Δ7/g, 'maj7')
     .replace(/Δ/g, 'maj7')
     .replace(/°7/g, 'dim7')
