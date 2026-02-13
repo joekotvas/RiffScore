@@ -505,13 +505,13 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             displayConfig={DEFAULT_CHORD_DISPLAY}
             keySignature={keySignature}
             timeSignature={timeSignature}
-            validQuants={chordTrackHook.validQuants}
+            validPositions={chordTrackHook.validPositions}
             measurePositions={measurePositions}
             layout={layout}
             quantsPerMeasure={quantsPerMeasure}
             editingChordId={chordTrackHook.editingChordId}
             selectedChordId={chordTrackHook.selectedChordId}
-            creatingAtQuant={chordTrackHook.creatingAtQuant}
+            creatingAt={chordTrackHook.creatingAt}
             initialValue={chordTrackHook.initialValue}
             onChordClick={(chordId) => {
               // Click goes directly to edit mode

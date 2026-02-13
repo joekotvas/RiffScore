@@ -9,7 +9,7 @@
 import React, { memo, useState, useCallback, useMemo } from 'react';
 import { ChordSymbol as ChordSymbolType, ChordDisplayConfig } from '@/types';
 import { useModifierKeys } from '@hooks/editor';
-import { clientToSvg, xToNearestQuant } from '@/engines/layout/coordinateUtils';
+import { clientToSvg } from '@/engines/layout/coordinateUtils';
 import { ScoreLayout } from '@/engines/layout/types';
 import { CONFIG } from '@/config';
 import { ChordSymbol } from './ChordSymbol';
@@ -21,10 +21,15 @@ import './ChordTrack.css';
 // TYPES
 // ============================================================================
 
+/** Measure-local position for chord placement */
+interface ChordPosition {
+  measure: number;
+  quant: number;
+}
+
 interface MeasurePosition {
   x: number;
   width: number;
-  quant: number; // Global quant at start of measure
 }
 
 interface ChordTrackProps {
@@ -40,8 +45,8 @@ interface ChordTrackProps {
   /** Time signature for quant calculations */
   timeSignature: string;
 
-  /** Set of valid quant positions where chords can be placed */
-  validQuants: Set<number>;
+  /** Valid positions where chords can be placed (Map<measure, Set<quant>>) */
+  validPositions: Map<number, Set<number>>;
 
   /** Measure layout information for hit detection */
   measurePositions: MeasurePosition[];
@@ -49,7 +54,7 @@ interface ChordTrackProps {
   /** Layout object with getX and getY accessors */
   layout: ScoreLayout;
 
-  /** Quants per measure (e.g., 96 for 4/4) */
+  /** Quants per measure (e.g., 64 for 4/4) */
   quantsPerMeasure: number;
 
   // Interaction state
@@ -59,8 +64,8 @@ interface ChordTrackProps {
   /** ID of currently selected chord */
   selectedChordId: string | null;
 
-  /** Quant position for new chord creation */
-  creatingAtQuant: number | null;
+  /** Position for new chord creation */
+  creatingAt: ChordPosition | null;
 
   /** Override initial value for input (for "type to replace" behavior) */
   initialValue: string | null;
@@ -72,8 +77,8 @@ interface ChordTrackProps {
   /** Called when a chord is CMD/CTRL+clicked (selects without editing) */
   onChordSelect: (chordId: string) => void;
 
-  /** Called when clicking empty space at a valid quant */
-  onEmptyClick: (quant: number) => void;
+  /** Called when clicking empty space at a valid position */
+  onEmptyClick: (position: ChordPosition) => void;
 
   /** Called when editing is complete */
   onEditComplete: (chordId: string | null, value: string) => void;
@@ -98,12 +103,49 @@ interface ChordTrackProps {
 /**
  * Get beat position string for accessibility.
  */
-function getBeatPosition(quant: number, quantsPerMeasure: number): string {
-  const measureIndex = Math.floor(quant / quantsPerMeasure);
-  const localQuant = quant % quantsPerMeasure;
-  const beat = Math.floor(localQuant / 24) + 1; // 24 quants per quarter note
+function getBeatPosition(measure: number, quant: number): string {
+  const beat = Math.floor(quant / 16) + 1; // 16 quants per quarter note
+  return `measure ${measure + 1}, beat ${beat}`;
+}
 
-  return `measure ${measureIndex + 1}, beat ${beat}`;
+/**
+ * Convert measure-local position to global quant for layout.getX()
+ * (Temporary bridge until Stage 1 updates layout API)
+ */
+function positionToGlobalQuant(position: ChordPosition, quantsPerMeasure: number): number {
+  return position.measure * quantsPerMeasure + position.quant;
+}
+
+/**
+ * Find the nearest valid position from an X coordinate.
+ * Returns null if no valid position is within snap distance.
+ */
+function xToNearestPosition(
+  x: number,
+  validPositions: Map<number, Set<number>>,
+  measurePositions: MeasurePosition[],
+  quantsPerMeasure: number,
+  layout: ScoreLayout,
+  snapDistance = 24
+): ChordPosition | null {
+  let nearest: ChordPosition | null = null;
+  let nearestDist = Infinity;
+
+  for (const [measure, quants] of validPositions) {
+    for (const quant of quants) {
+      const globalQuant = measure * quantsPerMeasure + quant;
+      const qx = layout.getX(globalQuant);
+      if (qx === null) continue;
+
+      const dist = Math.abs(x - qx);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = { measure, quant };
+      }
+    }
+  }
+
+  return nearestDist <= snapDistance ? nearest : null;
 }
 
 // ============================================================================
@@ -114,13 +156,13 @@ export const ChordTrack = memo(function ChordTrack({
   chords,
   displayConfig,
   keySignature,
-  validQuants,
+  validPositions,
   measurePositions,
   layout,
   quantsPerMeasure,
   editingChordId,
   selectedChordId,
-  creatingAtQuant,
+  creatingAt,
   initialValue,
   onChordClick,
   onChordSelect,
@@ -133,7 +175,7 @@ export const ChordTrack = memo(function ChordTrack({
 }: ChordTrackProps) {
   const [cursorStyle, setCursorStyle] = useState<'default' | 'text' | 'pointer'>('default');
   const [hoveredChordId, setHoveredChordId] = useState<string | null>(null);
-  const [previewQuant, setPreviewQuant] = useState<number | null>(null);
+  const [previewPosition, setPreviewPosition] = useState<ChordPosition | null>(null);
 
   // Track CMD/CTRL key state for selection mode
   const isMetaKeyHeld = useModifierKeys();
@@ -167,20 +209,18 @@ export const ChordTrack = memo(function ChordTrack({
 
   /**
    * Calculate per-chord Y offset for collision avoidance.
-   * Returns a negative offset (move up) if the note at this quant is higher
+   * Returns a negative offset (move up) if the note at this position is higher
    * than what the system baseline accounts for.
-   *
-   * Note: In most cases, system-level collision handles all notes uniformly.
-   * Per-chord collision is a safety net for edge cases.
    */
   const getChordYOffset = useCallback(
-    (quant: number): number => {
+    (position: ChordPosition): number => {
       const { paddingAboveNotes, minY } = CONFIG.chordTrack;
+      const globalQuant = positionToGlobalQuant(position, quantsPerMeasure);
 
-      const noteY = layout.getY.notes(quant).top;
+      const noteY = layout.getY.notes(globalQuant).top;
       const systemNoteY = layout.getY.notes().top;
 
-      // If this quant has no specific notes (fell back to system-wide), no offset needed
+      // If this position has no specific notes (fell back to system-wide), no offset needed
       if (noteY === systemNoteY) return 0;
 
       // The chord should be paddingAboveNotes pixels above the note
@@ -196,7 +236,7 @@ export const ChordTrack = memo(function ChordTrack({
 
       return 0;
     },
-    [layout, trackY]
+    [layout, trackY, quantsPerMeasure]
   );
 
   const handleTrackClick = useCallback(
@@ -205,10 +245,18 @@ export const ChordTrack = memo(function ChordTrack({
       e.preventDefault();
 
       const { x } = clientToSvg(e.clientX, e.clientY, e.currentTarget);
-      const quant = xToNearestQuant(x, validQuants, layout.getX);
+      const position = xToNearestPosition(
+        x,
+        validPositions,
+        measurePositions,
+        quantsPerMeasure,
+        layout
+      );
 
-      if (quant !== null) {
-        const existingChord = chords.find((c) => c.quant === quant);
+      if (position !== null) {
+        const existingChord = chords.find(
+          (c) => c.measure === position.measure && c.quant === position.quant
+        );
         if (existingChord) {
           // CMD/CTRL+click selects without editing
           if (e.metaKey || e.ctrlKey) {
@@ -217,39 +265,47 @@ export const ChordTrack = memo(function ChordTrack({
             onChordClick(existingChord.id);
           }
         } else {
-          onEmptyClick(quant);
+          onEmptyClick(position);
         }
       }
     },
-    [validQuants, layout.getX, chords, onChordClick, onChordSelect, onEmptyClick]
+    [validPositions, measurePositions, quantsPerMeasure, layout, chords, onChordClick, onChordSelect, onEmptyClick]
   );
 
   const handleTrackMouseMove = useCallback(
     (e: React.MouseEvent<SVGGElement>) => {
       const { x } = clientToSvg(e.clientX, e.clientY, e.currentTarget);
-      const quant = xToNearestQuant(x, validQuants, layout.getX);
+      const position = xToNearestPosition(
+        x,
+        validPositions,
+        measurePositions,
+        quantsPerMeasure,
+        layout
+      );
 
-      if (quant !== null) {
-        const existingChord = chords.find((c) => c.quant === quant);
+      if (position !== null) {
+        const existingChord = chords.find(
+          (c) => c.measure === position.measure && c.quant === position.quant
+        );
         setHoveredChordId(existingChord?.id ?? null);
         // Show preview at empty valid positions (not over existing chords)
-        setPreviewQuant(existingChord ? null : quant);
+        setPreviewPosition(existingChord ? null : position);
         // Show pointer when CMD/CTRL is held over a chord (selection mode)
         // Show text cursor otherwise (edit mode)
         const hasMetaKey = e.metaKey || e.ctrlKey;
         setCursorStyle(existingChord && hasMetaKey ? 'pointer' : 'text');
       } else {
         setHoveredChordId(null);
-        setPreviewQuant(null);
+        setPreviewPosition(null);
         setCursorStyle('default');
       }
     },
-    [validQuants, layout.getX, chords]
+    [validPositions, measurePositions, quantsPerMeasure, layout, chords]
   );
 
   const handleTrackMouseLeave = useCallback(() => {
     setHoveredChordId(null);
-    setPreviewQuant(null);
+    setPreviewPosition(null);
     setCursorStyle('default');
   }, []);
 
@@ -267,13 +323,17 @@ export const ChordTrack = memo(function ChordTrack({
 
   // Pre-compute chord positions to avoid recalculating on every render
   const chordPositions = useMemo(() => {
-    return chords.map((chord) => ({
-      chord,
-      x: layout.getX(chord.quant),
-      beatPosition: getBeatPosition(chord.quant, quantsPerMeasure),
-      yOffset: getChordYOffset(chord.quant),
-    }));
-  }, [chords, layout.getX, quantsPerMeasure, getChordYOffset]);
+    return chords.map((chord) => {
+      const position = { measure: chord.measure, quant: chord.quant };
+      const globalQuant = positionToGlobalQuant(position, quantsPerMeasure);
+      return {
+        chord,
+        x: layout.getX(globalQuant),
+        beatPosition: getBeatPosition(chord.measure, chord.quant),
+        yOffset: getChordYOffset(position),
+      };
+    });
+  }, [chords, layout, quantsPerMeasure, getChordYOffset]);
 
   return (
     <g
@@ -330,10 +390,10 @@ export const ChordTrack = memo(function ChordTrack({
       })}
 
       {/* Creating new chord */}
-      {editingChordId === 'new' && creatingAtQuant !== null && (
-        <g transform={`translate(0, ${getChordYOffset(creatingAtQuant)})`}>
+      {editingChordId === 'new' && creatingAt !== null && (
+        <g transform={`translate(0, ${getChordYOffset(creatingAt)})`}>
           <ChordInput
-            x={layout.getX(creatingAtQuant)}
+            x={layout.getX(positionToGlobalQuant(creatingAt, quantsPerMeasure))}
             initialValue=""
             onComplete={(value) => onEditComplete(null, value)}
             onCancel={onEditCancel}
@@ -344,12 +404,12 @@ export const ChordTrack = memo(function ChordTrack({
       )}
 
       {/* Preview ghost chord on hover */}
-      {previewQuant !== null && editingChordId !== 'new' && (
-        <g transform={`translate(0, ${getChordYOffset(previewQuant)})`}>
+      {previewPosition !== null && editingChordId !== 'new' && (
+        <g transform={`translate(0, ${getChordYOffset(previewPosition)})`}>
           <text
             className="riff-ChordSymbol riff-ChordSymbol--preview"
             data-testid="chord-preview-ghost"
-            x={layout.getX(previewQuant)}
+            x={layout.getX(positionToGlobalQuant(previewPosition, quantsPerMeasure))}
             y={0}
             textAnchor="middle"
             dominantBaseline="central"
