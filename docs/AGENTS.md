@@ -17,6 +17,7 @@
 | Work on layout/rendering | [LAYOUT_ENGINE.md](./LAYOUT_ENGINE.md) |
 | Understand keyboard nav | [KEYBOARD_NAVIGATION.md](./KEYBOARD_NAVIGATION.md) |
 | Review design decisions | [ADRs](./adr/) |
+| Release a new version | [RELEASE_WORKFLOW.md](./RELEASE_WORKFLOW.md) |
 
 ---
 

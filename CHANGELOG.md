@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.0.0-alpha.10] - Unreleased
 
+### Added
+- **Release Workflow Documentation**: New [RELEASE_WORKFLOW.md](docs/RELEASE_WORKFLOW.md) with step-by-step checklist for version releases, including verification, changelog updates, GitHub releases, and LinkedIn announcements.
+
 ### Changed
 - **Chord Input UX ([#220](https://github.com/joekotvas/riffscore/issues/220))**:
   - Raised chord baseline height for better visual separation from staff.
