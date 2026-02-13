@@ -58,13 +58,16 @@ export interface Staff {
 
 /**
  * Represents a chord symbol in the chord track.
- * Anchored to a global quant position.
+ * Anchored to a measure-local position for robust measure operations.
  */
 export interface ChordSymbol {
   /** Unique identifier (generated via chordId() from utils/id.ts) */
   id: string;
 
-  /** Global quant position (measureIndex * quantsPerMeasure + localQuant) */
+  /** Measure index (0-based) */
+  measure: number;
+
+  /** Local quant position within the measure (0 = start of measure) */
   quant: number;
 
   /** Canonical chord symbol (letter-name notation, e.g., 'Cmaj7', 'Am', 'G7') */
