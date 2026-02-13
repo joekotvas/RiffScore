@@ -63,4 +63,9 @@ export { getChordVoicing } from './ChordVoicing';
 export { getAccessibleChordName } from './ChordAccessibility';
 
 // Quants
-export { getValidChordQuants, findOrphanedChords, removeOrphanedChords } from './ChordQuants';
+export {
+  getValidChordQuants,
+  isValidChordPosition,
+  findOrphanedChords,
+  removeOrphanedChords,
+} from './ChordQuants';

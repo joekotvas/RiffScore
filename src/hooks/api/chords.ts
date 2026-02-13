@@ -10,9 +10,10 @@ import { MusicEditorAPI } from '@/api.types';
 import { APIContext } from './types';
 import { ChordDisplayConfig, ChordPlaybackConfig } from '@/types';
 import { AddChordCommand, UpdateChordCommand, RemoveChordCommand } from '@/commands/chord';
-import { parseChord, getValidChordQuants, getQuantsPerMeasure } from '@/services/ChordService';
+import { ChordPosition } from '@/commands/chord/AddChordCommand';
+import { parseChord, getValidChordQuants, isValidChordPosition } from '@/services/ChordService';
 import { getNoteDuration } from '@/utils/core';
-import { findChordById, findChordAtQuant, findChordIndex } from '@/utils/chord/queries';
+import { findChordById, findChordAt, findChordIndex } from '@/utils/chord/queries';
 
 /**
  * Chord method names provided by this factory
@@ -23,10 +24,10 @@ export type ChordMethodNames =
   | 'removeChord'
   | 'getChords'
   | 'getChord'
-  | 'getChordAtQuant'
-  | 'getValidChordQuants'
+  | 'getChordAt'
+  | 'getValidChordPositions'
   | 'selectChord'
-  | 'selectChordAtQuant'
+  | 'selectChordAt'
   | 'deselectChord'
   | 'getSelectedChord'
   | 'hasChordSelection'
@@ -66,7 +67,7 @@ export const createChordMethods = (
     // CRUD Operations
     // ========================================================================
 
-    addChord(quant: number, symbol: string) {
+    addChord(position: ChordPosition, symbol: string) {
       const score = getScore();
       const keySignature = score.keySignature;
 
@@ -79,35 +80,35 @@ export const createChordMethods = (
           method: 'addChord',
           message: parseResult.message,
           code: parseResult.code,
-          details: { symbol, quant },
+          details: { symbol, position },
         });
         return this;
       }
 
-      // Validate quant position is valid (has note anchor)
-      const validQuants = getValidChordQuants(score);
-      if (!validQuants.has(quant)) {
+      // Validate position is valid (has note anchor)
+      const validPositions = getValidChordQuants(score);
+      if (!isValidChordPosition(validPositions, position.measure, position.quant)) {
         setResult({
           ok: false,
           status: 'error',
           method: 'addChord',
-          message: `Invalid quant position ${quant}. Chords must be placed at note positions.`,
-          code: 'INVALID_QUANT_POSITION',
-          details: { quant, validQuants: Array.from(validQuants) },
+          message: `Invalid position { measure: ${position.measure}, quant: ${position.quant} }. Chords must be placed at note positions.`,
+          code: 'INVALID_POSITION',
+          details: { position },
         });
         return this;
       }
 
       // Check if chord already exists at this position
-      const existingChord = findChordAtQuant(score.chordTrack, quant);
+      const existingChord = findChordAt(score.chordTrack, position);
       const isReplacement = existingChord !== null;
 
       // Dispatch the command (handles both add and replace)
-      dispatch(new AddChordCommand(quant, parseResult.symbol));
+      dispatch(new AddChordCommand(position, parseResult.symbol));
 
       // Get the newly added chord ID for selection
       const updatedScore = getScore();
-      const newChord = findChordAtQuant(updatedScore.chordTrack, quant);
+      const newChord = findChordAt(updatedScore.chordTrack, position);
 
       // Update selection to the new chord
       if (newChord) {
@@ -124,11 +125,11 @@ export const createChordMethods = (
         status: isReplacement ? 'warning' : 'info',
         method: 'addChord',
         message: isReplacement
-          ? `Replaced chord at quant ${quant} with ${parseResult.symbol}`
-          : `Added chord ${parseResult.symbol} at quant ${quant}`,
+          ? `Replaced chord at { measure: ${position.measure}, quant: ${position.quant} } with ${parseResult.symbol}`
+          : `Added chord ${parseResult.symbol} at { measure: ${position.measure}, quant: ${position.quant} }`,
         details: {
           symbol: parseResult.symbol,
-          quant,
+          position,
           chordId: newChord?.id,
           replaced: isReplacement,
         },
@@ -211,8 +212,8 @@ export const createChordMethods = (
         ok: true,
         status: 'info',
         method: 'removeChord',
-        message: `Removed chord ${chord.symbol} at quant ${chord.quant}`,
-        details: { chordId, symbol: chord.symbol, quant: chord.quant },
+        message: `Removed chord ${chord.symbol} at { measure: ${chord.measure}, quant: ${chord.quant} }`,
+        details: { chordId, symbol: chord.symbol, measure: chord.measure, quant: chord.quant },
       });
 
       return this;
@@ -242,7 +243,7 @@ export const createChordMethods = (
           status: 'info',
           method: 'getChord',
           message: `Found chord ${chord.symbol}`,
-          details: { chordId, symbol: chord.symbol, quant: chord.quant },
+          details: { chordId, symbol: chord.symbol, measure: chord.measure, quant: chord.quant },
         });
       } else {
         setResult({
@@ -257,39 +258,47 @@ export const createChordMethods = (
       return chord;
     },
 
-    getChordAtQuant(quant: number) {
-      const chord = findChordAtQuant(getScore().chordTrack, quant);
+    getChordAt(position: ChordPosition) {
+      const chord = findChordAt(getScore().chordTrack, position);
       if (chord) {
         setResult({
           ok: true,
           status: 'info',
-          method: 'getChordAtQuant',
-          message: `Found chord ${chord.symbol} at quant ${quant}`,
-          details: { quant, chordId: chord.id, symbol: chord.symbol },
+          method: 'getChordAt',
+          message: `Found chord ${chord.symbol} at { measure: ${position.measure}, quant: ${position.quant} }`,
+          details: { position, chordId: chord.id, symbol: chord.symbol },
         });
       } else {
         setResult({
           ok: true,
           status: 'info',
-          method: 'getChordAtQuant',
-          message: `No chord at quant ${quant}`,
-          details: { quant },
+          method: 'getChordAt',
+          message: `No chord at { measure: ${position.measure}, quant: ${position.quant} }`,
+          details: { position },
         });
       }
       return chord;
     },
 
-    getValidChordQuants() {
-      const validQuants = getValidChordQuants(getScore());
-      const quantArray = Array.from(validQuants).sort((a, b) => a - b);
+    getValidChordPositions() {
+      const validPositions = getValidChordQuants(getScore());
+      // Convert Map<measure, Set<quant>> to array of { measure, quant }
+      const positions: ChordPosition[] = [];
+      for (const [measure, quants] of validPositions) {
+        for (const quant of quants) {
+          positions.push({ measure, quant });
+        }
+      }
+      // Sort by measure, then quant
+      positions.sort((a, b) => a.measure - b.measure || a.quant - b.quant);
       setResult({
         ok: true,
         status: 'info',
-        method: 'getValidChordQuants',
-        message: `Found ${quantArray.length} valid chord position(s)`,
-        details: { count: quantArray.length },
+        method: 'getValidChordPositions',
+        message: `Found ${positions.length} valid chord position(s)`,
+        details: { count: positions.length },
       });
-      return quantArray;
+      return positions;
     },
 
     // ========================================================================
@@ -322,22 +331,22 @@ export const createChordMethods = (
         status: 'info',
         method: 'selectChord',
         message: `Selected chord ${chord.symbol}`,
-        details: { chordId, symbol: chord.symbol, quant: chord.quant },
+        details: { chordId, symbol: chord.symbol, measure: chord.measure, quant: chord.quant },
       });
 
       return this;
     },
 
-    selectChordAtQuant(quant: number) {
-      const chord = findChordAtQuant(getScore().chordTrack, quant);
+    selectChordAt(position: ChordPosition) {
+      const chord = findChordAt(getScore().chordTrack, position);
       if (!chord) {
         setResult({
           ok: false,
           status: 'error',
-          method: 'selectChordAtQuant',
-          message: `No chord at quant ${quant}`,
-          code: 'NO_CHORD_AT_QUANT',
-          details: { quant },
+          method: 'selectChordAt',
+          message: `No chord at { measure: ${position.measure}, quant: ${position.quant} }`,
+          code: 'NO_CHORD_AT_POSITION',
+          details: { position },
         });
         return this;
       }
@@ -352,9 +361,9 @@ export const createChordMethods = (
       setResult({
         ok: true,
         status: 'info',
-        method: 'selectChordAtQuant',
-        message: `Selected chord ${chord.symbol} at quant ${quant}`,
-        details: { quant, chordId: chord.id, symbol: chord.symbol },
+        method: 'selectChordAt',
+        message: `Selected chord ${chord.symbol} at { measure: ${position.measure}, quant: ${position.quant} }`,
+        details: { position, chordId: chord.id, symbol: chord.symbol },
       });
 
       return this;
@@ -406,7 +415,7 @@ export const createChordMethods = (
           status: 'info',
           method: 'getSelectedChord',
           message: `Selected chord: ${chord.symbol}`,
-          details: { chordId: chord.id, symbol: chord.symbol, quant: chord.quant },
+          details: { chordId: chord.id, symbol: chord.symbol, measure: chord.measure, quant: chord.quant },
         });
       } else {
         setResult({
@@ -479,7 +488,7 @@ export const createChordMethods = (
         status: 'info',
         method: 'selectNextChord',
         message: `Selected next chord: ${nextChord.symbol}`,
-        details: { chordId: nextChord.id, symbol: nextChord.symbol, quant: nextChord.quant },
+        details: { chordId: nextChord.id, symbol: nextChord.symbol, measure: nextChord.measure, quant: nextChord.quant },
       });
 
       return this;
@@ -529,7 +538,7 @@ export const createChordMethods = (
         status: 'info',
         method: 'selectPrevChord',
         message: `Selected previous chord: ${prevChord.symbol}`,
-        details: { chordId: prevChord.id, symbol: prevChord.symbol, quant: prevChord.quant },
+        details: { chordId: prevChord.id, symbol: prevChord.symbol, measure: prevChord.measure, quant: prevChord.quant },
       });
 
       return this;
@@ -562,7 +571,7 @@ export const createChordMethods = (
         status: 'info',
         method: 'selectFirstChord',
         message: `Selected first chord: ${firstChord.symbol}`,
-        details: { chordId: firstChord.id, symbol: firstChord.symbol, quant: firstChord.quant },
+        details: { chordId: firstChord.id, symbol: firstChord.symbol, measure: firstChord.measure, quant: firstChord.quant },
       });
 
       return this;
@@ -595,7 +604,7 @@ export const createChordMethods = (
         status: 'info',
         method: 'selectLastChord',
         message: `Selected last chord: ${lastChord.symbol}`,
-        details: { chordId: lastChord.id, symbol: lastChord.symbol, quant: lastChord.quant },
+        details: { chordId: lastChord.id, symbol: lastChord.symbol, measure: lastChord.measure, quant: lastChord.quant },
       });
 
       return this;
@@ -651,13 +660,12 @@ export const createChordMethods = (
         chordTrackFocused: false,
       };
 
-      // Optionally select the note at the chord's quant position
+      // Optionally select the note at the chord's position
       if (options?.selectNoteAtQuant && sel.chordId) {
         const chord = findChordById(score.chordTrack, sel.chordId);
         if (chord) {
-          const quantsPerMeasure = getQuantsPerMeasure(score.timeSignature);
-          const measureIndex = Math.floor(chord.quant / quantsPerMeasure);
-          const localQuant = chord.quant % quantsPerMeasure;
+          const measureIndex = chord.measure;
+          const localQuant = chord.quant;
 
           // Find event at this quant in first staff
           const staff = score.staves[0];
@@ -775,7 +783,7 @@ export const createChordMethods = (
         status: 'info',
         method: 'deleteSelectedChord',
         message: `Deleted chord ${chord.symbol}`,
-        details: { deletedChordId: chord.id, symbol: chord.symbol, quant: chord.quant },
+        details: { deletedChordId: chord.id, symbol: chord.symbol, measure: chord.measure, quant: chord.quant },
       });
 
       return this;
