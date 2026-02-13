@@ -47,6 +47,16 @@ interface RiffScoreConfig {
     measureCount?: number;   // Number of measures to generate
     staves?: Staff[];        // Explicit content (overrides generator)
   };
+  chord?: {
+    display?: {
+      notation: string;        // 'letter' | 'roman' | 'nashville' | 'fixedDo' | 'movableDo'
+      useSymbols: boolean;     // △/°/+ vs maj/dim/aug
+    };
+    playback?: {
+      enabled: boolean;        // Enable chord playback
+      velocity: number;        // 0-127
+    };
+  };
 }
 ```
 
@@ -68,6 +78,10 @@ interface RiffScoreConfig {
 | `score.keySignature` | `'C'` |
 | `score.staff` | `'grand'` |
 | `score.measureCount` | `4` |
+| `chord.display.notation` | `'letter'` |
+| `chord.display.useSymbols` | `false` |
+| `chord.playback.enabled` | `true` |
+| `chord.playback.velocity` | `50` |
 
 ---
 
@@ -210,6 +224,41 @@ Supported: `4/4`, `3/4`, `2/4`, `6/8`
 ```tsx
 <RiffScore config={{
   score: { bpm: 140 }
+}} />
+```
+
+---
+
+## Chord Configuration
+
+### Display Notation
+
+```tsx
+// Display chords as Roman numerals with typographic symbols
+<RiffScore config={{
+  chord: {
+    display: { notation: 'roman', useSymbols: true }
+  }
+}} />
+```
+
+Available notations: `'letter'` (default), `'roman'`, `'nashville'`, `'fixedDo'`, `'movableDo'`
+
+### Playback Settings
+
+```tsx
+// Disable chord playback
+<RiffScore config={{
+  chord: {
+    playback: { enabled: false }
+  }
+}} />
+
+// Custom chord velocity
+<RiffScore config={{
+  chord: {
+    playback: { enabled: true, velocity: 80 }
+  }
 }} />
 ```
 

@@ -17,6 +17,7 @@ Score {
   keySignature: string        // "C", "G", "F#", "Bb"
   bpm: number
   staves: Staff[]
+  chordTrack?: ChordSymbol[]  // Sorted by quant ascending
 }
 ```
 
@@ -119,6 +120,39 @@ Storing `F#4` instead of "scale degree 4" means:
 
 ---
 
+## 5a. Chord Symbols
+
+```typescript
+ChordSymbol {
+  id: string                    // Unique identifier
+  quant: number                 // Global quant position
+  symbol: string                // Canonical letter notation: 'Cmaj7', 'Dm', 'G7'
+}
+```
+
+Chord symbols live in `Score.chordTrack[]`, anchored to **global quant positions** (computed as `measureIndex × quantsPerMeasure + localQuant`). They are independent of staves and render above the top staff.
+
+### Input Formats
+
+The `ChordParser` accepts multiple input formats and normalizes them to letter notation:
+
+| Input Format | Example | Stored As |
+|---|---|---|
+| Letter names | `Cmaj7`, `Am`, `F#dim` | `Cmaj7`, `Am`, `F#dim` |
+| Solfège | `Do`, `Re`, `Sol7` | `C`, `D`, `G7` |
+| Roman numerals | `IV`, `ii7`, `V` | Resolved from key context |
+
+### Display Notations
+
+Stored chords can be rendered in different notation systems via `ChordDisplayConfig.notation`:
+- `'letter'` — `Cmaj7` (default)
+- `'roman'` — `IVmaj7`
+- `'nashville'` — `4maj7`
+- `'fixedDo'` — `Domaj7`
+- `'movableDo'` — `Famaj7` (relative to key)
+
+---
+
 ## 6. Quant System
 
 **Quants** are the smallest rhythmic unit in RiffScore:
@@ -210,6 +244,8 @@ Selection {
   selectedNotes: SelectedNote[]
   anchor?: SelectedNote | null
   verticalAnchors?: VerticalAnchors
+  chordId?: string | null       // Selected chord symbol ID
+  chordTrackFocused?: boolean    // True when chord track has focus
 }
 
 SelectedNote {

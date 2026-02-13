@@ -98,6 +98,45 @@ score.select(1)
 
 ---
 
+## 1a. Chord Symbol Recipes
+
+### Add a Chord Progression
+
+```javascript
+const score = window.riffScore.active;
+
+// I-IV-V-I in C major (one chord per measure in 4/4)
+score.addChord(0, 'C')         // Beat 1 of measure 1 (quant 0)
+     .addChord(96, 'F')        // Beat 1 of measure 2 (quant 96)
+     .addChord(192, 'G7')      // Beat 1 of measure 3 (quant 192)
+     .addChord(288, 'C');      // Beat 1 of measure 4 (quant 288)
+```
+
+### Navigate and Edit Chords
+
+```javascript
+const score = window.riffScore.active;
+
+// Select and change the second chord
+score.selectFirstChord()
+     .selectNextChord()       // Now on the second chord
+     .updateChord(score.getSelectedChord().id, 'Dm7');
+```
+
+### Change Chord Notation
+
+```javascript
+const score = window.riffScore.active;
+
+// Display chords as Roman numerals
+score.setChordNotation('roman');
+
+// Display as Nashville numbers
+score.setChordNotation('nashville');
+```
+
+---
+
 ## 2. Editing Recipes
 
 ### Transpose Selection Up an Octave

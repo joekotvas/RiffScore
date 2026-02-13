@@ -13,6 +13,10 @@ Everything you need to get started and build with RiffScore.
 - **[Keyboard Navigation](./KEYBOARD_NAVIGATION.md)**: Deep dive into the arrow-key navigation logic and state machine.
 - **[Selection Model](./SELECTION.md)**: Explanation of the 2D selection system, multi-selection, and range operations.
 
+## 🎵 Features
+
+- **[Chord Symbols](./features/chord-symbols/)**: PRD, SDD, and SRS for the chord track — input, display, playback, and API.
+
 ## 🏗️ Architecture & Internals
 
 Technical deep dives for understanding how the system works.
