@@ -118,9 +118,9 @@ jest.mock('@/components/Canvas/ChordTrack/ChordTrack.css', () => ({}));
 
 describe('ChordTrack', () => {
   const mockChords: ChordSymbol[] = [
-    { id: 'chord-1', quant: 0, symbol: 'Cmaj7' },
-    { id: 'chord-2', quant: 24, symbol: 'Am7' },
-    { id: 'chord-3', quant: 48, symbol: 'Dm7' },
+    { id: 'chord-1', measure: 0, quant: 0, symbol: 'Cmaj7' },
+    { id: 'chord-2', measure: 0, quant: 24, symbol: 'Am7' },
+    { id: 'chord-3', measure: 0, quant: 48, symbol: 'Dm7' },
   ];
 
   const mockDisplayConfig: ChordDisplayConfig = {
@@ -176,18 +176,24 @@ describe('ChordTrack', () => {
     };
   };
 
+  // validPositions: Map<measure, Set<quant>>
+  const mockValidPositions = new Map([
+    [0, new Set([0, 24, 48])],
+    [1, new Set([0, 24])],
+  ]);
+
   const defaultProps = {
     chords: mockChords,
     displayConfig: mockDisplayConfig,
     keySignature: 'C',
     timeSignature: '4/4',
-    validQuants: new Set([0, 24, 48, 72]),
+    validPositions: mockValidPositions,
     measurePositions: mockMeasurePositions,
     layout: createMockLayout(),
-    quantsPerMeasure: 96,
+    quantsPerMeasure: 64,
     editingChordId: null,
     selectedChordId: null,
-    creatingAtQuant: null,
+    creatingAt: null as { measure: number; quant: number } | null,
     initialValue: null,
     onChordClick: jest.fn(),
     onChordSelect: jest.fn(),
@@ -330,26 +336,29 @@ describe('ChordTrack', () => {
   });
 
   describe('empty space click', () => {
-    it('calls onEmptyClick when clicking empty space at valid quant', () => {
+    it('calls onEmptyClick when clicking empty space at valid position', () => {
       const onEmptyClick = jest.fn();
 
-      // Add quant 72 to validQuants but no chord there
-      const validQuants = new Set([0, 24, 48, 72]);
+      // Add valid positions including measure 1, quant 8 (no chord there)
+      const validPositions = new Map([
+        [0, new Set([0, 24, 48])],
+        [1, new Set([8])],
+      ]);
 
       render(
         <svg data-testid="test-svg">
-          <ChordTrack {...defaultProps} validQuants={validQuants} onEmptyClick={onEmptyClick} />
+          <ChordTrack {...defaultProps} validPositions={validPositions} onEmptyClick={onEmptyClick} />
         </svg>
       );
 
       const hitArea = screen.getByTestId('chord-track-hit-area');
 
-      // Click at quant 72 (x = 50 + 72*2 = 194)
+      // Click at global quant 72 which is measure 1, quant 8 (x = 50 + 72*2 = 194)
       setMockCoordinates(194, 0);
 
       fireEvent.click(hitArea, { clientX: 194, clientY: 0 });
 
-      expect(onEmptyClick).toHaveBeenCalledWith(72);
+      expect(onEmptyClick).toHaveBeenCalledWith({ measure: 1, quant: 8 });
     });
 
     it('does not call onEmptyClick when clicking far from valid quants', () => {
@@ -425,19 +434,19 @@ describe('ChordTrack', () => {
     it('shows ChordInput for new chord creation', () => {
       render(
         <svg>
-          <ChordTrack {...defaultProps} editingChordId="new" creatingAtQuant={72} />
+          <ChordTrack {...defaultProps} editingChordId="new" creatingAt={{ measure: 1, quant: 8 }} />
         </svg>
       );
 
       expect(screen.getByTestId('chord-input')).toBeInTheDocument();
-      // Input for new chord should be at quant 72 -> x = 194
+      // Input for new chord should be at global quant 72 (measure 1 * 64 + quant 8) -> x = 194
       expect(screen.getByTestId('chord-input')).toHaveAttribute('data-x', '194');
     });
 
     it('passes empty string as initialValue for new chord', () => {
       render(
         <svg>
-          <ChordTrack {...defaultProps} editingChordId="new" creatingAtQuant={72} />
+          <ChordTrack {...defaultProps} editingChordId="new" creatingAt={{ measure: 1, quant: 8 }} />
         </svg>
       );
 
@@ -471,7 +480,7 @@ describe('ChordTrack', () => {
           <ChordTrack
             {...defaultProps}
             editingChordId="new"
-            creatingAtQuant={72}
+            creatingAt={{ measure: 1, quant: 8 }}
             onEditComplete={onEditComplete}
           />
         </svg>
@@ -555,7 +564,7 @@ describe('ChordTrack', () => {
     it('does not show preview when editing', () => {
       render(
         <svg data-testid="test-svg">
-          <ChordTrack {...defaultProps} editingChordId="new" creatingAtQuant={72} />
+          <ChordTrack {...defaultProps} editingChordId="new" creatingAt={{ measure: 1, quant: 8 }} />
         </svg>
       );
 

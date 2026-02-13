@@ -282,23 +282,19 @@ export const createChordMethods = (
 
     getValidChordPositions() {
       const validPositions = getValidChordQuants(getScore());
-      // Convert Map<measure, Set<quant>> to array of { measure, quant }
-      const positions: ChordPosition[] = [];
-      for (const [measure, quants] of validPositions) {
-        for (const quant of quants) {
-          positions.push({ measure, quant });
-        }
+      // Count total positions for logging
+      let count = 0;
+      for (const quants of validPositions.values()) {
+        count += quants.size;
       }
-      // Sort by measure, then quant
-      positions.sort((a, b) => a.measure - b.measure || a.quant - b.quant);
       setResult({
         ok: true,
         status: 'info',
         method: 'getValidChordPositions',
-        message: `Found ${positions.length} valid chord position(s)`,
-        details: { count: positions.length },
+        message: `Found ${count} valid chord position(s) in ${validPositions.size} measure(s)`,
+        details: { count, measureCount: validPositions.size },
       });
-      return positions;
+      return validPositions;
     },
 
     // ========================================================================

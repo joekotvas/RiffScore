@@ -39,6 +39,7 @@ jest.mock('@/services/ChordService', () => ({
 describe('ChordSymbol', () => {
   const defaultChord: ChordSymbolType = {
     id: 'chord-1',
+    measure: 0,
     quant: 0,
     symbol: 'Cmaj7',
   };
@@ -128,6 +129,7 @@ describe('ChordSymbol', () => {
 
       const amChord: ChordSymbolType = {
         id: 'chord-2',
+        measure: 0,
         quant: 24,
         symbol: 'Am7',
       };

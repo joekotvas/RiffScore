@@ -12,7 +12,7 @@
  */
 
 import { Score, ChordSymbol } from '@/types';
-import { AddChordCommand } from '@/commands/chord/AddChordCommand';
+import { AddChordCommand, ChordPosition } from '@/commands/chord/AddChordCommand';
 import { UpdateChordCommand } from '@/commands/chord/UpdateChordCommand';
 import { RemoveChordCommand } from '@/commands/chord/RemoveChordCommand';
 
@@ -49,14 +49,14 @@ const createEmptyScore = (): Score => createTestScore();
 
 const createScoreWithChords = (): Score =>
   createTestScore([
-    { id: 'chord_001', quant: 0, symbol: 'C' },
-    { id: 'chord_002', quant: 24, symbol: 'G' },
-    { id: 'chord_003', quant: 48, symbol: 'Am' },
-    { id: 'chord_004', quant: 96, symbol: 'F' },
+    { id: 'chord_001', measure: 0, quant: 0, symbol: 'C' },
+    { id: 'chord_002', measure: 0, quant: 24, symbol: 'G' },
+    { id: 'chord_003', measure: 0, quant: 48, symbol: 'Am' },
+    { id: 'chord_004', measure: 1, quant: 32, symbol: 'F' }, // measure 1, quant 32 (was global 96)
   ]);
 
 const createScoreWithSingleChord = (): Score =>
-  createTestScore([{ id: 'chord_existing', quant: 48, symbol: 'Dm7' }], 1);
+  createTestScore([{ id: 'chord_existing', measure: 0, quant: 48, symbol: 'Dm7' }], 1);
 
 // --- Helper Functions ---
 
@@ -68,10 +68,12 @@ const findChordById = (score: Score, id: string): ChordSymbol | undefined => {
 };
 
 /**
- * Find a chord by quant position
+ * Find a chord by measure and quant position
  */
-const findChordByQuant = (score: Score, quant: number): ChordSymbol | undefined => {
-  return score.chordTrack?.find((chord) => chord.quant === quant);
+const findChordAt = (score: Score, position: ChordPosition): ChordSymbol | undefined => {
+  return score.chordTrack?.find(
+    (chord) => chord.measure === position.measure && chord.quant === position.quant
+  );
 };
 
 // --- Tests ---
@@ -80,12 +82,13 @@ describe('AddChordCommand', () => {
   describe('execute', () => {
     it('adds a chord to an empty chord track', () => {
       const score = createEmptyScore();
-      const command = new AddChordCommand(0, 'Cmaj7');
+      const command = new AddChordCommand({ measure: 0, quant: 0 }, 'Cmaj7');
 
       const result = command.execute(score);
 
       expect(result.chordTrack).toBeDefined();
       expect(result.chordTrack).toHaveLength(1);
+      expect(result.chordTrack![0].measure).toBe(0);
       expect(result.chordTrack![0].quant).toBe(0);
       expect(result.chordTrack![0].symbol).toBe('Cmaj7');
       expect(result.chordTrack![0].id).toMatch(/^chord_/);
@@ -93,44 +96,50 @@ describe('AddChordCommand', () => {
 
     it('adds a chord at empty position in existing track', () => {
       const score = createScoreWithChords();
-      const command = new AddChordCommand(72, 'Em'); // Position between existing chords (between quant 48 and 96)
+      const command = new AddChordCommand({ measure: 1, quant: 8 }, 'Em'); // Position in measure 1
 
       const result = command.execute(score);
 
       expect(result.chordTrack).toHaveLength(5);
-      const addedChord = findChordByQuant(result, 72);
+      const addedChord = findChordAt(result, { measure: 1, quant: 8 });
       expect(addedChord).toBeDefined();
       expect(addedChord!.symbol).toBe('Em');
     });
 
-    it('maintains ascending quant order when adding chord', () => {
+    it('maintains ascending position order when adding chord', () => {
       const score = createScoreWithChords();
-      const command = new AddChordCommand(12, 'Dm'); // Between 0 and 24
+      const command = new AddChordCommand({ measure: 0, quant: 12 }, 'Dm'); // Between 0 and 24
 
       const result = command.execute(score);
 
       expect(result.chordTrack).toHaveLength(5);
-      // Verify ascending order
-      const quants = result.chordTrack!.map((c) => c.quant);
-      expect(quants).toEqual([0, 12, 24, 48, 96]);
+      // Verify ascending order (measure, then quant within measure)
+      const positions = result.chordTrack!.map((c) => ({ measure: c.measure, quant: c.quant }));
+      expect(positions).toEqual([
+        { measure: 0, quant: 0 },
+        { measure: 0, quant: 12 },
+        { measure: 0, quant: 24 },
+        { measure: 0, quant: 48 },
+        { measure: 1, quant: 32 },
+      ]);
     });
 
-    it('replaces existing chord at same quant position', () => {
+    it('replaces existing chord at same position', () => {
       const score = createScoreWithChords();
-      const command = new AddChordCommand(24, 'G7'); // Same position as 'G' chord
+      const command = new AddChordCommand({ measure: 0, quant: 24 }, 'G7'); // Same position as 'G' chord
 
       const result = command.execute(score);
 
       // Should still have 4 chords (replacement, not addition)
       expect(result.chordTrack).toHaveLength(4);
-      const chordAtQuant24 = findChordByQuant(result, 24);
-      expect(chordAtQuant24!.symbol).toBe('G7');
+      const chordAt = findChordAt(result, { measure: 0, quant: 24 });
+      expect(chordAt!.symbol).toBe('G7');
     });
 
-    it('stores replaced chord for undo when replacing at same quant', () => {
+    it('stores replaced chord for undo when replacing at same position', () => {
       const score = createScoreWithChords();
-      const originalChord = findChordByQuant(score, 24);
-      const command = new AddChordCommand(24, 'G7');
+      const originalChord = findChordAt(score, { measure: 0, quant: 24 });
+      const command = new AddChordCommand({ measure: 0, quant: 24 }, 'G7');
 
       command.execute(score);
 
@@ -141,7 +150,7 @@ describe('AddChordCommand', () => {
 
     it('uses provided ID when specified', () => {
       const score = createEmptyScore();
-      const command = new AddChordCommand(0, 'Cmaj7', 'custom_chord_id');
+      const command = new AddChordCommand({ measure: 0, quant: 0 }, 'Cmaj7', 'custom_chord_id');
 
       const result = command.execute(score);
 
@@ -150,8 +159,8 @@ describe('AddChordCommand', () => {
 
     it('generates unique ID when not provided', () => {
       const score = createEmptyScore();
-      const command1 = new AddChordCommand(0, 'C');
-      const command2 = new AddChordCommand(24, 'G');
+      const command1 = new AddChordCommand({ measure: 0, quant: 0 }, 'C');
+      const command2 = new AddChordCommand({ measure: 0, quant: 24 }, 'G');
 
       const result1 = command1.execute(score);
       const result2 = command2.execute(result1);
@@ -162,7 +171,7 @@ describe('AddChordCommand', () => {
     it('does not mutate original score', () => {
       const score = createEmptyScore();
       const originalChordTrack = score.chordTrack;
-      const command = new AddChordCommand(0, 'C');
+      const command = new AddChordCommand({ measure: 0, quant: 0 }, 'C');
 
       command.execute(score);
 
@@ -170,7 +179,7 @@ describe('AddChordCommand', () => {
     });
 
     it('has correct command type', () => {
-      const command = new AddChordCommand(0, 'C');
+      const command = new AddChordCommand({ measure: 0, quant: 0 }, 'C');
       expect(command.type).toBe('ADD_CHORD');
     });
   });
@@ -178,7 +187,7 @@ describe('AddChordCommand', () => {
   describe('undo', () => {
     it('removes added chord from empty track', () => {
       const score = createEmptyScore();
-      const command = new AddChordCommand(0, 'C');
+      const command = new AddChordCommand({ measure: 0, quant: 0 }, 'C');
 
       const afterAdd = command.execute(score);
       const afterUndo = command.undo(afterAdd);
@@ -188,39 +197,44 @@ describe('AddChordCommand', () => {
 
     it('removes added chord from existing track', () => {
       const score = createScoreWithChords();
-      const command = new AddChordCommand(72, 'Em');
+      const command = new AddChordCommand({ measure: 1, quant: 8 }, 'Em');
 
       const afterAdd = command.execute(score);
       expect(afterAdd.chordTrack).toHaveLength(5);
 
       const afterUndo = command.undo(afterAdd);
       expect(afterUndo.chordTrack).toHaveLength(4);
-      expect(findChordByQuant(afterUndo, 72)).toBeUndefined();
+      expect(findChordAt(afterUndo, { measure: 1, quant: 8 })).toBeUndefined();
     });
 
     it('restores replaced chord when undoing replacement', () => {
       const score = createScoreWithChords();
-      const originalChord = findChordByQuant(score, 24);
-      const command = new AddChordCommand(24, 'G7');
+      const originalChord = findChordAt(score, { measure: 0, quant: 24 });
+      const command = new AddChordCommand({ measure: 0, quant: 24 }, 'G7');
 
       const afterAdd = command.execute(score);
-      expect(findChordByQuant(afterAdd, 24)!.symbol).toBe('G7');
+      expect(findChordAt(afterAdd, { measure: 0, quant: 24 })!.symbol).toBe('G7');
 
       const afterUndo = command.undo(afterAdd);
-      const restoredChord = findChordByQuant(afterUndo, 24);
+      const restoredChord = findChordAt(afterUndo, { measure: 0, quant: 24 });
       expect(restoredChord!.symbol).toBe(originalChord!.symbol);
       expect(restoredChord!.id).toBe(originalChord!.id);
     });
 
     it('maintains chord track order after undo', () => {
       const score = createScoreWithChords();
-      const command = new AddChordCommand(12, 'Dm');
+      const command = new AddChordCommand({ measure: 0, quant: 12 }, 'Dm');
 
       const afterAdd = command.execute(score);
       const afterUndo = command.undo(afterAdd);
 
-      const quants = afterUndo.chordTrack!.map((c) => c.quant);
-      expect(quants).toEqual([0, 24, 48, 96]);
+      const positions = afterUndo.chordTrack!.map((c) => ({ measure: c.measure, quant: c.quant }));
+      expect(positions).toEqual([
+        { measure: 0, quant: 0 },
+        { measure: 0, quant: 24 },
+        { measure: 0, quant: 48 },
+        { measure: 1, quant: 32 },
+      ]);
     });
   });
 });
@@ -247,7 +261,7 @@ describe('UpdateChordCommand', () => {
       expect(findChordById(result, 'chord_001')).toBeDefined();
     });
 
-    it('preserves chord quant after update', () => {
+    it('preserves chord position after update', () => {
       const score = createScoreWithChords();
       const originalChord = findChordById(score, 'chord_003');
       const command = new UpdateChordCommand('chord_003', { symbol: 'Am7' });
@@ -255,6 +269,7 @@ describe('UpdateChordCommand', () => {
       const result = command.execute(score);
 
       const updatedChord = findChordById(result, 'chord_003');
+      expect(updatedChord!.measure).toBe(originalChord!.measure);
       expect(updatedChord!.quant).toBe(originalChord!.quant);
     });
 
@@ -371,14 +386,18 @@ describe('RemoveChordCommand', () => {
       expect(findChordById(result, 'chord_004')).toBeDefined();
     });
 
-    it('maintains ascending quant order after removal', () => {
+    it('maintains ascending position order after removal', () => {
       const score = createScoreWithChords();
       const command = new RemoveChordCommand('chord_002');
 
       const result = command.execute(score);
 
-      const quants = result.chordTrack!.map((c) => c.quant);
-      expect(quants).toEqual([0, 48, 96]);
+      const positions = result.chordTrack!.map((c) => ({ measure: c.measure, quant: c.quant }));
+      expect(positions).toEqual([
+        { measure: 0, quant: 0 },
+        { measure: 0, quant: 48 },
+        { measure: 1, quant: 32 },
+      ]);
     });
 
     it('returns unchanged score when chord ID not found', () => {
@@ -440,15 +459,20 @@ describe('RemoveChordCommand', () => {
       expect(restoredChord!.quant).toBe(originalChord!.quant);
     });
 
-    it('restores chord in correct quant order', () => {
+    it('restores chord in correct position order', () => {
       const score = createScoreWithChords();
       const command = new RemoveChordCommand('chord_002');
 
       const afterRemove = command.execute(score);
       const afterUndo = command.undo(afterRemove);
 
-      const quants = afterUndo.chordTrack!.map((c) => c.quant);
-      expect(quants).toEqual([0, 24, 48, 96]);
+      const positions = afterUndo.chordTrack!.map((c) => ({ measure: c.measure, quant: c.quant }));
+      expect(positions).toEqual([
+        { measure: 0, quant: 0 },
+        { measure: 0, quant: 24 },
+        { measure: 0, quant: 48 },
+        { measure: 1, quant: 32 },
+      ]);
     });
 
     it('handles undo when original execute did not modify (not found)', () => {
@@ -478,7 +502,7 @@ describe('Chord Commands Integration', () => {
     let score = createEmptyScore();
 
     // Add a chord
-    const addCommand = new AddChordCommand(0, 'C', 'test_chord');
+    const addCommand = new AddChordCommand({ measure: 0, quant: 0 }, 'C', 'test_chord');
     score = addCommand.execute(score);
     expect(score.chordTrack).toHaveLength(1);
 
@@ -498,7 +522,7 @@ describe('Chord Commands Integration', () => {
     let score = originalScore;
 
     // Add
-    const addCommand = new AddChordCommand(0, 'C', 'test_chord');
+    const addCommand = new AddChordCommand({ measure: 0, quant: 0 }, 'C', 'test_chord');
     score = addCommand.execute(score);
 
     // Update
@@ -515,30 +539,34 @@ describe('Chord Commands Integration', () => {
   });
 
   it('handles edge case: multiple chords at measure boundaries', () => {
-    const score = createEmptyScore();
+    const score = createTestScore(undefined, 3); // 3 measures
 
-    // Add chords at measure boundaries (64 quants per measure in 4/4)
-    const command1 = new AddChordCommand(0, 'C');
-    const command2 = new AddChordCommand(64, 'G');
-    const command3 = new AddChordCommand(128, 'Am');
+    // Add chords at measure starts (0 quant in each measure)
+    const command1 = new AddChordCommand({ measure: 0, quant: 0 }, 'C');
+    const command2 = new AddChordCommand({ measure: 1, quant: 0 }, 'G');
+    const command3 = new AddChordCommand({ measure: 2, quant: 0 }, 'Am');
 
     let result = command1.execute(score);
     result = command2.execute(result);
     result = command3.execute(result);
 
     expect(result.chordTrack).toHaveLength(3);
-    const quants = result.chordTrack!.map((c) => c.quant);
-    expect(quants).toEqual([0, 64, 128]);
+    const positions = result.chordTrack!.map((c) => ({ measure: c.measure, quant: c.quant }));
+    expect(positions).toEqual([
+      { measure: 0, quant: 0 },
+      { measure: 1, quant: 0 },
+      { measure: 2, quant: 0 },
+    ]);
   });
 
   it('handles edge case: negative quant values', () => {
     // Command should throw on negative quant
-    expect(() => new AddChordCommand(-1, 'C')).toThrow(/quant must be >= 0/);
+    expect(() => new AddChordCommand({ measure: 0, quant: -1 }, 'C')).toThrow(/quant must be >= 0/);
   });
 
   it('handles edge case: empty symbol string', () => {
     // Command should throw on empty symbol
-    expect(() => new AddChordCommand(0, '')).toThrow(/symbol cannot be empty/);
+    expect(() => new AddChordCommand({ measure: 0, quant: 0 }, '')).toThrow(/symbol cannot be empty/);
   });
 
   it('handles complex chord symbols', () => {
@@ -547,7 +575,8 @@ describe('Chord Commands Integration', () => {
 
     let result = score;
     complexSymbols.forEach((symbol, index) => {
-      const command = new AddChordCommand(index * 24, symbol);
+      // Place chords at different quant positions in measure 0
+      const command = new AddChordCommand({ measure: 0, quant: index * 8 }, symbol);
       result = command.execute(result);
     });
 
