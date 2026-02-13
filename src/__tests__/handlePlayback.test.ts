@@ -47,7 +47,7 @@ describe('handlePlayback', () => {
 
     expect(result).toBe(true);
     expect(mockEvent.preventDefault).toHaveBeenCalled();
-    expect(mockPlayback.playScore).toHaveBeenCalledWith(0, 1);
+    expect(mockPlayback.playScore).toHaveBeenCalledWith(0, 16); // 'e2' is a quarter note after 'e1' (16 quants)
   });
 
   test('should play from start when P is pressed with no selection', () => {
