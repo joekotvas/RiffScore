@@ -378,7 +378,7 @@ describe('ChordInput', () => {
         </svg>
       );
 
-      const input = screen.getByPlaceholderText('e.g., Cmaj7');
+      const input = screen.getByPlaceholderText('Cm7');
       expect(input).toBeInTheDocument();
     });
 
