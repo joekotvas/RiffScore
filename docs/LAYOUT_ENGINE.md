@@ -10,18 +10,94 @@
 
 ## 1. Overview
 
-The layout engine transforms **Score data** into **visual coordinates** for SVG rendering. It consists of 8 modules in `src/engines/layout/`:
+The layout engine transforms **Score data** into **visual coordinates** for SVG rendering. It consists of modules in `src/engines/layout/`:
 
 | Module | Purpose |
 |--------|---------|
 | `index.ts` | Re-exports all layout functions |
-| `types.ts` | Layout type definitions |
+| `types.ts` | Layout type definitions (`ScoreLayout`, `YBounds`) |
+| `scoreLayout.ts` | **Single source of truth** for all positions |
 | `positioning.ts` | Pitch → Y coordinate mapping |
 | `measure.ts` | Event positions, hit zones |
 | `beaming.ts` | Beam groups and angles |
 | `tuplets.ts` | Tuplet bracket positioning |
 | `stems.ts` | Stem lengths and directions |
 | `system.ts` | Multi-staff synchronization |
+| `coordinateUtils.ts` | SVG coordinate utilities |
+
+---
+
+## 1.5 ScoreLayout: Single Source of Truth
+
+The `scoreLayout.ts` module provides `calculateScoreLayout(score)`, which returns a `ScoreLayout` object containing all position data and accessor functions.
+
+### ScoreLayout Interface
+
+```typescript
+interface ScoreLayout {
+  staves: StaffLayout[];
+  notes: Record<string, NoteLayout>;
+  events: Record<string, EventLayout>;
+
+  // X coordinate accessor
+  getX: (quant: number) => number;
+
+  // Y coordinate accessors
+  getY: {
+    content: YBounds;                           // { top, bottom }
+    system: (index: number) => YBounds | null;  // System bounds
+    staff: (index: number) => YBounds | null;   // Staff bounds
+    notes: (quant?: number) => YBounds;         // Note extent (collision)
+    pitch: (pitch: string, staffIndex: number) => number | null;
+  };
+}
+```
+
+### Using getX for Horizontal Positioning
+
+```typescript
+// Get X position for any quant (beat position)
+const x = layout.getX(48);  // X for beat 3 in 4/4
+
+// Works for chords, cursors, lyrics, dynamics — any quant-based element
+```
+
+### Using getY for Vertical Positioning
+
+```typescript
+// Staff bounds (top line to bottom line)
+const staffBounds = layout.getY.staff(0);  // { top: 80, bottom: 128 }
+
+// System bounds (all staves combined)
+const systemBounds = layout.getY.system(0);  // { top: 80, bottom: 248 }
+
+// Note extent for collision avoidance
+const noteExtent = layout.getY.notes();       // System-wide
+const atQuant = layout.getY.notes(48);        // At specific beat
+
+// Pitch positioning (clef-aware)
+const y = layout.getY.pitch('C4', 0);  // Y for C4 on staff 0
+```
+
+### Forward-Flow Y Positioning
+
+Y positions flow from top to bottom. Each element derives its position from elements above:
+
+```
+Y=0 (top of canvas)
+  ↓
+ChordTrack (above staves, avoiding notes)
+  ↓
+System 0
+  ├── Staff 0 (treble)
+  │     ↓ Notes (ledger lines up/down)
+  ├── Staff 1 (bass)
+  │     ↓ Notes
+  ↓
+Future: Lyrics, Dynamics, Pedaling (below staves)
+```
+
+> See [ADR-015: Forward-Flow Y Positioning](./adr/015-forward-flow-y-positioning.md) for design rationale.
 
 ---
 
@@ -198,12 +274,15 @@ flowchart TD
 
 | Function | File | Purpose |
 |----------|------|---------|
-| `calculateMeasureLayout` | measure.ts | Event X positions |
-| `calculateChordLayout` | measure.ts | Note Y + accidentals |
+| `calculateScoreLayout` | scoreLayout.ts | **Main entry point** — returns `ScoreLayout` with `getX`/`getY` |
+| `calculateMeasureLayout` | measure.ts | Event X positions within a measure |
+| `calculateChordLayout` | positioning.ts | Note offsets for second intervals |
 | `calculateBeamingGroups` | beaming.ts | Group notes for beaming |
 | `calculateStemDirection` | stems.ts | Up or down |
 | `calculateTupletBracket` | tuplets.ts | Bracket positioning |
-| `pitchToY` | positioning.ts | Pitch → Y coordinate |
+| `getOffsetForPitch` | positioning.ts | Pitch → Y offset (clef-aware) |
+| `clientToSvg` | coordinateUtils.ts | Client coords → SVG coords |
+| `xToNearestQuant` | coordinateUtils.ts | X position → nearest quant |
 
 ---
 

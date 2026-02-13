@@ -1,9 +1,9 @@
 // @ts-nocheck
 import React from 'react';
 import { REST_GLYPHS, BRAVURA_FONT } from '@/constants/SMuFL';
+import { CONFIG } from '@/config';
 
-// Icon viewport size (scaled down from 24 to 20)
-const ICON_SIZE = 20;
+const ICON_SIZE = CONFIG.toolbar.iconSize;
 
 /**
  * Renders rest glyphs for toolbar display using Bravura font.

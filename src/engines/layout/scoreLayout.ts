@@ -9,6 +9,8 @@
  */
 import { Score, Staff, ScoreEvent } from '@/types';
 import { CONFIG } from '@/config';
+import { TIME_SIGNATURES } from '@/constants';
+import { getNoteDuration } from '@/utils/core';
 import {
   calculateHeaderLayout,
   calculateMeasureLayout,
@@ -16,9 +18,11 @@ import {
   calculateBeamingGroups,
   calculateSystemLayout,
   getNoteWidth,
+  quantToX,
+  MeasurePosition,
 } from '@/engines/layout';
 import { calculateTupletBrackets } from '@/engines/layout/tuplets';
-import { ScoreLayout, StaffLayout, MeasureLayoutV2, EventLayout, NoteLayout } from './types';
+import { ScoreLayout, StaffLayout, MeasureLayoutV2, EventLayout, NoteLayout, YBounds } from './types';
 
 // --- Phase 1: Synchronization Helper ---
 
@@ -160,12 +164,27 @@ const processEventLayout = (
  * This is the SINGLE SOURCE OF TRUTH for where everything is on the canvas.
  *
  * @param score - The score data
- * @returns ScoreLayout object containing full position maps
+ * @returns ScoreLayout object containing full position maps and getX function
  */
 export const calculateScoreLayout = (score: Score): ScoreLayout => {
-  const layout: ScoreLayout = { staves: [], notes: {}, events: {} };
+  // Default getX for empty scores - returns 0 for any quant
+  const emptyGetX = (): number => 0;
 
-  if (!score.staves || score.staves.length === 0) return layout;
+  // Default getY for empty scores
+  const emptyGetY: ScoreLayout['getY'] = {
+    content: { top: 0, bottom: 0 },
+    system: () => null,
+    staff: () => null,
+    notes: () => ({ top: 0, bottom: 0 }),
+    pitch: () => null,
+  };
+
+  if (!score.staves || score.staves.length === 0) {
+    return { staves: [], notes: {}, events: {}, getX: emptyGetX, getY: emptyGetY };
+  }
+
+  // Partial layout that we'll populate
+  const layout: Omit<ScoreLayout, 'getX' | 'getY'> = { staves: [], notes: {}, events: {} };
 
   const activeStaff = score.staves[0];
   const headerLayout = calculateHeaderLayout(score.keySignature || activeStaff.keySignature || 'C');
@@ -236,5 +255,142 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
     layout.staves.push(staffLayout);
   });
 
-  return layout;
+  // --- Build getX function ---
+  const timeSignature = score.timeSignature || '4/4';
+  const quantsPerMeasure = TIME_SIGNATURES[timeSignature] || TIME_SIGNATURES['4/4'];
+
+  // Build quant→X map from note positions
+  const quantToXMap = new Map<number, number>();
+  Object.values(layout.notes).forEach((noteLayout) => {
+    const measure = score.staves[noteLayout.staffIndex]?.measures[noteLayout.measureIndex];
+    if (!measure) return;
+
+    // Calculate global quant for this note
+    let localQuant = 0;
+    for (const event of measure.events) {
+      if (event.id === noteLayout.eventId) {
+        const globalQuant = noteLayout.measureIndex * quantsPerMeasure + localQuant;
+        // Only set if not already set (use first note's X at each quant)
+        if (!quantToXMap.has(globalQuant)) {
+          quantToXMap.set(globalQuant, noteLayout.x);
+        }
+        break;
+      }
+      localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
+    }
+  });
+
+  // Build measure positions for interpolation fallback
+  const measurePositions: MeasurePosition[] =
+    layout.staves[0]?.measures.map((m) => ({ x: m.x, width: m.width })) ?? [];
+
+  // Pre-bind the lookup function
+  const getX = (quant: number): number =>
+    quantToX(quant, quantToXMap, measurePositions, quantsPerMeasure) ?? 0;
+
+  // --- Build getY object ---
+
+  // Staff height is 5 lines = 4 gaps
+  const staffHeight = CONFIG.lineHeight * 4;
+
+  // Content region bounds
+  const lastStaffLayout = layout.staves[layout.staves.length - 1];
+  const contentTop = CONFIG.baseY;
+  const contentBottom = lastStaffLayout
+    ? lastStaffLayout.y + staffHeight
+    : CONFIG.baseY + staffHeight;
+
+  // Memoized system bounds (currently single-system)
+  const systemBoundsCache = new Map<number, YBounds | null>();
+  const system = (index: number): YBounds | null => {
+    if (systemBoundsCache.has(index)) return systemBoundsCache.get(index)!;
+
+    // Currently single-system; returns null for index > 0
+    if (index !== 0 || layout.staves.length === 0) {
+      systemBoundsCache.set(index, null);
+      return null;
+    }
+
+    const bounds: YBounds = { top: contentTop, bottom: contentBottom };
+    systemBoundsCache.set(index, bounds);
+    return bounds;
+  };
+
+  // Memoized staff bounds
+  const staffBoundsCache = new Map<number, YBounds | null>();
+  const staff = (index: number): YBounds | null => {
+    if (staffBoundsCache.has(index)) return staffBoundsCache.get(index)!;
+
+    const staffLayout = layout.staves[index];
+    if (!staffLayout) {
+      staffBoundsCache.set(index, null);
+      return null;
+    }
+
+    const bounds: YBounds = { top: staffLayout.y, bottom: staffLayout.y + staffHeight };
+    staffBoundsCache.set(index, bounds);
+    return bounds;
+  };
+
+  // Note extent (system-wide) - computed once
+  const allNoteYs = Object.values(layout.notes).map((n) => n.y);
+  const defaultBounds = staff(0) ?? { top: CONFIG.baseY, bottom: CONFIG.baseY + staffHeight };
+  const systemNoteBounds: YBounds =
+    allNoteYs.length > 0
+      ? { top: Math.min(...allNoteYs), bottom: Math.max(...allNoteYs) }
+      : defaultBounds;
+
+  // Per-quant note extent maps (built once)
+  const noteTopByQuant = new Map<number, number>();
+  const noteBottomByQuant = new Map<number, number>();
+
+  Object.values(layout.notes).forEach((noteLayout) => {
+    const measure = score.staves[noteLayout.staffIndex]?.measures[noteLayout.measureIndex];
+    if (!measure) return;
+
+    // Calculate global quant for this note (reuse logic from getX)
+    let localQuant = 0;
+    for (const event of measure.events) {
+      if (event.id === noteLayout.eventId) {
+        const globalQuant = noteLayout.measureIndex * quantsPerMeasure + localQuant;
+
+        const currentTop = noteTopByQuant.get(globalQuant) ?? Infinity;
+        if (noteLayout.y < currentTop) noteTopByQuant.set(globalQuant, noteLayout.y);
+
+        const currentBottom = noteBottomByQuant.get(globalQuant) ?? -Infinity;
+        if (noteLayout.y > currentBottom) noteBottomByQuant.set(globalQuant, noteLayout.y);
+        break;
+      }
+      localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
+    }
+  });
+
+  const notes = (quant?: number): YBounds => {
+    if (quant === undefined) {
+      return systemNoteBounds;
+    }
+    return {
+      top: noteTopByQuant.get(quant) ?? systemNoteBounds.top,
+      bottom: noteBottomByQuant.get(quant) ?? systemNoteBounds.bottom,
+    };
+  };
+
+  // Pitch positioning (clef-aware)
+  const pitch = (p: string, staffIndex: number): number | null => {
+    const staffLayout = layout.staves[staffIndex];
+    if (!staffLayout) return null;
+
+    const clef = score.staves[staffIndex]?.clef ?? (staffIndex === 0 ? 'treble' : 'bass');
+    return staffLayout.y + getOffsetForPitch(p, clef);
+  };
+
+  const getY: ScoreLayout['getY'] = {
+    content: { top: contentTop, bottom: contentBottom },
+    system,
+    staff,
+    notes,
+    pitch,
+  };
+
+  return { ...layout, getX, getY };
 };

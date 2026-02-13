@@ -44,7 +44,8 @@ Key patterns:
 | `src/types.ts` | Score, Staff, Measure, Event, Note, Selection |
 | `src/api.types.ts` | MusicEditorAPI interface |
 | `src/componentTypes.ts` | Component prop types |
-| `src/config.ts` | Layout constants |
+| `src/config.ts` | Centralized layout tuning (`CONFIG.toolbar`, `CONFIG.header`, `CONFIG.chordTrack`) |
+| `src/constants.ts` | Music theory & rendering (`LAYOUT`, `STEM`, `BEAMING`, `NOTE_TYPES`) |
 
 ### State Management
 | File | Purpose |

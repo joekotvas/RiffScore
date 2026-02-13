@@ -174,6 +174,73 @@ See also: [docs/ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ---
 
+## 2.5 Constants & Configuration
+
+All tunable values must be centralized. **Never scatter magic numbers across files.**
+
+### Where Constants Live
+
+| File | Purpose | Examples |
+|------|---------|----------|
+| `src/config.ts` | Layout & UI tuning | `baseY`, `staffSpacing`, `toolbar.iconSize`, `header.*`, `chordTrack.*` |
+| `src/constants.ts` | Music theory & rendering | `LAYOUT`, `STEM`, `BEAMING`, `TUPLET`, `NOTE_TYPES`, `KEY_SIGNATURES` |
+
+### Using Constants
+
+**Pattern:** Import CONFIG, derive local constants for repeated use:
+
+```typescript
+// ✅ Good: Centralized, short local name for readability
+import { CONFIG } from '@/config';
+
+const ICON_SIZE = CONFIG.toolbar.iconSize;
+
+const MyIcon = () => (
+  <svg width={ICON_SIZE} height={ICON_SIZE}>...</svg>
+);
+```
+
+```typescript
+// ✅ Good: Use LAYOUT for rendering constants
+import { LAYOUT } from '@/constants';
+
+const ACCIDENTAL_PADDING = LAYOUT.ACCIDENTAL_PADDING;
+```
+
+```typescript
+// ❌ Bad: Magic number scattered in component
+const ICON_SIZE = 20;  // Where did this come from?
+```
+
+### CONFIG Structure
+
+```typescript
+CONFIG = {
+  // Core layout
+  lineHeight: 12,
+  baseY: 80,
+  staffSpacing: 120,
+
+  // Feature-specific tuning (grouped)
+  toolbar: { iconSize: 20 },
+  header: { clefWidth: 40, keySigStartX: 45, ... },
+  chordTrack: { minDistanceFromStaff: 40, paddingAboveNotes: 20, minY: 0 },
+
+  // Debug flags
+  debug: { enabled: true, ... }
+}
+```
+
+### Adding New Constants
+
+1. **Identify the category** (layout, toolbar, rendering, feature-specific)
+2. **Add to appropriate file** (`config.ts` for tuning, `constants.ts` for music theory/rendering)
+3. **Group related values** in nested objects (e.g., `CONFIG.chordTrack.*`)
+4. **Update imports** in consuming files
+5. **Document** with JSDoc comments
+
+---
+
 ## 3. Core Utilities
 
 ### ID Generation

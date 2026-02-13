@@ -10,6 +10,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ChordTrack } from '@/components/Canvas/ChordTrack/ChordTrack';
 import type { ChordSymbol, ChordDisplayConfig } from '@/types';
+import type { ScoreLayout } from '@/engines/layout/types';
+import { CONFIG } from '@/config';
 
 // Store the current mock position for coordinate transformation
 // Reset in beforeEach to prevent test pollution
@@ -136,6 +138,44 @@ describe('ChordTrack', () => {
     return 50 + quant * 2;
   };
 
+  // Mock layout with getX and getY APIs
+  const createMockLayout = (noteYByQuant?: Map<number, number>): ScoreLayout => {
+    const staffHeight = CONFIG.lineHeight * 4;
+    const staffTop = CONFIG.baseY;
+    const staffBottom = staffTop + staffHeight;
+
+    // Compute system-wide note bounds from all notes in the map
+    let systemNoteBounds = { top: staffTop, bottom: staffBottom };
+    if (noteYByQuant && noteYByQuant.size > 0) {
+      const noteYValues = Array.from(noteYByQuant.values());
+      systemNoteBounds = {
+        top: Math.min(...noteYValues),
+        bottom: Math.max(...noteYValues),
+      };
+    }
+
+    return {
+      staves: [{ y: staffTop, index: 0, measures: [] }],
+      notes: {},
+      events: {},
+      getX: mockQuantToX,
+      getY: {
+        content: { top: staffTop, bottom: staffBottom },
+        system: (index: number) => (index === 0 ? { top: staffTop, bottom: staffBottom } : null),
+        staff: (index: number) => (index === 0 ? { top: staffTop, bottom: staffBottom } : null),
+        notes: (quant?: number) => {
+          if (quant === undefined) return systemNoteBounds;
+          const noteY = noteYByQuant?.get(quant);
+          if (noteY !== undefined) {
+            return { top: noteY, bottom: noteY };
+          }
+          return systemNoteBounds;
+        },
+        pitch: () => null,
+      },
+    };
+  };
+
   const defaultProps = {
     chords: mockChords,
     displayConfig: mockDisplayConfig,
@@ -143,16 +183,8 @@ describe('ChordTrack', () => {
     timeSignature: '4/4',
     validQuants: new Set([0, 24, 48, 72]),
     measurePositions: mockMeasurePositions,
-    quantToX: mockQuantToX,
-    trackY: 20,
+    layout: createMockLayout(),
     quantsPerMeasure: 96,
-    noteYByQuant: new Map<number, number>(),
-    collisionConfig: {
-      MIN_DISTANCE_FROM_STAFF: 40,
-      PADDING_ABOVE_NOTES: 12,
-      MIN_Y: 0,
-      PER_CHORD_MIN_Y: -20,
-    },
     editingChordId: null,
     selectedChordId: null,
     creatingAtQuant: null,
@@ -569,16 +601,37 @@ describe('ChordTrack', () => {
   });
 
   describe('track positioning', () => {
-    it('applies trackY transform to the group', () => {
+    it('computes trackY from layout and applies transform', () => {
+      // With default layout (staff at CONFIG.baseY=80, no notes),
+      // trackY = staffTop - MIN_DISTANCE_FROM_STAFF = 80 - 40 = 40
       render(
         <svg data-testid="test-svg">
-          <ChordTrack {...defaultProps} trackY={30} />
+          <ChordTrack {...defaultProps} />
         </svg>
       );
 
       const trackGroup = screen.getByTestId('chord-track');
 
-      expect(trackGroup).toHaveAttribute('transform', 'translate(0, 30)');
+      // Default trackY = CONFIG.baseY (80) - MIN_DISTANCE_FROM_STAFF (40) = 40
+      expect(trackGroup).toHaveAttribute('transform', 'translate(0, 40)');
+    });
+
+    it('positions track higher when notes are high', () => {
+      // Create layout with a high note (lower Y value)
+      const highNoteY = 30; // Very high on screen
+      const noteMap = new Map([[0, highNoteY]]);
+      const layoutWithHighNote = createMockLayout(noteMap);
+
+      render(
+        <svg data-testid="test-svg">
+          <ChordTrack {...defaultProps} layout={layoutWithHighNote} />
+        </svg>
+      );
+
+      const trackGroup = screen.getByTestId('chord-track');
+
+      // With high note at Y=30, trackY = 30 - PADDING_ABOVE_NOTES (20) = 10
+      expect(trackGroup).toHaveAttribute('transform', 'translate(0, 10)');
     });
   });
 });

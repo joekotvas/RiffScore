@@ -77,6 +77,15 @@ export interface HeaderLayout {
 
 // ========== SINGLE SOURCE OF TRUTH LAYOUT TYPES ==========
 
+/**
+ * Vertical bounds for layout elements.
+ * Used by getY accessors to return top/bottom positions.
+ */
+export interface YBounds {
+  top: number;
+  bottom: number;
+}
+
 export interface NoteLayout {
   x: number;
   y: number;
@@ -120,4 +129,37 @@ export interface ScoreLayout {
   notes: Record<string, NoteLayout>;
   // Key format: `${staffIndex}-${measureIndex}-${eventId}`
   events: Record<string, EventLayout>;
+
+  /**
+   * Get X coordinate for any quant position.
+   * Single entry point for ALL positioned elements (chords, cursor, lyrics, dynamics).
+   * Handles exact match lookup and interpolation fallback.
+   */
+  getX: (quant: number) => number;
+
+  /**
+   * Get Y coordinates for vertical positioning.
+   * Forward-flow design: positions derive from elements above.
+   * @see docs/migration/y-positioning-spec.md
+   */
+  getY: {
+    /** Content region bounds (contains all systems) */
+    content: YBounds;
+
+    /** System bounds. Returns null for invalid index. Currently only system(0) is valid. */
+    system: (index: number) => YBounds | null;
+
+    /** Staff bounds. Returns null for invalid index. */
+    staff: (index: number) => YBounds | null;
+
+    /**
+     * Note extent for collision avoidance.
+     * - No arg: returns system-wide extent (memoized)
+     * - With quant: returns extent at that position, falls back to system-wide
+     */
+    notes: (quant?: number) => YBounds;
+
+    /** Pitch Y position (clef-aware). Returns null for invalid staff index. */
+    pitch: (pitch: string, staffIndex: number) => number | null;
+  };
 }

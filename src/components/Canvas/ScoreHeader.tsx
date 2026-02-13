@@ -2,7 +2,7 @@ import React from 'react';
 import { KEY_SIGNATURES, KEY_SIGNATURE_OFFSETS, KeySignatureOffsets } from '@/constants';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
-import { calculateHeaderLayout, HEADER_CONSTANTS } from '@/engines/layout';
+import { calculateHeaderLayout } from '@/engines/layout';
 import { ACCIDENTALS, CLEFS, TIME_SIG_DIGITS, BRAVURA_FONT, getFontSize } from '@/constants/SMuFL';
 
 interface ScoreHeaderProps {
@@ -69,9 +69,7 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
   // Use centralized layout calculation (SSOT)
   const headerLayout = calculateHeaderLayout(keySignature);
   const { keySigStartX, keySigVisualWidth, timeSigStartX, startOfMeasures } = headerLayout;
-  const { KEY_SIG_ACCIDENTAL_WIDTH, TIME_SIG_WIDTH } = HEADER_CONSTANTS;
-
-  const CLEF_WIDTH = 40;
+  const { keySigAccidentalWidth, timeSigWidth, clefWidth } = CONFIG.header;
 
   return (
     <g className="ScoreHeader">
@@ -98,7 +96,7 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
 
       {/* Clef - clickable */}
       <g onClick={onClefClick} style={{ cursor: 'pointer' }} data-testid={`clef-${clef}`}>
-        <rect x="-5" y={baseY - 25} width={CLEF_WIDTH} height="100" fill="transparent" />
+        <rect x="-5" y={baseY - 25} width={clefWidth} height="100" fill="transparent" />
         <text
           x={12}
           y={getClefY(clef, baseY)}
@@ -130,7 +128,7 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
           const validClef =
             clef in KEY_SIGNATURE_OFFSETS ? (clef as keyof KeySignatureOffsets) : 'treble';
           const offset = KEY_SIGNATURE_OFFSETS[validClef][type][acc];
-          const x = keySigStartX + 5 + i * KEY_SIG_ACCIDENTAL_WIDTH;
+          const x = keySigStartX + 5 + i * keySigAccidentalWidth;
           const y = baseY + offset;
 
           return (
@@ -150,7 +148,7 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
 
       {/* Time Signature */}
       <g onClick={onTimeSigClick} style={{ cursor: 'pointer', userSelect: 'none' }}>
-        <rect x={timeSigStartX} y={baseY} width={TIME_SIG_WIDTH} height="48" fill="transparent" />
+        <rect x={timeSigStartX} y={baseY} width={timeSigWidth} height="48" fill="transparent" />
         <text
           x={timeSigStartX + 15}
           y={baseY + CONFIG.lineHeight}

@@ -204,107 +204,6 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     }));
   }, [layout.staves, quantsPerMeasure]);
 
-  // Build quant→X map from actual note positions in layout
-  const quantToXMap = useMemo(() => {
-    const map = new Map<number, number>();
-    // Group notes by quant and use the first note's X position
-    Object.values(layout.notes).forEach((noteLayout) => {
-      // Calculate global quant from measureIndex and event position
-      const measure = score.staves[noteLayout.staffIndex]?.measures[noteLayout.measureIndex];
-      if (!measure) return;
-
-      let localQuant = 0;
-      for (const event of measure.events) {
-        if (event.id === noteLayout.eventId) {
-          const globalQuant = noteLayout.measureIndex * quantsPerMeasure + localQuant;
-          // Only set if not already set (use first note's X)
-          if (!map.has(globalQuant)) {
-            map.set(globalQuant, noteLayout.x);
-          }
-          break;
-        }
-        // Accumulate quant for each event using the standard duration calculation
-        localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
-      }
-    });
-    return map;
-  }, [layout.notes, score.staves, quantsPerMeasure]);
-
-  const quantToX = useCallback(
-    (quant: number): number => {
-      // Use actual note position if available
-      const mappedX = quantToXMap.get(quant);
-      if (mappedX !== undefined) return mappedX;
-
-      // Fallback to proportion-based calculation
-      if (measurePositions.length === 0) return 0;
-      const measureIndex = Math.floor(quant / quantsPerMeasure);
-      const localQuant = quant % quantsPerMeasure;
-      const measure = measurePositions[measureIndex];
-      if (!measure) return 0;
-      const proportion = localQuant / quantsPerMeasure;
-      return measure.x + proportion * measure.width;
-    },
-    [quantToXMap, measurePositions, quantsPerMeasure]
-  );
-
-  // Chord track collision avoidance constants
-  const CHORD_COLLISION = useMemo(
-    () => ({
-      MIN_DISTANCE_FROM_STAFF: 40, // Minimum gap above staff top line (B5 equivalent)
-      PADDING_ABOVE_NOTES: 20, // Gap between highest note and chord track
-      MIN_Y: 30, // System baseline won't go higher than this
-      PER_CHORD_MIN_Y: 0, // Individual chords can go all the way to top
-    }),
-    []
-  );
-
-  // Build a map of quant -> highest note Y at that quant position
-  // Used for per-chord collision avoidance
-  const noteYByQuant = useMemo(() => {
-    const map = new Map<number, number>();
-
-    Object.values(layout.notes).forEach((noteLayout) => {
-      const measure = score.staves[noteLayout.staffIndex]?.measures[noteLayout.measureIndex];
-      if (!measure) return;
-
-      let localQuant = 0;
-      for (const event of measure.events) {
-        if (event.id === noteLayout.eventId) {
-          const globalQuant = noteLayout.measureIndex * quantsPerMeasure + localQuant;
-          // Keep the minimum (highest on screen) Y for each quant
-          const existing = map.get(globalQuant);
-          if (existing === undefined || noteLayout.y < existing) {
-            map.set(globalQuant, noteLayout.y);
-          }
-          break;
-        }
-        localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
-      }
-    });
-
-    return map;
-  }, [layout.notes, score.staves, quantsPerMeasure]);
-
-  // System-level chord track Y position (baseline for all chords)
-  // All chords move together based on the highest note in the entire score
-  const chordTrackY = useMemo(() => {
-    // Default position when no notes or all notes are below the threshold
-    const defaultY = CONFIG.baseY - CHORD_COLLISION.MIN_DISTANCE_FROM_STAFF;
-
-    const noteYValues = Object.values(layout.notes).map((n) => n.y);
-    if (noteYValues.length === 0) return defaultY;
-
-    const highestNoteY = Math.min(...noteYValues);
-
-    // Calculate where the chord track should be to clear the highest note
-    const collisionY = highestNoteY - CHORD_COLLISION.PADDING_ABOVE_NOTES;
-
-    // Use the higher position (lower Y value) between collision-based and default
-    // Clamp to MIN_Y (can go all the way to 0 for extreme cases)
-    return Math.max(CHORD_COLLISION.MIN_Y, Math.min(collisionY, defaultY));
-  }, [layout.notes, CHORD_COLLISION]);
-
   // --- DIMENSIONS & REF ---
   const cursorRef = useRef<SVGGElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -606,11 +505,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             timeSignature={timeSignature}
             validQuants={chordTrackHook.validQuants}
             measurePositions={measurePositions}
-            quantToX={quantToX}
-            trackY={chordTrackY}
+            layout={layout}
             quantsPerMeasure={quantsPerMeasure}
-            noteYByQuant={noteYByQuant}
-            collisionConfig={CHORD_COLLISION}
             editingChordId={chordTrackHook.editingChordId}
             selectedChordId={chordTrackHook.selectedChordId}
             creatingAtQuant={chordTrackHook.creatingAtQuant}

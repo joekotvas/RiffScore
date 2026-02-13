@@ -6,11 +6,11 @@
  */
 import React from 'react';
 import { ACCIDENTALS, BRAVURA_FONT } from '@/constants/SMuFL';
+import { CONFIG } from '@/config';
 import ToolbarButton from './ToolbarButton';
 
-// SVG viewport and font size for compact toolbar icons
-const ICON_SIZE = 20;
-const FONT_SIZE = 20;
+const ICON_SIZE = CONFIG.toolbar.iconSize;
+const FONT_SIZE = CONFIG.toolbar.iconSize;
 
 interface AccidentalIconProps {
   type: 'flat' | 'natural' | 'sharp';

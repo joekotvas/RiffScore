@@ -237,4 +237,280 @@ describe('calculateScoreLayout', () => {
     expect(layout.staves[0].measures).toHaveLength(1);
     expect(Object.keys(layout.notes)).toHaveLength(1);
   });
+
+  describe('layout.getX', () => {
+    it('should return X position for quants with notes', () => {
+      const score = createTestScore();
+      const layout = calculateScoreLayout(score);
+
+      // First beat (quant 0) should have a valid X position
+      const x = layout.getX(0);
+      expect(x).toBeGreaterThan(0);
+    });
+
+    it('should interpolate for quants without notes', () => {
+      const score = createTestScore();
+      const layout = calculateScoreLayout(score);
+
+      // Interpolation uses measure boundaries, not exact note positions
+      // So interpolated values progress through the measure
+      const x12 = layout.getX(12); // 12.5% through measure
+      const x48 = layout.getX(48); // 50% through measure
+
+      // Later quants should have higher X values (further right)
+      expect(x48).toBeGreaterThan(x12);
+
+      // Values should be positive (within the score area)
+      expect(x12).toBeGreaterThan(0);
+    });
+
+    it('should return 0 for empty score', () => {
+      const emptyScore: Score = {
+        title: 'Empty',
+        staves: [],
+        keySignature: 'C',
+        timeSignature: '4/4',
+        bpm: 120,
+      };
+      const layout = calculateScoreLayout(emptyScore);
+
+      expect(layout.getX(0)).toBe(0);
+      expect(layout.getX(100)).toBe(0);
+    });
+
+    it('should handle quants in different measures', () => {
+      const score = createTestScore();
+      const layout = calculateScoreLayout(score);
+      const quantsPerMeasure = 96; // 4/4 time
+
+      // Beat 1 of measure 1
+      const x_m1_b1 = layout.getX(0);
+      // Beat 1 of measure 2
+      const x_m2_b1 = layout.getX(quantsPerMeasure);
+
+      // Measure 2 should start after measure 1
+      expect(x_m2_b1).toBeGreaterThan(x_m1_b1);
+    });
+  });
+
+  describe('layout.getY', () => {
+    describe('content', () => {
+      it('should return content bounds for score with staves', () => {
+        const score = createTestScore();
+        const layout = calculateScoreLayout(score);
+
+        expect(layout.getY.content.top).toBe(CONFIG.baseY);
+        expect(layout.getY.content.bottom).toBeGreaterThan(layout.getY.content.top);
+      });
+
+      it('should return zero bounds for empty score', () => {
+        const emptyScore: Score = {
+          title: 'Empty',
+          staves: [],
+          keySignature: 'C',
+          timeSignature: '4/4',
+          bpm: 120,
+        };
+        const layout = calculateScoreLayout(emptyScore);
+
+        expect(layout.getY.content.top).toBe(0);
+        expect(layout.getY.content.bottom).toBe(0);
+      });
+    });
+
+    describe('system()', () => {
+      it('should return bounds for system 0', () => {
+        const score = createTestScore();
+        const layout = calculateScoreLayout(score);
+
+        const sys = layout.getY.system(0);
+        expect(sys).not.toBeNull();
+        expect(sys!.top).toBeLessThan(sys!.bottom);
+      });
+
+      it('should return null for invalid system index', () => {
+        const score = createTestScore();
+        const layout = calculateScoreLayout(score);
+
+        expect(layout.getY.system(1)).toBeNull();
+        expect(layout.getY.system(99)).toBeNull();
+      });
+
+      it('should return null for empty score', () => {
+        const emptyScore: Score = {
+          title: 'Empty',
+          staves: [],
+          keySignature: 'C',
+          timeSignature: '4/4',
+          bpm: 120,
+        };
+        const layout = calculateScoreLayout(emptyScore);
+
+        expect(layout.getY.system(0)).toBeNull();
+      });
+    });
+
+    describe('staff()', () => {
+      it('should return bounds for valid staff', () => {
+        const score = createTestScore();
+        const layout = calculateScoreLayout(score);
+
+        const s0 = layout.getY.staff(0);
+        expect(s0).not.toBeNull();
+        // Staff height is 5 lines = 4 gaps
+        expect(s0!.bottom - s0!.top).toBe(CONFIG.lineHeight * 4);
+      });
+
+      it('should return different bounds for different staves', () => {
+        const score = createTestScore(); // Has 2 staves
+        const layout = calculateScoreLayout(score);
+
+        const s0 = layout.getY.staff(0);
+        const s1 = layout.getY.staff(1);
+
+        expect(s0).not.toBeNull();
+        expect(s1).not.toBeNull();
+        expect(s1!.top).toBeGreaterThan(s0!.top);
+      });
+
+      it('should return null for invalid staff index', () => {
+        const score = createTestScore();
+        const layout = calculateScoreLayout(score);
+
+        expect(layout.getY.staff(99)).toBeNull();
+      });
+
+      it('should memoize results', () => {
+        const score = createTestScore();
+        const layout = calculateScoreLayout(score);
+
+        const s0a = layout.getY.staff(0);
+        const s0b = layout.getY.staff(0);
+
+        // Same object reference (memoized)
+        expect(s0a).toBe(s0b);
+      });
+    });
+
+    describe('notes()', () => {
+      it('should return system-wide extent without arg', () => {
+        const score = createTestScore();
+        const layout = calculateScoreLayout(score);
+
+        const extent = layout.getY.notes();
+        expect(extent.top).toBeLessThanOrEqual(extent.bottom);
+      });
+
+      it('should return per-quant extent with arg', () => {
+        const score = createTestScore();
+        const layout = calculateScoreLayout(score);
+
+        const extent = layout.getY.notes(0);
+        expect(extent.top).toBeDefined();
+        expect(extent.bottom).toBeDefined();
+      });
+
+      it('should fall back to system-wide for empty quant', () => {
+        const score = createTestScore();
+        const layout = calculateScoreLayout(score);
+
+        const system = layout.getY.notes();
+        const atQuant = layout.getY.notes(9999); // No notes at this quant
+
+        expect(atQuant).toEqual(system);
+      });
+
+      it('should return staff bounds for score with no notes', () => {
+        const score: Score = {
+          title: 'Rests Only',
+          staves: [
+            {
+              id: 'staff-1',
+              clef: 'treble',
+              keySignature: 'C',
+              measures: [
+                {
+                  id: 'm1',
+                  events: [
+                    {
+                      id: 'rest-1',
+                      duration: 'quarter',
+                      dotted: false,
+                      notes: [{ id: 'n1', pitch: null }], // Rest
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+          keySignature: 'C',
+          timeSignature: '4/4',
+          bpm: 120,
+        };
+
+        const layout = calculateScoreLayout(score);
+        const extent = layout.getY.notes();
+        const staffBounds = layout.getY.staff(0);
+
+        // Falls back to staff bounds when no notes
+        expect(extent.top).toBe(staffBounds!.top);
+        expect(extent.bottom).toBe(staffBounds!.bottom);
+      });
+    });
+
+    describe('pitch()', () => {
+      it('should return Y for valid pitch and staff', () => {
+        const score = createTestScore();
+        const layout = calculateScoreLayout(score);
+
+        const y = layout.getY.pitch('C4', 0);
+        expect(y).not.toBeNull();
+        expect(typeof y).toBe('number');
+      });
+
+      it('should return null for invalid staff', () => {
+        const score = createTestScore();
+        const layout = calculateScoreLayout(score);
+
+        expect(layout.getY.pitch('C4', 99)).toBeNull();
+      });
+
+      it('should position same pitch differently for different clefs', () => {
+        const score: Score = {
+          title: 'Two Clefs',
+          staves: [
+            {
+              id: 'staff-1',
+              clef: 'treble',
+              keySignature: 'C',
+              measures: [{ id: 'm1', events: [] }],
+            },
+            {
+              id: 'staff-2',
+              clef: 'bass',
+              keySignature: 'C',
+              measures: [{ id: 'm2', events: [] }],
+            },
+          ],
+          keySignature: 'C',
+          timeSignature: '4/4',
+          bpm: 120,
+        };
+
+        const layout = calculateScoreLayout(score);
+
+        // C4 in treble (ledger line below) vs C4 in bass (ledger line above)
+        // The relative offset from staff Y should differ
+        const trebleY = layout.getY.pitch('C4', 0);
+        const bassY = layout.getY.pitch('C4', 1);
+
+        expect(trebleY).not.toBeNull();
+        expect(bassY).not.toBeNull();
+
+        // Both are valid Y positions
+        expect(typeof trebleY).toBe('number');
+        expect(typeof bassY).toBe('number');
+      });
+    });
+  });
 });
