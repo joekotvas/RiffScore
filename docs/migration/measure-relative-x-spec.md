@@ -66,8 +66,13 @@ interface ScoreLayout {
 - `src/commands/chord/UpdateChordCommand.ts` — Update position handling if needed
 - `src/commands/chord/RemoveChordCommand.ts` — No change (uses ID)
 - `src/hooks/chord/useChordTrack.ts` — `creatingAtQuant` → `creatingAt: { measure, quant }`
-- `src/services/chord/ChordQuants.ts` — Return `Set<{ measure: number; quant: number }>` or change approach
-- `src/utils/chord/queries.ts` — `findChordAtQuant` accepts `{ measure, quant }`
+- `src/services/chord/ChordQuants.ts` — Return `Map<measure, Set<quant>>` for efficient lookup
+- `src/utils/chord/queries.ts` — `findChordAtQuant` → `findChordAt({ measure, quant })`
+- `src/utils/navigation/vertical.ts` — Update chord lookup in navigation
+- `src/engines/toneEngine.ts` — Update playback timing (use `chord.measure` directly)
+- `src/hooks/api/chords.ts` — Update API methods (logging, selection)
+- `src/components/Layout/ScoreEditor.tsx` — Update chord selection
+- `src/components/Canvas/ScoreCanvas.tsx` — Update chord navigation
 - `src/components/Canvas/ChordTrack/ChordTrack.tsx` — Use new data shape
 - `src/exporters/abcExporter.ts` — Update chord export
 - `src/exporters/musicXmlExporter.ts` — Update chord export
@@ -229,15 +234,19 @@ transform: `translateX(${layout.getX.measureOrigin({ measure: cursor.measure }) 
 
 | Component | Change | Complexity |
 |-----------|--------|------------|
-| `types.ts` (ChordSymbol) | Add `measure` field, remove global quant | Low |
+| `types.ts` (ChordSymbol) | Add `measure` field, local quant | Low |
 | `AddChordCommand.ts` | Accept `{ measure, quant }` params | Medium |
 | `useChordTrack.ts` | `creatingAt` instead of `creatingAtQuant` | Medium |
-| `ChordQuants.ts` | Return structured quant positions | Medium |
-| `queries.ts` | Update `findChordAtQuant` signature | Low |
+| `ChordQuants.ts` | Return `Map<measure, Set<quant>>` | Medium |
+| `queries.ts` | `findChordAt({ measure, quant })` | Low |
+| `vertical.ts` | Update chord lookup in navigation | Low |
+| `toneEngine.ts` | Use `chord.measure` for timing | Medium |
+| `chords.ts` (API) | Update logging and selection | Low |
+| `ScoreEditor.tsx` | Update chord selection | Low |
+| `ScoreCanvas.tsx` | Update chord navigation + cursor | Medium |
+| `ChordTrack.tsx` | Use new data shape | Medium |
 | `scoreLayout.ts` | New getX implementation | Medium |
-| `ChordTrack.tsx` | Use new API + data model | Medium |
 | `useCursorLayout.ts` | Return measure context | Medium |
-| `ScoreCanvas.tsx` | Cursor transform | Low |
 | `useDragToSelect.ts` | Per-measure hit detection | Medium |
 | `NoteLayout/EventLayout` | Rename x → localX | Low |
 | `abcExporter.ts` | Update chord export | Low |
