@@ -30,7 +30,7 @@ Key patterns:
 - Command pattern for all state mutations
 - Separate ScoreEngine (undoable) and SelectionEngine (ephemeral)
 - Factory pattern for API modules
-- Quant system: 96 quants = 1 whole note
+- Quant system: 64 quants = 1 whole note
 ```
 
 ---
@@ -172,7 +172,7 @@ if (!valid) {
 
 | Concept | Definition |
 |---------|------------|
-| **Quant** | Smallest time unit (96 per whole note, 24 per quarter) |
+| **Quant** | Smallest time unit (64 per whole note, 16 per quarter) |
 | **Ghost Cursor** | Preview of note to be inserted (`eventId === null`) |
 | **Vertical Metric** | `(100 - staffIndex) * 1000 + midi` for 2D selection |
 | **Anchor** | Fixed point in range selection |

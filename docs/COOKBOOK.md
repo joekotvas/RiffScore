@@ -107,9 +107,9 @@ const score = window.riffScore.active;
 
 // I-IV-V-I in C major (one chord per measure in 4/4)
 score.addChord(0, 'C')         // Beat 1 of measure 1 (quant 0)
-     .addChord(96, 'F')        // Beat 1 of measure 2 (quant 96)
-     .addChord(192, 'G7')      // Beat 1 of measure 3 (quant 192)
-     .addChord(288, 'C');      // Beat 1 of measure 4 (quant 288)
+     .addChord(64, 'F')        // Beat 1 of measure 2 (quant 64)
+     .addChord(128, 'G7')      // Beat 1 of measure 3 (quant 128)
+     .addChord(192, 'C');      // Beat 1 of measure 4 (quant 192)
 ```
 
 ### Navigate and Edit Chords

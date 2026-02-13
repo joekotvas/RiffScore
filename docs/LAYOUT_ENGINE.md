@@ -62,10 +62,10 @@ The `measure.ts` module calculates horizontal positioning:
 
 ### Quant System
 
-- **96 quants** per whole note
-- Quarter note = 24 quants
-- Eighth note = 12 quants
-- Sixteenth = 6 quants
+- **64 quants** per whole note
+- Quarter note = 16 quants
+- Eighth note = 8 quants
+- Sixteenth = 4 quants
 
 ### Hit Zones
 

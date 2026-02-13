@@ -30,7 +30,7 @@ This specification covers:
 |------|------------|
 | **Canonical Form** | The normalized internal representation of a chord (e.g., `Cmaj7`) |
 | **Chord Track** | The single array of chord symbols attached to a score |
-| **Quant** | Smallest time unit; 96 quants = 1 whole note |
+| **Quant** | Smallest time unit; 64 quants = 1 whole note |
 | **Anchor Quant** | The global quant position where a chord symbol is placed |
 | **Display Notation** | The user-selected notation system for rendering |
 
@@ -579,7 +579,7 @@ interface ChordAPI {
 api.addChord(0, 'Cmaj7');
 
 // Add chord and select it
-api.addChord(96, 'Am7').selectChordAtQuant(96);
+api.addChord(64, 'Am7').selectChordAtQuant(64);
 
 // Navigate through chords
 api.focusChordTrack().selectNextChord().selectNextChord();
@@ -619,9 +619,9 @@ Chord track included as-is in the Score object:
   "keySignature": "C",
   "chordTrack": [
     { "id": "chord-1", "quant": 0, "symbol": "C" },
-    { "id": "chord-2", "quant": 96, "symbol": "Am" },
-    { "id": "chord-3", "quant": 192, "symbol": "F" },
-    { "id": "chord-4", "quant": 288, "symbol": "G" }
+    { "id": "chord-2", "quant": 64, "symbol": "Am" },
+    { "id": "chord-3", "quant": 128, "symbol": "F" },
+    { "id": "chord-4", "quant": 192, "symbol": "G" }
   ],
   "staves": [...]
 }
