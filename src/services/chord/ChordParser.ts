@@ -47,7 +47,9 @@ const fromSolfege = (input: string): string => {
   if (!match) return input;
 
   const [, syllable, accidental = '', suffix] = match;
-  const letter = SOLFEGE_TO_LETTER[syllable] || 'C';
+  // Normalize to title-case to match SOLFEGE_TO_LETTER keys (Do, Re, Mi...)
+  const normalizedSyllable = syllable.charAt(0).toUpperCase() + syllable.slice(1).toLowerCase();
+  const letter = SOLFEGE_TO_LETTER[normalizedSyllable] || 'C';
 
   return `${letter}${accidental}${suffix}`;
 };

@@ -8,6 +8,7 @@
  * @see Issue #109
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Note } from 'tonal';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
 import Staff from './Staff';
@@ -374,8 +375,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
         if (event && !event.isRest && event.notes?.length) {
           // Found a note - select the highest note in the event
           const sortedNotes = [...event.notes].sort((a, b) => {
-            const midiA = a.pitch ? parseInt(a.pitch.replace(/\D/g, '')) : 0;
-            const midiB = b.pitch ? parseInt(b.pitch.replace(/\D/g, '')) : 0;
+            const midiA = a.pitch ? (Note.midi(a.pitch) ?? 0) : 0;
+            const midiB = b.pitch ? (Note.midi(b.pitch) ?? 0) : 0;
             return midiB - midiA; // Descending (highest first)
           });
           handleNoteSelection(measureIndex, event.id, sortedNotes[0]?.id || null, staffIdx);
@@ -403,8 +404,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
           if (lastValidEvent) {
             const sortedNotes = [...lastValidEvent.event.notes!].sort((a, b) => {
-              const midiA = a.pitch ? parseInt(a.pitch.replace(/\D/g, '')) : 0;
-              const midiB = b.pitch ? parseInt(b.pitch.replace(/\D/g, '')) : 0;
+              const midiA = a.pitch ? (Note.midi(a.pitch) ?? 0) : 0;
+              const midiB = b.pitch ? (Note.midi(b.pitch) ?? 0) : 0;
               return midiB - midiA;
             });
             handleNoteSelection(mIdx, lastValidEvent.event.id, sortedNotes[0]?.id || null, staffIdx);

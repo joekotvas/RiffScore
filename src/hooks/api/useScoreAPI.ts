@@ -112,6 +112,8 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
           noteId: newSelection.noteId,
           selectedNotes: newSelection.selectedNotes,
           anchor: newSelection.anchor,
+          chordId: newSelection.chordId,
+          chordTrackFocused: newSelection.chordTrackFocused,
         })
       );
     },
