@@ -77,27 +77,26 @@ describe('ScoreEditor Interactions', () => {
     // Scale is 1 by default. BaseY is... dependent on config.
     // In test env, getBoundingClientRect usually returns 0,0 provided we don't mock it heavily.
     // Let's assume standard layout.
-    // In Measure.tsx: yOffset = Math.round((y - 50) / 6) * 6;
-    // rect y is baseY - 50.
+    // 2. Simulate Mouse over Measure 0, Quant 0 (Top Staff)
+    // In Measure.tsx: yOffset = Math.round((y - MEASURE_HIT_AREA_TOP_OFFSET) / 6) * 6;
+    // MEASURE_HIT_AREA_TOP_OFFSET is 56 (derived from OUTER_ZONE_LINES = 4.6).
     // If we want C4 (Middle C), offset is 60 (from positioning.ts).
     // So we want yOffset = 60.
-    // 60 = (y - 50). So y = 110.
-    // This 'y' is relative to the hit area's top + 50? No.
-    // measure.tsx: const y = (e.clientY - rect.top) / scale;
+    // 60 = (y - 56). So y = 116.
     // rect.top in test is likely 0.
-    // visual y = 110. (relative to rect top?)
-    // Wait, logic: yOffset = Math.round((y - 50) / 6) * 6;
-    // We want offset 60. 60 = (y - 50). y = 110.
-    // So clientY should be 110 (assuming rect.top=0, scale=1).
+    // visual y = 116. (relative to rect top?)
+    // Logic: yOffset = Math.round((y - 56) / 6) * 6;
+    // We want offset 60. 60 = (y - 56). y = 116.
+    // So clientY should be 116 (assuming rect.top=0, scale=1).
 
-    fireEvent.mouseMove(hitArea, { clientX: 50, clientY: 110 });
+    fireEvent.mouseMove(hitArea, { clientX: 50, clientY: 116 });
 
     // Wait for preview ghost to appear (async state update)
     const ghost = await screen.findByTestId('ghost-note');
     expect(ghost).toBeInTheDocument();
 
     // 3. Simulate Click to Add Note
-    fireEvent.click(hitArea, { clientX: 50, clientY: 110 });
+    fireEvent.click(hitArea, { clientX: 50, clientY: 116 });
 
     // 4. Verify Note Creation via Audio Feedback
     const { playNote } = require('../engines/toneEngine');
@@ -118,27 +117,21 @@ describe('ScoreEditor Interactions', () => {
     jest.clearAllMocks();
 
     // Click 1: Add C4 at start
-    fireEvent.mouseMove(hitArea, { clientX: 50, clientY: 110 });
+    fireEvent.mouseMove(hitArea, { clientX: 50, clientY: 116 });
     await screen.findByTestId('ghost-note');
-    fireEvent.click(hitArea, { clientX: 50, clientY: 110 });
+    fireEvent.click(hitArea, { clientX: 50, clientY: 116 });
     expect(playNote).toHaveBeenCalledWith('C4');
 
     // Click 2: Add E4 later in the measure (Insert/Append)
-    // Move to right (clientX 150). E4 offset 48 -> y 98.
-    fireEvent.mouseMove(hitArea, { clientX: 150, clientY: 98 });
-    // Wait for ghost to update (might need to wait for strictness, but findByTestId will wait)
-    // Since ghost-note ID is same, we might want to wait for it to be visible?
-    // It's already in doc, just moved.
-    // Let's just fire click, hoping React updated. If flaky, we add wait.
-    // Actually, let's wait for a re-render cycle via act or findBy.
-    // Since we can't easily check position change without style parsing, let's just click.
-    fireEvent.click(hitArea, { clientX: 150, clientY: 98 });
+    // Move to right (clientX 150). E4 offset 48 -> y 104 (98 + 6).
+    fireEvent.mouseMove(hitArea, { clientX: 150, clientY: 104 });
+    fireEvent.click(hitArea, { clientX: 150, clientY: 104 });
     expect(playNote).toHaveBeenCalledWith('E4');
 
     // Click 3: Insert D4 between them
-    // X ~100. D4 offset 54 -> y 104.
-    fireEvent.mouseMove(hitArea, { clientX: 100, clientY: 104 });
-    fireEvent.click(hitArea, { clientX: 100, clientY: 104 });
+    // X ~100. D4 offset 54 -> y 110 (104 + 6).
+    fireEvent.mouseMove(hitArea, { clientX: 100, clientY: 110 });
+    fireEvent.click(hitArea, { clientX: 100, clientY: 110 });
     expect(playNote).toHaveBeenLastCalledWith('D4');
   });
 
@@ -187,14 +180,13 @@ describe('ScoreEditor Interactions', () => {
     // Verify Deletion
     // The chord group should be gone.
     // We need to wait for re-render.
-    // Using `queryAllByTestId` to check absence.
-    // Note: We need to wait for the DOM to update.
-    // Wait for re-render to complete
+    // NOTE: We use a regex that excludes 'chord-track'
     await waitFor(() => {
-      expect(screen.queryAllByTestId(/^chord-/)).toHaveLength(0);
+      const remainingChords = screen.queryAllByTestId(/^chord-[^t]/);
+      expect(remainingChords).toHaveLength(0);
     });
 
-    const remainingChords = screen.queryAllByTestId(/^chord-/);
+    const remainingChords = screen.queryAllByTestId(/^chord-[^t]/);
     expect(remainingChords).toHaveLength(0);
   });
   test('Cursor auto-advances after APPENDing a note', async () => {

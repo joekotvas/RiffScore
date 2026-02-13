@@ -532,25 +532,13 @@ describe('Chord Commands Integration', () => {
   });
 
   it('handles edge case: negative quant values', () => {
-    const score = createEmptyScore();
-    const command = new AddChordCommand(-1, 'C');
-
-    // Command should handle negative quant gracefully
-    // (Implementation may clamp to 0 or reject)
-    const result = command.execute(score);
-
-    // The chord track should exist (behavior depends on implementation)
-    expect(result.chordTrack).toBeDefined();
+    // Command should throw on negative quant
+    expect(() => new AddChordCommand(-1, 'C')).toThrow(/quant must be >= 0/);
   });
 
   it('handles edge case: empty symbol string', () => {
-    const score = createEmptyScore();
-    const command = new AddChordCommand(0, '');
-
-    const result = command.execute(score);
-
-    // Empty symbol should still be allowed (for clearing chord display)
-    expect(result.chordTrack).toBeDefined();
+    // Command should throw on empty symbol
+    expect(() => new AddChordCommand(0, '')).toThrow(/symbol cannot be empty/);
   });
 
   it('handles complex chord symbols', () => {

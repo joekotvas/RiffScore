@@ -16,6 +16,7 @@ const mockGetState = jest.fn().mockReturnValue({ instrumentState: 'ready' });
 jest.mock('../engines/toneEngine', () => ({
   initTone: (...args: any[]) => mockInitTone(...args),
   scheduleTonePlayback: (...args: any[]) => mockScheduleTonePlayback(...args),
+  scheduleScorePlayback: (...args: any[]) => mockScheduleTonePlayback(...args), // Mock same as legacy for now or unique mock
   stopTonePlayback: () => mockStopTonePlayback(),
   getState: () => mockGetState(),
 }));
@@ -290,8 +291,8 @@ describe('usePlayback', () => {
         await result.current.playScore();
       });
 
-      // Get the position callback from scheduleTonePlayback call
-      const positionCallback = mockScheduleTonePlayback.mock.calls[0][3];
+      // Get the position callback from scheduleScorePlayback call (Arg 5)
+      const positionCallback = mockScheduleTonePlayback.mock.calls[0][5];
 
       // Simulate position update
       act(() => {
@@ -313,8 +314,8 @@ describe('usePlayback', () => {
         await result.current.playScore();
       });
 
-      // Get the completion callback from scheduleTonePlayback call
-      const completionCallback = mockScheduleTonePlayback.mock.calls[0][4];
+      // Get the completion callback from scheduleScorePlayback call (Arg 6)
+      const completionCallback = mockScheduleTonePlayback.mock.calls[0][6];
 
       // Simulate playback completion
       act(() => {
@@ -339,8 +340,8 @@ describe('usePlayback', () => {
         await result.current.playScore(1, 0); // Start at measure 1
       });
 
-      // Check that scheduleTonePlayback was called with correct offset
-      const startOffset = mockScheduleTonePlayback.mock.calls[0][2];
+      // Check that scheduleScorePlayback was called with correct start time offset (Arg 4)
+      const startOffset = mockScheduleTonePlayback.mock.calls[0][4];
       expect(startOffset).toBe(1.0); // Timeline has measure 1 at time 1.0
     });
 
@@ -352,7 +353,7 @@ describe('usePlayback', () => {
         await result.current.playScore(0, 0);
       });
 
-      const startOffset = mockScheduleTonePlayback.mock.calls[0][2];
+      const startOffset = mockScheduleTonePlayback.mock.calls[0][4];
       expect(startOffset).toBe(0);
     });
   });
