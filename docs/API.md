@@ -230,9 +230,10 @@ The most recently focused or mounted instance.
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `setChordNotation` | `setChordNotation(notation)` | ✅ | `'letter'`, `'roman'`, `'nashville'`, `'fixedDo'`, `'movableDo'`. |
-| `setChordPlayback` | `setChordPlayback(config)` | ✅ | `{ enabled, velocity }`. |
-| `getChordConfig` | `getChordConfig()` | ✅ | Get current chord display and playback config. |
+| `setChordDisplay` | `setChordDisplay(config)` | ⏳ | `{ notation, useSymbols }`. |
+| `setChordPlayback` | `setChordPlayback(config)` | ⏳ | `{ enabled, velocity }`. |
+| `getChordDisplay` | `getChordDisplay()` | ✅ | Get current chord display config. |
+| `getChordPlayback` | `getChordPlayback()` | ✅ | Get current chord playback config. |
 
 ---
 

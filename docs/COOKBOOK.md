@@ -123,16 +123,16 @@ score.selectFirstChord()
      .updateChord(score.getSelectedChord().id, 'Dm7');
 ```
 
-### Change Chord Notation
+### Change Chord Display
 
 ```javascript
 const score = window.riffScore.active;
 
 // Display chords as Roman numerals
-score.setChordNotation('roman');
+score.setChordDisplay({ notation: 'roman' });
 
-// Display as Nashville numbers
-score.setChordNotation('nashville');
+// Display as Nashville numbers with typographic symbols
+score.setChordDisplay({ notation: 'nashville', useSymbols: true });
 ```
 
 ---
