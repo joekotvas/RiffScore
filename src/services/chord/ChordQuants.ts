@@ -1,45 +1,61 @@
 /**
- * ChordQuants - Valid quant calculation and orphan detection.
+ * ChordQuants - Valid position calculation and orphan detection.
  *
  * Handles chord positioning relative to score events.
+ * Returns measure-local positions for robust measure operations.
  *
  * @tested src/__tests__/services/ChordService.test.ts
  */
 
 import type { Score } from '@/types';
 import { getNoteDuration } from '@/utils/core';
-import { getQuantsPerMeasure } from './utils';
 
 // ============================================================================
-// VALID QUANT CALCULATION
+// VALID POSITION CALCULATION
 // ============================================================================
 
 /**
- * Get all valid quant positions where chords may be placed.
+ * Get all valid positions where chords may be placed.
  * A position is valid if at least one staff has an event (note or rest) starting there.
  *
  * @param score - The score to analyze
- * @returns Set of valid global quant positions
+ * @returns Map of measure index to set of valid local quants within that measure
  */
-export const getValidChordQuants = (score: Score): Set<number> => {
-  const validQuants = new Set<number>();
-  const quantsPerMeasure = getQuantsPerMeasure(score.timeSignature);
+export const getValidChordQuants = (score: Score): Map<number, Set<number>> => {
+  const validPositions = new Map<number, Set<number>>();
 
   for (const staff of score.staves) {
-    for (let mIdx = 0; mIdx < staff.measures.length; mIdx++) {
-      const measure = staff.measures[mIdx];
+    for (let measureIndex = 0; measureIndex < staff.measures.length; measureIndex++) {
+      const measure = staff.measures[measureIndex];
       let localQuant = 0;
+
+      // Ensure measure entry exists
+      if (!validPositions.has(measureIndex)) {
+        validPositions.set(measureIndex, new Set<number>());
+      }
+      const measureQuants = validPositions.get(measureIndex)!;
 
       for (const event of measure.events) {
         // All events (notes and rests) are valid chord anchor points
-        const globalQuant = mIdx * quantsPerMeasure + localQuant;
-        validQuants.add(globalQuant);
+        measureQuants.add(localQuant);
         localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
       }
     }
   }
 
-  return validQuants;
+  return validPositions;
+};
+
+/**
+ * Check if a position is valid for chord placement.
+ */
+export const isValidChordPosition = (
+  validPositions: Map<number, Set<number>>,
+  measure: number,
+  quant: number
+): boolean => {
+  const measureQuants = validPositions.get(measure);
+  return measureQuants?.has(quant) ?? false;
 };
 
 // ============================================================================
@@ -57,10 +73,10 @@ export const getValidChordQuants = (score: Score): Set<number> => {
 export const findOrphanedChords = (currentScore: Score, updatedScore: Score): string[] => {
   if (!currentScore.chordTrack?.length) return [];
 
-  const newValidQuants = getValidChordQuants(updatedScore);
+  const newValidPositions = getValidChordQuants(updatedScore);
 
   return currentScore.chordTrack
-    .filter((chord) => !newValidQuants.has(chord.quant))
+    .filter((chord) => !isValidChordPosition(newValidPositions, chord.measure, chord.quant))
     .map((chord) => chord.id);
 };
 
