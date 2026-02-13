@@ -29,8 +29,9 @@ import { MELODIES } from '@/data/melodies';
 
 // Utilities
 import { findEventAtQuantPosition } from '@/utils/navigation/crossStaff';
-import { getNoteDuration } from '@/utils/core';
+import { getNoteDuration, isRestEvent } from '@/utils/core';
 import { TIME_SIGNATURES } from '@/constants';
+import { getMidi } from '@/services/MusicService';
 
 import './styles/ScoreEditor.css';
 
@@ -137,7 +138,7 @@ const ScoreEditorContent = ({
   });
 
   // Calculate quants per measure for chord navigation
-  const quantsPerMeasure = TIME_SIGNATURES[score.timeSignature || '4/4'] || 96;
+  const quantsPerMeasure = TIME_SIGNATURES[score.timeSignature || '4/4'] || 64;
 
   // Chord track Tab navigation handler
   const handleChordTabNavigate = useCallback(
@@ -195,11 +196,11 @@ const ScoreEditorContent = ({
       const measure = staff?.measures[measureIndex];
       const event = findEventAtQuantPosition(measure, localQuant);
 
-      if (event && !event.isRest && event.notes?.length) {
+      if (event && !isRestEvent(event) && (event.notes?.length ?? 0) > 0) {
         // Found a note - select the highest note in the event
-        const sortedNotes = [...event.notes].sort((a, b) => {
-          const midiA = a.pitch ? parseInt(a.pitch.replace(/\D/g, '')) : 0;
-          const midiB = b.pitch ? parseInt(b.pitch.replace(/\D/g, '')) : 0;
+        const sortedNotes = [...(event.notes || [])].sort((a, b) => {
+          const midiA = a.pitch ? getMidi(a.pitch) : 0;
+          const midiB = b.pitch ? getMidi(b.pitch) : 0;
           return midiB - midiA; // Descending (highest first)
         });
         handleNoteSelection(measureIndex, event.id, sortedNotes[0]?.id || null, staffIdx);
@@ -219,16 +220,16 @@ const ScoreEditorContent = ({
         let lastValidEvent: { event: (typeof measure.events)[0]; quant: number } | null = null;
 
         for (const event of measure.events) {
-          if (currentQuant < maxQuant && !event.isRest && event.notes?.length) {
+          if (currentQuant < maxQuant && !isRestEvent(event) && (event.notes?.length ?? 0) > 0) {
             lastValidEvent = { event, quant: currentQuant };
           }
           currentQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
         }
 
         if (lastValidEvent) {
-          const sortedNotes = [...lastValidEvent.event.notes!].sort((a, b) => {
-            const midiA = a.pitch ? parseInt(a.pitch.replace(/\D/g, '')) : 0;
-            const midiB = b.pitch ? parseInt(b.pitch.replace(/\D/g, '')) : 0;
+          const sortedNotes = [...(lastValidEvent.event.notes || [])].sort((a, b) => {
+            const midiA = a.pitch ? getMidi(a.pitch) : 0;
+            const midiB = b.pitch ? getMidi(b.pitch) : 0;
             return midiB - midiA;
           });
           handleNoteSelection(mIdx, lastValidEvent.event.id, sortedNotes[0]?.id || null, staffIdx);

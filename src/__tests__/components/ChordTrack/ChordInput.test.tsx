@@ -91,13 +91,14 @@ describe('ChordInput', () => {
       expect(onComplete).toHaveBeenCalledWith('Cmaj7');
     });
 
-    it('shows error for invalid chord on Enter', async () => {
+    it('calls onCancel/onDelete for invalid chord on Enter', async () => {
       const user = userEvent.setup();
       const onComplete = jest.fn();
+      const onCancel = jest.fn();
 
       render(
         <svg>
-          <ChordInput {...defaultProps} onComplete={onComplete} />
+          <ChordInput {...defaultProps} onComplete={onComplete} onCancel={onCancel} />
         </svg>
       );
 
@@ -107,45 +108,10 @@ describe('ChordInput', () => {
       // Should not call onComplete
       expect(onComplete).not.toHaveBeenCalled();
 
-      // Should show error message
-      const error = await screen.findByRole('alert');
-      expect(error).toHaveTextContent('Unrecognized chord');
-    });
+      // Should call onCancel (since no onDelete provided)
+      expect(onCancel).toHaveBeenCalled();
 
-    it('marks input as invalid when error is shown', async () => {
-      const user = userEvent.setup();
-
-      render(
-        <svg>
-          <ChordInput {...defaultProps} />
-        </svg>
-      );
-
-      const input = screen.getByRole('textbox');
-      await user.type(input, 'BadChord{Enter}');
-
-      expect(input).toHaveAttribute('aria-invalid', 'true');
-    });
-
-    it('clears error when user types again', async () => {
-      const user = userEvent.setup();
-
-      render(
-        <svg>
-          <ChordInput {...defaultProps} />
-        </svg>
-      );
-
-      const input = screen.getByRole('textbox');
-      await user.type(input, 'BadChord{Enter}');
-
-      // Error should be visible
-      expect(screen.getByRole('alert')).toBeInTheDocument();
-
-      // Type to clear error
-      await user.type(input, 'x');
-
-      // Error should be gone
+      // Should not show error message
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
   });
@@ -265,13 +231,14 @@ describe('ChordInput', () => {
       expect(onNavigatePrevious).toHaveBeenCalledWith('G7');
     });
 
-    it('Tab shows error for invalid chord', async () => {
+    it('calls onNavigateNext with empty string for invalid chord on Tab', async () => {
       const user = userEvent.setup();
       const onNavigateNext = jest.fn();
+      const onCancel = jest.fn();
 
       render(
         <svg>
-          <ChordInput {...defaultProps} onNavigateNext={onNavigateNext} />
+          <ChordInput {...defaultProps} onNavigateNext={onNavigateNext} onCancel={onCancel} />
         </svg>
       );
 
@@ -279,8 +246,9 @@ describe('ChordInput', () => {
       await user.type(input, 'NotAChord');
       await user.keyboard('{Tab}');
 
-      expect(onNavigateNext).not.toHaveBeenCalled();
-      expect(screen.getByRole('alert')).toHaveTextContent('Unrecognized chord');
+      expect(onNavigateNext).toHaveBeenCalledWith('');
+      expect(onCancel).not.toHaveBeenCalled();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it('Tab with empty input navigates with empty string', async () => {
@@ -370,6 +338,7 @@ describe('ChordInput', () => {
 
       expect(onCancel).toHaveBeenCalled();
       expect(onComplete).not.toHaveBeenCalled();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it('cancels on blur with empty input', async () => {
@@ -436,42 +405,6 @@ describe('ChordInput', () => {
     });
   });
 
-  describe('error accessibility', () => {
-    it('links error message to input via aria-describedby', async () => {
-      const user = userEvent.setup();
-
-      render(
-        <svg>
-          <ChordInput {...defaultProps} />
-        </svg>
-      );
-
-      const input = screen.getByRole('textbox');
-      await user.type(input, 'BadChord{Enter}');
-
-      const error = screen.getByRole('alert');
-      const errorId = error.id;
-
-      expect(input).toHaveAttribute('aria-describedby', errorId);
-    });
-
-    it('error has aria-live for screen reader announcement', async () => {
-      const user = userEvent.setup();
-
-      render(
-        <svg>
-          <ChordInput {...defaultProps} />
-        </svg>
-      );
-
-      const input = screen.getByRole('textbox');
-      await user.type(input, 'BadChord{Enter}');
-
-      const error = screen.getByRole('alert');
-      expect(error).toHaveAttribute('aria-live', 'polite');
-    });
-  });
-
   describe('CSS classes', () => {
     it('has base class', () => {
       render(
@@ -482,21 +415,6 @@ describe('ChordInput', () => {
 
       const input = screen.getByRole('textbox');
       expect(input).toHaveClass('riff-ChordInput');
-    });
-
-    it('adds error class when validation fails', async () => {
-      const user = userEvent.setup();
-
-      render(
-        <svg>
-          <ChordInput {...defaultProps} />
-        </svg>
-      );
-
-      const input = screen.getByRole('textbox');
-      await user.type(input, 'BadChord{Enter}');
-
-      expect(input).toHaveClass('riff-ChordInput--error');
     });
   });
 });

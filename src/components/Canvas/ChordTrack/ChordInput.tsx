@@ -6,7 +6,7 @@
  *
  * @see SDD.md Section 6.3
  */
-import React, { useState, useRef, useEffect, useId, memo } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 import { parseChord } from '@/services/ChordService';
 
 // ============================================================================
@@ -50,9 +50,7 @@ export const ChordInput = memo(function ChordInput({
   onNavigatePrevious,
 }: ChordInputProps) {
   const [value, setValue] = useState(initialValue);
-  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const errorId = useId();
 
   // Focus and select on mount
   useEffect(() => {
@@ -83,7 +81,12 @@ export const ChordInput = memo(function ChordInput({
       if (result.ok) {
         onComplete(result.symbol);
       } else {
-        setError(result.message);
+        // Silently fail: treat invalid as empty/delete
+        if (onDelete) {
+          onDelete();
+        } else {
+          onCancel();
+        }
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -107,7 +110,12 @@ export const ChordInput = memo(function ChordInput({
             onComplete(result.symbol);
           }
         } else {
-          setError(result.message);
+          // Silently fail: navigate with empty string (clear/delete)
+          if (navigateHandler) {
+            navigateHandler('');
+          } else {
+            onCancel();
+          }
         }
       } else {
         // Empty value on tab - navigate without saving (pass empty string)
@@ -122,25 +130,26 @@ export const ChordInput = memo(function ChordInput({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setValue(e.target.value);
-    // Clear error when user types
-    if (error) {
-      setError(null);
-    }
   };
 
   const handleBlur = () => {
     const trimmed = value.trim();
-    if (trimmed) {
-      const result = parseChord(trimmed);
-      if (result.ok) {
-        onComplete(result.symbol);
+
+    if (!trimmed) {
+      onCancel();
+      return;
+    }
+
+    const result = parseChord(trimmed);
+    if (result.ok) {
+      onComplete(result.symbol);
+    } else {
+      // Silently fail: treat invalid as empty/cancel
+      if (onDelete) {
+        onDelete();
       } else {
-        // On blur with invalid input, cancel to avoid stuck state
         onCancel();
       }
-    } else {
-      // Empty value on blur - cancel
-      onCancel();
     }
   };
 
@@ -157,7 +166,7 @@ export const ChordInput = memo(function ChordInput({
       <div className="riff-ChordInput__container">
         <input
           ref={inputRef}
-          className={`riff-ChordInput${error ? ' riff-ChordInput--error' : ''}`}
+          className="riff-ChordInput"
           type="text"
           value={value}
           onChange={handleChange}
@@ -165,18 +174,11 @@ export const ChordInput = memo(function ChordInput({
           onBlur={handleBlur}
           placeholder="e.g., Cmaj7"
           aria-label="Enter chord symbol"
-          aria-invalid={!!error}
-          aria-describedby={error ? errorId : undefined}
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck={false}
         />
-        {error && (
-          <div id={errorId} className="riff-ChordInput__error" role="alert" aria-live="polite">
-            {error}
-          </div>
-        )}
       </div>
     </foreignObject>
   );

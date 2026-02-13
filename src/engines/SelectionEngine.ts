@@ -15,6 +15,7 @@
 import type { Selection, Score } from '../types';
 import { createDefaultSelection } from '../types';
 import type { SelectionCommand } from '../commands/selection/types';
+import { SetSelectionCommand } from '../commands/selection/SetSelectionCommand';
 
 type SelectionListener = (selection: Selection) => void;
 
@@ -99,16 +100,15 @@ export class SelectionEngine {
    * @param chordId - ID of the chord to select, or null to deselect
    */
   public selectChord(chordId: string | null): void {
-    this.state = {
-      ...this.state,
-      selectedNotes: [], // Clear note selection
-      noteId: null,
-      eventId: null,
-      measureIndex: null,
-      chordId,
-      chordTrackFocused: chordId !== null,
-    };
-    this.notifyListeners();
+    this.dispatch(
+      new SetSelectionCommand({
+        measureIndex: null,
+        eventId: null,
+        noteId: null,
+        chordId,
+        chordTrackFocused: chordId !== null,
+      })
+    );
   }
 
   /**
@@ -117,12 +117,13 @@ export class SelectionEngine {
    */
   public clearChordSelection(): void {
     if (this.state.chordId || this.state.chordTrackFocused) {
-      this.state = {
-        ...this.state,
-        chordId: null,
-        chordTrackFocused: false,
-      };
-      this.notifyListeners();
+      this.dispatch(
+        new SetSelectionCommand({
+          ...this.state,
+          chordId: null,
+          chordTrackFocused: false,
+        })
+      );
     }
   }
 
