@@ -287,7 +287,7 @@ describe('useChordTrack', () => {
         result.current.startCreating({ measure: 0, quant: 48 });
       });
 
-      expect(result.current.creatingAt).toBe(48);
+      expect(result.current.creatingAt).toEqual({ measure: 0, quant: 48 });
 
       // Then start editing
       act(() => {
@@ -323,7 +323,7 @@ describe('useChordTrack', () => {
   // --------------------------------------------------------------------------
 
   describe('startCreating', () => {
-    it('sets creatingAtQuant to the target position', () => {
+    it('sets creatingAt to the target position', () => {
       const { result } = renderHook(() =>
         useChordTrack({
           scoreRef,
@@ -337,7 +337,7 @@ describe('useChordTrack', () => {
         result.current.startCreating({ measure: 0, quant: 24 });
       });
 
-      expect(result.current.creatingAt).toBe(24);
+      expect(result.current.creatingAt).toEqual({ measure: 0, quant: 24 });
     });
 
     it('sets editingChordId to "new" for new chord creation', () => {
@@ -449,7 +449,7 @@ describe('useChordTrack', () => {
         result.current.completeEdit(null, 'Dm');
       });
 
-      expect(AddChordCommand).toHaveBeenCalledWith(48, 'Dm');
+      expect(AddChordCommand).toHaveBeenCalledWith({ measure: 0, quant: 48 }, 'Dm');
       expect(mockDispatch).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'AddChordCommand' })
       );
@@ -602,7 +602,7 @@ describe('useChordTrack', () => {
         result.current.startCreating({ measure: 0, quant: 24 });
       });
 
-      expect(result.current.creatingAt).toBe(24);
+      expect(result.current.creatingAt).toEqual({ measure: 0, quant: 24 });
 
       act(() => {
         result.current.cancelEdit();
