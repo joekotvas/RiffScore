@@ -23,6 +23,7 @@ jest.mock('../hooks/audio', () => ({
     midiStatus: { connected: false, error: null },
   }),
   useSamplerStatus: () => true,
+  useAudioFeedback: () => jest.fn(),
 }));
 
 // ResizeObserver mock for ScoreTitleField internal logic if needed

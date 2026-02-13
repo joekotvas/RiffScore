@@ -314,8 +314,6 @@ export const initTone = async (onState?: (state: ToneEngineState) => void): Prom
 const loadPianoSampler = (Tone: ToneModule) => {
   if (sampler) return;
 
-  // eslint-disable-next-line no-console
-  console.log('🎹 Starting piano sample load...');
   updateState({ instrumentState: 'loading-samples' });
 
   const baseUrl = '/audio/piano/';
@@ -355,8 +353,6 @@ const loadPianoSampler = (Tone: ToneModule) => {
     },
     baseUrl,
     onload: () => {
-      // eslint-disable-next-line no-console
-      console.log('🎹 Piano samples loaded');
       updateState({ samplerLoaded: true, instrumentState: 'ready' });
     },
     onerror: (error: Error) => {
