@@ -167,9 +167,18 @@ The editor transitions between the following states:
 | `←` / `→` | Previous/Next | Navigates through timeline |
 | `Shift + ←` / `→` | Extend Selection | Multi-select range (per staff) |
 | `Cmd + Shift + ↑` / `↓` | **Extend Vertical** | Expand/contract selection through chords and staves. First press sets anchor; subsequent presses move cursor. See [deep dive](./KEYBOARD_NAVIGATION.md#vertical-selection-cmd--shift--updown). |
-| `Cmd + ↑` / `↓` | Intra-chord | Navigates notes within a single chord |
+| `Cmd + ↑` / `↓` | Intra-chord / **Chord Track** | Navigates notes within a chord; at boundaries, navigates to/from chord symbols |
 | `Alt + ↑` / `↓` | **Switch Staff** | Grand Staff only: move between staves |
 | `Delete` / `Backspace` | Remove | Deletes selection |
+
+### 🎸 Chord Symbols (when chord track focused)
+| Key | Action | Notes |
+| :--- | :--- | :--- |
+| `←` / `→` | Navigate Chords | Move between chord symbols |
+| `Tab` / `Shift+Tab` | Navigate Chords | Move to next/previous chord |
+| `Enter` | Edit Chord | Enter edit mode for selected chord |
+| `Escape` | Exit to Notes | Return focus to note at chord's quant |
+| `Delete` / `Backspace` | Delete Chord | Remove selected chord symbol |
 
 ---
 

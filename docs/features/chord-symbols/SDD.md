@@ -787,6 +787,7 @@ export const ChordTrack = memo(function ChordTrack({
   creatingAtQuant,
   initialValue,
   onChordClick,
+  onChordSelect,  // NEW: CMD/CTRL+click selection handler
   onEmptyClick,
   onEditComplete,
   onEditCancel,
@@ -795,6 +796,30 @@ export const ChordTrack = memo(function ChordTrack({
   const quantsPerMeasure = getQuantsPerMeasure(timeSignature);
 
   const [cursorStyle, setCursorStyle] = useState<'default' | 'text' | 'pointer'>('default');
+  const [isMetaKeyHeld, setIsMetaKeyHeld] = useState(false);
+
+  // Track CMD/CTRL key state for selection mode cursor
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey) setIsMetaKeyHeld(true);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.metaKey && !e.ctrlKey) setIsMetaKeyHeld(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  // Update cursor when meta key state changes while hovering
+  useEffect(() => {
+    if (hoveredChordId) {
+      setCursorStyle(isMetaKeyHeld ? 'pointer' : 'text');
+    }
+  }, [isMetaKeyHeld, hoveredChordId]);
 
   const handleTrackClick = (e: React.MouseEvent<SVGGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -804,7 +829,12 @@ export const ChordTrack = memo(function ChordTrack({
     if (quant !== null) {
       const existingChord = chords.find((c) => c.quant === quant);
       if (existingChord) {
-        onChordClick(existingChord.id);
+        // CMD/CTRL+click selects without editing
+        if (e.metaKey || e.ctrlKey) {
+          onChordSelect(existingChord.id);
+        } else {
+          onChordClick(existingChord.id);
+        }
       } else {
         onEmptyClick(quant);
       }
@@ -818,8 +848,12 @@ export const ChordTrack = memo(function ChordTrack({
 
     if (quant !== null) {
       const existingChord = chords.find((c) => c.quant === quant);
-      setCursorStyle(existingChord ? 'pointer' : 'text');
+      setHoveredChordId(existingChord?.id ?? null);
+      // Show pointer when CMD/CTRL is held, otherwise text cursor
+      const hasMetaKey = e.metaKey || e.ctrlKey;
+      setCursorStyle(existingChord && hasMetaKey ? 'pointer' : 'text');
     } else {
+      setHoveredChordId(null);
       setCursorStyle('default');
     }
   };

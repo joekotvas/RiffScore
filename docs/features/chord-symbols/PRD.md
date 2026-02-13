@@ -69,7 +69,7 @@ Implement a **chord track** that displays chord symbols above the top staff, wit
 
 **FR-01:** The score SHALL support exactly one chord track per piece.
 
-**FR-02:** Chord symbols SHALL be anchored to quant positions (not specific events), allowing placement at any rhythmic position where a note begins in any staff.
+**FR-02:** Chord symbols SHALL be anchored to quant positions (not specific events), allowing placement at any rhythmic position where a note or rest begins in any staff.
 
 **FR-03:** The chord track SHALL always render above the topmost staff.
 
@@ -95,7 +95,7 @@ The system SHALL support these notation traditions:
 
 ### 3.3 Chord Input
 
-**FR-08:** Users SHALL input chords by clicking on the chord track at valid positions (positions where at least one staff has a note beginning).
+**FR-08:** Users SHALL input chords by clicking on the chord track at valid positions (positions where at least one staff has a note or rest beginning).
 
 **FR-09:** The system SHALL display an inline text field for chord entry.
 
@@ -111,7 +111,9 @@ The system SHALL support these notation traditions:
 
 ### 3.4 Chord Editing
 
-**FR-12:** Clicking an existing chord symbol SHALL select it. Double-clicking or pressing `Enter` on a selected chord SHALL enter edit mode with the text selected.
+**FR-12:** Clicking an existing chord symbol SHALL enter edit mode directly. `Cmd/Ctrl + Click` SHALL select the chord without entering edit mode. Double-clicking SHALL also enter edit mode.
+
+**FR-12a:** When a chord is selected (via `Cmd/Ctrl + Click`), pressing `Enter` SHALL enter edit mode.
 
 **FR-13:** Pressing `Enter` or clicking away SHALL confirm the edit.
 
@@ -119,9 +121,17 @@ The system SHALL support these notation traditions:
 
 **FR-15:** Pressing `Delete` or `Backspace` on a selected (but not editing) chord SHALL remove it.
 
+### 3.4a Audio Feedback
+
+**FR-15a:** Selecting a chord SHALL play its voicing with eighth note duration for immediate feedback.
+
+**FR-15b:** Navigating between chords (via arrow keys or Tab) SHALL play the newly selected chord's voicing.
+
+**FR-15c:** Switching between edit mode and selected mode SHALL NOT trigger audio playback.
+
 ### 3.5 Chord Lifecycle
 
-**FR-16:** When a note is deleted, any chord anchored to that quant position SHALL be automatically removed if no other note begins at that quant in any staff.
+**FR-16:** When an event is deleted, any chord anchored to that quant position SHALL be automatically removed if no other note or rest begins at that quant in any staff.
 
 **FR-17:** The system SHALL warn users before bulk operations (e.g., clearing measures) that would remove chords.
 

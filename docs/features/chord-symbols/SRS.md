@@ -58,7 +58,7 @@ interface ChordSymbol {
 | Field | Type | Required | Constraints |
 |-------|------|----------|-------------|
 | `id` | `string` | Yes | Unique within score; format: `chord_xxxxxxxx` (matches existing ID pattern) |
-| `quant` | `number` | Yes | Non-negative integer; must align with note onset in at least one staff |
+| `quant` | `number` | Yes | Non-negative integer; must align with event onset (note or rest) in at least one staff |
 | `symbol` | `string` | Yes | Valid canonical chord symbol (see §2.2) |
 
 > **Design Decision:** User input is normalized to canonical form immediately. The canonical form is always displayed (converted to the selected notation system). This simplifies the data model and ensures consistent behavior.
@@ -128,7 +128,7 @@ interface Score {
 
 1. `chordTrack` array SHALL be sorted by `quant` ascending
 2. No two chord symbols SHALL share the same `quant`
-3. Each `quant` value SHALL correspond to a note onset in at least one staff
+3. Each `quant` value SHALL correspond to an event onset (note or rest) in at least one staff
 
 ### 2.4 ChordDisplayConfig
 
@@ -358,7 +358,7 @@ When the chord track is focused:
 | IDLE | `Enter` on valid position | → CREATING |
 | CREATING | `Enter` | Confirm if valid → IDLE |
 | CREATING | `Escape` | Cancel → IDLE |
-| CREATING | `Tab` | Confirm if valid, move to next valid position (next quant with note onset in any staff) |
+| CREATING | `Tab` | Confirm if valid, move to next valid position (next quant with event onset in any staff) |
 | SELECTED | `Enter` | → EDITING |
 | SELECTED | `Delete` / `Backspace` | Remove chord → IDLE |
 | SELECTED | `Escape` | Return focus to staff, select topmost note at chord's quant |
@@ -426,7 +426,8 @@ When returning focus from the chord track to the staff (via `Escape` from SELECT
 |--------|--------|--------|
 | Empty valid position | Click | → CREATING at position |
 | Empty invalid position | Click | No action (cursor indicates invalid) |
-| Existing chord | Click | → SELECTED |
+| Existing chord | Click | → EDITING (direct to edit mode) |
+| Existing chord | `Cmd/Ctrl + Click` | → SELECTED (without editing) |
 | Existing chord | Double-click | → EDITING |
 | Outside chord track | Click | → IDLE (confirm pending if valid) |
 
@@ -434,15 +435,50 @@ When returning focus from the chord track to the staff (via `Escape` from SELECT
 
 The chord track is invisible when empty, but the hit area remains interactive to allow creating the first chord:
 
-| Hover Target | Cursor |
-|--------------|--------|
-| Valid position (note onset exists) | `text` cursor (indicates text entry) |
-| Invalid position (no note onset) | `default` cursor (no visual affordance) |
-| Existing chord | `pointer` cursor |
+| Hover Target | Modifier | Cursor |
+|--------------|----------|--------|
+| Valid position (event onset exists) | None | `text` cursor (indicates text entry) |
+| Invalid position (no event onset) | None | `default` cursor (no visual affordance) |
+| Existing chord | None | `text` cursor (indicates edit on click) |
+| Existing chord | `Cmd/Ctrl` held | `pointer` cursor (indicates selection mode) |
 
-> **Note:** Valid positions are determined by the presence of note onsets in any staff at that quant. The cursor provides continuous feedback as the user moves the mouse across the chord track area.
+> **Note:** Valid positions are determined by the presence of event onsets (notes or rests) in any staff at that quant. The cursor provides continuous feedback as the user moves the mouse across the chord track area.
 
-### 4.4 API Methods
+#### 4.3.2 Selection Mode
+
+Holding `Cmd` (macOS) or `Ctrl` (Windows/Linux) while hovering over a chord symbol changes the interaction mode:
+
+1. **Cursor changes** from `text` to `pointer` to indicate selection mode
+2. **Clicking** selects the chord without entering edit mode
+3. **Audio feedback**: The chord voicing plays with eighth note duration
+
+This allows users to:
+- Select a chord for keyboard operations (arrow navigation, deletion)
+- Preview the chord sound without editing
+- Navigate the chord track via keyboard after selection
+
+### 4.4 Audio Feedback
+
+Chord playback provides auditory feedback during selection and navigation:
+
+| Action | Audio Feedback |
+|--------|----------------|
+| `Cmd/Ctrl + Click` to select | Plays chord voicing (eighth note duration) |
+| `Cmd + ↑/↓` to navigate to chord | Plays chord voicing (eighth note duration) |
+| `←/→` or `Tab` between chords | Plays chord voicing (only when moving to a new chord) |
+| Click to edit | No playback (entering edit mode) |
+| Enter from selected to edit | No playback (mode toggle) |
+| Escape from edit to selected | No playback (mode toggle) |
+
+**Chord Voicing Algorithm:**
+The `getChordVoicing()` function generates a balanced voicing:
+1. Root in octave 2-3 (dynamic based on root pitch class)
+2. Third in octave 3
+3. Fifth in octave 4
+4. Extensions (7th, 9th, etc.) in octave 4
+5. Maximum 5 voices to avoid mud
+
+### 4.5 API Methods
 
 ```typescript
 interface ChordAPI {
