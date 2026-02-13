@@ -21,13 +21,16 @@ import {
   calculateTranspositionWithPreview,
   calculateCrossStaffSelection,
   calculateVerticalNavigation,
+  calculateChordHorizontalNavigation,
 } from '@/utils/interaction';
 import { playNote } from '@/engines/toneEngine';
+import { getChordVoicing } from '@/services/ChordService';
 import { Command } from '@/commands/types';
 import { AddMeasureCommand } from '@/commands/MeasureCommands';
 import { TransposeSelectionCommand } from '@/commands/TransposeSelectionCommand';
 import { ExtendSelectionHorizontallyCommand } from '@/commands/selection';
 import { SelectionEngine } from '@/engines/SelectionEngine';
+import { useAudioFeedback } from '@/hooks/audio';
 
 interface UseNavigationProps {
   scoreRef: RefObject<Score>;
@@ -78,13 +81,7 @@ export const useNavigation = ({
   selectionEngine,
 }: UseNavigationProps): UseNavigationReturn => {
   // --- Internal Helpers ---
-
-  const playAudioFeedback = useCallback((notes: { pitch: string | null }[]) => {
-    if (!notes || notes.length === 0) return;
-    notes.forEach((n) => {
-      if (n.pitch) playNote(n.pitch);
-    });
-  }, []);
+  const playAudioFeedback = useAudioFeedback();
 
   // --- Public Handlers ---
 
@@ -127,6 +124,31 @@ export const useNavigation = ({
           : activeSel.staffIndex || 0;
       const activeStaff = getActiveStaff(scoreRef.current, activeStaffIndex);
 
+      // --- 1. Handle Chord Track Horizontal Navigation ---
+      // When chord track is focused, left/right navigates between chords
+      const isHorizontalNav = direction === 'left' || direction === 'right';
+      if (selection.chordTrackFocused && selection.chordId && isHorizontalNav) {
+        const chordResult = calculateChordHorizontalNavigation(
+          scoreRef.current.chordTrack,
+          selection.chordId,
+          direction as 'left' | 'right'
+        );
+
+        if (chordResult && chordResult.chordId) {
+          selectionEngine.selectChord(chordResult.chordId);
+
+          // Play chord audio (only if actually navigated to a new chord)
+          if (!chordResult.atBoundary && chordResult.chordId !== selection.chordId) {
+            const chord = scoreRef.current.chordTrack?.find((c) => c.id === chordResult.chordId);
+            if (chord) {
+              const voicing = getChordVoicing(chord.symbol);
+              voicing.forEach((note) => playNote(note, '8n'));
+            }
+          }
+        }
+        return;
+      }
+
       // --- 2. Handle Vertical Navigation (CMD+Up/Down) ---
       if (isVerticalNav) {
         const vertResult = calculateVerticalNavigation(
@@ -136,10 +158,31 @@ export const useNavigation = ({
           activeDuration,
           isDotted,
           previewNote,
-          currentQuantsPerMeasure
+          currentQuantsPerMeasure,
+          selection.chordTrackFocused ?? false,
+          selection.chordId ?? null
         );
 
         if (vertResult) {
+          // Handle navigation TO chord track
+          if (vertResult.chordId) {
+            selectionEngine.selectChord(vertResult.chordId);
+
+            // Play chord audio
+            const chord = scoreRef.current.chordTrack?.find((c) => c.id === vertResult.chordId);
+            if (chord) {
+              const voicing = getChordVoicing(chord.symbol);
+              voicing.forEach((note) => playNote(note, '8n'));
+            }
+            return;
+          }
+
+          // Handle navigation FROM chord track back to notes
+          if (vertResult.leavingChordTrack) {
+            // First deselect chord track, then select the note
+            selectionEngine.selectChord(null);
+          }
+
           if (vertResult.selection) {
             const { measureIndex, eventId, noteId, staffIndex } = vertResult.selection;
             select(measureIndex, eventId, noteId || null, staffIndex, { isShift });

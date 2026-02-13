@@ -5,6 +5,26 @@ All notable changes to RiffScore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0-alpha.8] - 2026-02-12
+
+### Added
+- **Chord Symbols Feature ([#29](https://github.com/joekotvas/riffscore/issues/29))**: Full chord track implementation with display, editing, and playback support.
+  - **Chord Track Model**: Single chord track per score with quant-anchored symbols rendered above the top staff (FR-01–FR-04).
+  - **Chord Parsing**: Accepts common chord input formats including quality variants (`Cmaj`, `CM`, `CΔ`), minor (`Cm`, `C-`), sevenths, extensions, alterations, and slash chords (FR-10).
+  - **Click-to-Edit Interaction**: Click empty space to create, click existing chord to edit, Cmd/Ctrl+Click to select without editing (FR-08, FR-12).
+  - **Inline Text Input**: ChordInput component with validation, error display, and keyboard navigation — Tab/Shift+Tab to move between chords (FR-09, FR-11).
+  - **Chord Commands**: `AddChordCommand`, `UpdateChordCommand`, `RemoveChordCommand` with full undo/redo support (FR-29).
+  - **Notation Conversion**: ChordNotationConverter service supporting letter names, Roman numerals, Nashville numbers, and solfège (FR-05, FR-06).
+  - **Audio Feedback**: Selecting a chord plays its voicing for immediate feedback (FR-15a, FR-15b).
+  - **Export Support**: Chord symbols export to ABC (annotation syntax) and MusicXML (`<harmony>` elements) (FR-27, FR-28).
+  - **Programmatic API**: Full chord CRUD available via public API with fluent chaining and structured feedback (FR-29–FR-32).
+  - **Accessibility**: Screen reader labels, ARIA attributes, focus management, and keyboard navigation (NFR-03–NFR-07).
+  - **Chord Services**: ChordParser, ChordNotationConverter, ChordVoicing, ChordQuants, and ChordAccessibility modules.
+  - **Comprehensive Tests**: Full test coverage across commands, components (ChordInput, ChordSymbol, ChordTrack), hooks (useChordTrack), and services (ChordService).
+
+### Fixed
+- **ESLint Compliance**: Resolved all lint errors and warnings (unused vars, testing-library/no-node-access, React Compiler memoization).
+
 ## [1.0.0-alpha.7] - 2026-01-05
 
 ### Added

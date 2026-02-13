@@ -460,6 +460,14 @@ export const CLAMP_LIMITS = {
 
 export const MOUSE_OFFSET_SNAP = HALF_SPACE; // 6px
 
+/**
+ * Distance from measure hit area top to first staff line.
+ * Derived from OUTER_ZONE_LINES to ensure hit area covers all valid ledger line positions.
+ * Used for mouse Y → pitch offset calculation.
+ * Must match the hit area `y={baseY - MEASURE_HIT_AREA_TOP_OFFSET}` in Measure.tsx
+ */
+export const MEASURE_HIT_AREA_TOP_OFFSET = Math.ceil(OUTER_ZONE_LINES * LEDGER_LINE_STEP);
+
 export const PIANO_RANGE = {
   min: 'A0', // MIDI 21
   max: 'C8', // MIDI 108

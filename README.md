@@ -79,6 +79,13 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 *   **Export Options**: JSON, MusicXML, and ABC notation export.
 *   **Theming**: Built-in dark, light, cool, and warm themes.
 
+### Chord Symbols
+*   **Click-to-Edit**: Click above any beat to add or edit chord symbols.
+*   **Flexible Input**: Letter names (`Cmaj7`), solfège (`Do`), Roman numerals (`IV7`).
+*   **Multiple Notations**: Display in letter, Roman numeral, Nashville number, or solfège.
+*   **Playback**: Chord voicings play back alongside the score.
+*   **Full API**: CRUD, selection, and navigation via `addChord()`, `selectChord()`, etc.
+
 ### Machine-Addressable API
 *   **Imperative Control**: Programmatically control the score via `window.riffScore` ([API Reference](./docs/API.md))
 *   **Fluent Chaining**: `api.select(1).addNote('C4').play()` — chainable methods for concise scripting.
@@ -223,7 +230,6 @@ npm run demo:dev
 
 ## Coming Soon
 
-*   **Chord Symbols**: Input and playback for lead sheets
 *   **Import**: ABC and MusicXML import
 *   **Clipboard API**: Copy, cut, and paste operations
 *   **Move Operations**: Drag-and-drop and keyboard-based event moving

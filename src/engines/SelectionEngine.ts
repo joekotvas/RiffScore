@@ -93,6 +93,39 @@ export class SelectionEngine {
     this.scoreRef = scoreGetter;
   }
 
+  /**
+   * Select a chord symbol in the chord track.
+   * Clears note selection and focuses the chord track.
+   * @param chordId - ID of the chord to select, or null to deselect
+   */
+  public selectChord(chordId: string | null): void {
+    this.state = {
+      ...this.state,
+      selectedNotes: [], // Clear note selection
+      noteId: null,
+      eventId: null,
+      measureIndex: null,
+      chordId,
+      chordTrackFocused: chordId !== null,
+    };
+    this.notifyListeners();
+  }
+
+  /**
+   * Clear chord selection without affecting note selection.
+   * Used when selecting notes (unified selection model).
+   */
+  public clearChordSelection(): void {
+    if (this.state.chordId || this.state.chordTrackFocused) {
+      this.state = {
+        ...this.state,
+        chordId: null,
+        chordTrackFocused: false,
+      };
+      this.notifyListeners();
+    }
+  }
+
   private notifyListeners(): void {
     this.listeners.forEach((listener) => listener(this.state));
   }

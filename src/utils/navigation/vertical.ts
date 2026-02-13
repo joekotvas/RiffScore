@@ -137,10 +137,11 @@ export const calculateCrossStaffSelection = (
 
 /**
  * Unified vertical navigation for Cmd+Up/Down keyboard shortcuts.
- * Handles three scenarios in priority order:
- * 1. **Chord traversal**: Navigate between notes within a chord
- * 2. **Cross-staff switching**: Move to aligned event in adjacent staff
- * 3. **Staff cycling**: Wrap to opposite staff at boundaries
+ * Handles scenarios in priority order:
+ * 1. **Chord track navigation**: Navigate to/from chord symbols above the staff
+ * 2. **Chord traversal**: Navigate between notes within a chord
+ * 3. **Cross-staff switching**: Move to aligned event in adjacent staff
+ * 4. **Staff cycling**: Wrap to opposite staff at boundaries
  *
  * Also supports ghost cursor navigation (moving preview between staves).
  *
@@ -151,6 +152,8 @@ export const calculateCrossStaffSelection = (
  * @param isDotted - Whether duration is dotted
  * @param previewNote - Optional ghost cursor state
  * @param currentQuantsPerMeasure - Time signature quants
+ * @param chordTrackFocused - Whether chord track currently has focus
+ * @param selectedChordId - Currently selected chord ID (when chord track focused)
  * @returns Navigation result, or null if no change
  *
  * @tested navigationHelpers.test.ts
@@ -162,9 +165,53 @@ export const calculateVerticalNavigation = (
   activeDuration: string = 'quarter',
   isDotted: boolean = false,
   previewNote: PreviewNote | null = null,
-  currentQuantsPerMeasure: number = CONFIG.quantsPerMeasure
+  currentQuantsPerMeasure: number = CONFIG.quantsPerMeasure,
+  chordTrackFocused: boolean = false,
+  selectedChordId: string | null = null
 ): VerticalNavigationResult | null => {
   const { staffIndex = 0, measureIndex, eventId } = selection;
+
+  // --- 0. Handle chord track navigation ---
+
+  // If currently focused on chord track and going DOWN, return to notes
+  if (chordTrackFocused && direction === 'down' && selectedChordId) {
+    const selectedChord = score.chordTrack?.find((c) => c.id === selectedChordId);
+    if (selectedChord) {
+      const targetMeasureIndex = Math.floor(selectedChord.quant / currentQuantsPerMeasure);
+      const localQuant = selectedChord.quant % currentQuantsPerMeasure;
+      const topStaff = score.staves[0];
+      const targetMeasure = topStaff?.measures[targetMeasureIndex];
+
+      if (targetMeasure) {
+        // Find event at this quant
+        let currentQuant = 0;
+        for (const event of targetMeasure.events) {
+          if (currentQuant === localQuant && !event.isRest && event.notes?.length > 0) {
+            return {
+              selection: {
+                staffIndex: 0,
+                measureIndex: targetMeasureIndex,
+                eventId: event.id,
+                noteId: event.notes[0].id,
+                selectedNotes: [],
+                anchor: null,
+              },
+              previewNote: null,
+              leavingChordTrack: true,
+            };
+          }
+          currentQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
+          if (currentQuant > localQuant) break;
+        }
+      }
+    }
+    return null;
+  }
+
+  // If on chord track and going UP, no action (already at top)
+  if (chordTrackFocused && direction === 'up') {
+    return null;
+  }
 
   // Handle ghost cursor navigation (no eventId)
   if (!eventId && previewNote) {
@@ -304,7 +351,7 @@ export const calculateVerticalNavigation = (
       )
     : [];
 
-  // 1. Try chord navigation first
+  // 1. Try chord navigation first (between notes within a chord)
   if (sortedNotes.length > 1 && selection.noteId) {
     const currentNoteIdx = sortedNotes.findIndex((n: Note) => n.id === selection.noteId);
     if (currentNoteIdx !== -1) {
@@ -319,7 +366,35 @@ export const calculateVerticalNavigation = (
     }
   }
 
-  // 2. At chord boundary - try cross-staff navigation
+  // 2. Check for chord track navigation (UP from topmost staff, top note)
+  if (direction === 'up' && staffIndex === 0 && score.chordTrack?.length) {
+    // Check if we're at the top note of the chord
+    const isAtTopNote =
+      sortedNotes.length <= 1 ||
+      !selection.noteId ||
+      sortedNotes[sortedNotes.length - 1]?.id === selection.noteId;
+
+    if (isAtTopNote) {
+      // Calculate global quant for current position
+      const globalQuant = measureIndex * currentQuantsPerMeasure + currentQuantStart;
+
+      // Check if there's a chord at this position
+      const chordAtQuant = score.chordTrack.find((c) => c.quant === globalQuant);
+      if (chordAtQuant) {
+        return {
+          selection: {
+            ...selection,
+            selectedNotes: [],
+            anchor: null,
+          },
+          previewNote: null,
+          chordId: chordAtQuant.id,
+        };
+      }
+    }
+  }
+
+  // 3. At chord boundary - try cross-staff navigation
   const targetStaffIndex = direction === 'up' ? staffIndex - 1 : staffIndex + 1;
   const canSwitchStaff = targetStaffIndex >= 0 && targetStaffIndex < score.staves.length;
 
@@ -392,7 +467,34 @@ export const calculateVerticalNavigation = (
     }
   }
 
-  // 3. At staff boundary (top or bottom) - cycle to opposite staff
+  // 4. At staff boundary - check for chord track navigation on DOWN cycle
+  // When going DOWN from the last staff, cycle to chord track if chord exists
+  if (direction === 'down' && staffIndex === score.staves.length - 1 && score.chordTrack?.length) {
+    // Check if we're at the bottom note
+    const isAtBottomNote =
+      sortedNotes.length <= 1 || !selection.noteId || sortedNotes[0]?.id === selection.noteId;
+
+    if (isAtBottomNote) {
+      // Calculate global quant for current position
+      const globalQuant = measureIndex * currentQuantsPerMeasure + currentQuantStart;
+
+      // Check if there's a chord at this position
+      const chordAtQuant = score.chordTrack.find((c) => c.quant === globalQuant);
+      if (chordAtQuant) {
+        return {
+          selection: {
+            ...selection,
+            selectedNotes: [],
+            anchor: null,
+          },
+          previewNote: null,
+          chordId: chordAtQuant.id,
+        };
+      }
+    }
+  }
+
+  // 5. At staff boundary (top or bottom) - cycle to opposite staff
   // Guard: single-staff scores can't cycle
   if (score.staves.length <= 1) return null;
 
@@ -454,4 +556,44 @@ export const calculateVerticalNavigation = (
   }
 
   return null;
+};
+
+/**
+ * Result of horizontal chord navigation.
+ */
+export interface ChordNavigationResult {
+  /** ID of the chord to select, or null if navigation should leave chord track */
+  chordId: string | null;
+  /** If true, no more chords in this direction - stay on current chord */
+  atBoundary: boolean;
+}
+
+/**
+ * Calculates horizontal navigation between chord symbols.
+ * Used when chord track has focus and user presses left/right or tab/shift+tab.
+ *
+ * @param chordTrack - Array of chord symbols sorted by quant
+ * @param selectedChordId - Currently selected chord ID
+ * @param direction - 'left' or 'right'
+ * @returns Navigation result with target chord ID, or null if no chords
+ */
+export const calculateChordHorizontalNavigation = (
+  chordTrack: { id: string; quant: number }[] | undefined,
+  selectedChordId: string | null,
+  direction: 'left' | 'right'
+): ChordNavigationResult | null => {
+  if (!chordTrack?.length) return null;
+  if (!selectedChordId) return null;
+
+  const currentIndex = chordTrack.findIndex((c) => c.id === selectedChordId);
+  if (currentIndex === -1) return null;
+
+  const newIndex = direction === 'right' ? currentIndex + 1 : currentIndex - 1;
+
+  // At boundary - stay on current chord
+  if (newIndex < 0 || newIndex >= chordTrack.length) {
+    return { chordId: selectedChordId, atBoundary: true };
+  }
+
+  return { chordId: chordTrack[newIndex].id, atBoundary: false };
 };

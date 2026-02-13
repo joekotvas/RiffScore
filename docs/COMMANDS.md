@@ -49,6 +49,9 @@ Modify the `Score` object (notes, measures, key signatures, etc.):
 | `TupletCommands` | Create tuplet groups |
 | `ToggleRestCommand` | Convert note↔rest |
 | `TogglePickupCommand` | Toggle pickup measure |
+| `AddChordCommand` | Add chord symbol at quant position |
+| `UpdateChordCommand` | Update chord symbol text |
+| `RemoveChordCommand` | Remove chord symbol by ID |
 
 ### Selection Commands
 

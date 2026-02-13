@@ -98,6 +98,48 @@ score.select(1)
 
 ---
 
+## 1a. Chord Symbol Recipes
+
+### Add a Chord Progression
+
+```javascript
+const score = window.riffScore.active;
+
+// I-IV-V-I in C major (one chord per measure in 4/4)
+score.addChord(0, 'C')         // Beat 1 of measure 1 (quant 0)
+     .addChord(64, 'F')        // Beat 1 of measure 2 (quant 64)
+     .addChord(128, 'G7')      // Beat 1 of measure 3 (quant 128)
+     .addChord(192, 'C');      // Beat 1 of measure 4 (quant 192)
+```
+
+### Navigate and Edit Chords
+
+```javascript
+const score = window.riffScore.active;
+
+// Select and change the second chord
+score.selectFirstChord()
+     .selectNextChord()       // Now on the second chord
+     .updateChord(score.getSelectedChord().id, 'Dm7');
+```
+
+### Change Chord Display
+
+> [!NOTE]
+> `setChordDisplay()` and `setChordPlayback()` are **not yet implemented** — they return a `NOT_IMPLEMENTED` error. The getter methods (`getChordDisplay()`, `getChordPlayback()`) work and return the current config. See [#207](https://github.com/joekotvas/RiffScore/issues/207).
+
+```javascript
+const score = window.riffScore.active;
+
+// Display chords as Roman numerals
+score.setChordDisplay({ notation: 'roman' });
+
+// Display as Nashville numbers with typographic symbols
+score.setChordDisplay({ notation: 'nashville', useSymbols: true });
+```
+
+---
+
 ## 2. Editing Recipes
 
 ### Transpose Selection Up an Octave

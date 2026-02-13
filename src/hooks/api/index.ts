@@ -18,3 +18,4 @@ export * from './history';
 export * from './playback';
 export * from './io';
 export * from './events';
+export * from './chords';

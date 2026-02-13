@@ -54,6 +54,61 @@ export interface Staff {
   measures: Measure[];
 }
 
+// ========== CHORD SYMBOLS ==========
+
+/**
+ * Represents a chord symbol in the chord track.
+ * Anchored to a global quant position.
+ */
+export interface ChordSymbol {
+  /** Unique identifier (generated via chordId() from utils/id.ts) */
+  id: string;
+
+  /** Global quant position (measureIndex * quantsPerMeasure + localQuant) */
+  quant: number;
+
+  /** Canonical chord symbol (letter-name notation, e.g., 'Cmaj7', 'Am', 'G7') */
+  symbol: string;
+}
+
+/**
+ * Configuration for chord display notation.
+ */
+export interface ChordDisplayConfig {
+  /** Notation system for rendering */
+  notation: 'letter' | 'roman' | 'nashville' | 'fixedDo' | 'movableDo';
+
+  /** Use typographic symbols (△, °, +) vs text (maj, dim, aug) */
+  useSymbols: boolean;
+}
+
+/**
+ * Configuration for chord playback.
+ */
+export interface ChordPlaybackConfig {
+  /** Enable/disable chord playback */
+  enabled: boolean;
+
+  /** Velocity (0-127), default 50 */
+  velocity: number;
+}
+
+/**
+ * Default chord display configuration.
+ */
+export const DEFAULT_CHORD_DISPLAY: ChordDisplayConfig = {
+  notation: 'letter',
+  useSymbols: false,
+};
+
+/**
+ * Default chord playback configuration.
+ */
+export const DEFAULT_CHORD_PLAYBACK: ChordPlaybackConfig = {
+  enabled: true,
+  velocity: 50,
+};
+
 // ========== SCORE ==========
 
 export interface Score {
@@ -62,6 +117,9 @@ export interface Score {
   keySignature: string; // Shared across staves (e.g., 'C', 'G')
   bpm: number;
   staves: Staff[];
+
+  /** Chord symbols for harmonic annotation (sorted by quant ascending) */
+  chordTrack?: ChordSymbol[];
 }
 
 // ========== HELPER FUNCTIONS ==========
@@ -211,6 +269,12 @@ export interface Selection {
   selectedNotes: SelectedNote[]; // List of all selected notes (including the primary one above)
   anchor?: SelectedNote | null; // The static "anchor" point for range selection
   verticalAnchors?: VerticalAnchors | null; // Per-slice anchors for vertical extension
+
+  /** Selected chord symbol ID (when chord track is focused). Default: null */
+  chordId?: string | null;
+
+  /** Whether chord track has focus. Default: false */
+  chordTrackFocused?: boolean;
 }
 
 /**
@@ -224,6 +288,8 @@ export const createDefaultSelection = (): Selection => ({
   selectedNotes: [],
   anchor: null,
   verticalAnchors: null,
+  chordId: null,
+  chordTrackFocused: false,
 });
 
 // ========== PREVIEW NOTE (GHOST CURSOR) ==========
@@ -296,6 +362,10 @@ export interface HorizontalNavigationResult {
 export interface VerticalNavigationResult {
   selection: NavigationSelection;
   previewNote: PreviewNote | null;
+  /** If set, navigation should select this chord (move to chord track) */
+  chordId?: string | null;
+  /** If true, navigation is leaving the chord track (return to notes) */
+  leavingChordTrack?: boolean;
 }
 
 /**
@@ -359,6 +429,15 @@ export interface RiffScoreConfig {
     // Explicit Content (Overrides Generator Options)
     staves?: Staff[];
   };
+
+  /** Chord track configuration */
+  chord?: {
+    /** Display notation preferences */
+    display?: ChordDisplayConfig;
+
+    /** Playback settings */
+    playback?: ChordPlaybackConfig;
+  };
 }
 
 /**
@@ -383,5 +462,9 @@ export const DEFAULT_RIFF_CONFIG: RiffScoreConfig = {
     keySignature: 'C',
     staff: 'grand',
     measureCount: 4,
+  },
+  chord: {
+    display: DEFAULT_CHORD_DISPLAY,
+    playback: DEFAULT_CHORD_PLAYBACK,
   },
 };

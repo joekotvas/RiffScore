@@ -25,7 +25,7 @@ import {
   ScoreEvent,
   Measure,
 } from '@/types';
-import { playNote } from '@/engines/toneEngine';
+import { useAudioFeedback } from '@/hooks/audio';
 import { SelectionEngine } from '@/engines/SelectionEngine';
 import {
   ClearSelectionCommand,
@@ -81,11 +81,7 @@ export const useSelection = ({ score, scoreGetter }: UseSelectionProps) => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   /** Play audio feedback for notes */
-  const playAudioFeedback = useCallback((notes: Note[]) => {
-    notes.forEach((n) => {
-      if (n.pitch !== null) playNote(n.pitch);
-    });
-  }, []);
+  const playAudioFeedback = useAudioFeedback();
 
   /**
    * Resolves IDs to actual Score objects and indices.

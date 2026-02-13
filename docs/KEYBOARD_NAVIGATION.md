@@ -194,6 +194,65 @@ When at the edge staff (top or bottom):
 - **Up from top staff**: Cycle to bottom staff at same quant
 - **Down from bottom staff**: Cycle to top staff at same quant
 
+### Chord Track Navigation
+
+When chord symbols exist, vertical navigation includes the chord track layer above the staves:
+
+```mermaid
+flowchart TD
+    A[CMD + Up/Down] --> B{Chord track focused?}
+
+    B -->|Yes, Down| C[Return to topmost note at chord's quant]
+    B -->|Yes, Up| D[No action - already at top]
+    B -->|No| E{At top note?}
+
+    E -->|Yes, Up| F{Chord exists at quant?}
+    E -->|No| G[Normal chord/staff navigation]
+
+    F -->|Yes| H[Focus chord track, select chord]
+    F -->|No| I[Try cross-staff or cycle]
+
+    G --> J{At bottom note?}
+
+    J -->|Yes, Down| K{Chord exists at quant?}
+    J -->|No| L[Normal navigation]
+
+    K -->|Yes| H
+    K -->|No| M[Cycle to top staff]
+```
+
+| From | Direction | Condition | Result |
+|------|-----------|-----------|--------|
+| Topmost note | Up | Chord exists at quant | Focus chord track, select chord |
+| Topmost note | Up | No chord at quant | Cross-staff or cycle |
+| Chord track | Down | — | Select topmost note at chord's quant |
+| Chord track | Up | — | No action (already at top) |
+| Bottom note | Down | Chord exists at quant | Focus chord track, select chord |
+| Bottom note | Down | No chord at quant | Cycle to top staff |
+
+**Audio feedback**: Selecting a chord plays its voicing (eighth note duration).
+
+### Horizontal Chord Navigation
+
+When chord track is focused, horizontal navigation moves between chords:
+
+| Key | Action |
+|-----|--------|
+| `←` / `Left Arrow` | Select previous chord (stays at first if at boundary) |
+| `→` / `Right Arrow` | Select next chord (stays at last if at boundary) |
+| `Tab` | Select next chord |
+| `Shift + Tab` | Select previous chord |
+
+**Audio feedback**: Navigating to a new chord plays its voicing.
+
+### Chord Selection and Editing
+
+| Key | Context | Action |
+|-----|---------|--------|
+| `Enter` | Chord selected (not editing) | Enter edit mode |
+| `Escape` | Chord selected | Return focus to staff, select note at chord's quant |
+| `Delete` / `Backspace` | Chord selected | Delete the chord |
+
 ### Vertical Selection (`Cmd + Shift + Up/Down`)
 
 Unlike navigation, extending selection operates on **independent vertical slices**:

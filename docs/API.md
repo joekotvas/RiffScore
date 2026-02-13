@@ -6,7 +6,7 @@
 
 > **See also**: [Cookbook](./COOKBOOK.md) • [Configuration](./CONFIGURATION.md) • [Architecture](./ARCHITECTURE.md) • [Coding Patterns](./CODING_PATTERNS.md)
 
-**Version:** 1.0.0-alpha.7  
+**Version:** 1.0.0-alpha.8  
 **Access:**
 -   **React**: `const ref = useRef<MusicEditorAPI>(null)`
 -   **Global**: `window.riffScore.get('my-score-id')` or `window.riffScore.active`
@@ -34,7 +34,7 @@
 
 ## Internal Architecture
 
-The API is implemented using a **factory pattern** with 10 domain-specific modules:
+The API is implemented using a **factory pattern** with 11 domain-specific modules:
 
 ```
 src/hooks/api/
@@ -47,7 +47,8 @@ src/hooks/api/
 ├── history.ts      # undo, redo, transactions
 ├── playback.ts     # play, pause, stop
 ├── io.ts           # loadScore, reset, export
-└── events.ts       # on() subscription wrapper
+├── events.ts       # on() subscription wrapper
+└── chords.ts       # addChord, updateChord, removeChord, selectChord
 ```
 
 Each factory receives an `APIContext` containing refs and dispatch functions, then returns methods bound to `this` via `ThisType<MusicEditorAPI>` for fluent chaining.
@@ -189,6 +190,50 @@ The most recently focused or mounted instance.
 | `getScore` | `getScore()` | ✅ | Read-only score state. |
 | `getConfig` | `getConfig()` | ✅ | Current config. |
 | `getSelection` | `getSelection()` | ✅ | Current selection state. |
+
+---
+
+## 13. Chord Symbols ✅
+
+### CRUD
+
+| Method | Signature | Status | Description |
+| :--- | :--- | :--- | :--- |
+| `addChord` | `addChord(quant, symbol)` | ✅ | Add chord symbol at global quant position. |
+| `updateChord` | `updateChord(chordId, symbol)` | ✅ | Update an existing chord symbol. |
+| `removeChord` | `removeChord(chordId)` | ✅ | Remove a chord symbol. |
+| `getChords` | `getChords()` | ✅ | Get all chords sorted by quant ascending. |
+| `getChord` | `getChord(chordId)` | ✅ | Get a specific chord by ID. |
+| `getChordAtQuant` | `getChordAtQuant(quant)` | ✅ | Get the chord at a specific quant position. |
+| `getValidChordQuants` | `getValidChordQuants()` | ✅ | Get all valid quant positions for chords. |
+
+### Selection
+
+| Method | Signature | Status | Description |
+| :--- | :--- | :--- | :--- |
+| `selectChord` | `selectChord(chordId)` | ✅ | Select a chord by ID. |
+| `selectChordAtQuant` | `selectChordAtQuant(quant)` | ✅ | Select the chord at a quant position. |
+| `deselectChord` | `deselectChord()` | ✅ | Deselect the currently selected chord. |
+| `getSelectedChord` | `getSelectedChord()` | ✅ | Get the currently selected chord. |
+| `hasChordSelection` | `hasChordSelection()` | ✅ | Check if a chord is selected. |
+
+### Navigation
+
+| Method | Signature | Status | Description |
+| :--- | :--- | :--- | :--- |
+| `selectNextChord` | `selectNextChord()` | ✅ | Select the next chord in sequence. |
+| `selectPrevChord` | `selectPrevChord()` | ✅ | Select the previous chord. |
+| `selectFirstChord` | `selectFirstChord()` | ✅ | Select the first chord in the score. |
+| `selectLastChord` | `selectLastChord()` | ✅ | Select the last chord in the score. |
+
+### Configuration
+
+| Method | Signature | Status | Description |
+| :--- | :--- | :--- | :--- |
+| `setChordDisplay` | `setChordDisplay(config)` | ⏳ | `{ notation, useSymbols }`. |
+| `setChordPlayback` | `setChordPlayback(config)` | ⏳ | `{ enabled, velocity }`. |
+| `getChordDisplay` | `getChordDisplay()` | ✅ | Get current chord display config. |
+| `getChordPlayback` | `getChordPlayback()` | ✅ | Get current chord playback config. |
 
 ---
 

@@ -9,6 +9,7 @@ import { useKeyboardShortcuts, useScoreInteraction } from '@hooks/interaction';
 import { usePlayback, useMIDI, useSamplerStatus } from '@hooks/audio';
 // import { useModifierKeys } from '@hooks/useModifierKeys';
 import { useTitleEditor } from '@hooks/useTitleEditor';
+import { useChordTrack } from '@hooks/chord/useChordTrack';
 
 // Components
 import ScoreCanvas from '@components/Canvas/ScoreCanvas';
@@ -25,6 +26,11 @@ import { UpdateTitleCommand } from '@commands/UpdateTitleCommand';
 // Engines & Data
 import { setInstrument, InstrumentType } from '@engines/toneEngine';
 import { MELODIES } from '@/data/melodies';
+
+// Utilities
+import { findEventAtQuantPosition } from '@/utils/navigation/crossStaff';
+import { getNoteDuration } from '@/utils/core';
+import { TIME_SIGNATURES } from '@/constants';
 
 import './styles/ScoreEditor.css';
 
@@ -61,7 +67,7 @@ const ScoreEditorContent = ({
 
   // Grouped API destructuring
   const { score, selection } = scoreLogic.state;
-  const { dispatch, scoreRef } = scoreLogic.engines;
+  const { dispatch, scoreRef, selectionEngine } = scoreLogic.engines;
   const { activeDuration, isDotted, activeAccidental } = scoreLogic.tools;
   const { select: handleNoteSelection, focus: focusScore } = scoreLogic.navigation;
   const { addChord: addChordToMeasure, updatePitch: updateNotePitch } = scoreLogic.entry;
@@ -96,6 +102,12 @@ const ScoreEditorContent = ({
     activeAccidental,
     scoreRef
   );
+  const chordTrackHook = useChordTrack({
+    scoreRef,
+    score,
+    selectionEngine,
+    dispatch,
+  });
 
   useScoreInteraction({
     scoreRef,
@@ -124,6 +136,115 @@ const ScoreEditorContent = ({
     },
   });
 
+  // Calculate quants per measure for chord navigation
+  const quantsPerMeasure = TIME_SIGNATURES[score.timeSignature || '4/4'] || 96;
+
+  // Chord track Tab navigation handler
+  const handleChordTabNavigate = useCallback(
+    (direction: 'next' | 'previous') => {
+      const selectedChordId = selection.chordId;
+      if (!selectedChordId) return;
+
+      // Find current chord's quant
+      const currentChord = chordTrackHook.chords.find((c) => c.id === selectedChordId);
+      if (!currentChord) return;
+
+      const currentQuant = currentChord.quant;
+
+      // Get sorted valid quants and find next/previous position
+      const sortedQuants = Array.from(chordTrackHook.validQuants).sort((a, b) => a - b);
+
+      let targetQuant: number | undefined;
+      if (direction === 'next') {
+        targetQuant = sortedQuants.find((q) => q > currentQuant);
+      } else {
+        const previousQuants = sortedQuants.filter((q) => q < currentQuant);
+        targetQuant = previousQuants[previousQuants.length - 1];
+      }
+
+      if (targetQuant !== undefined) {
+        const chordAtQuant = chordTrackHook.chords.find((c) => c.quant === targetQuant);
+        if (chordAtQuant) {
+          chordTrackHook.startEditing(chordAtQuant.id);
+        } else {
+          chordTrackHook.startCreating(targetQuant);
+        }
+      }
+    },
+    [selection.chordId, chordTrackHook]
+  );
+
+  // ESC from selected chord - return focus to topmost note at chord's quant
+  const handleChordEscapeToNotes = useCallback(() => {
+    const selectedChordId = selection.chordId;
+    if (!selectedChordId) return;
+
+    const chord = chordTrackHook.chords.find((c) => c.id === selectedChordId);
+    if (!chord) return;
+
+    const quant = chord.quant;
+    const measureIndex = Math.floor(quant / quantsPerMeasure);
+    const localQuant = quant % quantsPerMeasure;
+
+    // Clear chord selection first
+    selectionEngine.selectChord(null);
+
+    // Try to find a note at this quant in the topmost staff first
+    for (let staffIdx = 0; staffIdx < score.staves.length; staffIdx++) {
+      const staff = score.staves[staffIdx];
+      const measure = staff?.measures[measureIndex];
+      const event = findEventAtQuantPosition(measure, localQuant);
+
+      if (event && !event.isRest && event.notes?.length) {
+        // Found a note - select the highest note in the event
+        const sortedNotes = [...event.notes].sort((a, b) => {
+          const midiA = a.pitch ? parseInt(a.pitch.replace(/\D/g, '')) : 0;
+          const midiB = b.pitch ? parseInt(b.pitch.replace(/\D/g, '')) : 0;
+          return midiB - midiA; // Descending (highest first)
+        });
+        handleNoteSelection(measureIndex, event.id, sortedNotes[0]?.id || null, staffIdx);
+        return;
+      }
+    }
+
+    // No note at this quant - find nearest note to the left
+    for (let mIdx = measureIndex; mIdx >= 0; mIdx--) {
+      for (let staffIdx = 0; staffIdx < score.staves.length; staffIdx++) {
+        const staff = score.staves[staffIdx];
+        const measure = staff?.measures[mIdx];
+        if (!measure?.events?.length) continue;
+
+        const maxQuant = mIdx === measureIndex ? localQuant : quantsPerMeasure;
+        let currentQuant = 0;
+        let lastValidEvent: { event: (typeof measure.events)[0]; quant: number } | null = null;
+
+        for (const event of measure.events) {
+          if (currentQuant < maxQuant && !event.isRest && event.notes?.length) {
+            lastValidEvent = { event, quant: currentQuant };
+          }
+          currentQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
+        }
+
+        if (lastValidEvent) {
+          const sortedNotes = [...lastValidEvent.event.notes!].sort((a, b) => {
+            const midiA = a.pitch ? parseInt(a.pitch.replace(/\D/g, '')) : 0;
+            const midiB = b.pitch ? parseInt(b.pitch.replace(/\D/g, '')) : 0;
+            return midiB - midiA;
+          });
+          handleNoteSelection(mIdx, lastValidEvent.event.id, sortedNotes[0]?.id || null, staffIdx);
+          return;
+        }
+      }
+    }
+  }, [
+    selection.chordId,
+    chordTrackHook.chords,
+    score.staves,
+    quantsPerMeasure,
+    selectionEngine,
+    handleNoteSelection,
+  ]);
+
   useKeyboardShortcuts(
     scoreLogic,
     playback,
@@ -134,7 +255,8 @@ const ScoreEditorContent = ({
       isAnyMenuOpen: () => (toolbarRef.current?.isMenuOpen() ?? false) || showHelp,
       isDisabled: !enableKeyboard,
     },
-    { handleTitleCommit: titleEditor.commit }
+    { handleTitleCommit: titleEditor.commit },
+    { navigateAndEdit: handleChordTabNavigate, escapeToNotes: handleChordEscapeToNotes }
   );
 
   // --- Event Handlers ---
@@ -247,6 +369,7 @@ const ScoreEditorContent = ({
           onClefClick={() => toolbarRef.current?.openClefMenu()}
           isPlaying={playback.isPlaying}
           isPlaybackVisible={playback.isActive}
+          chordTrack={chordTrackHook}
         />
       </div>
 

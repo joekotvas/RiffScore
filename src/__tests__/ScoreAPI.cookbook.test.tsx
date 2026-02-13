@@ -252,6 +252,140 @@ describe('Cookbook: Entry Recipes', () => {
 });
 
 // =============================================================================
+// CHORD SYMBOL RECIPES
+// =============================================================================
+
+describe('Cookbook: Chord Symbol Recipes', () => {
+  beforeEach(() => {
+    Element.prototype.scrollTo = jest.fn();
+  });
+
+  afterEach(() => {
+    if (window.riffScore) {
+      window.riffScore.instances.clear();
+      window.riffScore.active = null;
+    }
+    jest.restoreAllMocks();
+  });
+
+  /**
+   * Recipe: Add a Chord Progression
+   * docs/COOKBOOK.md §1a - I-IV-V-I chord symbols via API
+   * Chords must be placed at valid quant positions (where notes exist).
+   */
+  test('Add a Chord Progression - chords at beat positions', () => {
+    render(<RiffScore id="cookbook-chord-prog" />);
+    const score = getAPI('cookbook-chord-prog');
+
+    // First add notes so valid quant positions exist
+    act(() => {
+      score
+        .select(1)
+        .addNote('C4', 'quarter')
+        .addNote('D4', 'quarter')
+        .addNote('E4', 'quarter')
+        .addNote('F4', 'quarter');
+    });
+
+    // Get valid positions (quantsPerBeat varies by environment)
+    const validQuants = score.getValidChordQuants();
+    expect(validQuants.length).toBeGreaterThanOrEqual(4);
+
+    // Add chords at beat 1 and beat 2
+    act(() => {
+      score.addChord(validQuants[0], 'C');
+    });
+    act(() => {
+      score.addChord(validQuants[1], 'F');
+    });
+
+    expect(score.ok).toBe(true);
+
+    const chords = score.getChords();
+    expect(chords.length).toBe(2);
+    expect(chords[0].symbol).toBe('C');
+    expect(chords[0].quant).toBe(validQuants[0]);
+    expect(chords[1].symbol).toBe('F');
+    expect(chords[1].quant).toBe(validQuants[1]);
+  });
+
+  /**
+   * Recipe: Navigate and Edit Chords
+   * docs/COOKBOOK.md §1a - selectChord, updateChord, getChord
+   *
+   * Tests the workflow: get chords → select one → update it → verify change.
+   */
+  test('Navigate and Edit Chords - select then update', () => {
+    render(<RiffScore id="cookbook-chord-nav" />);
+    const score = getAPI('cookbook-chord-nav');
+
+    // Create notes and chords
+    act(() => {
+      score
+        .select(1)
+        .addNote('C4', 'quarter')
+        .addNote('D4', 'quarter')
+        .addNote('E4', 'quarter')
+        .addNote('F4', 'quarter');
+    });
+
+    const validQuants = score.getValidChordQuants();
+
+    act(() => {
+      score.addChord(validQuants[0], 'C');
+    });
+    act(() => {
+      score.addChord(validQuants[1], 'F');
+    });
+
+    // Get all chords, select the second one
+    const chords = score.getChords();
+    expect(chords.length).toBe(2);
+    expect(chords[1].symbol).toBe('F');
+
+    act(() => {
+      score.selectChord(chords[1].id);
+    });
+
+    const selected = score.getSelectedChord();
+    expect(selected).not.toBeNull();
+    expect(selected?.symbol).toBe('F');
+
+    // Update the selected chord
+    act(() => {
+      score.updateChord(selected!.id, 'Dm7');
+    });
+
+    expect(score.ok).toBe(true);
+    const updated = score.getChord(selected!.id);
+    expect(updated?.symbol).toBe('Dm7');
+  });
+
+  /**
+   * Recipe: Change Chord Display
+   * docs/COOKBOOK.md §1a - setChordDisplay for notation changes
+   * Note: setChordDisplay is currently a stub (NOT_IMPLEMENTED) but the
+   * getter works. We verify the API doesn't crash and returns correctly.
+   */
+  test('Change Chord Display - getChordDisplay returns default config', () => {
+    render(<RiffScore id="cookbook-chord-display" />);
+    const score = getAPI('cookbook-chord-display');
+
+    const display = score.getChordDisplay();
+    expect(display).toBeDefined();
+    expect(display.notation).toBe('letter');
+    expect(typeof display.useSymbols).toBe('boolean');
+
+    // setChordDisplay is a stub — verify it doesn't crash
+    act(() => {
+      score.setChordDisplay({ notation: 'roman' });
+    });
+    // Stub returns a warning, not a hard error
+    expect(score.result.code).toBe('NOT_IMPLEMENTED');
+  });
+});
+
+// =============================================================================
 // EDITING RECIPES
 // =============================================================================
 

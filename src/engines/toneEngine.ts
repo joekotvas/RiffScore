@@ -9,8 +9,22 @@
  */
 
 import { TimelineEvent } from '@/services/TimelineService';
+import { Score, ChordPlaybackConfig } from '@/types';
+import { getChordVoicing } from '@/services/ChordService';
+import { TIME_SIGNATURES } from '@/constants';
 
 // --- TYPES ---
+
+/**
+ * Chord playback event for scheduling.
+ */
+export interface ChordPlaybackEvent {
+  time: number; // Start time in seconds
+  duration: number; // Duration in seconds
+  notes: string[]; // Voicing notes (e.g., ['C3', 'E3', 'G3'])
+  symbol: string; // Original chord symbol
+  velocity: number; // Velocity 0-1
+}
 
 export type InstrumentType = 'bright' | 'mellow' | 'organ' | 'piano';
 
@@ -30,6 +44,43 @@ interface ToneEngineState {
 
 // Tone.js module type (dynamic import)
 type ToneModule = typeof import('tone');
+
+/**
+ * Interface for Tone.js PolySynth-like instances.
+ * Used for typed synth registry instead of `any`.
+ */
+interface PolySynthLike {
+  triggerAttack: (notes: string | string[], time?: number, velocity?: number) => void;
+  triggerRelease: (notes: string | string[], time?: number) => void;
+  triggerAttackRelease: (
+    notes: string | string[],
+    duration: string | number,
+    time?: number,
+    velocity?: number
+  ) => void;
+  toDestination: () => PolySynthLike;
+  dispose: () => void;
+  volume?: { value: number };
+}
+
+/**
+ * Interface for Tone.js Sampler-like instances.
+ */
+interface SamplerLike extends PolySynthLike {
+  loaded: boolean;
+}
+
+/**
+ * Interface for Tone.js Part-like instances.
+ * Note: Types are widened to accommodate Tone.js's flexible Time type.
+ */
+interface PartLike {
+  start: (time?: number) => void;
+  stop: (time?: number) => void;
+  dispose: () => void;
+  loop?: boolean | number;
+  loopEnd?: unknown; // Tone.js Time type is complex, use unknown for flexibility
+}
 
 // --- DYNAMIC LOADER ---
 
@@ -69,15 +120,79 @@ const loadTone = async (): Promise<ToneModule> => {
  */
 const getTone = (): ToneModule | null => toneModuleCache;
 
+// --- CHORD PLAYBACK HELPERS ---
+
+/**
+ * Creates chord playback events from a score's chord track.
+ * @param score - The score containing chord symbols
+ * @param bpm - Tempo in beats per minute
+ * @param velocity - Velocity for chord playback (0-127)
+ * @returns Array of ChordPlaybackEvent for scheduling
+ */
+export const createChordPlaybackEvents = (
+  score: Score,
+  bpm: number,
+  velocity: number = 50
+): ChordPlaybackEvent[] => {
+  const chordTrack = score.chordTrack;
+  if (!chordTrack || chordTrack.length === 0) return [];
+
+  const events: ChordPlaybackEvent[] = [];
+  const quantsPerMeasure = TIME_SIGNATURES[score.timeSignature] || TIME_SIGNATURES['4/4'];
+  const secondsPerBeat = 60 / bpm;
+  const secondsPerQuant = secondsPerBeat / 16; // 16 quants per quarter note
+
+  // Calculate total quants in score
+  const totalMeasures = score.staves[0]?.measures.length || 0;
+  const totalQuants = totalMeasures * quantsPerMeasure;
+
+  for (let i = 0; i < chordTrack.length; i++) {
+    const chord = chordTrack[i];
+    const nextChord = chordTrack[i + 1];
+
+    // Get voicing notes
+    const notes = getChordVoicing(chord.symbol);
+    if (notes.length === 0) continue;
+
+    // Calculate time in seconds
+    const startTime = chord.quant * secondsPerQuant;
+
+    // Calculate measure boundary
+    const measureIndex = Math.floor(chord.quant / quantsPerMeasure);
+    const measureEndQuant = (measureIndex + 1) * quantsPerMeasure;
+
+    // Duration: until next chord, end of measure, or end of score (whichever comes first)
+    let endQuant: number;
+    if (nextChord && nextChord.quant <= measureEndQuant) {
+      // Next chord is in same measure or at measure boundary
+      endQuant = nextChord.quant;
+    } else {
+      // Cap at end of current measure
+      endQuant = Math.min(measureEndQuant, totalQuants);
+    }
+
+    const duration = (endQuant - chord.quant) * secondsPerQuant;
+    if (duration <= 0) continue;
+
+    events.push({
+      time: startTime,
+      duration,
+      notes,
+      symbol: chord.symbol,
+      velocity: velocity / 127, // Convert MIDI velocity to 0-1
+    });
+  }
+
+  return events;
+};
+
 // --- STATE ---
 
 // Mutable registry of synth instances. Properties are added dynamically as instruments are loaded.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const synths: Record<string, any> = {};
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let sampler: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let currentPart: any = null;
+const synths: Record<string, PolySynthLike> = {};
+let sampler: SamplerLike | null = null;
+let currentPart: PartLike | null = null;
+let chordPart: PartLike | null = null;
 let state: ToneEngineState = {
   instrumentState: 'not-loaded',
   selectedInstrument: 'bright',
@@ -345,14 +460,15 @@ export const scheduleTonePlayback = async (
     quant: e.quant,
   }));
 
-  currentPart = new Tone.Part((time: number, event: (typeof events)[0]) => {
+  const part = new Tone.Part((time: number, event: (typeof events)[0]) => {
     instrument.triggerAttackRelease(event.note, event.duration, time);
     Tone.Draw.schedule(() => {
       onPositionUpdate?.(event.measureIndex, event.quant, event.duration);
     }, time);
   }, events);
+  currentPart = part;
 
-  currentPart.start(0);
+  part.start(0);
 
   const lastEvent = events[events.length - 1];
   const endTime = lastEvent.time + lastEvent.duration + 0.1;
@@ -364,6 +480,80 @@ export const scheduleTonePlayback = async (
 
   Tone.Transport.start();
   updateState({ isPlaying: true });
+};
+
+/**
+ * Schedules chord playback events alongside the melody.
+ * Call this after scheduleTonePlayback to add chord accompaniment.
+ * @param chordEvents - Array of ChordPlaybackEvent from createChordPlaybackEvents
+ * @param startTimeOffset - Time offset in seconds for partial playback
+ */
+export const scheduleChordPlayback = async (
+  chordEvents: ChordPlaybackEvent[],
+  startTimeOffset: number = 0
+): Promise<void> => {
+  if (chordEvents.length === 0) return;
+
+  const Tone = await loadTone();
+  const instrument = getActiveInstrument();
+  if (!instrument) return;
+
+  // Filter and adjust events based on start offset
+  const adjustedEvents = chordEvents
+    .filter((e) => e.time + e.duration > startTimeOffset)
+    .map((e) => ({
+      ...e,
+      time: Math.max(0, e.time - startTimeOffset),
+      // Adjust duration if starting mid-chord
+      duration: e.time < startTimeOffset ? e.duration - (startTimeOffset - e.time) : e.duration,
+    }));
+
+  if (adjustedEvents.length === 0) return;
+
+  // Dispose of existing chord part
+  if (chordPart) {
+    chordPart.dispose();
+    chordPart = null;
+  }
+
+  const chordPartInstance = new Tone.Part((time: number, event: ChordPlaybackEvent) => {
+    // Play all notes in the chord voicing with the specified velocity
+    for (const note of event.notes) {
+      instrument.triggerAttackRelease(note, event.duration, time, event.velocity);
+    }
+  }, adjustedEvents);
+  chordPart = chordPartInstance;
+
+  chordPartInstance.start(0);
+};
+
+/**
+ * Combined playback scheduling for melody and chords.
+ * @param timeline - Melody timeline events
+ * @param score - Full score (for chord track)
+ * @param bpm - Tempo in beats per minute
+ * @param chordConfig - Optional chord playback configuration
+ * @param startTimeOffset - Time offset in seconds
+ * @param onPositionUpdate - Callback for playhead position updates
+ * @param onComplete - Callback when playback finishes
+ */
+export const scheduleScorePlayback = async (
+  timeline: TimelineEvent[],
+  score: Score,
+  bpm: number,
+  chordConfig?: ChordPlaybackConfig,
+  startTimeOffset: number = 0,
+  onPositionUpdate?: (measureIndex: number, quant: number, duration: number) => void,
+  onComplete?: () => void
+): Promise<void> => {
+  // Schedule melody playback
+  await scheduleTonePlayback(timeline, bpm, startTimeOffset, onPositionUpdate, onComplete);
+
+  // Schedule chord playback if enabled
+  if (chordConfig?.enabled && score.chordTrack && score.chordTrack.length > 0) {
+    const chordEvents = createChordPlaybackEvents(score, bpm, chordConfig.velocity);
+    await scheduleChordPlayback(chordEvents, startTimeOffset);
+  }
 };
 
 /**
@@ -379,6 +569,11 @@ export const stopTonePlayback = (): void => {
   if (currentPart) {
     currentPart.dispose();
     currentPart = null;
+  }
+
+  if (chordPart) {
+    chordPart.dispose();
+    chordPart = null;
   }
 
   updateState({ isPlaying: false });
