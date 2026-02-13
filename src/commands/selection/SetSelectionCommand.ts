@@ -18,6 +18,8 @@ export interface SetSelectionOptions {
   noteId?: string | null;
   selectedNotes?: SelectedNote[];
   anchor?: SelectedNote | null;
+  chordId?: string | null;
+  chordTrackFocused?: boolean;
 }
 
 /**
@@ -39,6 +41,8 @@ export class SetSelectionCommand implements SelectionCommand {
       noteId = null,
       selectedNotes,
       anchor,
+      chordId,
+      chordTrackFocused,
     } = this.options;
 
     // Build selectedNotes array if not provided
@@ -75,6 +79,9 @@ export class SetSelectionCommand implements SelectionCommand {
       noteId,
       selectedNotes: finalSelectedNotes,
       anchor: finalAnchor ?? null,
+      // Preserve chord selection fields when provided
+      ...(chordId !== undefined && { chordId }),
+      ...(chordTrackFocused !== undefined && { chordTrackFocused }),
     };
   }
 }

@@ -144,35 +144,8 @@ describe('Selection Navigation - Horizontal', () => {
   });
 });
 
-describe('Selection Navigation - Vertical (Chord Cycling)', () => {
-  // NOTE: Vertical navigation is deferred to Phase 7
-  // These tests document expected behavior for when it's implemented
-
-  test.skip('CMD+Up within chord → select higher note', () => {
-    // Will be implemented in Phase 7
-  });
-
-  test.skip('CMD+Down within chord → select lower note', () => {
-    // Will be implemented in Phase 7
-  });
-
-  test.skip('at chord boundary → cross-staff navigation', () => {
-    // Will be implemented in Phase 7
-  });
-});
-
-describe('Selection Navigation - Cross-Staff', () => {
-  // NOTE: Cross-staff navigation is deferred to Phase 7
-  // These tests document expected behavior for when it's implemented
-
-  test.skip('vertical nav to other staff with event at same quant → select that event', () => {
-    // Will be implemented in Phase 7
-  });
-
-  test.skip('vertical nav to other staff without event → ghost cursor', () => {
-    // Will be implemented in Phase 7
-  });
-});
+// Note: Vertical and Cross-Staff navigation are tested at the API level
+// in src/__tests__/ScoreAPI.navigation.test.tsx.
 
 describe('Selection - Toggle (Cmd+Click)', () => {
   let engine: SelectionEngine;

@@ -25,7 +25,7 @@ import {
   ScoreEvent,
   Measure,
 } from '@/types';
-import { playNote } from '@/engines/toneEngine';
+import { useAudioFeedback } from '@/hooks/audio';
 import { SelectionEngine } from '@/engines/SelectionEngine';
 import {
   ClearSelectionCommand,
@@ -38,6 +38,8 @@ import {
 
 interface UseSelectionProps {
   score: Score;
+  /** Optional synchronous score getter for engine initialization */
+  scoreGetter?: () => Score;
 }
 
 /** Helper return type for looking up score data */
@@ -49,12 +51,14 @@ interface SelectionTarget {
   noteIndex: number;
 }
 
-export const useSelection = ({ score }: UseSelectionProps) => {
+export const useSelection = ({ score, scoreGetter }: UseSelectionProps) => {
   // ─────────────────────────────────────────────────────────────────────────────
   // 1. Engine Initialization
   // ─────────────────────────────────────────────────────────────────────────────
-  // Using lazy initializer to avoid React Compiler side-effect warnings
-  const [engine] = useState(() => new SelectionEngine(createDefaultSelection(), () => score));
+  // Use scoreGetter if provided (for synchronous access), otherwise fall back to score
+  const [engine] = useState(
+    () => new SelectionEngine(createDefaultSelection(), scoreGetter ?? (() => score))
+  );
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 2. Sync Engine with React State
@@ -63,8 +67,9 @@ export const useSelection = ({ score }: UseSelectionProps) => {
   const [lastSelection, setLastSelection] = useState<Selection | null>(null);
 
   useEffect(() => {
-    engine.setScoreGetter(() => score);
-  }, [score, engine]);
+    // Update score getter to use scoreGetter if provided, otherwise wrap current score
+    engine.setScoreGetter(scoreGetter ?? (() => score));
+  }, [score, scoreGetter, engine]);
 
   useEffect(() => {
     const unsubscribe = engine.subscribe(setSelectionState);
@@ -76,11 +81,7 @@ export const useSelection = ({ score }: UseSelectionProps) => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   /** Play audio feedback for notes */
-  const playAudioFeedback = useCallback((notes: Note[]) => {
-    notes.forEach((n) => {
-      if (n.pitch !== null) playNote(n.pitch);
-    });
-  }, []);
+  const playAudioFeedback = useAudioFeedback();
 
   /**
    * Resolves IDs to actual Score objects and indices.

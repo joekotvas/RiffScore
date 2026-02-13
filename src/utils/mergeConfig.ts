@@ -49,5 +49,6 @@ export const mergeRiffConfig = (userConfig: DeepPartial<RiffScoreConfig> = {}): 
     ui: mergeObjects(base.ui, userConfig.ui ?? {}),
     interaction: mergeObjects(base.interaction, userConfig.interaction ?? {}),
     score: mergeObjects(base.score, userConfig.score ?? {}),
+    chord: mergeObjects(base.chord, userConfig.chord ?? {}),
   };
 };

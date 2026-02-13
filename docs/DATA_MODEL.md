@@ -17,6 +17,7 @@ Score {
   keySignature: string        // "C", "G", "F#", "Bb"
   bpm: number
   staves: Staff[]
+  chordTrack?: ChordSymbol[]  // Sorted by quant ascending
 }
 ```
 
@@ -74,18 +75,19 @@ ScoreEvent {
 
 | Name | Quants | Musical Value |
 |------|--------|---------------|
-| `whole` | 96 | 4 beats |
-| `half` | 48 | 2 beats |
-| `quarter` | 24 | 1 beat |
-| `eighth` | 12 | 1/2 beat |
-| `sixteenth` | 6 | 1/4 beat |
-| `thirtysecond` | 3 | 1/8 beat |
+| `whole` | 64 | 4 beats |
+| `half` | 32 | 2 beats |
+| `quarter` | 16 | 1 beat |
+| `eighth` | 8 | 1/2 beat |
+| `sixteenth` | 4 | 1/4 beat |
+| `thirtysecond` | 2 | 1/8 beat |
+| `sixtyfourth` | 1 | 1/16 beat |
 
 ### Dotted Values
 
 A dot adds 50% duration:
-- Dotted quarter = 24 + 12 = 36 quants
-- Dotted half = 48 + 24 = 72 quants
+- Dotted quarter = 16 + 8 = 24 quants
+- Dotted half = 32 + 16 = 48 quants
 
 ---
 
@@ -119,33 +121,68 @@ Storing `F#4` instead of "scale degree 4" means:
 
 ---
 
+## 5a. Chord Symbols
+
+```typescript
+ChordSymbol {
+  id: string                    // Unique identifier
+  quant: number                 // Global quant position
+  symbol: string                // Canonical letter notation: 'Cmaj7', 'Dm', 'G7'
+}
+```
+
+Chord symbols live in `Score.chordTrack[]`, anchored to **global quant positions** (computed as `measureIndex × quantsPerMeasure + localQuant`). They are independent of staves and render above the top staff.
+
+### Input Formats
+
+The `ChordParser` accepts multiple input formats and normalizes them to letter notation:
+
+| Input Format | Example | Stored As |
+|---|---|---|
+| Letter names | `Cmaj7`, `Am`, `F#dim` | `Cmaj7`, `Am`, `F#dim` |
+| Solfège | `Do`, `Re`, `Sol7` | `C`, `D`, `G7` |
+| Roman numerals | `IV`, `ii7`, `V` | Resolved from key context |
+
+### Display Notations
+
+Stored chords can be rendered in different notation systems via `ChordDisplayConfig.notation`:
+- `'letter'` — `Cmaj7` (default)
+- `'roman'` — `IVmaj7`
+- `'nashville'` — `4maj7`
+- `'fixedDo'` — `Domaj7`
+- `'movableDo'` — `Famaj7` (relative to key)
+
+---
+
 ## 6. Quant System
 
 **Quants** are the smallest rhythmic unit in RiffScore:
 
 ```
-1 whole note = 96 quants
-1 quarter note = 24 quants
-1 eighth note = 12 quants
+1 whole note    = 64 quants
+1 quarter note  = 16 quants
+1 eighth note   =  8 quants
+1 sixteenth     =  4 quants
+1 sixtyfourth   =  1 quant   ← smallest unit
 ```
 
-### Why 96?
+### Why 64?
 
-96 divides evenly by:
-- 2, 3, 4, 6, 8, 12, 16, 24, 32, 48
+64 divides evenly by:
+- 1, 2, 4, 8, 16, 32, 64
 
 This supports:
-- Standard durations (4ths, 8ths, 16ths)
-- Triplets (8 quants per triplet eighth)
-- Dotted values (quarter dot = 36 quants)
+- Standard durations down to 64th notes (1 quant)
+- Binary subdivisions align cleanly with power-of-2 durations
+- Dotted values (quarter dot = 24 quants)
 
 ### Quant → Duration
 
 ```typescript
 function quantToDuration(quants: number): { duration: string, dotted: boolean } {
-  if (quants === 144) return { duration: 'whole', dotted: true };
-  if (quants === 96) return { duration: 'whole', dotted: false };
-  if (quants === 72) return { duration: 'half', dotted: true };
+  if (quants === 96) return { duration: 'whole', dotted: true };
+  if (quants === 64) return { duration: 'whole', dotted: false };
+  if (quants === 48) return { duration: 'half', dotted: true };
   // ... etc
 }
 ```
@@ -165,8 +202,8 @@ TupletInfo {
 ### Triplet Example
 
 Three eighth notes in the space of two:
-- Each note: 12 × (2/3) = 8 quants
-- Total: 24 quants (same as two eighths)
+- Each note: 8 × (2/3) ≈ 5.33 quants (rounded)
+- Total: 16 quants (same as two eighths)
 
 ```typescript
 // Triplet eighths
@@ -210,6 +247,8 @@ Selection {
   selectedNotes: SelectedNote[]
   anchor?: SelectedNote | null
   verticalAnchors?: VerticalAnchors
+  chordId?: string | null       // Selected chord symbol ID
+  chordTrackFocused?: boolean    // True when chord track has focus
 }
 
 SelectedNote {

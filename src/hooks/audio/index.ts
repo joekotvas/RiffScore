@@ -6,3 +6,4 @@
 export { usePlayback, type UsePlaybackReturn } from './usePlayback';
 export { useMIDI } from './useMIDI';
 export { useSamplerStatus } from './useSamplerStatus';
+export { useAudioFeedback, type AudioFeedbackNote } from './useAudioFeedback';

@@ -1,4 +1,4 @@
-import { Score, Measure, ScoreEvent, Note } from '@/types';
+import { Score, Measure, ScoreEvent, Note, ChordSymbol } from '@/types';
 
 /**
  * Helper to update a specific measure in the score.
@@ -123,4 +123,27 @@ export const updateNote = (
     event.notes = newNotes;
     return true;
   });
+};
+
+/**
+ * Helper to update the chord track in the score.
+ * Handles cloning of the chord array.
+ *
+ * @param score The current score state
+ * @param updateFn Callback to modify the chord track. Return new array or false to abort.
+ *                 The chord array passed is already a clone.
+ * @returns New score state or original score
+ *
+ * @tested src/__tests__/commands/chord/ChordCommands.test.ts
+ */
+export const updateChordTrack = (
+  score: Score,
+  updateFn: (chordTrack: ChordSymbol[]) => ChordSymbol[] | false
+): Score => {
+  const chordTrack = [...(score.chordTrack || [])];
+  const result = updateFn(chordTrack);
+
+  if (result === false) return score;
+
+  return { ...score, chordTrack: result };
 };

@@ -1,7 +1,8 @@
 import { MusicEditorAPI } from '@/api.types';
 import { APIContext } from './types';
-import { navigateSelection, getFirstNoteId, getNoteDuration } from '@/utils/core';
+import { getFirstNoteId, getNoteDuration } from '@/utils/core';
 import { calculateVerticalNavigation } from '@/utils/navigation/vertical';
+import { calculateNextSelection } from '@/utils/navigation/horizontal';
 import { SelectEventCommand } from '@/commands/selection';
 
 /**
@@ -20,37 +21,83 @@ type NavigationMethodNames = 'move' | 'jump' | 'select' | 'selectById' | 'select
 export const createNavigationMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, NavigationMethodNames> & ThisType<MusicEditorAPI> => {
-  const { scoreRef, selectionRef, syncSelection, selectionEngine } = ctx;
+  const { getScore, selectionRef, syncSelection, selectionEngine, setResult } = ctx;
 
   return {
     move(direction) {
       const sel = selectionRef.current;
-      const score = scoreRef.current;
+      const score = getScore();
       const staff = score.staves[sel.staffIndex];
-      if (!staff) return this;
+      if (!staff) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'move',
+          message: 'Invalid staff index',
+          code: 'INVALID_STAFF',
+        });
+        return this;
+      }
 
       const measures = staff.measures;
 
       if (direction === 'left' || direction === 'right') {
-        // Use existing navigateSelection utility for horizontal movement
-        const newSel = navigateSelection(measures, sel, direction);
+        // Use calculateNextSelection for horizontal movement (same as keyboard)
+        const navResult = calculateNextSelection(
+          measures,
+          sel,
+          direction
+          // All other params use defaults: previewNote=null, activeDuration='quarter', etc.
+        );
 
-        const fullSelection = {
-          ...newSel,
-          selectedNotes:
-            newSel.eventId && newSel.measureIndex !== null
-              ? [
-                  {
-                    staffIndex: newSel.staffIndex,
-                    measureIndex: newSel.measureIndex,
-                    eventId: newSel.eventId,
-                    noteId: newSel.noteId,
-                  },
-                ]
-              : [],
-          anchor: null,
-        };
-        syncSelection(fullSelection);
+        if (!navResult) {
+          setResult({
+            ok: true,
+            status: 'info',
+            method: 'move',
+            message: `Cannot move ${direction} (boundary)`,
+            code: 'BOUNDARY_REACHED',
+          });
+          return this;
+        }
+
+        // When navigating to append position, selection has measureIndex: null
+        // but previewNote contains the actual measure. Merge them for API selection.
+        const newSel = navResult.selection;
+        const measureIndex =
+          newSel?.measureIndex ?? navResult.previewNote?.measureIndex ?? sel.measureIndex;
+
+        if (newSel || navResult.previewNote) {
+          const fullSelection = {
+            ...sel,
+            ...(newSel || {}),
+            measureIndex, // Use merged measureIndex
+            selectedNotes:
+              newSel?.eventId && measureIndex !== null
+                ? [
+                    {
+                      staffIndex: newSel.staffIndex ?? sel.staffIndex,
+                      measureIndex,
+                      eventId: newSel.eventId,
+                      noteId: newSel.noteId,
+                    },
+                  ]
+                : [],
+            anchor: null,
+          };
+          syncSelection(fullSelection);
+        }
+
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'move',
+          message: `Moved ${direction}`,
+          details: {
+            direction,
+            newSelection: { measure: measureIndex, event: newSel?.eventId ?? null },
+          },
+        });
       } else if (direction === 'up' || direction === 'down') {
         // Use calculateVerticalNavigation for cross-staff and chord navigation
         // Note: activeDuration defaults to 'quarter' - if needed, expose via API context
@@ -80,16 +127,39 @@ export const createNavigationMethods = (
             anchor: null,
           };
           syncSelection(fullSelection);
+          setResult({
+            ok: true,
+            status: 'info',
+            method: 'move',
+            message: `Moved ${direction}`,
+            details: { direction, newSelection: fullSelection },
+          });
+        } else {
+          setResult({
+            ok: true,
+            status: 'warning',
+            method: 'move',
+            message: `Cannot move ${direction} (boundary reached)`,
+            code: 'BOUNDARY_REACHED',
+          });
         }
-        // Note: Ghost cursor (previewNote) is handled by the UI layer, not the API
       }
       return this;
     },
 
     jump(target) {
       const sel = selectionRef.current;
-      const staff = scoreRef.current.staves[sel.staffIndex];
-      if (!staff || staff.measures.length === 0) return this;
+      const staff = getScore().staves[sel.staffIndex];
+      if (!staff || staff.measures.length === 0) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'jump',
+          message: 'No measures exist',
+          code: 'NO_MEASURES',
+        });
+        return this;
+      }
 
       const measures = staff.measures;
       let targetMeasureIndex: number;
@@ -113,11 +183,27 @@ export const createNavigationMethods = (
           targetEventIndex = Math.max(0, measures[targetMeasureIndex]?.events.length - 1);
           break;
         default:
+          setResult({
+            ok: false,
+            status: 'error',
+            method: 'jump',
+            message: `Invalid jump target "${target}"`,
+            code: 'INVALID_TARGET',
+          });
           return this;
       }
 
       const measure = measures[targetMeasureIndex];
-      if (!measure) return this;
+      if (!measure) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'jump',
+          message: 'Target measure not found',
+          code: 'MEASURE_NOT_FOUND',
+        });
+        return this;
+      }
 
       const event = measure.events[targetEventIndex];
       const eventId = event?.id ?? null;
@@ -134,12 +220,32 @@ export const createNavigationMethods = (
         anchor: null,
       });
 
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'jump',
+        message: `Jumped to ${target}`,
+        details: { target, measureIndex: targetMeasureIndex, eventIndex: targetEventIndex },
+      });
+
       return this;
     },
 
     select(measureNum, staffIndex = 0, eventIndex = 0, noteIndex = 0) {
       // Convert 1-based measureNum to 0-based index
       const measureIndex = measureNum - 1;
+      const staff = getScore().staves[staffIndex];
+
+      if (!staff?.measures[measureIndex]) {
+        setResult({
+          ok: false, // Error because invalid direct selection
+          status: 'error',
+          method: 'select',
+          message: `Measure ${measureNum} does not exist`,
+          code: 'MEASURE_NOT_FOUND',
+        });
+        return this;
+      }
 
       // Use SelectEventCommand for proper selection
       selectionEngine.dispatch(
@@ -154,18 +260,36 @@ export const createNavigationMethods = (
       // Sync the ref for chaining
       selectionRef.current = selectionEngine.getState();
 
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'select',
+        message: `Selected measure ${measureNum}`,
+        details: { measureNum, staffIndex, eventIndex, noteIndex },
+      });
+
       return this;
     },
 
     selectAtQuant(measureNum, quant, staffIndex = 0) {
       const measureIndex = measureNum - 1;
-      const staff = scoreRef.current.staves[staffIndex];
-      if (!staff?.measures[measureIndex]) return this;
+      const staff = getScore().staves[staffIndex];
+      if (!staff?.measures[measureIndex]) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'selectAtQuant',
+          message: `Measure ${measureNum} does not exist`,
+          code: 'MEASURE_NOT_FOUND',
+        });
+        return this;
+      }
 
       const measure = staff.measures[measureIndex];
 
       // Walk events to find event at quant position
       let currentQuant = 0;
+      let found = false;
       for (let i = 0; i < measure.events.length; i++) {
         const event = measure.events[i];
         const eventDuration = getNoteDuration(event.duration, event.dotted);
@@ -181,29 +305,56 @@ export const createNavigationMethods = (
             })
           );
           selectionRef.current = selectionEngine.getState();
+          found = true;
+          setResult({
+            ok: true,
+            status: 'info',
+            method: 'selectAtQuant',
+            message: `Selected at quant ${quant}`,
+            details: { quant, eventIndex: i },
+          });
           break;
         }
         currentQuant += eventDuration;
+      }
+
+      if (!found) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'selectAtQuant',
+          message: `No event found at quant ${quant} in measure ${measureNum}`,
+          code: 'NO_EVENT_AT_QUANT',
+        });
       }
       return this;
     },
 
     selectById(eventId, noteId) {
       const sel = selectionRef.current;
-      const staff = scoreRef.current.staves[sel.staffIndex];
-      if (!staff) return this;
+      const staff = getScore().staves[sel.staffIndex];
+      if (!staff) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'selectById',
+          message: 'Invalid staff index',
+          code: 'INVALID_STAFF',
+        });
+        return this;
+      }
 
       // Find the event and measure containing this eventId
       // TODO: Optimize lookup map
+      let found = false;
       for (let mIdx = 0; mIdx < staff.measures.length; mIdx++) {
         const measure = staff.measures[mIdx];
         const eIdx = measure.events.findIndex((e) => e.id === eventId);
         if (eIdx !== -1) {
-          const event = measure.events[eIdx];
           // Find note index if noteId provided
           let noteIndex = 0;
-          if (noteId && event.notes) {
-            const nIdx = event.notes.findIndex((n) => n.id === noteId);
+          if (noteId && measure.events[eIdx].notes) {
+            const nIdx = measure.events[eIdx].notes.findIndex((n) => n.id === noteId);
             if (nIdx !== -1) noteIndex = nIdx;
           }
           selectionEngine.dispatch(
@@ -215,8 +366,26 @@ export const createNavigationMethods = (
             })
           );
           selectionRef.current = selectionEngine.getState();
+          found = true;
+          setResult({
+            ok: true,
+            status: 'info',
+            method: 'selectById',
+            message: 'Selected by ID',
+            details: { eventId, noteId },
+          });
           break;
         }
+      }
+
+      if (!found) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'selectById',
+          message: `Event ID ${eventId} not found`,
+          code: 'EVENT_NOT_FOUND',
+        });
       }
       return this;
     },

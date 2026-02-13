@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
-import { Score } from '@/types';
+import { Score, DEFAULT_CHORD_PLAYBACK } from '@/types';
 import {
   initTone,
-  scheduleTonePlayback,
+  scheduleScorePlayback,
   stopTonePlayback,
   InstrumentState,
 } from '@/engines/toneEngine';
@@ -117,9 +117,11 @@ export const usePlayback = (score: Score, bpm: number): UsePlaybackReturn => {
         requestAnimationFrame(() => {
           setIsPlaying(true);
 
-          scheduleTonePlayback(
+          scheduleScorePlayback(
             timeline,
+            score,
             bpm,
+            DEFAULT_CHORD_PLAYBACK,
             startTimeOffset,
             (measureIndex, quant, duration) => {
               setPlaybackPosition({ measureIndex, quant, duration: duration || 0 });

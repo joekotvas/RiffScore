@@ -57,23 +57,31 @@ const score = window.riffScore.active;
 // Measure 1: C major chord (half note)
 score.select(1)
    .addNote('C4', 'half')
+   .move('left')
    .addTone('E4')
-   .addTone('G4');
+   .addTone('G4')
+   .move('right');
 
 // Same measure: F major (cursor auto-advances after addNote)
 score.addNote('F4', 'half')
+   .move('left')
    .addTone('A4')
-   .addTone('C5');
+   .addTone('C5')
+   .move('right');
 
 // Measure 2: G major then C major
 score.select(2)
    .addNote('G4', 'half')
+   .move('left')
    .addTone('B4')
-   .addTone('D5');
+   .addTone('D5')
+   .move('right');
 
 score.addNote('C4', 'half')
+   .move('left')
    .addTone('E4')
-   .addTone('G4');
+   .addTone('G4')
+   .move('right');
 ```
 
 ### Enter Rests
@@ -86,6 +94,48 @@ score.select(1)
    .addRest('quarter')
    .addNote('E4', 'quarter')
    .addRest('quarter');
+```
+
+---
+
+## 1a. Chord Symbol Recipes
+
+### Add a Chord Progression
+
+```javascript
+const score = window.riffScore.active;
+
+// I-IV-V-I in C major (one chord per measure in 4/4)
+score.addChord(0, 'C')         // Beat 1 of measure 1 (quant 0)
+     .addChord(64, 'F')        // Beat 1 of measure 2 (quant 64)
+     .addChord(128, 'G7')      // Beat 1 of measure 3 (quant 128)
+     .addChord(192, 'C');      // Beat 1 of measure 4 (quant 192)
+```
+
+### Navigate and Edit Chords
+
+```javascript
+const score = window.riffScore.active;
+
+// Select and change the second chord
+score.selectFirstChord()
+     .selectNextChord()       // Now on the second chord
+     .updateChord(score.getSelectedChord().id, 'Dm7');
+```
+
+### Change Chord Display
+
+> [!NOTE]
+> `setChordDisplay()` and `setChordPlayback()` are **not yet implemented** — they return a `NOT_IMPLEMENTED` error. The getter methods (`getChordDisplay()`, `getChordPlayback()`) work and return the current config. See [#207](https://github.com/joekotvas/RiffScore/issues/207).
+
+```javascript
+const score = window.riffScore.active;
+
+// Display chords as Roman numerals
+score.setChordDisplay({ notation: 'roman' });
+
+// Display as Nashville numbers with typographic symbols
+score.setChordDisplay({ notation: 'nashville', useSymbols: true });
 ```
 
 ---
@@ -109,8 +159,8 @@ const score = window.riffScore.active;
 // First add a note, then modify its duration
 score.select(1).addNote('C4', 'quarter');
 
-// Select the event and change duration
-score.setDuration('eighth', true);  // true = dotted
+// Move back to the note and change duration
+score.move('left').setDuration('eighth', true);  // true = dotted
 ```
 
 ### Convert Notes to Rests
@@ -170,19 +220,46 @@ score.select(3)  // Measure 3
 
 ### Safe Input Handling
 
-The API validates inputs and logs warnings instead of throwing errors, allowing safe method chaining.
+The API validates inputs and returns a result object. You can check the operation status immediately or inspect persistent error flags.
 
 ```javascript
 const score = window.riffScore.active;
 
-// This will log a warning (LogLevel.WARN) and continue
-score.addNote('InvalidPitch')
-   .setBpm(1000) // Clamped to 300
-   .setDuration('invalid'); // Ignored
+// This will log an error and set hasError=true
+score.addNote('InvalidPitch');
 
-// Check console for:
-// [WARN] [RiffScore API] addNote failed: Invalid pitch format 'InvalidPitch'
-// [WARN] [RiffScore API] setDuration failed: Invalid duration: "invalid"
+if (!score.ok) {
+  console.error('Operation failed:', score.result.message);
+  console.error('Error code:', score.result.code);
+}
+
+// Sticky error state allows checking after a chain
+score.select(1).addNote('C4').move('left').addNote('InvalidPitch').move('right').addNote('E4');
+
+if (score.hasError) {
+  console.warn('One or more operations in the chain failed');
+  score.clearStatus(); // Reset the error flag
+}
+```
+
+### Batch Result Collection
+
+Use `collect()` to capture results from multiple operations for validation or reporting.
+
+```javascript
+const score = window.riffScore.active;
+
+const report = score.collect((api) => {
+  api.select(1)
+     .addNote('C4', 'quarter')
+     .addNote('InvalidPitch') // Will result in error
+     .addNote('E4', 'quarter');
+});
+
+console.log(`Batch processed with ${report.errors.length} errors.`);
+if (!report.ok) {
+  report.errors.forEach(err => console.error(err.message));
+}
 ```
 
 ---
@@ -235,12 +312,14 @@ score.on('batch', (payload) => {
 ```javascript
 const score = window.riffScore.active;
 
-// Playback API is fully integrated with Tone.js
+// Playback API is integrated with Tone.js (lazy-loaded)
 score.play();     // Start playback
 score.pause();    // Pause (retains position)
 score.stop();     // Stop and reset to beginning
 score.rewind(2);  // Jump to measure 2
 ```
+
+> **Note**: First playback may have a brief delay (~1-2s) while Tone.js loads. Subsequent playback is instant.
 
 ---
 

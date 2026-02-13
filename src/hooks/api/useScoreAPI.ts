@@ -19,6 +19,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useAPISubscriptions } from './useAPISubscriptions';
 import type { MusicEditorAPI, RiffScoreRegistry } from '@/api.types';
 import type { RiffScoreConfig } from '@/types';
+import { getTimestamp } from '@/utils/core';
 import { SetSelectionCommand } from '@/commands/selection';
 import {
   createNavigationMethods,
@@ -28,6 +29,7 @@ import {
   createHistoryMethods,
   createPlaybackMethods,
   createIOMethods,
+  createChordMethods,
   APIContext,
 } from '.';
 
@@ -110,6 +112,8 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
           noteId: newSelection.noteId,
           selectedNotes: newSelection.selectedNotes,
           anchor: newSelection.anchor,
+          chordId: newSelection.chordId,
+          chordTrackFocused: newSelection.chordTrackFocused,
         })
       );
     },
@@ -118,10 +122,66 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
 
   // 4. API Event Subscriptions
   // Delegates listener management to the dedicated hook
-  const { on } = useAPISubscriptions(score, selection, ctx.engines.engine);
+  const { on, notify } = useAPISubscriptions(score, selection, ctx.engines.engine);
 
   // 4a. Consume Theme Logic
   const { setTheme, setZoom } = useTheme();
+
+  // 4b. Internal Result State (Refs for synchronous access)
+  const resultRef = useRef<import('@/api.types').Result>({
+    ok: true,
+    status: 'info',
+    method: 'init',
+    message: 'API Initialized',
+    timestamp: getTimestamp(),
+  });
+  const hasErrorRef = useRef(false);
+  const debugModeRef = useRef(false);
+  const collectorRef = useRef<{ results: import('@/api.types').Result[] } | null>(null);
+
+  /**
+   * Internal helper to report operation results.
+   * Updates state, emits events, and logs to console if needed.
+   */
+  const setResult = useCallback(
+    (partial: Omit<import('@/api.types').Result, 'timestamp'>) => {
+      const timestamp = getTimestamp();
+      const result: import('@/api.types').Result = { ...partial, timestamp };
+
+      // Update Result State
+      resultRef.current = result;
+
+      // Update Sticky Error State
+      if (result.status === 'error') {
+        hasErrorRef.current = true;
+      }
+
+      // Collect for batch if active
+      if (collectorRef.current) {
+        collectorRef.current.results.push(result);
+      }
+
+      // Emit Events
+      notify('operation', result);
+      if (result.status === 'error') {
+        notify('error', result);
+      }
+
+      // Console Logging
+      if (debugModeRef.current || result.status === 'warning' || result.status === 'error') {
+        const prefix = `[RiffScore API] ${result.method}:`;
+        if (result.status === 'error') {
+          console.error(`${prefix} ${result.message}`, result.details || '');
+        } else if (result.status === 'warning') {
+          console.warn(`${prefix} ${result.message}`, result.details || '');
+        } else if (debugModeRef.current) {
+          // eslint-disable-next-line no-console
+          console.log(`${prefix} ${result.message}`, result.details || '');
+        }
+      }
+    },
+    [notify]
+  );
 
   // 5. Build API Object (memoized to maintain stable reference)
   const api: MusicEditorAPI = useMemo(() => {
@@ -141,7 +201,6 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
         rollback: rollbackTransaction,
       },
       config,
-      // Wire setters with validation:
       setTheme: (name) => {
         const normalized = name.trim().toUpperCase();
         if (
@@ -151,28 +210,59 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
           normalized === 'COOL'
         ) {
           setTheme(normalized as 'LIGHT' | 'DARK' | 'WARM' | 'COOL');
+          setResult({
+            ok: true,
+            status: 'info',
+            method: 'setTheme',
+            message: `Theme set to ${normalized}`,
+          });
         } else {
-          console.warn(
-            `RiffScore: Ignoring invalid theme name "${name}". Expected one of: LIGHT, DARK, WARM, COOL.`
-          );
+          setResult({
+            ok: true,
+            status: 'warning',
+            method: 'setTheme',
+            message: `Ignoring invalid theme name "${name}". Expected one of: LIGHT, DARK, WARM, COOL.`,
+          });
         }
       },
-      setZoom,
+      setZoom: (zoom) => {
+        setZoom(zoom);
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'setZoom',
+          message: `Zoom set to ${zoom}`,
+        });
+      },
       setInputMode: (mode) => {
         if (mode === 'note' || mode === 'rest') {
           ctx.tools.setInputMode(mode.toUpperCase() as 'NOTE' | 'REST');
+          setResult({
+            ok: true,
+            status: 'info',
+            method: 'setInputMode',
+            message: `Input mode set to ${mode}`,
+          });
         } else {
-          console.warn(
-            `RiffScore: Ignoring invalid input mode "${mode}". Expected "note" or "rest".`
-          );
+          setResult({
+            ok: true,
+            status: 'warning',
+            method: 'setInputMode',
+            message: `Ignoring invalid input mode "${mode}". Expected "note" or "rest".`,
+          });
         }
+      },
+      // API Feedback Internals
+      setResult,
+      get debugMode() {
+        return debugModeRef.current;
       },
     };
 
     // Factory methods access refs via context, not directly during render.
     // The refs are only read when API methods are called (in event handlers).
-    /* eslint-disable react-hooks/refs */
-    const instance: MusicEditorAPI = {
+    // Base instance with methods
+    const instance = {
       // Composition: Mixin all factory methods
       ...createNavigationMethods(context),
       ...createSelectionMethods(context),
@@ -181,18 +271,84 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
       ...createHistoryMethods(context),
       ...createPlaybackMethods(context),
       ...createIOMethods(context),
+      ...createChordMethods(context),
 
       // Data Accessors (Bound Closures)
       getScore: () => ctx.engines.engine.getState(),
       getConfig: () => config,
-      getSelection: () => selectionRef.current,
+      getSelection: () => selectionEngine.getState(),
+
+      // Feedback & Status helpers
+      clearStatus: () => {
+        /** @tested src/__tests__/ScoreAPI.feedback.test.tsx */
+        hasErrorRef.current = false;
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'clearStatus',
+          message: 'Status cleared',
+        });
+        return instance as MusicEditorAPI;
+      },
+      debug: (enabled: boolean) => {
+        /** @tested src/__tests__/ScoreAPI.feedback.test.tsx */
+        debugModeRef.current = enabled;
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'debug',
+          message: `Debug mode ${enabled ? 'enabled' : 'disabled'}`,
+        });
+        return instance as MusicEditorAPI;
+      },
+      collect: (callback: (api: MusicEditorAPI) => void) => {
+        /** @tested src/__tests__/ScoreAPI.feedback.test.tsx */
+        // Start collection
+        const captured: import('@/api.types').Result[] = [];
+        const prevCollector = collectorRef.current; // Support nested collection (restore prev)
+        collectorRef.current = { results: captured };
+
+        try {
+          callback(instance as MusicEditorAPI);
+        } catch (error) {
+          console.error('[RiffScore API] collect callback failed:', error);
+        } finally {
+          // End collection
+          collectorRef.current = prevCollector;
+        }
+
+        const errors = captured.filter((r) => r.status === 'error');
+        const warnings = captured.filter((r) => r.status === 'warning');
+
+        return {
+          ok: errors.length === 0,
+          results: captured,
+          warnings,
+          errors,
+        };
+      },
 
       // Events
       on,
     };
-    /* eslint-enable react-hooks/refs */
 
-    return instance;
+    // explicit properties for getters to prevent flattening
+    Object.defineProperties(instance, {
+      result: {
+        get: () => resultRef.current,
+        enumerable: true,
+      },
+      ok: {
+        get: () => resultRef.current.ok,
+        enumerable: true,
+      },
+      hasError: {
+        get: () => hasErrorRef.current,
+        enumerable: true,
+      },
+    });
+
+    return instance as MusicEditorAPI;
   }, [
     config,
     dispatch,
@@ -208,8 +364,8 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
     setTheme,
     setZoom,
     ctx.tools,
+    setResult,
   ]);
-
   // 5. Registry registration/cleanup
   useEffect(() => {
     initRegistry();

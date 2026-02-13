@@ -5,12 +5,70 @@ All notable changes to RiffScore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0-alpha.9] - 2026-02-13
+
+### Added
+- **TypeScript Maintenance**: Added `typecheck` script to `package.json` for isolated TypeScript validation (`npm run typecheck`).
+
+### Fixed
+- **Playback Logic**: Resolved a critical bug where playback from selection used event indices instead of rhythmic quants, causing incorrect positioning in complex rhythms.
+- **Test Isolation**: Improved `generateScore.test.ts` to ensure consistent ID generation and true test isolation.
+- **Code Quality**: Eliminated redundant type definitions in the demo page by leveraging shared API types.
+- **Style Mock**: Cleaned up `styleMock.js` while maintaining ESLint compatibility.
+
+## [1.0.0-alpha.8] - 2026-02-12
+
+### Added
+- **Chord Symbols Feature ([#29](https://github.com/joekotvas/riffscore/issues/29))**: Full chord track implementation with display, editing, and playback support.
+  - **Chord Track Model**: Single chord track per score with quant-anchored symbols rendered above the top staff (FR-01–FR-04).
+  - **Chord Parsing**: Accepts common chord input formats including quality variants (`Cmaj`, `CM`, `CΔ`), minor (`Cm`, `C-`), sevenths, extensions, alterations, and slash chords (FR-10).
+  - **Click-to-Edit Interaction**: Click empty space to create, click existing chord to edit, Cmd/Ctrl+Click to select without editing (FR-08, FR-12).
+  - **Inline Text Input**: ChordInput component with validation, error display, and keyboard navigation — Tab/Shift+Tab to move between chords (FR-09, FR-11).
+  - **Chord Commands**: `AddChordCommand`, `UpdateChordCommand`, `RemoveChordCommand` with full undo/redo support (FR-29).
+  - **Notation Conversion**: ChordNotationConverter service supporting letter names, Roman numerals, Nashville numbers, and solfège (FR-05, FR-06).
+  - **Audio Feedback**: Selecting a chord plays its voicing for immediate feedback (FR-15a, FR-15b).
+  - **Export Support**: Chord symbols export to ABC (annotation syntax) and MusicXML (`<harmony>` elements) (FR-27, FR-28).
+  - **Programmatic API**: Full chord CRUD available via public API with fluent chaining and structured feedback (FR-29–FR-32).
+  - **Accessibility**: Screen reader labels, ARIA attributes, focus management, and keyboard navigation (NFR-03–NFR-07).
+  - **Chord Services**: ChordParser, ChordNotationConverter, ChordVoicing, ChordQuants, and ChordAccessibility modules.
+  - **Comprehensive Tests**: Full test coverage across commands, components (ChordInput, ChordSymbol, ChordTrack), hooks (useChordTrack), and services (ChordService).
+
+### Fixed
+- **ESLint Compliance**: Resolved all lint errors and warnings (unused vars, testing-library/no-node-access, React Compiler memoization).
+
+## [1.0.0-alpha.7] - 2026-01-05
+
+### Added
+- **Advance Cursor Model**: Entry methods (`addNote`, `addRest`) now automatically advance the cursor to the next rhythmic slot. Modifier methods (`addTone`, `setDuration`, `setAccidental`, `toggleTie`) now operate on the *currently selected event* ([PR #199](https://github.com/joekotvas/RiffScore/pull/199)).
+- **InsertEventCommand**: New atomic command for event insertion that accepts complete `ScoreEvent` objects, ensuring all properties (tuplets, ties, IDs) are preserved across measure overflows ([ADR-014](docs/adr/014-complete-event-objects.md), [PR #199](https://github.com/joekotvas/RiffScore/pull/199)).
+- **Structured API Feedback**: Public API (`window.riffScore`) now implements a **Fail-Soft** pattern. Methods return a structured `Result` object (`ok`, `status`, `message`, `code`) instead of failing silently or logging console warnings ([Issue #169](https://github.com/joekotvas/RiffScore/issues/169), [PR #198](https://github.com/joekotvas/RiffScore/pull/198)).
+- **Sticky Error State**: Added `api.hasError` flag which persists if any operation in a fluent chain fails, making validation easier.
+- **Batch Result Collection**: Added `api.collect(callback)` to aggregate results from multiple operations into a single report.
+- **Bundled Font Assets**: The Bravura (SMuFL) font is now bundled with the library assets (~280KB) and auto-loaded via CSS, providing a zero-config experience for consumers ([Issue #193](https://github.com/joekotvas/RiffScore/issues/193), [PR #195](https://github.com/joekotvas/RiffScore/pull/195)).
+- **Documentation**: New [ADR 011: Structured API Feedback](docs/adr/011-structured-api-feedback.md), [ADR 012: Bundled Font Assets](docs/adr/012-bundled-font-assets.md), [ADR 013: Deferred Audio Loading](docs/adr/013-deferred-audio-loading.md), and [ADR 014: Complete Event Objects for Commands](docs/adr/014-complete-event-objects.md).
+
+### Changed
+- **Unified Navigation**: Horizontal navigation now consistently enters a "Ghost Cursor" append position when moving right past the last event of a measure, unifying keyboard and API navigation behavior ([Issue #203](https://github.com/joekotvas/RiffScore/issues/203)).
+- **API Navigation**: API `move()` now supports navigating to append positions across measures, even if the target measure is currently empty.
+- **Utility Refactoring**: Modularized `src/utils/` by extracting `interaction.ts` and `core.ts` logic into `navigation/` and `entry/` subdirectories for better maintainability.
+- **API Error Handling**: API methods no longer throw errors for recoverable issues (e.g., invalid pitch format, out-of-bounds selection). They return `ok: false` with an error code.
+- **Fail-Soft Export**: `api.export()` now returns an empty string (instead of throwing) on failure or invalid format, setting an error result.
+- **Dynamic Audio Loading**: Tone.js is now dynamically imported only when playback is initialized. This reduces the initial bundle size by ~400KB for visual-only use cases. Only the first playback capability check incurs a network request ([Issue #196](https://github.com/joekotvas/RiffScore/issues/196), [PR #197](https://github.com/joekotvas/RiffScore/pull/197)).
+
+### Fixed
+- **API Chaining State**: Resolved issue where synchronous API calls used stale React state, ensuring direct access to the `ScoreEngine` during transitions ([Issue #200](https://github.com/joekotvas/RiffScore/issues/200)).
+- **Modifier Side Effects**: Fixed bugs where `toggleTie` and `setAccidental` erroneously advanced the cursor ([Issue #202](https://github.com/joekotvas/RiffScore/issues/202)).
+- **Cookbook Integration**: Updated all [Cookbook](docs/COOKBOOK.md) examples and tests to be compliant with the advance-cursor model.
+
 ## [1.0.0-alpha.6] - 2025-12-31
 
 ### Added
 - **Embedding Support (Issue #160)**: Added `ui.showBackground` config option (default `true`) and "Lightweight Display Mode" (removed shadows/borders) for cleaner embedding. See [Configuration Guide](docs/CONFIGURATION.md). ([PR #190](https://github.com/joekotvas/RiffScore/pull/190))
 - **Score Title Toggle**: `ui.showScoreTitle` config option to show/hide the title input ([Issue #160](https://github.com/joekotvas/RiffScore/issues/160)).
 - **Font Loading Animations**: Implemented `useFontLoaded` hook to prevent FOUC by hiding glyphs until Bravura font is ready ([PR #170](https://github.com/joekotvas/RiffScore/pull/170)).
+- **Test Suite Optimization**: Successfully implemented and enabled all previously skipped and todo tests. Achieved 100% pass rate with 908 active tests and zero skipped/deferred items.
+- **Improved Vertical Navigation Verification**: Added explicit API-level tests for cross-staff ghost cursor transitions.
+- **Grand Staff Reliability**: Verified overwrite and navigation behavior on multi-staff scores.
 
 ### Changed
 - **Tailwind Removal**: Complete migration from Tailwind CSS to Vanilla CSS for zero-dependency styling ([PR #189](https://github.com/joekotvas/RiffScore/pull/189)).

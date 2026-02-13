@@ -20,7 +20,6 @@ import {
   SetBpmCommand,
 } from '@/commands';
 import { parseDuration, clampBpm } from '@/utils/validation';
-import { logger, LogLevel } from '@/utils/debug';
 
 /**
  * Modification method names provided by this factory
@@ -58,7 +57,7 @@ type ModificationMethodNames =
 export const createModificationMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, ModificationMethodNames> & ThisType<MusicEditorAPI> => {
-  const { dispatch, selectionRef, scoreRef } = ctx;
+  const { dispatch, selectionRef, scoreRef, setResult } = ctx;
 
   return {
     setPitch(pitch) {
@@ -67,6 +66,21 @@ export const createModificationMethods = (
         dispatch(
           new ChangePitchCommand(sel.measureIndex, sel.eventId, sel.noteId, pitch, sel.staffIndex)
         );
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'setPitch',
+          message: `Pitch set to ${pitch}`,
+          details: { pitch, noteId: sel.noteId },
+        });
+      } else {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'setPitch',
+          message: 'No note selected',
+          code: 'NO_NOTE_SELECTED',
+        });
       }
       return this;
     },
@@ -74,7 +88,14 @@ export const createModificationMethods = (
     setDuration(duration, dotted = false) {
       const validDuration = parseDuration(duration);
       if (!validDuration) {
-        logger.log(`Invalid duration: "${duration}"`, undefined, LogLevel.WARN);
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'setDuration',
+          message: `Invalid duration: "${duration}"`,
+          code: 'INVALID_DURATION',
+          details: { duration },
+        });
         return this;
       }
 
@@ -101,16 +122,25 @@ export const createModificationMethods = (
         });
 
         ctx.history.commit();
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'setDuration',
+          message: `Duration set to ${duration} (dotted: ${dotted}) for ${processedEvents.size} events`,
+          details: { duration, dotted, count: processedEvents.size },
+        });
         return this;
       }
 
       // Single selection
       if (sel.measureIndex === null || sel.eventId === null) {
-        logger.log(
-          '[RiffScore API] setDuration failed: No event selected',
-          undefined,
-          LogLevel.WARN
-        );
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'setDuration',
+          message: 'No event selected',
+          code: 'NO_SELECTION',
+        });
         return this;
       }
 
@@ -122,16 +152,36 @@ export const createModificationMethods = (
           sel.staffIndex
         )
       );
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'setDuration',
+        message: `Duration set to ${duration} (dotted: ${dotted})`,
+        details: { duration, dotted, eventId: sel.eventId },
+      });
       return this;
     },
 
     transpose(semitones) {
       const sel = selectionRef.current;
       if (sel.measureIndex === null) {
-        logger.log('[RiffScore API] transpose failed: No selection', undefined, LogLevel.WARN);
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'transpose',
+          message: 'No selection',
+          code: 'NO_SELECTION',
+        });
         return this;
       }
       dispatch(new ChromaticTransposeCommand(sel, semitones));
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'transpose',
+        message: `Transposed ${semitones} semitones`,
+        details: { semitones },
+      });
       return this;
     },
 
@@ -139,6 +189,13 @@ export const createModificationMethods = (
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
       const sel = selectionRef.current;
       dispatch(new TransposeSelectionCommand(sel, steps));
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'transposeDiatonic',
+        message: `Transposed ${steps} diatonic steps`,
+        details: { steps },
+      });
       return this;
     },
 
@@ -147,6 +204,21 @@ export const createModificationMethods = (
       const sel = selectionRef.current;
       if (sel.eventId && sel.measureIndex !== null) {
         dispatch(new UpdateEventCommand(sel.measureIndex, sel.eventId, props, sel.staffIndex));
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'updateEvent',
+          message: 'Event updated',
+          details: { props },
+        });
+      } else {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'updateEvent',
+          message: 'No event selected',
+          code: 'NO_SELECTION',
+        });
       }
       return this;
     },
@@ -154,6 +226,13 @@ export const createModificationMethods = (
     // ========== STRUCTURE ==========
     addMeasure(atIndex) {
       dispatch(new AddMeasureCommand(atIndex));
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'addMeasure',
+        message: `Measure added${atIndex !== undefined ? ` at index ${atIndex}` : ''}`,
+        details: { atIndex },
+      });
       return this;
     },
 
@@ -162,6 +241,21 @@ export const createModificationMethods = (
       const idx = measureIndex ?? selectionRef.current.measureIndex ?? -1;
       if (idx >= 0) {
         dispatch(new DeleteMeasureCommand(idx));
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'deleteMeasure',
+          message: `Measure ${idx + 1} deleted`,
+          details: { index: idx },
+        });
+      } else {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'deleteMeasure',
+          message: 'No measure selected or invalid index',
+          code: 'INVALID_MEASURE_INDEX',
+        });
       }
       return this;
     },
@@ -171,8 +265,30 @@ export const createModificationMethods = (
       const sel = selectionRef.current;
       if (sel.eventId && sel.noteId && sel.measureIndex !== null) {
         dispatch(new DeleteNoteCommand(sel.measureIndex, sel.eventId, sel.noteId, sel.staffIndex));
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'deleteSelected',
+          message: 'Note deleted',
+          details: { noteId: sel.noteId },
+        });
       } else if (sel.eventId && sel.measureIndex !== null) {
         dispatch(new DeleteEventCommand(sel.measureIndex, sel.eventId, sel.staffIndex));
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'deleteSelected',
+          message: 'Event deleted',
+          details: { eventId: sel.eventId },
+        });
+      } else {
+        setResult({
+          ok: true,
+          status: 'warning',
+          method: 'deleteSelected',
+          message: 'Nothing selected to delete',
+          code: 'NO_SELECTION',
+        });
       }
       return this;
     },
@@ -180,12 +296,26 @@ export const createModificationMethods = (
     setKeySignature(key) {
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
       dispatch(new SetKeySignatureCommand(key));
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'setKeySignature',
+        message: `Key signature set to ${key}`,
+        details: { key },
+      });
       return this;
     },
 
     setTimeSignature(sig) {
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
       dispatch(new SetTimeSignatureCommand(sig));
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'setTimeSignature',
+        message: `Time signature set to ${sig}`,
+        details: { signature: sig },
+      });
       return this;
     },
 
@@ -196,6 +326,21 @@ export const createModificationMethods = (
 
       if (currentlyPickup !== isPickup) {
         dispatch(new TogglePickupCommand());
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'setMeasurePickup',
+          message: `Pickup measure ${isPickup ? 'enabled' : 'disabled'}`,
+          details: { isPickup },
+        });
+      } else {
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'setMeasurePickup',
+          message: `Pickup measure already ${isPickup ? 'enabled' : 'disabled'} (no change)`,
+          details: { isPickup },
+        });
       }
       return this;
     },
@@ -205,8 +350,21 @@ export const createModificationMethods = (
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
       if (clef === 'grand') {
         dispatch(new SetGrandStaffCommand());
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'setClef',
+          message: 'Set to Grand Staff',
+        });
       } else {
         dispatch(new SetClefCommand(clef, selectionRef.current.staffIndex));
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'setClef',
+          message: `Clef set to ${clef}`,
+          details: { clef },
+        });
       }
       return this;
     },
@@ -214,6 +372,13 @@ export const createModificationMethods = (
     setScoreTitle(title) {
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
       dispatch(new UpdateTitleCommand(title));
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'setScoreTitle',
+        message: `Score title updated`,
+        details: { title },
+      });
       return this;
     },
 
@@ -239,6 +404,13 @@ export const createModificationMethods = (
           }
         });
         ctx.history.commit();
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'setAccidental',
+          message: `Accidental set to ${type ?? 'natural'} for ${selectedNotes.length} notes`,
+          details: { type, count: selectedNotes.length },
+        });
       } else if (sel.eventId && sel.noteId && sel.measureIndex !== null) {
         // Single selection
         dispatch(
@@ -250,6 +422,21 @@ export const createModificationMethods = (
             sel.staffIndex
           )
         );
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'setAccidental',
+          message: `Accidental set to ${type ?? 'natural'}`,
+          details: { type },
+        });
+      } else {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'setAccidental',
+          message: 'No note selected',
+          code: 'NO_NOTE_SELECTED',
+        });
       }
       return this;
     },
@@ -296,6 +483,13 @@ export const createModificationMethods = (
           }
         });
         ctx.history.commit();
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'toggleAccidental',
+          message: `Toggled accidentals for ${selectedNotes.length} notes`,
+          details: { count: selectedNotes.length },
+        });
       } else if (sel.eventId && sel.noteId && sel.measureIndex !== null) {
         const staff = score.staves[sel.staffIndex];
         const measure = staff?.measures[sel.measureIndex];
@@ -312,7 +506,22 @@ export const createModificationMethods = (
               sel.staffIndex
             )
           );
+          setResult({
+            ok: true,
+            status: 'info',
+            method: 'toggleAccidental',
+            message: 'Toggled accidental',
+            details: { noteId: sel.noteId },
+          });
         }
+      } else {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'toggleAccidental',
+          message: 'No note selected',
+          code: 'NO_NOTE_SELECTED',
+        });
       }
       return this;
     },
@@ -320,16 +529,25 @@ export const createModificationMethods = (
     setBpm(bpm) {
       const clamped = clampBpm(bpm);
       dispatch(new SetBpmCommand(clamped));
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'setBpm',
+        message: `BPM set to ${clamped}`,
+        details: { bpm: clamped, requested: bpm },
+      });
       return this;
     },
 
     setTheme(themeName) {
       ctx.setTheme(themeName);
+      // useScoreAPI handles result
       return this;
     },
 
     setScale(scale) {
       ctx.setZoom(scale);
+      // useScoreAPI handles result
       return this;
     },
 
@@ -340,6 +558,13 @@ export const createModificationMethods = (
       } else {
         dispatch(new SetSingleStaffCommand('treble'));
       }
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'setStaffLayout',
+        message: `Layout set to ${type}`,
+        details: { type },
+      });
       return this;
     },
   };

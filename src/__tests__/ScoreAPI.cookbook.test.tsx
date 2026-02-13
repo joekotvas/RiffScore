@@ -180,18 +180,18 @@ describe('Cookbook: Entry Recipes', () => {
 
     act(() => {
       // Measure 1: C major chord
-      score.select(1).addNote('C4', 'half').addTone('E4').addTone('G4');
+      score.select(1).addNote('C4', 'half').move('left').addTone('E4').addTone('G4').move('right');
 
       // Same measure: F major (cursor auto-advances after addNote)
-      score.addNote('F4', 'half').addTone('A4').addTone('C5');
+      score.addNote('F4', 'half').move('left').addTone('A4').addTone('C5').move('right');
     });
 
     act(() => {
       // Measure 2: G major
-      score.select(2).addNote('G4', 'half').addTone('B4').addTone('D5');
+      score.select(2).addNote('G4', 'half').move('left').addTone('B4').addTone('D5').move('right');
 
       // Same measure: C major
-      score.addNote('C4', 'half').addTone('E4').addTone('G4');
+      score.addNote('C4', 'half').move('left').addTone('E4').addTone('G4').move('right');
     });
 
     const data = score.getScore();
@@ -252,6 +252,140 @@ describe('Cookbook: Entry Recipes', () => {
 });
 
 // =============================================================================
+// CHORD SYMBOL RECIPES
+// =============================================================================
+
+describe('Cookbook: Chord Symbol Recipes', () => {
+  beforeEach(() => {
+    Element.prototype.scrollTo = jest.fn();
+  });
+
+  afterEach(() => {
+    if (window.riffScore) {
+      window.riffScore.instances.clear();
+      window.riffScore.active = null;
+    }
+    jest.restoreAllMocks();
+  });
+
+  /**
+   * Recipe: Add a Chord Progression
+   * docs/COOKBOOK.md §1a - I-IV-V-I chord symbols via API
+   * Chords must be placed at valid quant positions (where notes exist).
+   */
+  test('Add a Chord Progression - chords at beat positions', () => {
+    render(<RiffScore id="cookbook-chord-prog" />);
+    const score = getAPI('cookbook-chord-prog');
+
+    // First add notes so valid quant positions exist
+    act(() => {
+      score
+        .select(1)
+        .addNote('C4', 'quarter')
+        .addNote('D4', 'quarter')
+        .addNote('E4', 'quarter')
+        .addNote('F4', 'quarter');
+    });
+
+    // Get valid positions (quantsPerBeat varies by environment)
+    const validQuants = score.getValidChordQuants();
+    expect(validQuants.length).toBeGreaterThanOrEqual(4);
+
+    // Add chords at beat 1 and beat 2
+    act(() => {
+      score.addChord(validQuants[0], 'C');
+    });
+    act(() => {
+      score.addChord(validQuants[1], 'F');
+    });
+
+    expect(score.ok).toBe(true);
+
+    const chords = score.getChords();
+    expect(chords.length).toBe(2);
+    expect(chords[0].symbol).toBe('C');
+    expect(chords[0].quant).toBe(validQuants[0]);
+    expect(chords[1].symbol).toBe('F');
+    expect(chords[1].quant).toBe(validQuants[1]);
+  });
+
+  /**
+   * Recipe: Navigate and Edit Chords
+   * docs/COOKBOOK.md §1a - selectChord, updateChord, getChord
+   *
+   * Tests the workflow: get chords → select one → update it → verify change.
+   */
+  test('Navigate and Edit Chords - select then update', () => {
+    render(<RiffScore id="cookbook-chord-nav" />);
+    const score = getAPI('cookbook-chord-nav');
+
+    // Create notes and chords
+    act(() => {
+      score
+        .select(1)
+        .addNote('C4', 'quarter')
+        .addNote('D4', 'quarter')
+        .addNote('E4', 'quarter')
+        .addNote('F4', 'quarter');
+    });
+
+    const validQuants = score.getValidChordQuants();
+
+    act(() => {
+      score.addChord(validQuants[0], 'C');
+    });
+    act(() => {
+      score.addChord(validQuants[1], 'F');
+    });
+
+    // Get all chords, select the second one
+    const chords = score.getChords();
+    expect(chords.length).toBe(2);
+    expect(chords[1].symbol).toBe('F');
+
+    act(() => {
+      score.selectChord(chords[1].id);
+    });
+
+    const selected = score.getSelectedChord();
+    expect(selected).not.toBeNull();
+    expect(selected?.symbol).toBe('F');
+
+    // Update the selected chord
+    act(() => {
+      score.updateChord(selected!.id, 'Dm7');
+    });
+
+    expect(score.ok).toBe(true);
+    const updated = score.getChord(selected!.id);
+    expect(updated?.symbol).toBe('Dm7');
+  });
+
+  /**
+   * Recipe: Change Chord Display
+   * docs/COOKBOOK.md §1a - setChordDisplay for notation changes
+   * Note: setChordDisplay is currently a stub (NOT_IMPLEMENTED) but the
+   * getter works. We verify the API doesn't crash and returns correctly.
+   */
+  test('Change Chord Display - getChordDisplay returns default config', () => {
+    render(<RiffScore id="cookbook-chord-display" />);
+    const score = getAPI('cookbook-chord-display');
+
+    const display = score.getChordDisplay();
+    expect(display).toBeDefined();
+    expect(display.notation).toBe('letter');
+    expect(typeof display.useSymbols).toBe('boolean');
+
+    // setChordDisplay is a stub — verify it doesn't crash
+    act(() => {
+      score.setChordDisplay({ notation: 'roman' });
+    });
+    // Stub returns a warning, not a hard error
+    expect(score.result.code).toBe('NOT_IMPLEMENTED');
+  });
+});
+
+// =============================================================================
 // EDITING RECIPES
 // =============================================================================
 
@@ -283,7 +417,7 @@ describe('Cookbook: Editing Recipes', () => {
 
     // Change duration of the selected event
     act(() => {
-      score.setDuration('eighth', true);
+      score.move('left').setDuration('eighth', true);
     });
 
     const data = score.getScore();
@@ -291,6 +425,42 @@ describe('Cookbook: Editing Recipes', () => {
 
     expect(event.duration).toBe('eighth');
     expect(event.dotted).toBe(true);
+  });
+
+  /**
+   * Recipe: Transpose Selection Up an Octave
+   */
+  test('transposeDiatonic - transposes selection up 7 steps', () => {
+    render(<RiffScore id="cookbook-transpose" />);
+    const score = getAPI('cookbook-transpose');
+
+    act(() => {
+      score.select(1).addNote('C4', 'quarter');
+    });
+
+    // Selection should still be on C4 (or we move back to it)
+    act(() => {
+      score.move('left').transposeDiatonic(7);
+    });
+
+    const data = score.getScore();
+    expect(data.staves[0].measures[0].events[0].notes[0].pitch).toBe('C5');
+  });
+
+  /**
+   * Recipe: Convert Notes to Rests (setInputMode)
+   */
+  test('setInputMode - changes the editor input mode', () => {
+    render(<RiffScore id="cookbook-input-mode" />);
+    const score = getAPI('cookbook-input-mode');
+
+    act(() => {
+      score.setInputMode('rest');
+    });
+
+    // In a real app, this would affect UI buttons.
+    // Here we just verify it doesn't crash and returns the API for chaining.
+    expect(score.ok).toBe(true);
   });
 });
 
@@ -416,6 +586,87 @@ describe('Cookbook: Observability', () => {
 });
 
 // =============================================================================
+// VALIDATION & ERRORS
+// =============================================================================
+
+describe('Cookbook: Validation & Errors', () => {
+  beforeEach(() => {
+    Element.prototype.scrollTo = jest.fn();
+  });
+
+  afterEach(() => {
+    if (window.riffScore) {
+      window.riffScore.instances.clear();
+      window.riffScore.active = null;
+    }
+    jest.restoreAllMocks();
+  });
+
+  /**
+   * Recipe: Safe Input Handling
+   * Verifies checking result status and valid input vs invalid input
+   */
+  test('Safe Input Handling - check ok and result message', () => {
+    render(<RiffScore id="cookbook-safe-input" />);
+    const score = getAPI('cookbook-safe-input');
+
+    // Valid
+    act(() => {
+      score.addNote('C4');
+    });
+    expect(score.ok).toBe(true);
+    expect(score.hasError).toBe(false);
+
+    // Invalid - logs error but doesn't throw
+    act(() => {
+      score.addNote('InvalidPitch');
+    });
+
+    expect(score.ok).toBe(false);
+    expect(score.result.code).toBe('INVALID_PITCH');
+    expect(score.hasError).toBe(true);
+
+    // Clear status
+    act(() => {
+      score.clearStatus();
+    });
+    expect(score.hasError).toBe(false);
+  });
+
+  /**
+   * Recipe: Batch Result Collection
+   * Verifies collecting results from multiple operations
+   */
+  test('Batch Result Collection - collect returns aggregation', () => {
+    render(<RiffScore id="cookbook-collect" />);
+    const score = getAPI('cookbook-collect');
+
+    let report: ReturnType<MusicEditorAPI['collect']> | undefined;
+
+    act(() => {
+      report = score.collect((api) => {
+        api.select(1).addNote('C4', 'quarter').addNote('InvalidPitch').addNote('E4', 'quarter');
+      });
+    });
+
+    expect(report).toBeDefined();
+    // Each addNote now properly reports its result after commit.
+    // Results include: select + 3x(addNote) = 4 direct operations
+    // With transaction operations counted, we see more results.
+    expect(report?.results.length).toBeGreaterThanOrEqual(4);
+    expect(report?.ok).toBe(false);
+    expect(report?.errors.length).toBe(1);
+    expect(report?.errors[0].code).toBe('INVALID_PITCH');
+
+    // Verify valid notes were still added
+    const data = score.getScore();
+    const pitches = getPitchesInMeasure(data, 0);
+    expect(pitches).toContain('C4');
+    expect(pitches).toContain('E4');
+  });
+});
+
+// =============================================================================
 // INTEGRATION RECIPES
 // =============================================================================
 
@@ -467,14 +718,15 @@ describe('Cookbook: Integration Recipes', () => {
     const score = getAPI('cookbook-sync-selection');
 
     act(() => {
-      score.select(1, 0, 0);
+      score.select(1).addNote('C4').addNote('D4');
+      score.select(1, 0, 0); // Select first note
     });
 
     const callback = jest.fn();
     const unsub = score.on('selection', callback);
 
     act(() => {
-      score.move('right');
+      score.move('right'); // Move to second note
     });
 
     await waitFor(() => {
@@ -486,6 +738,22 @@ describe('Cookbook: Integration Recipes', () => {
     expect('measureIndex' in selection).toBe(true);
 
     unsub();
+  });
+
+  /**
+   * Recipe: Control Playback
+   */
+  test('playback controls - play, pause, stop, rewind', async () => {
+    render(<RiffScore id="cookbook-playback" />);
+    const score = getAPI('cookbook-playback');
+
+    // play() returns a Promise, so we can't chain it synchronously.
+    await act(async () => {
+      await score.play();
+      score.pause().stop().rewind(2);
+    });
+
+    expect(score.ok).toBe(true);
   });
 });
 
@@ -528,6 +796,20 @@ describe('Cookbook: Export Recipes', () => {
     const parsed = JSON.parse(json);
     expect(parsed.staves).toBeDefined();
     expect(parsed.staves[0].measures[0].events.length).toBe(1);
+  });
+
+  /**
+   * Recipe: Save as MusicXML
+   */
+  test('export MusicXML - returns valid XML header', () => {
+    render(<RiffScore id="cookbook-export-xml" />);
+    const score = getAPI('cookbook-export-xml');
+
+    const xml = score.export('musicxml');
+
+    expect(typeof xml).toBe('string');
+    expect(xml.trim().toLowerCase().startsWith('<?xml')).toBe(true);
+    expect(xml.toLowerCase()).toContain('score-partwise');
   });
 
   /**

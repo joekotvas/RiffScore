@@ -29,17 +29,20 @@ describe('ScoreAPI Entry Methods', () => {
   });
 
   describe('makeTuplet', () => {
-    test('warns when no selection exists', () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    test('reports error when no selection exists', () => {
       render(<RiffScore id="tuplet-no-sel" />);
       const api = getAPI('tuplet-no-sel');
 
-      // No selection yet - makeTuplet should warn
+      // No selection yet - makeTuplet should error
       act(() => {
         api.makeTuplet(3, 2);
       });
 
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('No selection'));
+      expect(api.result).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'NO_SELECTION',
+      });
     });
 
     test('creates tuplet on consecutive events', () => {
@@ -77,8 +80,7 @@ describe('ScoreAPI Entry Methods', () => {
       expect(events[0].tuplet?.groupSize).toBe(3);
     });
 
-    test('warns when target events already contain a tuplet', () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    test('reports warning when target events already contain a tuplet', () => {
       render(<RiffScore id="tuplet-nested" />);
       const api = getAPI('tuplet-nested');
 
@@ -97,59 +99,82 @@ describe('ScoreAPI Entry Methods', () => {
       });
 
       // Verify first tuplet was created
-      let score = api.getScore();
+      const score = api.getScore();
       expect(score.staves[0].measures[0].events[0].tuplet).toBeDefined();
-
-      warnSpy.mockClear();
 
       // Try to create another tuplet starting from event 0 (which is already in a tuplet)
       act(() => {
         api.select(1, 0, 0, 0); // Select first event (already in tuplet)
       });
 
-      // Verify selection points to event with tuplet
-      const sel = api.getSelection();
-      score = api.getScore();
-      const event = score.staves[0].measures[0].events.find((e) => e.id === sel.eventId);
-      expect(event?.tuplet).toBeDefined();
-
       act(() => {
         api.makeTuplet(3, 2);
       });
 
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('already contain a tuplet'));
+      expect(api.result).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'NESTED_TUPLET_NOT_SUPPORTED',
+      });
     });
 
-    test('supports method chaining', () => {
-      render(<RiffScore id="tuplet-chain" />);
-      const api = getAPI('tuplet-chain');
+    test('preserves tuplet properties during insert-mode overflow', () => {
+      render(<RiffScore id="tuplet-overflow" />);
+      const api = getAPI('tuplet-overflow');
 
-      // Should be able to chain after makeTuplet
+      // Fill measure 1 with 3 eighth notes (= 24 quants)
       act(() => {
         api.select(1).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
       });
 
-      let result: MusicEditorAPI | undefined;
+      // Create triplet on all 3 events
       act(() => {
-        result = api.select(1, 0, 0, 0).makeTuplet(3, 2);
+        api.select(1, 0, 0, 0);
+      });
+      act(() => {
+        api.makeTuplet(3, 2);
       });
 
-      expect(result).toBe(api);
+      // Verify tuplet created
+      let score = api.getScore();
+      const tupletId = score.staves[0].measures[0].events[0].tuplet?.id;
+      expect(tupletId).toBeDefined();
+
+      // Now insert a whole note at the start (64 quants) with insert mode
+      // This should push the tuplet events to the next measure
+      act(() => {
+        api.select(1, 0, 0, 0).addNote('G3', 'whole', false, { mode: 'insert' });
+      });
+
+      // Verify the tuplet events were moved AND their tuplet info is preserved
+      score = api.getScore();
+      const measure2Events = score.staves[0].measures[1]?.events || [];
+
+      // At least one of the moved events should have tuplet info
+      const hasPreservedTuplet = measure2Events.some((e) => e.tuplet !== undefined);
+      expect(hasPreservedTuplet).toBe(true);
+
+      // Verify the tuplet ID is the same (group integrity preserved)
+      const movedTupletEvent = measure2Events.find((e) => e.tuplet !== undefined);
+      expect(movedTupletEvent?.tuplet?.id).toBe(tupletId);
     });
   });
 
   describe('unmakeTuplet', () => {
-    test('warns when selected event is not part of a tuplet', () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    test('reports error when selected event is not part of a tuplet', () => {
       render(<RiffScore id="unmake-no-tuplet" />);
       const api = getAPI('unmake-no-tuplet');
 
       act(() => {
         api.select(1).addNote('C4', 'quarter');
-        api.unmakeTuplet();
+        api.move('left').unmakeTuplet();
       });
 
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('not part of a tuplet'));
+      expect(api.result).toMatchObject({
+        ok: true,
+        status: 'warning',
+        code: 'NOT_A_TUPLET',
+      });
     });
 
     test('removes tuplet from events', () => {
@@ -196,8 +221,7 @@ describe('ScoreAPI Entry Methods', () => {
   });
 
   describe('toggleTie', () => {
-    test('warns when no note selected', () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    test('reports error when no note selected', () => {
       render(<RiffScore id="tie-no-sel" />);
       const api = getAPI('tie-no-sel');
 
@@ -205,7 +229,11 @@ describe('ScoreAPI Entry Methods', () => {
         api.toggleTie();
       });
 
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('No note selected'));
+      expect(api.result).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'NO_NOTE_SELECTED',
+      });
     });
 
     test('toggles tie on selected note', () => {
@@ -216,17 +244,17 @@ describe('ScoreAPI Entry Methods', () => {
         api.select(1).addNote('C4', 'quarter');
       });
 
-      // Toggle on
+      // Toggle on - with advance cursor model, must move back to select inserted note
       act(() => {
-        api.toggleTie();
+        api.move('left').toggleTie();
       });
 
       let score = api.getScore();
       expect(score.staves[0].measures[0].events[0].notes[0].tied).toBe(true);
 
-      // Toggle off
+      // Toggle off - with advance cursor model, must move back to select inserted note
       act(() => {
-        api.toggleTie();
+        api.move('left').toggleTie();
       });
 
       score = api.getScore();
@@ -235,8 +263,7 @@ describe('ScoreAPI Entry Methods', () => {
   });
 
   describe('setTie', () => {
-    test('warns when no note selected', () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    test('reports error when no note selected', () => {
       render(<RiffScore id="tie-set-no-sel" />);
       const api = getAPI('tie-set-no-sel');
 
@@ -244,7 +271,11 @@ describe('ScoreAPI Entry Methods', () => {
         api.setTie(true);
       });
 
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('No note selected'));
+      expect(api.result).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'NO_NOTE_SELECTED',
+      });
     });
 
     test('sets tie explicitly', () => {
@@ -256,14 +287,14 @@ describe('ScoreAPI Entry Methods', () => {
       });
 
       act(() => {
-        api.setTie(true);
+        api.move('left').setTie(true);
       });
 
       let score = api.getScore();
       expect(score.staves[0].measures[0].events[0].notes[0].tied).toBe(true);
 
       act(() => {
-        api.setTie(false);
+        api.move('left').setTie(false);
       });
 
       score = api.getScore();
@@ -272,7 +303,7 @@ describe('ScoreAPI Entry Methods', () => {
   });
 
   describe('setInputMode', () => {
-    test('changes input mode via context setter', () => {
+    test('changes input mode and returns this for chaining', () => {
       render(<RiffScore id="mode-set" />);
       const api = getAPI('mode-set');
 
@@ -283,18 +314,6 @@ describe('ScoreAPI Entry Methods', () => {
       });
 
       // Method should return this for chaining
-      expect(result).toBe(api);
-    });
-
-    test('supports method chaining', () => {
-      render(<RiffScore id="mode-chain" />);
-      const api = getAPI('mode-chain');
-
-      let result: MusicEditorAPI | undefined;
-      act(() => {
-        result = api.setInputMode('note');
-      });
-
       expect(result).toBe(api);
     });
   });

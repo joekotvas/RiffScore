@@ -11,9 +11,9 @@ import {
   isRestEvent,
   isNoteEvent,
   getFirstNoteId,
-  navigateSelection,
   reflowScore,
 } from '@/utils/core';
+import { navigateSelection } from '@/utils/navigation/horizontal';
 
 describe('core.ts utilities', () => {
   // ---------------------------------------------------
@@ -359,7 +359,9 @@ describe('core.ts utilities', () => {
       expect(result).toEqual(selection);
     });
 
-    it('should not navigate past last event', () => {
+    it('should not navigate past last event (simple traversal)', () => {
+      // Note: navigateSelection only handles event-to-event navigation.
+      // Boundary handling with ghost cursor is in calculateNextSelection.
       const measures = createMeasures();
       const selection = {
         measureIndex: 1,
@@ -369,6 +371,7 @@ describe('core.ts utilities', () => {
         selectedNotes: [],
       };
       const result = navigateSelection(measures, selection, 'right');
+      // Returns unchanged selection when at boundary
       expect(result).toEqual(selection);
     });
 

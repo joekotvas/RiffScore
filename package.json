@@ -1,6 +1,6 @@
 {
   "name": "riffscore",
-  "version": "1.0.0-alpha.6",
+  "version": "1.0.0-alpha.9",
   "description": "An intuitive, embeddable sheet music editor for React",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -25,6 +25,7 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
+    "typecheck": "tsc --noEmit",
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
     "demo:dev": "cd demo && npm run dev",
@@ -41,6 +42,7 @@
     "tone": "^15.1.22"
   },
   "devDependencies": {
+    "@size-limit/preset-small-lib": "^12.0.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
@@ -61,6 +63,8 @@
     "prettier": "^3.7.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "size-limit": "^12.0.0",
+    "source-map-explorer": "^2.5.3",
     "ts-jest": "^29.4.6",
     "tsup": "^8.0.0",
     "typescript": "^5",

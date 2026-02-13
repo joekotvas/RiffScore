@@ -7,7 +7,15 @@
  * @see docs/migration/api_reference_draft.md
  */
 
-import type { Score, ScoreEvent, Selection, RiffScoreConfig } from './types';
+import type {
+  Score,
+  ScoreEvent,
+  Selection,
+  RiffScoreConfig,
+  ChordSymbol,
+  ChordDisplayConfig,
+  ChordPlaybackConfig,
+} from './types';
 
 // ========== UTILITY TYPES ==========
 
@@ -15,7 +23,7 @@ import type { Score, ScoreEvent, Selection, RiffScoreConfig } from './types';
 export type Unsubscribe = () => void;
 
 /** Supported API event types */
-export type APIEventType = 'score' | 'selection' | 'playback' | 'batch';
+export type APIEventType = 'score' | 'selection' | 'playback' | 'batch' | 'operation' | 'error';
 
 /**
  * Payload for 'batch' events, providing a digest of composite operations.
@@ -26,6 +34,40 @@ export interface BatchEventPayload {
   timestamp: number;
   commands: { type: string; summary?: string }[];
   affectedMeasures: number[];
+}
+
+/**
+ * Result of a single API operation.
+ */
+export interface Result {
+  /** True when status is 'info' or 'warning' (false for 'error') */
+  ok: boolean;
+  /** 'info' = success, 'warning' = success w/ caveat, 'error' = failure */
+  status: 'info' | 'warning' | 'error';
+  /** Name of the method that produced this result */
+  method: string;
+  /** Human-readable message */
+  message: string;
+  /** Timestamp of the operation */
+  timestamp: number;
+  /** Optional machine-readable error/status code */
+  code?: string;
+  /** Additional context (counts, measures affected, etc.) */
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Result of a batch collection.
+ */
+export interface BatchResult {
+  /** True if all operations were warning/info (no errors) */
+  ok: boolean;
+  /** All captured results */
+  results: Result[];
+  /** Subset of results with status='warning' */
+  warnings: Result[];
+  /** Subset of results with status='error' */
+  errors: Result[];
 }
 
 // ========== REGISTRY ==========
@@ -82,6 +124,39 @@ export interface MusicEditorAPI {
    * @status implemented
    */
   selectById(eventId: string, noteId?: string): this;
+
+  // --- Feedback & Status ---
+  /**
+   * Result of the last operation.
+   * @status implemented
+   */
+  readonly result: Result;
+  /**
+   * True if the last operation succeeded (info or warning).
+   * @status implemented
+   */
+  readonly ok: boolean;
+  /**
+   * True if ANY error has occurred since the last clearStatus().
+   * @status implemented
+   */
+  readonly hasError: boolean;
+  /**
+   * Clear the sticky error state and reset result to generic success.
+   * @status implemented
+   */
+  clearStatus(): this;
+  /**
+   * Enable/disable verbose debug logging to console.
+   * @status implemented
+   */
+  debug(enabled: boolean): this;
+  /**
+   * Collect results from a batch of operations without affecting global state history.
+   * Useful for validating chains or "dry runs".
+   * @status implemented
+   */
+  collect(callback: (api: MusicEditorAPI) => void): BatchResult;
 
   // --- Selection (Multi-Select) ---
   /**
@@ -145,12 +220,21 @@ export interface MusicEditorAPI {
    * Add a note at the cursor position.
    * @status implemented
    */
-  addNote(pitch: string, duration?: string, dotted?: boolean): this;
+  addNote(
+    pitch: string,
+    duration?: string,
+    dotted?: boolean,
+    options?: { mode?: 'overwrite' | 'insert' }
+  ): this;
+
   /**
-   * Add a rest at the cursor position.
-   * @status implemented
+   * Adds a rest at the current cursor position.
+   *
+   * @param duration - Duration of the rest (default: 'quarter')
+   * @param dotted - Whether the rest is dotted (default: false)
+   * @param options - Entry options
    */
-  addRest(duration?: string, dotted?: boolean): this;
+  addRest(duration?: string, dotted?: boolean, options?: { mode?: 'overwrite' | 'insert' }): this;
   /**
    * Add a pitch to the current chord.
    * @status implemented
@@ -399,6 +483,160 @@ export interface MusicEditorAPI {
   on(event: 'score', callback: (state: Score) => void): Unsubscribe;
   on(event: 'selection', callback: (state: Selection) => void): Unsubscribe;
   on(event: 'playback', callback: (state: unknown) => void): Unsubscribe;
+  on(event: 'operation', callback: (result: Result) => void): Unsubscribe;
+  on(event: 'error', callback: (result: Result) => void): Unsubscribe;
   on(event: 'batch', callback: (payload: BatchEventPayload) => void): Unsubscribe;
   on(event: APIEventType, callback: (state: unknown) => void): Unsubscribe;
+
+  // --- Chord CRUD Operations ---
+  /**
+   * Add a chord symbol at the specified quant position.
+   * @param quant - Global quant position for the chord
+   * @param symbol - Chord symbol string (e.g., 'Cmaj7', 'Dm', 'G7')
+   * @status implemented
+   */
+  addChord(quant: number, symbol: string): this;
+  /**
+   * Update an existing chord symbol.
+   * @param chordId - ID of the chord to update
+   * @param symbol - New chord symbol string
+   * @status implemented
+   */
+  updateChord(chordId: string, symbol: string): this;
+  /**
+   * Remove a chord symbol by ID.
+   * @param chordId - ID of the chord to remove
+   * @status implemented
+   */
+  removeChord(chordId: string): this;
+  /**
+   * Get all chord symbols in the score.
+   * @returns Array of chord symbols sorted by quant ascending
+   * @status implemented
+   */
+  getChords(): ChordSymbol[];
+  /**
+   * Get a specific chord by ID.
+   * @param chordId - ID of the chord to retrieve
+   * @returns The chord symbol or null if not found
+   * @status implemented
+   */
+  getChord(chordId: string): ChordSymbol | null;
+  /**
+   * Get the chord at a specific quant position.
+   * @param quant - Global quant position
+   * @returns The chord at that position or null if none exists
+   * @status implemented
+   */
+  getChordAtQuant(quant: number): ChordSymbol | null;
+  /**
+   * Get all valid quant positions where chords can be placed.
+   * @returns Array of valid quant positions
+   * @status implemented
+   */
+  getValidChordQuants(): number[];
+
+  // --- Chord Selection ---
+  /**
+   * Select a chord by ID.
+   * @param chordId - ID of the chord to select
+   * @status implemented
+   */
+  selectChord(chordId: string): this;
+  /**
+   * Select the chord at a specific quant position.
+   * @param quant - Global quant position
+   * @status implemented
+   */
+  selectChordAtQuant(quant: number): this;
+  /**
+   * Deselect the currently selected chord.
+   * @status implemented
+   */
+  deselectChord(): this;
+  /**
+   * Get the currently selected chord.
+   * @returns The selected chord or null if none selected
+   * @status implemented
+   */
+  getSelectedChord(): ChordSymbol | null;
+  /**
+   * Check if a chord is currently selected.
+   * @returns True if a chord is selected
+   * @status implemented
+   */
+  hasChordSelection(): boolean;
+
+  // --- Chord Navigation ---
+  /**
+   * Select the next chord in sequence.
+   * @status implemented
+   */
+  selectNextChord(): this;
+  /**
+   * Select the previous chord in sequence.
+   * @status implemented
+   */
+  selectPrevChord(): this;
+  /**
+   * Select the first chord in the score.
+   * @status implemented
+   */
+  selectFirstChord(): this;
+  /**
+   * Select the last chord in the score.
+   * @status implemented
+   */
+  selectLastChord(): this;
+  /**
+   * Focus the chord track for keyboard input.
+   * @status implemented
+   */
+  focusChordTrack(): this;
+  /**
+   * Blur the chord track, optionally selecting a note at the current quant.
+   * @param options - Optional configuration
+   * @param options.selectNoteAtQuant - If true, select the note at the chord's quant position
+   * @status implemented
+   */
+  blurChordTrack(options?: { selectNoteAtQuant?: boolean }): this;
+  /**
+   * Check if the chord track is currently focused.
+   * @returns True if the chord track has focus
+   * @status implemented
+   */
+  isChordTrackFocused(): boolean;
+
+  // --- Chord Editing ---
+  /**
+   * Delete the currently selected chord.
+   * @status implemented
+   */
+  deleteSelectedChord(): this;
+
+  // --- Chord Configuration ---
+  /**
+   * Set chord display configuration.
+   * @param config - Partial display configuration to merge
+   * @status stub
+   */
+  setChordDisplay(config: Partial<ChordDisplayConfig>): this;
+  /**
+   * Get the current chord display configuration.
+   * @returns Current display configuration
+   * @status implemented
+   */
+  getChordDisplay(): ChordDisplayConfig;
+  /**
+   * Set chord playback configuration.
+   * @param config - Partial playback configuration to merge
+   * @status stub
+   */
+  setChordPlayback(config: Partial<ChordPlaybackConfig>): this;
+  /**
+   * Get the current chord playback configuration.
+   * @returns Current playback configuration
+   * @status implemented
+   */
+  getChordPlayback(): ChordPlaybackConfig;
 }

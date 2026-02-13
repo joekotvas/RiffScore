@@ -10,7 +10,7 @@
 
 import type { Selection, Score } from '../../types';
 import type { SelectionCommand } from './types';
-import { navigateSelection } from '../../utils/core';
+import { navigateSelection } from '../../utils/navigation/horizontal';
 
 export type NavigateDirection = 'left' | 'right' | 'up' | 'down';
 

@@ -129,7 +129,7 @@ riffscore/
 │   │   │   ├── TieIcon.tsx
 │   │   │   └── semiBreve.svg
 │   │   │
-│   │   ├── Canvas/           # SVG rendering (13 files)
+│   │   ├── Canvas/           # SVG rendering (17 files)
 │   │   │   ├── ScoreCanvas.tsx
 │   │   │   ├── ScoreHeader.tsx
 │   │   │   ├── Staff.tsx
@@ -142,7 +142,12 @@ riffscore/
 │   │   │   ├── Beam.tsx
 │   │   │   ├── Tie.tsx
 │   │   │   ├── TupletBracket.tsx
-│   │   │   └── GhostPreview.tsx
+│   │   │   ├── GhostPreview.tsx
+│   │   │   └── ChordTrack/    # Chord symbol display & editing
+│   │   │       ├── ChordTrack.tsx
+│   │   │       ├── ChordSymbol.tsx
+│   │   │       ├── ChordInput.tsx
+│   │   │       └── ChordTrack.css
 │   │   │
 │   │   ├── Layout/           # Editor layout
 │   │   │   ├── ScoreEditor.tsx
@@ -177,7 +182,18 @@ riffscore/
 │
 │   ├── services/             # Business logic
 │   │   ├── MusicService.ts   # TonalJS wrapper
-│   │   └── TimelineService.ts# Playback timing
+│   │   ├── TimelineService.ts# Playback timing
+│   │   ├── ChordService.ts   # Chord service barrel
+│   │   └── chord/            # Chord sub-services (9 files)
+│   │       ├── index.ts      # Re-exports
+│   │       ├── types.ts      # ChordParseResult, ChordComponents
+│   │       ├── constants.ts  # Solfège maps, Roman numerals, quality names
+│   │       ├── utils.ts      # Shared chord utilities
+│   │       ├── ChordParser.ts           # Parse & validate input
+│   │       ├── ChordNotationConverter.ts# Letter ↔ Roman ↔ Nashville ↔ Solfège
+│   │       ├── ChordVoicing.ts          # Map symbol → playable pitches
+│   │       ├── ChordQuants.ts           # Quant-anchored positioning
+│   │       └── ChordAccessibility.ts    # ARIA labels & screen reader text
 │
 │   ├── engines/
 │   │   ├── ScoreEngine.ts    # Score command dispatch
@@ -230,6 +246,10 @@ riffscore/
 │   │       ├── SelectMeasureCommand.ts
 │   │       ├── SetSelectionCommand.ts
 │   │       └── ToggleNoteCommand.ts
+│   │   └── chord/            # Chord track commands
+│   │       ├── AddChordCommand.ts
+│   │       ├── UpdateChordCommand.ts
+│   │       └── RemoveChordCommand.ts
 │
 │   ├── hooks/                # React hooks (29 files)
 │   │   ├── api/              # API factory modules
@@ -242,7 +262,8 @@ riffscore/
 │   │   │   ├── history.ts    # undo, redo, transactions
 │   │   │   ├── playback.ts   # play, pause, stop
 │   │   │   ├── io.ts         # loadScore, reset, export
-│   │   │   └── events.ts     # on() subscription wrapper
+│   │   │   ├── events.ts     # on() subscription wrapper
+│   │   │   └── chords.ts     # addChord, updateChord, removeChord, selectChord
 │   │   │
 │   │   ├── handlers/         # Event handler modules
 │   │   │   ├── handleMutation.ts
@@ -278,7 +299,10 @@ riffscore/
 │   │   ├── useSamplerStatus.ts
 │   │   ├── useTitleEditor.ts
 │   │   ├── useTupletActions.ts
-│   │   └── useAccidentalContext.ts
+│   │   ├── useAccidentalContext.ts
+│   │   └── chord/            # Chord track hooks
+│   │       ├── index.ts
+│   │       └── useChordTrack.ts  # Display, editing, playback
 │
 │   ├── exporters/
 │   │   ├── musicXmlExporter.ts
@@ -289,23 +313,27 @@ riffscore/
 │   │   ├── ScoreContext.tsx
 │   │   └── ThemeContext.tsx
 │
-│   ├── utils/                # Utility functions (11 files)
-│   │   ├── core.ts           # Duration math
+│   ├── utils/                # Utility functions
+│   │   ├── core.ts           # Duration math, score reflow
 │   │   ├── generateScore.ts  # Template → staves
 │   │   ├── mergeConfig.ts    # Deep merge
 │   │   ├── selection.ts      # Selection utilities
-│   │   ├── interaction.ts    # Interaction utilities
+│   │   ├── interaction.ts    # Deprecated façade for navigation/
 │   │   ├── verticalStack.ts  # Vertical selection (metrics, stacks)
 │   │   ├── validation.ts     # Score validation
 │   │   ├── accidentalContext.ts
 │   │   ├── commandHelpers.ts
 │   │   ├── debug.ts          # Debug logging
-│   │   └── focusScore.ts     # Focus management
+│   │   ├── focusScore.ts     # Focus management
+│   │   ├── id.ts             # ID generation (noteId, eventId)
+│   │   ├── clef.ts           # Clef range and pitch defaults
+│   │   ├── navigation/       # Horizontal/Vertical handlers
+│   │   └── entry/            # Note insertion helpers
 │
 │   ├── data/                 # Static data
 │   │   └── melodies.ts       # Sample melodies
 │
-│   └── __tests__/            # All tests (43 files)
+│   └── __tests__/            # All tests (48 files)
 │
 ├── demo/                     # Demo Next.js app
 │   ├── app/
@@ -364,9 +392,9 @@ The codebase is organized in distinct layers with clear responsibilities and bou
                                    │
 ┌──────────────────────────────────▼──────────────────────────────────┐
 │ SERVICES LAYER                                                      │
-│   MusicService, TimelineService, Layout modules                     │
+│   MusicService, TimelineService, ChordService, Layout modules        │
 │   • Stateless pure functions                                        │
-│   • Music theory (tonal), timing, positioning                       │
+│   • Music theory (tonal), timing, positioning, chord parsing        │
 │   • No React dependencies                                           │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -476,6 +504,10 @@ Score
   ├── timeSignature: "4/4"
   ├── keySignature: "G"
   ├── bpm: number
+  ├── chordTrack?: ChordSymbol[]  // Sorted by quant ascending
+  │         ├── id: string
+  │         ├── quant: number     // Global quant position
+  │         └── symbol: string    // e.g., 'Cmaj7', 'Am', 'G7'
   └── staves: Staff[]
         ├── id: string | number
         ├── clef: 'treble' | 'bass' | 'alto' | 'tenor' | 'grand'
@@ -509,6 +541,8 @@ Selection
   │     staffIndex, measureIndex, eventId, noteId
   │   }>
   ├── anchor?: { ... } | null     // Range selection anchor
+  ├── chordId?: string | null     // Selected chord symbol ID
+  ├── chordTrackFocused?: boolean  // True when chord track has focus
   └── verticalAnchors?: {         // Vertical extension state
         direction: 'up' | 'down'
         sliceAnchors: Record<time, SelectedNote>
@@ -522,7 +556,11 @@ Selection
 RiffScoreConfig
   ├── ui: { showToolbar, scale, theme? }
   ├── interaction: { isEnabled, enableKeyboard, enablePlayback }
-  └── score: { title, bpm, timeSignature, keySignature, staff?, measureCount?, staves? }
+  ├── score: { title, bpm, timeSignature, keySignature, staff?, measureCount?, staves? }
+  └── chord?: {
+        display?: { notation, useSymbols }
+        playback?: { enabled, velocity }
+      }
 ```
 
 </details>
@@ -555,7 +593,8 @@ See [verticalStack.ts](../src/utils/verticalStack.ts) for the `calculateVertical
 ### Observability Patterns
 The system separates **Transactional Observability** (success) from **Failure Observability** (logging).
 - **Batch Events**: Emitted by `ScoreEngine` to signal complete units of work (transactions), decoupling external listeners from internal micro-mutations.
-- **Fail-Soft Validation**: API methods return `this` and log warnings instead of crashing, ensuring stability for external scripts.
+- **Structured Feedback**: API methods return standardized `Result` objects (`{ ok, status, code }`) and emit `operation` / `error` events for granular tracking.
+- **Fail-Soft Validation**: API methods return `this` and set internal error flags instead of crashing, ensuring stability for external scripts. A sticky `hasError` state allows verifying chains after execution.
 
 </details>
 
@@ -682,6 +721,12 @@ flowchart TD
 | `useTitleEditor` | Title editing |
 | `useAPISubscriptions` | Event listener management |
 
+### Chord Track
+
+| Hook | Purpose |
+|------|---------|
+| `useChordTrack` | Display, inline editing, playback, chord track state |
+
 ### Handler Modules (`hooks/handlers/`)
 
 | Handler | Purpose |
@@ -721,6 +766,9 @@ flowchart TD
 | `UpdateEventCommand` | Update event properties |
 | `UpdateNoteCommand` | Update note properties |
 | `UpdateTitleCommand` | Change score title |
+| `AddChordCommand` | Add chord symbol at quant |
+| `UpdateChordCommand` | Update chord symbol text |
+| `RemoveChordCommand` | Remove chord symbol |
 
 </details>
 
@@ -734,9 +782,9 @@ flowchart TD
 | Package | Purpose |
 |---------|---------|
 | [tonal](https://github.com/tonaljs/tonal) | Music theory |
-| [tone](https://tonejs.github.io/) | Audio synthesis |
+| [tone](https://tonejs.github.io/) | Audio synthesis (lazy-loaded) |
 | react | UI framework |
 | lucide-react | Icons |
-| Bravura | SMuFL font |
+| Bravura | SMuFL font (bundled in dist/fonts/) |
 
 </details>

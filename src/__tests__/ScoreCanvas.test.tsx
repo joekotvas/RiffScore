@@ -108,7 +108,16 @@ describe('ScoreCanvas', () => {
     },
     engines: {
       dispatch: jest.fn(),
-      selectionEngine: { dispatch: jest.fn() },
+      selectionEngine: {
+        dispatch: jest.fn(),
+        getState: jest.fn(() => ({
+          measureIndex: null,
+          eventId: null,
+          noteId: null,
+          staffIndex: 0,
+        })),
+        subscribe: jest.fn(() => jest.fn()),
+      },
       scoreRef: { current: mockScore },
     },
     derived: {

@@ -35,14 +35,23 @@ type SelectionMethodNames =
 export const createSelectionMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, SelectionMethodNames> & ThisType<MusicEditorAPI> => {
-  const { scoreRef, selectionRef, syncSelection, selectionEngine } = ctx;
+  const { getScore, selectionRef, syncSelection, selectionEngine, setResult } = ctx;
 
   return {
     addToSelection(measureNum, staffIndex, eventIndex, noteIndex = 0) {
       const measureIndex = measureNum - 1;
-      const staff = scoreRef.current.staves[staffIndex];
+      const staff = getScore().staves[staffIndex];
       const event = staff?.measures[measureIndex]?.events[eventIndex];
-      if (!event) return this;
+      if (!event) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'addToSelection',
+          message: 'Target event not found',
+          code: 'EVENT_NOT_FOUND',
+        });
+        return this;
+      }
 
       const noteId = event.notes?.[noteIndex]?.id ?? null;
 
@@ -55,14 +64,30 @@ export const createSelectionMethods = (
         })
       );
       selectionRef.current = selectionEngine.getState();
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'addToSelection',
+        message: 'Toggled selection',
+        details: { measureIndex, eventIndex, noteIndex },
+      });
       return this;
     },
 
     selectRangeTo(measureNum, staffIndex, eventIndex, noteIndex = 0) {
       const measureIndex = measureNum - 1;
-      const staff = scoreRef.current.staves[staffIndex];
+      const staff = getScore().staves[staffIndex];
       const event = staff?.measures[measureIndex]?.events[eventIndex];
-      if (!event) return this;
+      if (!event) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'selectRangeTo',
+          message: 'Target event not found',
+          code: 'EVENT_NOT_FOUND',
+        });
+        return this;
+      }
 
       const noteId = event.notes?.[noteIndex]?.id ?? null;
       const sel = selectionRef.current;
@@ -101,6 +126,13 @@ export const createSelectionMethods = (
         })
       );
       selectionRef.current = selectionEngine.getState();
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'selectRangeTo',
+        message: 'Range selected',
+        details: { from: anchor, to: { staffIndex, measureIndex, eventIndex } },
+      });
       return this;
     },
 
@@ -115,6 +147,13 @@ export const createSelectionMethods = (
         })
       );
       selectionRef.current = selectionEngine.getState();
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'selectAll',
+        message: `Selected all (${scope})`,
+        details: { scope },
+      });
       return this;
     },
 
@@ -124,18 +163,54 @@ export const createSelectionMethods = (
       const sIdx = staffIndex ?? sel.staffIndex;
       const mIdx = measureNum !== undefined ? measureNum - 1 : sel.measureIndex;
 
-      if (mIdx === null) return this;
+      if (mIdx === null) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'selectEvent',
+          message: 'No measure selected',
+          code: 'NO_SELECTION',
+        });
+        return this;
+      }
 
-      const staff = scoreRef.current.staves[sIdx];
-      if (!staff) return this;
+      const staff = getScore().staves[sIdx];
+      if (!staff) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'selectEvent',
+          message: 'Staff not found',
+          code: 'STAFF_NOT_FOUND',
+        });
+        return this;
+      }
 
       const measure = staff.measures[mIdx];
-      if (!measure) return this;
+      if (!measure) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'selectEvent',
+          message: 'Measure not found',
+          code: 'MEASURE_NOT_FOUND',
+        });
+        return this;
+      }
 
       // Get event
       const eIdx = eventIndex ?? measure.events.findIndex((e) => e.id === sel.eventId);
       const event = measure.events[eIdx];
-      if (!event) return this;
+      if (!event) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'selectEvent',
+          message: 'Event not found',
+          code: 'EVENT_NOT_FOUND',
+        });
+        return this;
+      }
 
       selectionEngine.dispatch(
         new SelectAllInEventCommand({
@@ -145,6 +220,13 @@ export const createSelectionMethods = (
         })
       );
       selectionRef.current = selectionEngine.getState();
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'selectEvent',
+        message: 'Event selected',
+        details: { eventId: event.id },
+      });
       return this;
     },
 
@@ -157,6 +239,12 @@ export const createSelectionMethods = (
         selectedNotes: [],
         anchor: null,
       });
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'deselectAll',
+        message: 'Selection cleared',
+      });
       return this;
     },
 
@@ -167,6 +255,12 @@ export const createSelectionMethods = (
     selectFullEvents() {
       selectionEngine.dispatch(new SelectFullEventsCommand());
       selectionRef.current = selectionEngine.getState();
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'selectFullEvents',
+        message: 'Expanded selection to full events',
+      });
       return this;
     },
 
@@ -177,6 +271,12 @@ export const createSelectionMethods = (
     extendSelectionUp() {
       selectionEngine.dispatch(new ExtendSelectionVerticallyCommand({ direction: 'up' }));
       selectionRef.current = selectionEngine.getState();
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'extendSelectionUp',
+        message: 'Extended selection up',
+      });
       return this;
     },
 
@@ -187,6 +287,12 @@ export const createSelectionMethods = (
     extendSelectionDown() {
       selectionEngine.dispatch(new ExtendSelectionVerticallyCommand({ direction: 'down' }));
       selectionRef.current = selectionEngine.getState();
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'extendSelectionDown',
+        message: 'Extended selection down',
+      });
       return this;
     },
 
@@ -196,6 +302,12 @@ export const createSelectionMethods = (
     extendSelectionAllStaves() {
       selectionEngine.dispatch(new ExtendSelectionVerticallyCommand({ direction: 'all' }));
       selectionRef.current = selectionEngine.getState();
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'extendSelectionAllStaves',
+        message: 'Extended selection to all staves',
+      });
       return this;
     },
   };

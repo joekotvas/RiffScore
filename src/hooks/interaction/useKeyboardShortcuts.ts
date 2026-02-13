@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { handlePlayback } from '../handlers/handlePlayback';
 import { handleNavigation } from '../handlers/handleNavigation';
 import { handleMutation } from '../handlers/handleMutation';
@@ -29,11 +29,19 @@ interface UIState {
   isDisabled?: boolean;
 }
 
+interface ChordTrackHandlers {
+  /** Navigate to next/previous valid chord position and start editing */
+  navigateAndEdit?: (direction: 'next' | 'previous') => void;
+  /** ESC from selected chord - return focus to topmost note at chord's quant */
+  escapeToNotes?: () => void;
+}
+
 export const useKeyboardShortcuts = (
   logic: UseScoreLogicGroupedReturn,
   playback: UsePlaybackReturn,
   meta: UIState,
-  handlers: { handleTitleCommit: () => void }
+  handlers: { handleTitleCommit: () => void },
+  chordTrack?: ChordTrackHandlers
 ) => {
   // Access grouped API from logic
   const { selection } = logic.state;
@@ -44,6 +52,31 @@ export const useKeyboardShortcuts = (
   const { isEditingTitle, isHoveringScore, scoreContainerRef, isAnyMenuOpen } = meta;
   const { handleTitleCommit } = handlers;
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Refs for non-critical state (reduces dependency array size)
+  // These values are only used for guard checks and don't need to trigger
+  // callback recreation when they change.
+  // ─────────────────────────────────────────────────────────────────────────────
+  const isHoveringScoreRef = useRef(isHoveringScore);
+  const isAnyMenuOpenRef = useRef(isAnyMenuOpen);
+  const chordTrackRef = useRef(chordTrack);
+
+  // Keep refs in sync with current values
+  useEffect(() => {
+    isHoveringScoreRef.current = isHoveringScore;
+  }, [isHoveringScore]);
+
+  useEffect(() => {
+    isAnyMenuOpenRef.current = isAnyMenuOpen;
+  }, [isAnyMenuOpen]);
+
+  useEffect(() => {
+    chordTrackRef.current = chordTrack;
+  }, [chordTrack]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Keyboard Handler
+  // ─────────────────────────────────────────────────────────────────────────────
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const tagName = (e.target as HTMLElement).tagName?.toLowerCase() || '';
@@ -57,13 +90,13 @@ export const useKeyboardShortcuts = (
 
       if (isEditingTitle) return;
 
-      // CHECK FOCUS / HOVER
+      // CHECK FOCUS / HOVER (using ref for hover state)
       // If we have a ref to the score container, ensure we are focused on it OR hovering it
       if (scoreContainerRef && scoreContainerRef.current) {
         const isFocused =
           document.activeElement === scoreContainerRef.current ||
           scoreContainerRef.current.contains(document.activeElement);
-        if (!isFocused && !isHoveringScore) {
+        if (!isFocused && !isHoveringScoreRef.current) {
           return; // Ignore input if not focused and not hovering
         }
       }
@@ -77,9 +110,20 @@ export const useKeyboardShortcuts = (
           return; // Don't clear selection when pausing
         }
 
-        if (isAnyMenuOpen && isAnyMenuOpen()) {
+        // Check menu state via ref
+        if (isAnyMenuOpenRef.current && isAnyMenuOpenRef.current()) {
           // Menu is open, let the menu handle close (or it closed via blur/click outside)
           // Do NOT clear selection
+          return;
+        }
+
+        // ESC from selected chord - return focus to topmost note at chord's quant
+        if (
+          selection.chordTrackFocused &&
+          selection.chordId &&
+          chordTrackRef.current?.escapeToNotes
+        ) {
+          chordTrackRef.current.escapeToNotes();
           return;
         }
 
@@ -148,6 +192,19 @@ export const useKeyboardShortcuts = (
       // 1. Playback
       if (handlePlayback(e, playback, selection, score)) return;
 
+      // 1.5. Tab navigation for chord track (selected chord -> navigate and edit next/previous)
+      if (e.key === 'Tab' && selection.chordTrackFocused && selection.chordId) {
+        e.preventDefault();
+        if (chordTrackRef.current?.navigateAndEdit) {
+          // Navigate to next/previous valid position and start editing
+          chordTrackRef.current.navigateAndEdit(e.shiftKey ? 'previous' : 'next');
+        } else {
+          // Fallback: just navigate between existing chords
+          moveSelection(e.shiftKey ? 'left' : 'right', false);
+        }
+        return;
+      }
+
       // 2. Navigation (includes Alt+Up/Down for staff switching)
       if (handleNavigation(e, moveSelection, switchStaff)) return;
 
@@ -164,9 +221,7 @@ export const useKeyboardShortcuts = (
       selectionEngine,
       isEditingTitle,
       handleTitleCommit,
-      isHoveringScore,
       scoreContainerRef,
-      isAnyMenuOpen,
       scoreRef,
     ]
   );

@@ -32,6 +32,7 @@ Modify the `Score` object (notes, measures, key signatures, etc.):
 | Command | Purpose |
 |---------|---------|
 | `AddEventCommand` | Insert note/rest at position |
+| `InsertEventCommand` | Composite insertion preserving all properties |
 | `AddNoteToEventCommand` | Add note to chord |
 | `ChangePitchCommand` | Change single note pitch |
 | `ChromaticTransposeCommand` | Chromatic transposition by semitones |
@@ -48,6 +49,9 @@ Modify the `Score` object (notes, measures, key signatures, etc.):
 | `TupletCommands` | Create tuplet groups |
 | `ToggleRestCommand` | Convert note↔rest |
 | `TogglePickupCommand` | Toggle pickup measure |
+| `AddChordCommand` | Add chord symbol at quant position |
+| `UpdateChordCommand` | Update chord symbol text |
+| `RemoveChordCommand` | Remove chord symbol by ID |
 
 ### Selection Commands
 

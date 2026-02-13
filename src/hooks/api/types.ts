@@ -48,4 +48,10 @@ export interface APIContext {
     pausePlayback: () => void;
     isPlaying: boolean;
   };
+
+  /** Internal: Report operation result (success/warning/error) */
+  setResult: (result: Omit<import('@/api.types').Result, 'timestamp'>) => void;
+
+  /** Internal: Check if debug mode is enabled */
+  debugMode: boolean;
 }

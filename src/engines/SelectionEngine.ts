@@ -15,6 +15,7 @@
 import type { Selection, Score } from '../types';
 import { createDefaultSelection } from '../types';
 import type { SelectionCommand } from '../commands/selection/types';
+import { SetSelectionCommand } from '../commands/selection/SetSelectionCommand';
 
 type SelectionListener = (selection: Selection) => void;
 
@@ -91,6 +92,39 @@ export class SelectionEngine {
    */
   public setScoreGetter(scoreGetter: () => Score): void {
     this.scoreRef = scoreGetter;
+  }
+
+  /**
+   * Select a chord symbol in the chord track.
+   * Clears note selection and focuses the chord track.
+   * @param chordId - ID of the chord to select, or null to deselect
+   */
+  public selectChord(chordId: string | null): void {
+    this.dispatch(
+      new SetSelectionCommand({
+        measureIndex: null,
+        eventId: null,
+        noteId: null,
+        chordId,
+        chordTrackFocused: chordId !== null,
+      })
+    );
+  }
+
+  /**
+   * Clear chord selection without affecting note selection.
+   * Used when selecting notes (unified selection model).
+   */
+  public clearChordSelection(): void {
+    if (this.state.chordId || this.state.chordTrackFocused) {
+      this.dispatch(
+        new SetSelectionCommand({
+          ...this.state,
+          chordId: null,
+          chordTrackFocused: false,
+        })
+      );
+    }
   }
 
   private notifyListeners(): void {

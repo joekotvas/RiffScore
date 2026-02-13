@@ -123,7 +123,16 @@ describe('Bass Clef Selection Reproduction', () => {
     },
     engines: {
       dispatch: jest.fn(),
-      selectionEngine: { dispatch: jest.fn() },
+      selectionEngine: {
+        dispatch: jest.fn(),
+        getState: jest.fn(() => ({
+          measureIndex: null,
+          eventId: null,
+          noteId: null,
+          staffIndex: 1,
+        })),
+        subscribe: jest.fn(() => jest.fn()),
+      },
       scoreRef: { current: grandStaffScore },
     },
     derived: {
