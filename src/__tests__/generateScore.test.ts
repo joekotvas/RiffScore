@@ -48,6 +48,9 @@ describe('generateScore', () => {
 
       const uniqueIds = new Set(allIds);
       expect(uniqueIds.size).toBe(allIds.length);
+
+      // Ensure IDs are actually different between staves
+      expect(staves[0].measures[0].id).not.toBe(staves[1].measures[0].id);
     });
   });
 
