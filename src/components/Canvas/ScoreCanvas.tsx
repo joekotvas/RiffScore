@@ -262,14 +262,14 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   });
 
   /**
-   * Select the topmost note at a given quant position.
-   * Falls back to nearest note to the left if no note at the quant.
+   * Select the topmost note at a given position.
+   * Falls back to nearest note to the left if no note at the position.
    * Used for focus restoration when leaving chord track.
    */
-  const selectTopmostNoteAtQuant = useCallback(
-    (quant: number) => {
-      const measureIndex = Math.floor(quant / quantsPerMeasure);
-      const localQuant = quant % quantsPerMeasure;
+  const selectTopmostNoteAtPosition = useCallback(
+    (position: { measure: number; quant: number }) => {
+      const measureIndex = position.measure;
+      const localQuant = position.quant;
 
       // Try to find a note at this quant in the topmost staff first
       for (let staffIdx = 0; staffIdx < score.staves.length; staffIdx++) {
@@ -528,8 +528,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 voicing.forEach((note) => playNote(note, '8n'));
               }
             }}
-            onEmptyClick={(quant) => {
-              chordTrackHook.startCreating(quant);
+            onEmptyClick={(position) => {
+              chordTrackHook.startCreating(position);
             }}
             onEditComplete={(chordId, value) => {
               chordTrackHook.completeEdit(chordId, value);
@@ -544,29 +544,41 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 selectionEngine.selectChord(editingId);
               } else {
                 // ESC from creating a new chord -> return focus to topmost note
-                const quant = chordTrackHook.creatingAtQuant;
+                const position = chordTrackHook.creatingAt;
                 chordTrackHook.cancelEdit();
 
-                if (quant !== undefined && quant !== null) {
-                  selectTopmostNoteAtQuant(quant);
+                if (position) {
+                  selectTopmostNoteAtPosition(position);
                 }
               }
             }}
             onNavigateNext={(chordId, value) => {
-              // Find current quant position
-              const currentQuant = chordId
-                ? chordTrackHook.chords.find((c) => c.id === chordId)?.quant
-                : chordTrackHook.creatingAtQuant;
+              // Find current position
+              const currentChord = chordId
+                ? chordTrackHook.chords.find((c) => c.id === chordId)
+                : null;
+              const currentPosition = currentChord
+                ? { measure: currentChord.measure, quant: currentChord.quant }
+                : chordTrackHook.creatingAt;
 
-              if (currentQuant === undefined || currentQuant === null) return;
+              if (!currentPosition) return;
 
-              // Get sorted valid quants and find next position
-              const sortedQuants = Array.from(chordTrackHook.validQuants).sort((a, b) => a - b);
-              const nextQuant = sortedQuants.find((q) => q > currentQuant);
+              // Build sorted list of valid positions
+              const sortedPositions: Array<{ measure: number; quant: number }> = [];
+              for (const [measure, quants] of chordTrackHook.validPositions) {
+                for (const quant of quants) {
+                  sortedPositions.push({ measure, quant });
+                }
+              }
+              sortedPositions.sort((a, b) => a.measure - b.measure || a.quant - b.quant);
 
-              // If no next position, do nothing - the input stays open with the
-              // user's typed value preserved in ChordInput's local state (#220)
-              if (nextQuant === undefined) return;
+              // Find next position
+              const currentIdx = sortedPositions.findIndex(
+                (p) => p.measure === currentPosition.measure && p.quant === currentPosition.quant
+              );
+              if (currentIdx === -1 || currentIdx >= sortedPositions.length - 1) return;
+
+              const nextPosition = sortedPositions[currentIdx + 1];
 
               // Save the current edit and navigate
               chordTrackHook.completeEdit(chordId, value);
@@ -574,33 +586,46 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               // Use setTimeout to ensure state is updated after completeEdit
               setTimeout(() => {
                 const updatedChords = chordTrackHook.chords;
-                const chordAtQuant = updatedChords.find((c) => c.quant === nextQuant);
+                const chordAtPosition = updatedChords.find(
+                  (c) => c.measure === nextPosition.measure && c.quant === nextPosition.quant
+                );
 
-                if (chordAtQuant) {
+                if (chordAtPosition) {
                   // Edit existing chord
-                  chordTrackHook.startEditing(chordAtQuant.id);
+                  chordTrackHook.startEditing(chordAtPosition.id);
                 } else {
                   // Create new chord at this position
-                  chordTrackHook.startCreating(nextQuant);
+                  chordTrackHook.startCreating(nextPosition);
                 }
               }, 0);
             }}
             onNavigatePrevious={(chordId, value) => {
-              // Find current quant position
-              const currentQuant = chordId
-                ? chordTrackHook.chords.find((c) => c.id === chordId)?.quant
-                : chordTrackHook.creatingAtQuant;
+              // Find current position
+              const currentChord = chordId
+                ? chordTrackHook.chords.find((c) => c.id === chordId)
+                : null;
+              const currentPosition = currentChord
+                ? { measure: currentChord.measure, quant: currentChord.quant }
+                : chordTrackHook.creatingAt;
 
-              if (currentQuant === undefined || currentQuant === null) return;
+              if (!currentPosition) return;
 
-              // Get sorted valid quants and find previous position
-              const sortedQuants = Array.from(chordTrackHook.validQuants).sort((a, b) => a - b);
-              const previousQuants = sortedQuants.filter((q) => q < currentQuant);
-              const previousQuant = previousQuants[previousQuants.length - 1];
+              // Build sorted list of valid positions
+              const sortedPositions: Array<{ measure: number; quant: number }> = [];
+              for (const [measure, quants] of chordTrackHook.validPositions) {
+                for (const quant of quants) {
+                  sortedPositions.push({ measure, quant });
+                }
+              }
+              sortedPositions.sort((a, b) => a.measure - b.measure || a.quant - b.quant);
 
-              // If no previous position, do nothing - the input stays open with the
-              // user's typed value preserved in ChordInput's local state (#220)
-              if (previousQuant === undefined) return;
+              // Find previous position
+              const currentIdx = sortedPositions.findIndex(
+                (p) => p.measure === currentPosition.measure && p.quant === currentPosition.quant
+              );
+              if (currentIdx <= 0) return;
+
+              const previousPosition = sortedPositions[currentIdx - 1];
 
               // Save the current edit and navigate
               chordTrackHook.completeEdit(chordId, value);
@@ -608,28 +633,32 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               // Use setTimeout to ensure state is updated after completeEdit
               setTimeout(() => {
                 const updatedChords = chordTrackHook.chords;
-                const chordAtQuant = updatedChords.find((c) => c.quant === previousQuant);
+                const chordAtPosition = updatedChords.find(
+                  (c) => c.measure === previousPosition.measure && c.quant === previousPosition.quant
+                );
 
-                if (chordAtQuant) {
+                if (chordAtPosition) {
                   // Edit existing chord
-                  chordTrackHook.startEditing(chordAtQuant.id);
+                  chordTrackHook.startEditing(chordAtPosition.id);
                 } else {
                   // Create new chord at this position
-                  chordTrackHook.startCreating(previousQuant);
+                  chordTrackHook.startCreating(previousPosition);
                 }
               }, 0);
             }}
             onDelete={(chordId) => {
-              // Get the chord's quant before deletion for focus restoration
+              // Get the chord's position before deletion for focus restoration
               const chord = chordTrackHook.chords.find((c) => c.id === chordId);
-              const chordQuant = chord?.quant;
+              const chordPosition = chord
+                ? { measure: chord.measure, quant: chord.quant }
+                : null;
 
               // Delete the chord
               chordTrackHook.deleteChord(chordId);
 
-              // Restore focus to topmost note at the chord's quant
-              if (chordQuant !== undefined) {
-                selectTopmostNoteAtQuant(chordQuant);
+              // Restore focus to topmost note at the chord's position
+              if (chordPosition) {
+                selectTopmostNoteAtPosition(chordPosition);
               }
             }}
           />
