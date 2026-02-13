@@ -5,6 +5,14 @@ All notable changes to RiffScore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0-alpha.10] - Unreleased
+
+### Changed
+- **Chord Input UX ([#220](https://github.com/joekotvas/riffscore/issues/220))**:
+  - Raised chord baseline height for better visual separation from staff.
+  - Simplified placeholder text to "Cm7".
+  - Tab/Shift+Tab now stays in edit mode when at the last/first chord position instead of closing the editor.
+
 ## [1.0.0-alpha.9] - 2026-02-13
 
 ### Added
