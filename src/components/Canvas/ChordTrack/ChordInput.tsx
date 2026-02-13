@@ -130,17 +130,23 @@ export const ChordInput = memo(function ChordInput({
 
   const handleBlur = () => {
     const trimmed = value.trim();
-    if (trimmed) {
-      const result = parseChord(trimmed);
-      if (result.ok) {
-        onComplete(result.symbol);
-      } else {
-        // On blur with invalid input, cancel to avoid stuck state
-        onCancel();
-      }
-    } else {
-      // Empty value on blur - cancel
+
+    if (!trimmed) {
+      // Empty value on blur - cancel (restore previous state)
       onCancel();
+      return;
+    }
+
+    const result = parseChord(trimmed);
+    if (result.ok) {
+      onComplete(result.symbol);
+    } else {
+      // On blur with invalid input, keep editor open and show validation error
+      setError(result.message);
+      // We don't force focus back here as it can be annoying/trap focus,
+      // but we keep the current value and show the error.
+      // If the user clicks elsewhere, they'll see the error and can choose to fix it or ESC.
+      // Wait, if we DON'T call onCancel/onComplete, the component stays mounted.
     }
   };
 

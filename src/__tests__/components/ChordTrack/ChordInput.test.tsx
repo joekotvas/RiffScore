@@ -353,7 +353,7 @@ describe('ChordInput', () => {
       expect(onComplete).toHaveBeenCalledWith('F');
     });
 
-    it('cancels on blur with invalid chord', async () => {
+    it('shows error but does not cancel on blur with invalid chord', async () => {
       const user = userEvent.setup();
       const onCancel = jest.fn();
       const onComplete = jest.fn();
@@ -368,8 +368,9 @@ describe('ChordInput', () => {
       await user.type(input, 'NotValid');
       await user.click(document.body);
 
-      expect(onCancel).toHaveBeenCalled();
+      expect(onCancel).not.toHaveBeenCalled();
       expect(onComplete).not.toHaveBeenCalled();
+      expect(screen.getByRole('alert')).toHaveTextContent('Unrecognized chord');
     });
 
     it('cancels on blur with empty input', async () => {
