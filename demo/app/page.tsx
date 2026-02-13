@@ -5,6 +5,7 @@ import { RiffScore } from "@riffscore/RiffScore";
 import { ThemeProvider, useTheme } from "@riffscore/context/ThemeContext";
 import ConfigMenu from "demo/app/ConfigMenu";
 import type { Score } from "@riffscore/types";
+import type { RiffScoreRegistry } from "@riffscore/api.types";
 
 // Copy to clipboard button component
 function CopyButton({ text }: { text: string }) {
@@ -110,14 +111,6 @@ function ScoreWithJSON({
   const { theme } = useTheme();
   
   useEffect(() => {
-    // Type for riffScore registry
-    type RiffScoreInstance = { 
-      getScore: () => Score;
-      on: (event: string, cb: (s: Score) => void) => () => void;
-    };
-    type RiffScoreRegistry = { 
-      get: (id: string) => RiffScoreInstance | undefined 
-    };
     const riffScore = (window as unknown as { riffScore?: RiffScoreRegistry }).riffScore;
     
     let unsubscribe: (() => void) | undefined;

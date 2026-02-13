@@ -1,5 +1,6 @@
-import { getActiveStaff, Score, Selection, ScoreEvent } from '@/types';
+import { getActiveStaff, Score, Selection, Measure } from '@/types';
 import { UsePlaybackReturn } from '../audio';
+import { getNoteDuration } from '@/utils/core';
 
 /**
  * Handles playback keyboard shortcuts (Space, P).
@@ -18,8 +19,8 @@ export const handlePlayback = (
     e.preventDefault();
     if (selection.measureIndex !== null && selection.eventId) {
       const m = measures[selection.measureIndex];
-      const eIdx = m.events.findIndex((evt: ScoreEvent) => evt.id === selection.eventId);
-      playScore(selection.measureIndex, eIdx !== -1 ? eIdx : 0);
+      const quant = getEventQuant(m, selection.eventId);
+      playScore(selection.measureIndex, quant);
     } else {
       playScore(0, 0);
     }
@@ -45,8 +46,8 @@ export const handlePlayback = (
         // START from selection if stopped
         else if (selection.measureIndex !== null && selection.eventId) {
           const m = measures[selection.measureIndex];
-          const eIdx = m.events.findIndex((evt: ScoreEvent) => evt.id === selection.eventId);
-          playScore(selection.measureIndex, eIdx !== -1 ? eIdx : 0);
+          const quant = getEventQuant(m, selection.eventId);
+          playScore(selection.measureIndex, quant);
         }
         // START from beginning
         else {
@@ -59,3 +60,15 @@ export const handlePlayback = (
 
   return false;
 };
+
+/**
+ * Calculates the quant position of an event within a measure.
+ */
+function getEventQuant(measure: Measure, eventId: string): number {
+  let currentQuant = 0;
+  for (const event of measure.events) {
+    if (event.id === eventId) return currentQuant;
+    currentQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
+  }
+  return 0;
+}
