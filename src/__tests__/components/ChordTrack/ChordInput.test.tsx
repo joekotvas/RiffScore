@@ -114,7 +114,6 @@ describe('ChordInput', () => {
       // Should not show error message
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
-
   });
 
   describe('empty input behavior', () => {
@@ -406,7 +405,6 @@ describe('ChordInput', () => {
     });
   });
 
-
   describe('CSS classes', () => {
     it('has base class', () => {
       render(
@@ -418,6 +416,5 @@ describe('ChordInput', () => {
       const input = screen.getByRole('textbox');
       expect(input).toHaveClass('riff-ChordInput');
     });
-
   });
 });
