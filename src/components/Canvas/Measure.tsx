@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { CONFIG } from '@/config';
+import { MEASURE_HIT_AREA_TOP_OFFSET } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
 import { getFirstNoteId } from '@/utils/core';
 import { isRestSelected, isBeamGroupSelected } from '@/utils/selection';
@@ -136,8 +137,6 @@ const Measure: React.FC<MeasureProps> = ({
     hitZones,
     clef,
     scale,
-    baseY: layout.baseY,
-    topMargin: CONFIG.topMargin,
     mouseLimits: layout.mouseLimits,
     measureIndex,
     isLast,
@@ -177,7 +176,7 @@ const Measure: React.FC<MeasureProps> = ({
       <rect
         data-testid={`measure-hit-area-${layout.staffIndex}-${measureIndex}`}
         x={0}
-        y={baseY - 50}
+        y={baseY - MEASURE_HIT_AREA_TOP_OFFSET}
         width={effectiveWidth}
         height={CONFIG.lineHeight * 12}
         fill="transparent"

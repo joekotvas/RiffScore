@@ -33,7 +33,7 @@ export interface Config {
 export const CONFIG: Config = {
   lineHeight: 12,
   topMargin: 20,
-  baseY: 70,
+  baseY: 80,
   quantsPerMeasure: 64,
   measurePaddingLeft: 36,
   measurePaddingRight: 0,

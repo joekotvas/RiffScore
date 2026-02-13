@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { getPitchForOffset } from '@/engines/layout';
 import { HitZone } from '@/engines/layout/types';
-import { CLAMP_LIMITS, MOUSE_OFFSET_SNAP } from '@/constants';
+import { CLAMP_LIMITS, MOUSE_OFFSET_SNAP, MEASURE_HIT_AREA_TOP_OFFSET } from '@/constants';
 import { PreviewNote, Selection } from '@/types';
 import { NoteInput } from '../note/useNoteEntry';
 
@@ -9,8 +9,6 @@ interface UseMeasureInteractionParams {
   hitZones: HitZone[];
   clef: string;
   scale: number;
-  baseY: number;
-  topMargin: number;
   mouseLimits?: { min: number; max: number };
   measureIndex: number;
   isLast: boolean;
@@ -42,8 +40,6 @@ export function useMeasureInteraction({
   hitZones,
   clef,
   scale,
-  baseY,
-  topMargin,
   mouseLimits,
   measureIndex,
   isLast,
@@ -72,11 +68,10 @@ export function useMeasureInteraction({
 
       // Calculate pitch from Y position
       // Snap to nearest half-line (6px) for staff positioning
-      // Y is relative to measure bounding box.
-      // Original working logic was y - 50.
-      // 50 = CONFIG.baseY (70) - CONFIG.topMargin (20).
-      // So currentY (relative to box) needs to be adjusted by (baseY - topMargin).
-      const yOffset = Math.round((y - (baseY - topMargin)) / MOUSE_OFFSET_SNAP) * MOUSE_OFFSET_SNAP;
+      // Y is relative to measure bounding box (hit area).
+      // MEASURE_HIT_AREA_TOP_OFFSET is the distance from hit area top to first staff line,
+      // derived from OUTER_ZONE_LINES to ensure we cover all valid ledger line positions.
+      const yOffset = Math.round((y - MEASURE_HIT_AREA_TOP_OFFSET) / MOUSE_OFFSET_SNAP) * MOUSE_OFFSET_SNAP;
 
       // Check visual limits
       // Default: 4 ledger lines above/below.
@@ -113,8 +108,6 @@ export function useMeasureInteraction({
       hitZones,
       clef,
       scale,
-      baseY,
-      topMargin,
       mouseLimits,
       measureIndex,
       hoveredMeasure,

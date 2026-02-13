@@ -3,6 +3,11 @@
 .riff-ScoreEditor__title-wrapper {
   position: relative;
   z-index: 20;
+  pointer-events: none; /* Don't block clicks to elements below */
+}
+
+.riff-ScoreEditor__title-wrapper > * {
+  pointer-events: auto; /* But the title itself should be clickable */
 }
 
 .riff-ScoreTitleField,

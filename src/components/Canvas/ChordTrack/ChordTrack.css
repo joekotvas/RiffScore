@@ -1,0 +1,117 @@
+/**
+ * ChordTrack.css
+ *
+ * Styles for the chord track components.
+ * Uses BEM naming convention with .riff- namespace.
+ *
+ * @see SDD.md Section 6.4
+ */
+
+/* ============================================================================
+   CHORD TRACK CONTAINER
+   ============================================================================ */
+
+.riff-ChordTrack__hitArea {
+  /* Cursor set dynamically via onMouseMove based on valid quant positions */
+  cursor: default;
+}
+
+/* ============================================================================
+   CHORD SYMBOL
+   ============================================================================ */
+
+.riff-ChordSymbol {
+  font-family: var(--riff-font-sans);
+  font-size: 1.25rem;
+  font-weight: 600;
+  fill: var(--riff-color-text);
+  user-select: none;
+  letter-spacing: 0;
+  word-spacing: 0;
+}
+
+.riff-ChordSymbol--hovered {
+  fill: var(--riff-color-primary);
+}
+
+.riff-ChordSymbol--selected {
+  fill: var(--riff-color-primary);
+}
+
+.riff-ChordSymbol--preview {
+  fill: var(--riff-color-primary);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ============================================================================
+   CHORD INPUT
+   ============================================================================ */
+
+.riff-ChordInput__foreignObject {
+  overflow: visible;
+}
+
+.riff-ChordInput__container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Required for foreignObject in SVG - use XHTML namespace */
+  xmlns: "http://www.w3.org/1999/xhtml";
+}
+
+.riff-ChordInput {
+  width: 80px;
+  padding: 0 8px;
+  text-align: center;
+  font-family: var(--riff-font-sans);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 30px;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  background-color: transparent;
+  color: var(--riff-color-text);
+}
+
+.riff-ChordInput::placeholder {
+  color: var(--riff-color-muted);
+  opacity: 0.7;
+}
+
+.riff-ChordInput::selection {
+  background-color: rgba(29, 165, 156, 0.3);
+}
+
+.riff-ChordInput:focus {
+  /* No visible focus indicator - text cursor is sufficient */
+}
+
+.riff-ChordInput--error {
+  color: var(--riff-color-danger);
+}
+
+.riff-ChordInput__error {
+  font-family: var(--riff-font-sans);
+  font-size: var(--riff-font-size-xs);
+  color: var(--riff-color-danger);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* ============================================================================
+   SCREEN READER ONLY (for announcements)
+   ============================================================================ */
+
+.riff-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

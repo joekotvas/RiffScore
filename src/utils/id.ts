@@ -48,3 +48,6 @@ export const staffId = (): string => createId('staff');
 
 /** Generate a unique tuplet ID: "tuplet_xxxxxxxx" */
 export const tupletId = (): string => createId('tuplet');
+
+/** Generate a unique chord ID: "chord_xxxxxxxx" */
+export const chordId = (): string => createId('chord');

@@ -14,20 +14,23 @@
  * @see useSelection
  */
 
-import { useCallback, RefObject } from 'react';
-import { Selection, Score, getActiveStaff, PreviewNote } from '@/types';
+import { useCallback, RefObject } from "react";
+import { Selection, Score, getActiveStaff, PreviewNote } from "@/types";
 import {
   calculateNextSelection,
   calculateTranspositionWithPreview,
   calculateCrossStaffSelection,
   calculateVerticalNavigation,
-} from '@/utils/interaction';
-import { playNote } from '@/engines/toneEngine';
-import { Command } from '@/commands/types';
-import { AddMeasureCommand } from '@/commands/MeasureCommands';
-import { TransposeSelectionCommand } from '@/commands/TransposeSelectionCommand';
-import { ExtendSelectionHorizontallyCommand } from '@/commands/selection';
-import { SelectionEngine } from '@/engines/SelectionEngine';
+  calculateChordHorizontalNavigation,
+} from "@/utils/interaction";
+import { playNote } from "@/engines/toneEngine";
+import { getChordVoicing } from "@/services/ChordService";
+import { Command } from "@/commands/types";
+import { AddMeasureCommand } from "@/commands/MeasureCommands";
+import { TransposeSelectionCommand } from "@/commands/TransposeSelectionCommand";
+import { ExtendSelectionHorizontallyCommand } from "@/commands/selection";
+import { SelectionEngine } from "@/engines/SelectionEngine";
+import { useAudioFeedback } from "@/hooks/audio";
 
 interface UseNavigationProps {
   scoreRef: RefObject<Score>;
@@ -45,7 +48,7 @@ interface UseNavigationProps {
   isDotted: boolean;
   currentQuantsPerMeasure: number;
   dispatch: (command: Command) => void;
-  inputMode: 'NOTE' | 'REST';
+  inputMode: "NOTE" | "REST";
   selectionEngine: SelectionEngine;
 }
 
@@ -61,7 +64,7 @@ interface UseNavigationReturn {
   ) => void;
   moveSelection: (direction: string, isShift: boolean) => void;
   transposeSelection: (direction: string, isShift: boolean) => void;
-  switchStaff: (direction: 'up' | 'down') => void;
+  switchStaff: (direction: "up" | "down") => void;
 }
 
 export const useNavigation = ({
@@ -78,13 +81,7 @@ export const useNavigation = ({
   selectionEngine,
 }: UseNavigationProps): UseNavigationReturn => {
   // --- Internal Helpers ---
-
-  const playAudioFeedback = useCallback((notes: { pitch: string | null }[]) => {
-    if (!notes || notes.length === 0) return;
-    notes.forEach((n) => {
-      if (n.pitch) playNote(n.pitch);
-    });
-  }, []);
+  const playAudioFeedback = useAudioFeedback();
 
   // --- Public Handlers ---
 
@@ -114,7 +111,7 @@ export const useNavigation = ({
       // For horizontal nav from ghost cursor, use current selection (previewNote has the position)
       // For vertical nav with ghost cursor, use current selection + previewNote
       // All navigation now uses the current selection; previewNote provides ghost cursor context instead of lastSelection.
-      const isVerticalNav = direction === 'up' || direction === 'down';
+      const isVerticalNav = direction === "up" || direction === "down";
 
       // For all navigation, use the current selection
       // (previewNote provides ghost cursor context when needed)
@@ -127,19 +124,65 @@ export const useNavigation = ({
           : activeSel.staffIndex || 0;
       const activeStaff = getActiveStaff(scoreRef.current, activeStaffIndex);
 
+      // --- 1. Handle Chord Track Horizontal Navigation ---
+      // When chord track is focused, left/right navigates between chords
+      const isHorizontalNav = direction === "left" || direction === "right";
+      if (selection.chordTrackFocused && selection.chordId && isHorizontalNav) {
+        const chordResult = calculateChordHorizontalNavigation(
+          scoreRef.current.chordTrack,
+          selection.chordId,
+          direction as "left" | "right"
+        );
+
+        if (chordResult && chordResult.chordId) {
+          selectionEngine.selectChord(chordResult.chordId);
+
+          // Play chord audio (only if actually navigated to a new chord)
+          if (!chordResult.atBoundary && chordResult.chordId !== selection.chordId) {
+            const chord = scoreRef.current.chordTrack?.find((c) => c.id === chordResult.chordId);
+            if (chord) {
+              const voicing = getChordVoicing(chord.symbol);
+              voicing.forEach((note) => playNote(note, "8n"));
+            }
+          }
+        }
+        return;
+      }
+
       // --- 2. Handle Vertical Navigation (CMD+Up/Down) ---
       if (isVerticalNav) {
         const vertResult = calculateVerticalNavigation(
           scoreRef.current,
           activeSel,
-          direction as 'up' | 'down',
+          direction as "up" | "down",
           activeDuration,
           isDotted,
           previewNote,
-          currentQuantsPerMeasure
+          currentQuantsPerMeasure,
+          selection.chordTrackFocused ?? false,
+          selection.chordId ?? null
         );
 
         if (vertResult) {
+          // Handle navigation TO chord track
+          if (vertResult.chordId) {
+            selectionEngine.selectChord(vertResult.chordId);
+
+            // Play chord audio
+            const chord = scoreRef.current.chordTrack?.find((c) => c.id === vertResult.chordId);
+            if (chord) {
+              const voicing = getChordVoicing(chord.symbol);
+              voicing.forEach((note) => playNote(note, "8n"));
+            }
+            return;
+          }
+
+          // Handle navigation FROM chord track back to notes
+          if (vertResult.leavingChordTrack) {
+            // First deselect chord track, then select the note
+            selectionEngine.selectChord(null);
+          }
+
           if (vertResult.selection) {
             const { measureIndex, eventId, noteId, staffIndex } = vertResult.selection;
             select(measureIndex, eventId, noteId || null, staffIndex, { isShift });
@@ -147,7 +190,7 @@ export const useNavigation = ({
 
           if (vertResult.previewNote !== undefined) {
             setPreviewNote(
-              vertResult.previewNote ? { ...vertResult.previewNote, source: 'keyboard' } : null
+              vertResult.previewNote ? { ...vertResult.previewNote, source: "keyboard" } : null
             );
           }
 
@@ -172,7 +215,7 @@ export const useNavigation = ({
       if (isShift && !isAtGhostPosition) {
         selectionEngine.dispatch(
           new ExtendSelectionHorizontallyCommand({
-            direction: direction as 'left' | 'right',
+            direction: direction as "left" | "right",
           })
         );
 
@@ -194,7 +237,7 @@ export const useNavigation = ({
       const navResult = calculateNextSelection(
         activeStaff.measures,
         activeSel,
-        direction as 'left' | 'right',
+        direction as "left" | "right",
         previewNote,
         activeDuration,
         isDotted,
@@ -231,7 +274,7 @@ export const useNavigation = ({
           const secondNav = calculateNextSelection(
             activeStaff.measures,
             ghostSelection,
-            direction as 'left' | 'right',
+            direction as "left" | "right",
             navResult.previewNote,
             activeDuration,
             isDotted,
@@ -267,7 +310,7 @@ export const useNavigation = ({
       if (navResult.previewNote !== undefined) {
         // Mark as keyboard-triggered so auto-scroll follows it
         setPreviewNote(
-          navResult.previewNote ? { ...navResult.previewNote, source: 'keyboard' } : null
+          navResult.previewNote ? { ...navResult.previewNote, source: "keyboard" } : null
         );
       }
 
@@ -299,8 +342,8 @@ export const useNavigation = ({
     (direction: string, isShift: boolean) => {
       // 1. Determine Semitone Shift
       let semitones = 0;
-      if (direction === 'up') semitones = isShift ? 12 : 1;
-      if (direction === 'down') semitones = isShift ? -12 : -1;
+      if (direction === "up") semitones = isShift ? 12 : 1;
+      if (direction === "down") semitones = isShift ? -12 : -1;
       if (semitones === 0) return;
 
       const activeStaff = getActiveStaff(scoreRef.current, selection.staffIndex || 0);
@@ -311,20 +354,20 @@ export const useNavigation = ({
           activeStaff.measures,
           selection,
           previewNote,
-          direction as 'up' | 'down',
+          direction as "up" | "down",
           isShift,
-          activeStaff.keySignature || 'C'
+          activeStaff.keySignature || "C"
         );
 
         if (previewResult?.previewNote) {
-          setPreviewNote({ ...previewResult.previewNote, source: 'keyboard' });
+          setPreviewNote({ ...previewResult.previewNote, source: "keyboard" });
           if (previewResult.audio) playAudioFeedback(previewResult.audio.notes);
         }
         return;
       }
 
       // 3. Scenario B: Transposing Real Selection
-      const keySignature = activeStaff.keySignature || 'C';
+      const keySignature = activeStaff.keySignature || "C";
       dispatch(new TransposeSelectionCommand(selection, semitones, keySignature));
 
       // Audio Preview for the change
@@ -333,7 +376,7 @@ export const useNavigation = ({
           activeStaff.measures,
           selection,
           previewNote,
-          direction as 'up' | 'down',
+          direction as "up" | "down",
           isShift,
           keySignature
         );
@@ -345,7 +388,7 @@ export const useNavigation = ({
   );
 
   const switchStaff = useCallback(
-    (direction: 'up' | 'down') => {
+    (direction: "up" | "down") => {
       const numStaves = scoreRef.current.staves?.length || 1;
       if (numStaves <= 1) return;
 
@@ -368,7 +411,7 @@ export const useNavigation = ({
           );
 
           setPreviewNote(
-            crossResult.previewNote ? { ...crossResult.previewNote, source: 'keyboard' } : null
+            crossResult.previewNote ? { ...crossResult.previewNote, source: "keyboard" } : null
           );
 
           // Play audio if we landed on a real note
@@ -387,8 +430,8 @@ export const useNavigation = ({
       const currentIdx = selection.staffIndex || 0;
       let newIdx = currentIdx;
 
-      if (direction === 'up' && currentIdx > 0) newIdx--;
-      else if (direction === 'down' && currentIdx < numStaves - 1) newIdx++;
+      if (direction === "up" && currentIdx > 0) newIdx--;
+      else if (direction === "down" && currentIdx < numStaves - 1) newIdx++;
 
       if (newIdx !== currentIdx) {
         select(null, null, null, newIdx);

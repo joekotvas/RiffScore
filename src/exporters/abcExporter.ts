@@ -1,6 +1,20 @@
-import { NOTE_TYPES } from '@/constants';
-import { getActiveStaff, Score, ScoreEvent, Measure, Staff, Note } from '@/types';
-import { isRestEvent } from '@/utils/core';
+import { NOTE_TYPES, TIME_SIGNATURES } from '@/constants';
+import { getActiveStaff, Score, ScoreEvent, Measure, Staff, Note, ChordSymbol } from '@/types';
+import { isRestEvent, getNoteDuration } from '@/utils/core';
+
+/**
+ * Builds a lookup map from global quant position to chord symbol.
+ * This allows O(1) lookup when rendering events.
+ */
+const buildChordLookup = (chordTrack: ChordSymbol[] | undefined): Map<number, string> => {
+  const lookup = new Map<number, string>();
+  if (!chordTrack) return lookup;
+
+  for (const chord of chordTrack) {
+    lookup.set(chord.quant, chord.symbol);
+  }
+  return lookup;
+};
 
 // ABC notation pitch mapping - Algorithmic
 const toAbcPitch = (pitch: string, _clef: string = 'treble'): string => {
@@ -34,11 +48,17 @@ const toAbcPitch = (pitch: string, _clef: string = 'treble'): string => {
   return abcPitch;
 };
 
-export const generateABC = (score: Score, bpm: number) => {
+export const generateABC = (score: Score, bpm: number): string => {
   // Phase 2: Iterate over all staves
   const staves = score.staves || [getActiveStaff(score)]; // Fallback for safety
   const timeSig = score.timeSignature || '4/4';
   const keySig = score.keySignature || 'C';
+
+  // Build chord lookup map for O(1) access by global quant
+  const chordLookup = buildChordLookup(score.chordTrack);
+
+  // Get quants per measure from time signature (default to 64 for 4/4)
+  const quantsPerMeasure = TIME_SIGNATURES[timeSig] || 64;
 
   // Header
   let abc = `X:1\nT:${score.title}\nM:${timeSig}\nL:1/4\nK:${keySig}\nQ:1/4=${bpm}\n`;
@@ -66,11 +86,19 @@ export const generateABC = (score: Score, bpm: number) => {
     const abcClef = getAbcClef(clef);
     const voiceId = staffIndex + 1;
 
+    // Only include chord symbols on the first staff/voice
+    const includeChords = staffIndex === 0;
+
     // Voice Header
     abc += `V:${voiceId} clef=${abcClef}\n`;
 
-    staff.measures.forEach((measure: Measure, i: number) => {
+    staff.measures.forEach((measure: Measure, measureIndex: number) => {
+      // Track local quant position within the measure
+      let localQuant = 0;
+
       measure.events.forEach((event: ScoreEvent) => {
+        // Calculate global quant for chord lookup
+        const globalQuant = measureIndex * quantsPerMeasure + localQuant;
         // Calculate Duration
         let durationString = '';
         const base = NOTE_TYPES[event.duration]?.abcDuration || '';
@@ -107,6 +135,15 @@ export const generateABC = (score: Score, bpm: number) => {
         }
 
         let prefix = '';
+
+        // Add chord annotation if present at this quant (first staff only)
+        if (includeChords) {
+          const chordSymbol = chordLookup.get(globalQuant);
+          if (chordSymbol) {
+            prefix += `"${chordSymbol}"`;
+          }
+        }
+
         // Handle Tuplets
         if (event.tuplet && event.tuplet.position === 0) {
           prefix += `(${event.tuplet.ratio[0]}`;
@@ -151,9 +188,12 @@ export const generateABC = (score: Score, bpm: number) => {
             abc += `${prefix}${noteContent}${durationString} `;
           }
         }
+
+        // Advance local quant position for next event
+        localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
       });
       abc += '| ';
-      if ((i + 1) % 4 === 0) abc += '\n';
+      if ((measureIndex + 1) % 4 === 0) abc += '\n';
     });
     abc += '\n'; // Newline after each voice/staff block
   });

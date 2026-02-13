@@ -1,11 +1,132 @@
-import { NOTE_TYPES, KEY_SIGNATURES } from '@/constants';
-import { getActiveStaff, Score, Staff, Measure, ScoreEvent } from '@/types';
-import { isRestEvent } from '@/utils/core';
+import { NOTE_TYPES, KEY_SIGNATURES, TIME_SIGNATURES } from '@/constants';
+import { getActiveStaff, Score, Staff, Measure, ScoreEvent, ChordSymbol } from '@/types';
+import { isRestEvent, getNoteDuration } from '@/utils/core';
+
+// ============================================================================
+// CHORD SYMBOL TO MUSICXML HARMONY MAPPING
+// ============================================================================
+
+/**
+ * Maps chord quality suffixes to MusicXML <kind> values.
+ */
+const CHORD_KIND_MAP: Record<string, string> = {
+  '': 'major',
+  m: 'minor',
+  '7': 'dominant',
+  maj7: 'major-seventh',
+  m7: 'minor-seventh',
+  dim: 'diminished',
+  aug: 'augmented',
+  dim7: 'diminished-seventh',
+  m7b5: 'half-diminished',
+  sus4: 'suspended-fourth',
+  sus2: 'suspended-second',
+};
+
+/**
+ * Parse a chord symbol into MusicXML harmony components.
+ * Returns null if the chord cannot be parsed.
+ */
+const parseChordForMusicXML = (
+  symbol: string
+): { root: string; alter: number; kind: string; bass?: { step: string; alter: number } } | null => {
+  // Handle slash chords (e.g., "C/E")
+  let chordPart = symbol;
+  let bassPart: string | null = null;
+
+  if (symbol.includes('/')) {
+    const parts = symbol.split('/');
+    chordPart = parts[0];
+    bassPart = parts[1] || null;
+  }
+
+  // Extract root note (letter + optional accidental)
+  const rootMatch = chordPart.match(/^([A-G])([#b]?)/);
+  if (!rootMatch) return null;
+
+  const rootStep = rootMatch[1];
+  const rootAccidental = rootMatch[2];
+  const rootAlter = rootAccidental === '#' ? 1 : rootAccidental === 'b' ? -1 : 0;
+
+  // Extract quality/kind from the rest of the symbol
+  const qualityPart = chordPart.slice(rootMatch[0].length);
+
+  // Find the matching kind (try longer suffixes first)
+  const sortedKinds = Object.keys(CHORD_KIND_MAP).sort((a, b) => b.length - a.length);
+  let kind = 'major';
+  for (const suffix of sortedKinds) {
+    if (suffix && qualityPart.startsWith(suffix)) {
+      kind = CHORD_KIND_MAP[suffix];
+      break;
+    }
+  }
+  // If no suffix matched but qualityPart is empty, it's major
+  if (qualityPart === '') {
+    kind = 'major';
+  }
+
+  const result: { root: string; alter: number; kind: string; bass?: { step: string; alter: number } } = {
+    root: rootStep,
+    alter: rootAlter,
+    kind,
+  };
+
+  // Parse bass note if present
+  if (bassPart) {
+    const bassMatch = bassPart.match(/^([A-G])([#b]?)/);
+    if (bassMatch) {
+      const bassStep = bassMatch[1];
+      const bassAccidental = bassMatch[2];
+      const bassAlter = bassAccidental === '#' ? 1 : bassAccidental === 'b' ? -1 : 0;
+      result.bass = { step: bassStep, alter: bassAlter };
+    }
+  }
+
+  return result;
+};
+
+/**
+ * Generate MusicXML <harmony> element for a chord symbol.
+ */
+const generateHarmonyElement = (chord: ChordSymbol): string => {
+  const parsed = parseChordForMusicXML(chord.symbol);
+  if (!parsed) return '';
+
+  let xml = `
+    <harmony>
+      <root>
+        <root-step>${parsed.root}</root-step>${parsed.alter !== 0 ? `
+        <root-alter>${parsed.alter}</root-alter>` : ''}
+      </root>
+      <kind>${parsed.kind}</kind>`;
+
+  if (parsed.bass) {
+    xml += `
+      <bass>
+        <bass-step>${parsed.bass.step}</bass-step>${parsed.bass.alter !== 0 ? `
+        <bass-alter>${parsed.bass.alter}</bass-alter>` : ''}
+      </bass>`;
+  }
+
+  xml += `
+    </harmony>`;
+
+  return xml;
+};
 
 export const generateMusicXML = (score: Score) => {
   // Phase 2: Iterate over all staves
   const staves = score.staves || [getActiveStaff(score)];
   const timeSig = score.timeSignature || '4/4';
+  const quantsPerMeasure = TIME_SIGNATURES[timeSig] || 64;
+
+  // Build chord map indexed by global quant position (only for first part)
+  const chordMap = new Map<number, ChordSymbol>();
+  if (score.chordTrack) {
+    for (const chord of score.chordTrack) {
+      chordMap.set(chord.quant, chord);
+    }
+  }
 
   // Calculate Key Signature Fifths (Global)
   const keySigData = KEY_SIGNATURES[score.keySignature || 'C'];
@@ -91,8 +212,19 @@ export const generateMusicXML = (score: Score) => {
     </attributes>`;
       }
 
+      // Track local quant position within measure (for chord placement in first part)
+      let localQuant = 0;
+
       // Render Events sequentially
       measure.events.forEach((event: ScoreEvent) => {
+        // Insert harmony element before note if chord exists at this position (first part only)
+        if (staffIndex === 0) {
+          const globalQuant = mIndex * quantsPerMeasure + localQuant;
+          const chord = chordMap.get(globalQuant);
+          if (chord) {
+            xml += generateHarmonyElement(chord);
+          }
+        }
         let duration = NOTE_TYPES[event.duration].duration;
         if (event.dotted) duration = duration * 1.5;
 
@@ -218,6 +350,9 @@ export const generateMusicXML = (score: Score) => {
     </note>`;
           });
         }
+
+        // Advance quant position for chord placement tracking
+        localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
       });
       xml += `\n    </measure>`;
     });
