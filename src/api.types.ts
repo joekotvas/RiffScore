@@ -493,46 +493,46 @@ export interface MusicEditorAPI {
    * Add a chord symbol at the specified quant position.
    * @param quant - Global quant position for the chord
    * @param symbol - Chord symbol string (e.g., 'Cmaj7', 'Dm', 'G7')
-   * @status stub
+   * @status implemented
    */
   addChord(quant: number, symbol: string): this;
   /**
    * Update an existing chord symbol.
    * @param chordId - ID of the chord to update
    * @param symbol - New chord symbol string
-   * @status stub
+   * @status implemented
    */
   updateChord(chordId: string, symbol: string): this;
   /**
    * Remove a chord symbol by ID.
    * @param chordId - ID of the chord to remove
-   * @status stub
+   * @status implemented
    */
   removeChord(chordId: string): this;
   /**
    * Get all chord symbols in the score.
    * @returns Array of chord symbols sorted by quant ascending
-   * @status stub
+   * @status implemented
    */
   getChords(): ChordSymbol[];
   /**
    * Get a specific chord by ID.
    * @param chordId - ID of the chord to retrieve
    * @returns The chord symbol or null if not found
-   * @status stub
+   * @status implemented
    */
   getChord(chordId: string): ChordSymbol | null;
   /**
    * Get the chord at a specific quant position.
    * @param quant - Global quant position
    * @returns The chord at that position or null if none exists
-   * @status stub
+   * @status implemented
    */
   getChordAtQuant(quant: number): ChordSymbol | null;
   /**
    * Get all valid quant positions where chords can be placed.
    * @returns Array of valid quant positions
-   * @status stub
+   * @status implemented
    */
   getValidChordQuants(): number[];
 
@@ -540,77 +540,77 @@ export interface MusicEditorAPI {
   /**
    * Select a chord by ID.
    * @param chordId - ID of the chord to select
-   * @status stub
+   * @status implemented
    */
   selectChord(chordId: string): this;
   /**
    * Select the chord at a specific quant position.
    * @param quant - Global quant position
-   * @status stub
+   * @status implemented
    */
   selectChordAtQuant(quant: number): this;
   /**
    * Deselect the currently selected chord.
-   * @status stub
+   * @status implemented
    */
   deselectChord(): this;
   /**
    * Get the currently selected chord.
    * @returns The selected chord or null if none selected
-   * @status stub
+   * @status implemented
    */
   getSelectedChord(): ChordSymbol | null;
   /**
    * Check if a chord is currently selected.
    * @returns True if a chord is selected
-   * @status stub
+   * @status implemented
    */
   hasChordSelection(): boolean;
 
   // --- Chord Navigation ---
   /**
    * Select the next chord in sequence.
-   * @status stub
+   * @status implemented
    */
   selectNextChord(): this;
   /**
    * Select the previous chord in sequence.
-   * @status stub
+   * @status implemented
    */
   selectPrevChord(): this;
   /**
    * Select the first chord in the score.
-   * @status stub
+   * @status implemented
    */
   selectFirstChord(): this;
   /**
    * Select the last chord in the score.
-   * @status stub
+   * @status implemented
    */
   selectLastChord(): this;
   /**
    * Focus the chord track for keyboard input.
-   * @status stub
+   * @status implemented
    */
   focusChordTrack(): this;
   /**
    * Blur the chord track, optionally selecting a note at the current quant.
    * @param options - Optional configuration
    * @param options.selectNoteAtQuant - If true, select the note at the chord's quant position
-   * @status stub
+   * @status implemented
    */
   blurChordTrack(options?: { selectNoteAtQuant?: boolean }): this;
   /**
    * Check if the chord track is currently focused.
    * @returns True if the chord track has focus
-   * @status stub
+   * @status implemented
    */
   isChordTrackFocused(): boolean;
 
   // --- Chord Editing ---
   /**
    * Delete the currently selected chord.
-   * @status stub
+   * @status implemented
    */
   deleteSelectedChord(): this;
 
@@ -624,7 +624,7 @@ export interface MusicEditorAPI {
   /**
    * Get the current chord display configuration.
    * @returns Current display configuration
-   * @status stub
+   * @status implemented
    */
   getChordDisplay(): ChordDisplayConfig;
   /**
@@ -636,7 +636,7 @@ export interface MusicEditorAPI {
   /**
    * Get the current chord playback configuration.
    * @returns Current playback configuration
-   * @status stub
+   * @status implemented
    */
   getChordPlayback(): ChordPlaybackConfig;
 }
