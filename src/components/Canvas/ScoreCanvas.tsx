@@ -217,11 +217,12 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     return 800;
   }, [layout]);
 
+  // SVG height derived from layout (forward-flow pattern)
   const svgHeight = useMemo(() => {
-    return (
-      CONFIG.baseY + (score.staves.length - 1) * CONFIG.staffSpacing + CONFIG.lineHeight * 4 + 50
-    );
-  }, [score.staves.length]);
+    const contentBottom = layout.getY.content.bottom;
+    // Add padding below content
+    return contentBottom > 0 ? contentBottom + 50 : 200;
+  }, [layout]);
 
   // Cursor layout (consumes centralized layout - no duplicate calculations)
   // Calculate cursor layout
@@ -438,18 +439,19 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
           {score.staves?.length > 1 && (
             <>
               {(() => {
-                const topY = CONFIG.baseY;
-                const bottomY =
-                  CONFIG.baseY +
-                  (score.staves.length - 1) * CONFIG.staffSpacing +
-                  CONFIG.lineHeight * 4;
-                return <GrandStaffBracket topY={topY} bottomY={bottomY} x={-20} />;
+                const systemBounds = layout.getY.system(0);
+                if (!systemBounds) return null;
+                return (
+                  <GrandStaffBracket topY={systemBounds.top} bottomY={systemBounds.bottom} x={-20} />
+                );
               })()}
             </>
           )}
 
           {score.staves?.map((staff: StaffType, staffIndex: number) => {
-            const staffBaseY = CONFIG.baseY + staffIndex * CONFIG.staffSpacing;
+            // Get staff Y from layout (forward-flow pattern)
+            const staffBounds = layout.getY.staff(staffIndex);
+            const staffBaseY = staffBounds?.top ?? CONFIG.baseY + staffIndex * CONFIG.staffSpacing;
 
             // Construct Interaction State - using memoized callbacks for stable references
             const interaction = {
@@ -643,27 +645,26 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 opacity: isPlaybackVisible ? 1 : 0,
               }}
             >
-              <line
-                x1={0}
-                y1={CONFIG.baseY - 20}
-                x2={0}
-                y2={
-                  CONFIG.baseY + (numStaves - 1) * CONFIG.staffSpacing + CONFIG.lineHeight * 4 + 20
-                }
-                stroke={theme.accent}
-                strokeWidth="3"
-                opacity="0.8"
-              />
-              <circle cx={0} cy={CONFIG.baseY - 20} r="4" fill={theme.accent} opacity="0.9" />
-              <circle
-                cx={0}
-                cy={
-                  CONFIG.baseY + (numStaves - 1) * CONFIG.staffSpacing + CONFIG.lineHeight * 4 + 20
-                }
-                r="4"
-                fill={theme.accent}
-                opacity="0.9"
-              />
+              {(() => {
+              const systemBounds = layout.getY.system(0);
+              const cursorTop = (systemBounds?.top ?? CONFIG.baseY) - 20;
+              const cursorBottom = (systemBounds?.bottom ?? CONFIG.baseY + CONFIG.lineHeight * 4) + 20;
+              return (
+                <>
+                  <line
+                    x1={0}
+                    y1={cursorTop}
+                    x2={0}
+                    y2={cursorBottom}
+                    stroke={theme.accent}
+                    strokeWidth="3"
+                    opacity="0.8"
+                  />
+                  <circle cx={0} cy={cursorTop} r="4" fill={theme.accent} opacity="0.9" />
+                  <circle cx={0} cy={cursorBottom} r="4" fill={theme.accent} opacity="0.9" />
+                </>
+              );
+            })()}
             </g>
           )}
 
