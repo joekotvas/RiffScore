@@ -386,3 +386,123 @@ Run `npm run test` to verify.
 | `src/exporters/musicXmlExporter.ts` | Modify |
 | `src/__tests__/exporters/abcExporter.test.ts` | Modify |
 | `src/__tests__/exporters/musicXmlExporter.test.ts` | Modify |
+
+---
+
+## User Walkthrough & Manual Testing
+
+After implementation, verify the following manually:
+
+### 1. Run Tests
+```bash
+npm run test
+npm run lint
+```
+
+### 2. Start Demo App
+```bash
+npm run demo:dev
+```
+
+### 3. Set Up Test Score
+
+1. Open Score Setup dialog
+2. Enter metadata:
+   - Title: "Test Song"
+   - Composer: "John Doe"
+   - Lyricist: "Jane Smith"
+   - Copyright: "© 2026 Test Publishing"
+3. Save
+
+### 4. Test ABC Export
+
+1. Export to ABC format
+2. Open the exported file
+3. **Verify:**
+   - `T:Test Song` is present
+   - `C:John Doe` is present
+   - `Z:Lyricist: Jane Smith` is present
+   - `N:© 2026 Test Publishing` is present
+
+### 5. Test MusicXML Export
+
+1. Export to MusicXML format
+2. Open the exported file (text editor or notation app)
+3. **Verify:**
+   - `<work-title>Test Song</work-title>` is present
+   - `<creator type="composer">John Doe</creator>` is present
+   - `<creator type="lyricist">Jane Smith</creator>` is present
+   - `<rights>© 2026 Test Publishing</rights>` is present
+
+### 6. Test XML Escaping
+
+1. Set title to: "Rock & Roll <Hits>"
+2. Export to MusicXML
+3. **Verify:** Title is `Rock &amp; Roll &lt;Hits&gt;`
+
+### 7. Test Optional Fields
+
+1. Clear composer and lyricist fields
+2. Export to both formats
+3. **Verify:** Only title and copyright appear (no empty fields)
+
+### 8. Import Verification (if supported)
+
+1. Export to MusicXML
+2. Import into another notation app (MuseScore, Finale, etc.)
+3. **Verify:** Metadata displays correctly
+
+---
+
+## Phase Completion & Recalibration
+
+### Before Moving to Phase 9
+
+After completing Phase 8:
+
+1. **Verify export correctness**
+   - Both formats include all metadata
+   - XML escaping works correctly
+   - Optional fields handled properly
+
+2. **Import testing**
+   - Test import in external apps if possible
+   - Document any compatibility issues
+
+3. **Review Phase 9 prompt**
+   - Are there any remaining bugs to polish?
+   - What integration testing is needed?
+
+### Recalibration Checklist
+
+- [ ] All tests pass
+- [ ] ABC export includes metadata
+- [ ] MusicXML export includes metadata
+- [ ] XML escaping works correctly
+- [ ] Optional fields omitted when empty
+- [ ] Export tested with external apps
+- [ ] Phase 9 prompt reviewed and updated if needed
+
+### Commit Template
+
+```bash
+git add src/exporters/abcExporter.ts src/exporters/musicXmlExporter.ts \
+        src/__tests__/exporters/
+git commit -m "feat(#174): add metadata to ABC and MusicXML exports
+
+- Add title, composer, lyricist, copyright to ABC export
+- Add work-title, creators, rights to MusicXML export
+- Implement XML character escaping
+- Handle optional fields (omit when empty)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Notes for Subsequent Phases
+
+After this phase:
+- ABC export includes T, C, Z, N fields
+- MusicXML export includes work/identification elements
+- Phase 9 will polish and perform integration testing
