@@ -1,0 +1,480 @@
+# Phase 2: Commands & API
+
+**Issue:** [#174](https://github.com/joekotvas/riffscore/issues/174)
+**Estimated Effort:** 1-2 days
+**Dependencies:** Phase 1 (types, config, services)
+
+---
+
+## Objective
+
+Create the command pattern infrastructure for layout and metadata mutations, plus API factory methods that expose these capabilities to components.
+
+---
+
+## Deliverables
+
+1. `SetViewModeCommand.ts` - Toggle view modes
+2. `SetLayoutConfigCommand.ts` - Update layout settings
+3. `SetMetadataCommand.ts` - Update metadata fields
+4. `layout.ts` API factory
+5. `metadata.ts` API factory
+6. Integration with `useScoreAPI.ts`
+7. Unit tests for all commands
+
+---
+
+## Commands
+
+Create `src/commands/layout/` directory with:
+
+### SetViewModeCommand.ts
+
+```typescript
+import { Command, CommandResult } from '@/commands/types';
+import { Score, LayoutConfig } from '@/types';
+import { DEFAULT_LAYOUT_CONFIG } from '@/config';
+
+export class SetViewModeCommand implements Command {
+  readonly type = 'SET_VIEW_MODE';
+  private previousMode: LayoutConfig['viewMode'];
+
+  constructor(private newMode: LayoutConfig['viewMode']) {}
+
+  execute(score: Score): CommandResult<Score> {
+    const layout = score.layout ?? DEFAULT_LAYOUT_CONFIG;
+    this.previousMode = layout.viewMode;
+
+    if (this.previousMode === this.newMode) {
+      return { ok: true, value: score };
+    }
+
+    return {
+      ok: true,
+      value: {
+        ...score,
+        layout: { ...layout, viewMode: this.newMode },
+      },
+    };
+  }
+
+  undo(score: Score): CommandResult<Score> {
+    const layout = score.layout ?? DEFAULT_LAYOUT_CONFIG;
+    return {
+      ok: true,
+      value: {
+        ...score,
+        layout: { ...layout, viewMode: this.previousMode },
+      },
+    };
+  }
+
+  describe(): string {
+    return `Set view mode to ${this.newMode}`;
+  }
+}
+```
+
+### SetLayoutConfigCommand.ts
+
+```typescript
+import { Command, CommandResult } from '@/commands/types';
+import { Score, LayoutConfig } from '@/types';
+import { DEFAULT_LAYOUT_CONFIG } from '@/config';
+
+export class SetLayoutConfigCommand implements Command {
+  readonly type = 'SET_LAYOUT_CONFIG';
+  private previousConfig: LayoutConfig;
+
+  constructor(private updates: Partial<LayoutConfig>) {}
+
+  execute(score: Score): CommandResult<Score> {
+    this.previousConfig = score.layout ?? DEFAULT_LAYOUT_CONFIG;
+
+    const newConfig: LayoutConfig = {
+      ...this.previousConfig,
+      ...this.updates,
+    };
+
+    // Validate margins preset
+    if (newConfig.margins && !['narrow', 'normal', 'wide'].includes(newConfig.margins)) {
+      newConfig.margins = 'normal';
+    }
+
+    // Validate and round staff size to nearest 10%
+    newConfig.staffSize = Math.round(clamp(newConfig.staffSize, 50, 150) / 10) * 10;
+
+    return {
+      ok: true,
+      value: { ...score, layout: newConfig },
+    };
+  }
+
+  undo(score: Score): CommandResult<Score> {
+    return {
+      ok: true,
+      value: { ...score, layout: this.previousConfig },
+    };
+  }
+
+  describe(): string {
+    return 'Update layout configuration';
+  }
+}
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
+```
+
+### SetMetadataCommand.ts
+
+```typescript
+import { Command, CommandResult } from '@/commands/types';
+import { Score, ScoreMetadata } from '@/types';
+import { DEFAULT_SCORE_METADATA } from '@/config';
+import { validateMetadata, normalizeMetadata } from '@/services/MetadataService';
+
+export class SetMetadataCommand implements Command {
+  readonly type = 'SET_METADATA';
+  private previousMetadata: ScoreMetadata;
+
+  constructor(private updates: Partial<ScoreMetadata>) {}
+
+  execute(score: Score): CommandResult<Score> {
+    this.previousMetadata = score.metadata ?? DEFAULT_SCORE_METADATA;
+
+    const merged = { ...this.previousMetadata, ...this.updates };
+
+    // Validate
+    const validation = validateMetadata(merged);
+    if (!validation.ok) {
+      return {
+        ok: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: Object.values(validation.errors).join(', '),
+        },
+      };
+    }
+
+    // Normalize and apply
+    const normalized = normalizeMetadata(merged);
+
+    return {
+      ok: true,
+      value: { ...score, metadata: normalized },
+    };
+  }
+
+  undo(score: Score): CommandResult<Score> {
+    return {
+      ok: true,
+      value: { ...score, metadata: this.previousMetadata },
+    };
+  }
+
+  describe(): string {
+    return 'Update score metadata';
+  }
+}
+```
+
+### index.ts (barrel export)
+
+```typescript
+export { SetViewModeCommand } from './SetViewModeCommand';
+export { SetLayoutConfigCommand } from './SetLayoutConfigCommand';
+export { SetMetadataCommand } from './SetMetadataCommand';
+```
+
+---
+
+## API Factories
+
+### layout.ts (src/hooks/api/layout.ts)
+
+```typescript
+import { APIContext } from './types';
+import { SetViewModeCommand, SetLayoutConfigCommand } from '@/commands/layout';
+import { LayoutConfig } from '@/types';
+import { DEFAULT_LAYOUT_CONFIG } from '@/config';
+
+export const createLayoutMethods = (ctx: APIContext) => ({
+  getViewMode(): LayoutConfig['viewMode'] {
+    return ctx.getScore().layout?.viewMode ?? 'scroll';
+  },
+
+  setViewMode(mode: LayoutConfig['viewMode']) {
+    ctx.execute(new SetViewModeCommand(mode));
+    return ctx.api;
+  },
+
+  toggleViewMode() {
+    const current = this.getViewMode();
+    return this.setViewMode(current === 'scroll' ? 'page' : 'scroll');
+  },
+
+  getLayoutConfig(): LayoutConfig {
+    return ctx.getScore().layout ?? DEFAULT_LAYOUT_CONFIG;
+  },
+
+  setLayoutConfig(config: Partial<LayoutConfig>) {
+    ctx.execute(new SetLayoutConfigCommand(config));
+    return ctx.api;
+  },
+
+  resetLayoutConfig() {
+    ctx.execute(new SetLayoutConfigCommand(DEFAULT_LAYOUT_CONFIG));
+    return ctx.api;
+  },
+});
+```
+
+### metadata.ts (src/hooks/api/metadata.ts)
+
+```typescript
+import { APIContext } from './types';
+import { SetMetadataCommand } from '@/commands/layout';
+import { ScoreMetadata, Score, Note } from '@/types';
+import { DEFAULT_SCORE_METADATA } from '@/config';
+
+export const createMetadataMethods = (ctx: APIContext) => ({
+  getMetadata(): ScoreMetadata {
+    return ctx.getScore().metadata ?? DEFAULT_SCORE_METADATA;
+  },
+
+  setMetadata(metadata: Partial<ScoreMetadata>) {
+    ctx.execute(new SetMetadataCommand(metadata));
+    return ctx.api;
+  },
+
+  getTitle(): string {
+    return this.getMetadata().title;
+  },
+
+  setTitle(title: string) {
+    return this.setMetadata({ title });
+  },
+
+  getComposer(): string | undefined {
+    return this.getMetadata().composer;
+  },
+
+  setComposer(composer: string) {
+    return this.setMetadata({ composer });
+  },
+
+  getLyricist(): string | undefined {
+    return this.getMetadata().lyricist;
+  },
+
+  setLyricist(lyricist: string) {
+    return this.setMetadata({ lyricist });
+  },
+
+  getCopyright(): string | undefined {
+    return this.getMetadata().copyright;
+  },
+
+  setCopyright(copyright: string) {
+    return this.setMetadata({ copyright });
+  },
+});
+
+export const createNavigationMethods = (ctx: APIContext) => ({
+  /**
+   * Select the first element in the score.
+   * Used for Tab navigation from metadata fields into the score.
+   */
+  selectFirstElement() {
+    const score = ctx.getScore();
+    const firstNote = findFirstNote(score);
+
+    if (firstNote) {
+      ctx.selectionEngine.selectNote(firstNote.id);
+    } else {
+      ctx.selectionEngine.setCursorPosition({ measure: 0, quant: 0 });
+    }
+    return ctx.api;
+  },
+
+  /**
+   * Select the last element in the score.
+   * Used for Shift+Tab from title field back into score.
+   */
+  selectLastElement() {
+    const score = ctx.getScore();
+    const lastNote = findLastNote(score);
+
+    if (lastNote) {
+      ctx.selectionEngine.selectNote(lastNote.id);
+    } else {
+      const lastMeasure = score.staves[0]?.measures.length - 1 ?? 0;
+      ctx.selectionEngine.setCursorPosition({ measure: lastMeasure, quant: 0 });
+    }
+    return ctx.api;
+  },
+});
+
+function findFirstNote(score: Score): Note | null {
+  for (const staff of score.staves) {
+    for (const measure of staff.measures) {
+      for (const voice of measure.voices) {
+        const firstNote = voice.notes.find(n => n.type === 'note');
+        if (firstNote) return firstNote;
+      }
+    }
+  }
+  return null;
+}
+
+function findLastNote(score: Score): Note | null {
+  for (let s = score.staves.length - 1; s >= 0; s--) {
+    const staff = score.staves[s];
+    for (let m = staff.measures.length - 1; m >= 0; m--) {
+      const measure = staff.measures[m];
+      for (let v = measure.voices.length - 1; v >= 0; v--) {
+        const voice = measure.voices[v];
+        for (let n = voice.notes.length - 1; n >= 0; n--) {
+          if (voice.notes[n].type === 'note') return voice.notes[n];
+        }
+      }
+    }
+  }
+  return null;
+}
+```
+
+---
+
+## Integration
+
+Update `src/hooks/api/useScoreAPI.ts`:
+
+```typescript
+import { createLayoutMethods } from './layout';
+import { createMetadataMethods, createNavigationMethods } from './metadata';
+
+// In the factory function, spread the new methods:
+return {
+  ...createLayoutMethods(ctx),
+  ...createMetadataMethods(ctx),
+  ...createNavigationMethods(ctx),
+  // ... existing methods
+};
+```
+
+Update `src/api.types.ts` with method signatures:
+
+```typescript
+export interface MusicEditorAPI {
+  // ... existing methods ...
+
+  // Layout API
+  getViewMode(): 'scroll' | 'page';
+  setViewMode(mode: 'scroll' | 'page'): this;
+  toggleViewMode(): this;
+  getLayoutConfig(): LayoutConfig;
+  setLayoutConfig(config: Partial<LayoutConfig>): this;
+  resetLayoutConfig(): this;
+
+  // Metadata API
+  getMetadata(): ScoreMetadata;
+  setMetadata(metadata: Partial<ScoreMetadata>): this;
+  getTitle(): string;
+  setTitle(title: string): this;
+  getComposer(): string | undefined;
+  setComposer(composer: string): this;
+  getLyricist(): string | undefined;
+  setLyricist(lyricist: string): this;
+  getCopyright(): string | undefined;
+  setCopyright(copyright: string): this;
+
+  // Navigation API
+  selectFirstElement(): this;
+  selectLastElement(): this;
+}
+```
+
+---
+
+## Coding Standards
+
+### Command Pattern (docs/COMMANDS.md)
+
+- Commands require both `execute()` and `undo()`
+- Store previous state in private field for undo
+- Return `CommandResult<Score>` (structured feedback)
+- Use `describe()` for debugging/history UI
+
+### API Factory Pattern (ADR-004)
+
+- Single Responsibility: one factory per domain
+- Fluent interface: methods return `ctx.api` for chaining
+- Fail-soft: set error state via `setResult()`, never throw
+
+### Testing Commands
+
+```typescript
+// Test as pure functions
+const command = new SetViewModeCommand('page');
+const result = command.execute(initialScore);
+expect(result.ok).toBe(true);
+expect(result.value.layout?.viewMode).toBe('page');
+
+// Test undo
+const undoResult = command.undo(result.value);
+expect(undoResult.value.layout?.viewMode).toBe('scroll');
+```
+
+---
+
+## Parallelization Strategy
+
+### Parallel Implementation (3 subagents)
+1. **Commands Agent:** Create all three command files
+2. **Layout API Agent:** Create layout.ts factory
+3. **Metadata API Agent:** Create metadata.ts factory (including navigation methods)
+
+### Sequential Integration (Executor)
+After all files created:
+1. Create barrel export index.ts
+2. Update useScoreAPI.ts integration
+3. Update api.types.ts
+
+### Parallel Testing (2 subagents)
+1. **Command Tests Agent:** Write tests for all commands
+2. **API Tests Agent:** Write integration tests for API methods
+
+### Final Step (Executor)
+Run `npm run test` and `npm run lint` to verify.
+
+---
+
+## Acceptance Criteria
+
+- [ ] All three commands created in `src/commands/layout/`
+- [ ] Barrel export in `src/commands/layout/index.ts`
+- [ ] `layout.ts` API factory created
+- [ ] `metadata.ts` API factory created (with navigation methods)
+- [ ] `useScoreAPI.ts` updated to spread new methods
+- [ ] `api.types.ts` updated with new method signatures
+- [ ] Command tests pass with 80%+ coverage
+- [ ] All tests pass (`npm run test`)
+- [ ] No lint errors (`npm run lint`)
+
+---
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `src/commands/layout/SetViewModeCommand.ts` | Create |
+| `src/commands/layout/SetLayoutConfigCommand.ts` | Create |
+| `src/commands/layout/SetMetadataCommand.ts` | Create |
+| `src/commands/layout/index.ts` | Create |
+| `src/hooks/api/layout.ts` | Create |
+| `src/hooks/api/metadata.ts` | Create |
+| `src/hooks/api/useScoreAPI.ts` | Modify |
+| `src/api.types.ts` | Modify |
+| `src/__tests__/commands/layout/LayoutCommands.test.ts` | Create |
