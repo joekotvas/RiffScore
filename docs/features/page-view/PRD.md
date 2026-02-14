@@ -80,7 +80,6 @@ Implement a **page view mode** that:
 **FR-06:** The system break algorithm SHALL respect these constraints:
 - Never break in the middle of a measure
 - Never break tied notes without visual indication
-- Prefer breaks at natural phrase boundaries when possible
 
 **FR-07:** Each system SHALL include:
 - Clef at the beginning (all systems)
@@ -153,6 +152,16 @@ Implement a **page view mode** that:
 
 **FR-26:** Keyboard navigation SHALL move between systems at measure boundaries.
 
+### 3.9 Traditional Engraving Standards
+
+**FR-27:** The first system SHALL be indented (default ~15% of content width) to accommodate title placement above.
+
+**FR-28:** Measure numbers SHALL appear at the start of each system, positioned above the top staff and left-aligned with the first barline.
+
+**FR-29:** Systems SHALL be horizontally justified to fill the content width, EXCEPT the final system which SHALL render at natural width if less than 60% full.
+
+**FR-30:** When a key or time signature change occurs at the start of a system, a courtesy signature SHALL appear at the end of the previous system.
+
 ---
 
 ## 4. Non-Functional Requirements
@@ -170,7 +179,7 @@ Implement a **page view mode** that:
 
 ### 4.2 Print Quality
 
-**NFR-04:** Printed output SHALL match professional engraving standards.
+**NFR-04:** Printed output SHALL follow conventional music engraving proportions and spacing guidelines.
 
 **NFR-05:** Print SHALL work in all modern browsers (Chrome, Firefox, Safari, Edge).
 
@@ -278,6 +287,10 @@ interface PageLayout {
 - [ ] Clef/key signature on each system
 - [ ] Brace/bracket per system
 - [ ] System spacing
+- [ ] First system indentation (FR-27)
+- [ ] Measure numbers at system start (FR-28)
+- [ ] System justification with ragged last system (FR-29)
+- [ ] Courtesy key/time signatures (FR-30)
 
 ### Phase 3: Tie Splitting
 - [ ] Detect ties crossing system breaks
@@ -325,6 +338,7 @@ interface PageLayout {
 
 ## 10. Related Documents
 
+- [Notation Expert Review](./notation-expert-review.md) - Third-party advisory feedback
 - [ADR-016: Measure-Relative X Positioning](../../adr/016-measure-relative-x.md)
 - [ADR-015: Forward-Flow Y Positioning](../../adr/015-forward-flow-y-positioning.md)
 - [LAYOUT_ENGINE.md](../../LAYOUT_ENGINE.md)
