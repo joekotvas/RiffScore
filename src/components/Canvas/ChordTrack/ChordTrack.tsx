@@ -16,7 +16,6 @@ import { ChordSymbol } from './ChordSymbol';
 import { ChordInput } from './ChordInput';
 import './ChordTrack.css';
 
-
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -112,10 +111,7 @@ function getBeatPosition(measure: number, quant: number): string {
  * Get X position for a chord position using measure-relative layout.
  * Returns absolute X by combining measureOrigin and local X.
  */
-function getAbsoluteX(
-  position: ChordPosition,
-  layout: ScoreLayout
-): number {
+function getAbsoluteX(position: ChordPosition, layout: ScoreLayout): number {
   const measureOrigin = layout.getX.measureOrigin({ measure: position.measure }) ?? 0;
   const localX = layout.getX({ measure: position.measure, quant: position.quant }) ?? 0;
   return measureOrigin + localX;

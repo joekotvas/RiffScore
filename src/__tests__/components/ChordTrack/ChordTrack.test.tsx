@@ -364,7 +364,11 @@ describe('ChordTrack', () => {
 
       render(
         <svg data-testid="test-svg">
-          <ChordTrack {...defaultProps} validPositions={validPositions} onEmptyClick={onEmptyClick} />
+          <ChordTrack
+            {...defaultProps}
+            validPositions={validPositions}
+            onEmptyClick={onEmptyClick}
+          />
         </svg>
       );
 
@@ -451,7 +455,11 @@ describe('ChordTrack', () => {
     it('shows ChordInput for new chord creation', () => {
       render(
         <svg>
-          <ChordTrack {...defaultProps} editingChordId="new" creatingAt={{ measure: 1, quant: 8 }} />
+          <ChordTrack
+            {...defaultProps}
+            editingChordId="new"
+            creatingAt={{ measure: 1, quant: 8 }}
+          />
         </svg>
       );
 
@@ -463,7 +471,11 @@ describe('ChordTrack', () => {
     it('passes empty string as initialValue for new chord', () => {
       render(
         <svg>
-          <ChordTrack {...defaultProps} editingChordId="new" creatingAt={{ measure: 1, quant: 8 }} />
+          <ChordTrack
+            {...defaultProps}
+            editingChordId="new"
+            creatingAt={{ measure: 1, quant: 8 }}
+          />
         </svg>
       );
 
@@ -581,7 +593,11 @@ describe('ChordTrack', () => {
     it('does not show preview when editing', () => {
       render(
         <svg data-testid="test-svg">
-          <ChordTrack {...defaultProps} editingChordId="new" creatingAt={{ measure: 1, quant: 8 }} />
+          <ChordTrack
+            {...defaultProps}
+            editingChordId="new"
+            creatingAt={{ measure: 1, quant: 8 }}
+          />
         </svg>
       );
 

@@ -171,8 +171,8 @@ export const getActiveStaff = (score: Score, staffIndex: number = 0): Staff => {
  * Old format: { id, quant, symbol } where quant is global
  * New format: { id, measure, quant, symbol } where quant is local to measure
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Accepts unknown chord formats
 const migrateChordTrack = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Accepts unknown chord formats during migration
   chordTrack: any[] | undefined,
   timeSignature: string
 ): ChordSymbol[] | undefined => {

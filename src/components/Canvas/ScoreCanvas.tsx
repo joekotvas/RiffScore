@@ -239,7 +239,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     duration: playbackPosition.duration,
   };
 
-  const { measure: cursorMeasure, x: cursorLocalX, numStaves } = useCursorLayout(
+  const { measure: cursorMeasure, x: cursorLocalX } = useCursorLayout(
     layout,
     effectivePlaybackPos,
     isPlaying
@@ -456,7 +456,11 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 const systemBounds = layout.getY.system(0);
                 if (!systemBounds) return null;
                 return (
-                  <GrandStaffBracket topY={systemBounds.top} bottomY={systemBounds.bottom} x={-20} />
+                  <GrandStaffBracket
+                    topY={systemBounds.top}
+                    bottomY={systemBounds.bottom}
+                    x={-20}
+                  />
                 );
               })()}
             </>
@@ -648,7 +652,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               setTimeout(() => {
                 const updatedChords = chordTrackHook.chords;
                 const chordAtPosition = updatedChords.find(
-                  (c) => c.measure === previousPosition.measure && c.quant === previousPosition.quant
+                  (c) =>
+                    c.measure === previousPosition.measure && c.quant === previousPosition.quant
                 );
 
                 if (chordAtPosition) {
@@ -663,9 +668,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             onDelete={(chordId) => {
               // Get the chord's position before deletion for focus restoration
               const chord = chordTrackHook.chords.find((c) => c.id === chordId);
-              const chordPosition = chord
-                ? { measure: chord.measure, quant: chord.quant }
-                : null;
+              const chordPosition = chord ? { measure: chord.measure, quant: chord.quant } : null;
 
               // Delete the chord
               chordTrackHook.deleteChord(chordId);
@@ -689,25 +692,26 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               }}
             >
               {(() => {
-              const systemBounds = layout.getY.system(0);
-              const cursorTop = (systemBounds?.top ?? CONFIG.baseY) - 20;
-              const cursorBottom = (systemBounds?.bottom ?? CONFIG.baseY + CONFIG.lineHeight * 4) + 20;
-              return (
-                <>
-                  <line
-                    x1={0}
-                    y1={cursorTop}
-                    x2={0}
-                    y2={cursorBottom}
-                    stroke={theme.accent}
-                    strokeWidth="3"
-                    opacity="0.8"
-                  />
-                  <circle cx={0} cy={cursorTop} r="4" fill={theme.accent} opacity="0.9" />
-                  <circle cx={0} cy={cursorBottom} r="4" fill={theme.accent} opacity="0.9" />
-                </>
-              );
-            })()}
+                const systemBounds = layout.getY.system(0);
+                const cursorTop = (systemBounds?.top ?? CONFIG.baseY) - 20;
+                const cursorBottom =
+                  (systemBounds?.bottom ?? CONFIG.baseY + CONFIG.lineHeight * 4) + 20;
+                return (
+                  <>
+                    <line
+                      x1={0}
+                      y1={cursorTop}
+                      x2={0}
+                      y2={cursorBottom}
+                      stroke={theme.accent}
+                      strokeWidth="3"
+                      opacity="0.8"
+                    />
+                    <circle cx={0} cy={cursorTop} r="4" fill={theme.accent} opacity="0.9" />
+                    <circle cx={0} cy={cursorBottom} r="4" fill={theme.accent} opacity="0.9" />
+                  </>
+                );
+              })()}
             </g>
           )}
 

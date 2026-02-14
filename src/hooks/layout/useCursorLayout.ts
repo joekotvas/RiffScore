@@ -69,8 +69,7 @@ export const useCursorLayout = (
       return { measure: null, x: null, width: 0 };
     }
 
-    // Use first measure for base X (they are all aligned)
-    const baseMeasureX = relevantMeasures[0].x;
+    // Use first measure for base width (all measures at same quant are aligned)
     const baseMeasureWidth = relevantMeasures[0].width;
 
     // Build unified quant -> x map

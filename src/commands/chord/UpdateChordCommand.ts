@@ -74,7 +74,10 @@ export class UpdateChordCommand implements Command {
       chordTrack[idx] = { ...chordTrack[idx], ...this.validatedUpdates };
 
       // If position changed, re-sort the chord track
-      if (this.validatedUpdates.measure !== undefined || this.validatedUpdates.quant !== undefined) {
+      if (
+        this.validatedUpdates.measure !== undefined ||
+        this.validatedUpdates.quant !== undefined
+      ) {
         chordTrack.sort(compareChordPositions);
       }
 
@@ -93,7 +96,10 @@ export class UpdateChordCommand implements Command {
       chordTrack[idx] = { ...this.previousChord! };
 
       // Re-sort if position was changed
-      if (this.validatedUpdates.measure !== undefined || this.validatedUpdates.quant !== undefined) {
+      if (
+        this.validatedUpdates.measure !== undefined ||
+        this.validatedUpdates.quant !== undefined
+      ) {
         chordTrack.sort(compareChordPositions);
       }
 

@@ -411,7 +411,12 @@ export const createChordMethods = (
           status: 'info',
           method: 'getSelectedChord',
           message: `Selected chord: ${chord.symbol}`,
-          details: { chordId: chord.id, symbol: chord.symbol, measure: chord.measure, quant: chord.quant },
+          details: {
+            chordId: chord.id,
+            symbol: chord.symbol,
+            measure: chord.measure,
+            quant: chord.quant,
+          },
         });
       } else {
         setResult({
@@ -484,7 +489,12 @@ export const createChordMethods = (
         status: 'info',
         method: 'selectNextChord',
         message: `Selected next chord: ${nextChord.symbol}`,
-        details: { chordId: nextChord.id, symbol: nextChord.symbol, measure: nextChord.measure, quant: nextChord.quant },
+        details: {
+          chordId: nextChord.id,
+          symbol: nextChord.symbol,
+          measure: nextChord.measure,
+          quant: nextChord.quant,
+        },
       });
 
       return this;
@@ -534,7 +544,12 @@ export const createChordMethods = (
         status: 'info',
         method: 'selectPrevChord',
         message: `Selected previous chord: ${prevChord.symbol}`,
-        details: { chordId: prevChord.id, symbol: prevChord.symbol, measure: prevChord.measure, quant: prevChord.quant },
+        details: {
+          chordId: prevChord.id,
+          symbol: prevChord.symbol,
+          measure: prevChord.measure,
+          quant: prevChord.quant,
+        },
       });
 
       return this;
@@ -567,7 +582,12 @@ export const createChordMethods = (
         status: 'info',
         method: 'selectFirstChord',
         message: `Selected first chord: ${firstChord.symbol}`,
-        details: { chordId: firstChord.id, symbol: firstChord.symbol, measure: firstChord.measure, quant: firstChord.quant },
+        details: {
+          chordId: firstChord.id,
+          symbol: firstChord.symbol,
+          measure: firstChord.measure,
+          quant: firstChord.quant,
+        },
       });
 
       return this;
@@ -600,7 +620,12 @@ export const createChordMethods = (
         status: 'info',
         method: 'selectLastChord',
         message: `Selected last chord: ${lastChord.symbol}`,
-        details: { chordId: lastChord.id, symbol: lastChord.symbol, measure: lastChord.measure, quant: lastChord.quant },
+        details: {
+          chordId: lastChord.id,
+          symbol: lastChord.symbol,
+          measure: lastChord.measure,
+          quant: lastChord.quant,
+        },
       });
 
       return this;
@@ -779,7 +804,12 @@ export const createChordMethods = (
         status: 'info',
         method: 'deleteSelectedChord',
         message: `Deleted chord ${chord.symbol}`,
-        details: { deletedChordId: chord.id, symbol: chord.symbol, measure: chord.measure, quant: chord.quant },
+        details: {
+          deletedChordId: chord.id,
+          symbol: chord.symbol,
+          measure: chord.measure,
+          quant: chord.quant,
+        },
       });
 
       return this;

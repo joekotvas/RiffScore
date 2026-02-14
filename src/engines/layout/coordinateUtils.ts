@@ -82,11 +82,7 @@ export function xToNearestQuant(
  * Transform client (screen) coordinates to SVG local coordinates.
  * Uses CTM for accurate handling of nested transforms.
  */
-export function clientToSvg(
-  clientX: number,
-  clientY: number,
-  element: SVGElement
-): Point {
+export function clientToSvg(clientX: number, clientY: number, element: SVGElement): Point {
   const svg = element.ownerSVGElement ?? (element as SVGSVGElement);
   const parent = element.parentElement as SVGGraphicsElement | null;
   const ctm = parent?.getScreenCTM() ?? svg?.getScreenCTM();

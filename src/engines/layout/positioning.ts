@@ -13,13 +13,8 @@ import { getStaffPitch, STAFF_LETTERS } from '@/services/MusicService';
  * @returns HeaderLayout object with all calculated positions
  */
 export const calculateHeaderLayout = (keySignature: string): HeaderLayout => {
-  const {
-    keySigStartX,
-    keySigAccidentalWidth,
-    keySigPadding,
-    timeSigWidth,
-    timeSigPadding,
-  } = CONFIG.header;
+  const { keySigStartX, keySigAccidentalWidth, keySigPadding, timeSigWidth, timeSigPadding } =
+    CONFIG.header;
 
   const keySigCount = KEY_SIGNATURES[keySignature]?.count || 0;
   const keySigVisualWidth = keySigCount > 0 ? keySigCount * keySigAccidentalWidth + 10 : 0;

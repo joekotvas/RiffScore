@@ -84,9 +84,7 @@ export class AddChordCommand implements Command {
   execute(score: Score): Score {
     return updateChordTrack(score, (chordTrack) => {
       // Find insert position (sorted by measure, then quant)
-      this.insertIndex = chordTrack.findIndex(
-        (c) => compareChordPositions(c, this.chord) >= 0
-      );
+      this.insertIndex = chordTrack.findIndex((c) => compareChordPositions(c, this.chord) >= 0);
 
       if (this.insertIndex === -1) {
         // Append at end

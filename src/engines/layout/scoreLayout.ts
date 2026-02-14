@@ -20,7 +20,14 @@ import {
   getNoteWidth,
 } from '@/engines/layout';
 import { calculateTupletBrackets } from '@/engines/layout/tuplets';
-import { ScoreLayout, StaffLayout, MeasureLayoutV2, EventLayout, NoteLayout, YBounds } from './types';
+import {
+  ScoreLayout,
+  StaffLayout,
+  MeasureLayoutV2,
+  EventLayout,
+  NoteLayout,
+  YBounds,
+} from './types';
 
 // --- Phase 1: Synchronization Helper ---
 
@@ -320,7 +327,10 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
     // Calculate relative X within the measure based on quant proportion
     const proportion = quant / quantsPerMeasure;
     // Use measure width minus padding for content area
-    return CONFIG.measurePaddingLeft + proportion * (measureLayout.width - CONFIG.measurePaddingLeft - CONFIG.measurePaddingRight);
+    return (
+      CONFIG.measurePaddingLeft +
+      proportion * (measureLayout.width - CONFIG.measurePaddingLeft - CONFIG.measurePaddingRight)
+    );
   };
 
   // Combine into callable with measureOrigin property

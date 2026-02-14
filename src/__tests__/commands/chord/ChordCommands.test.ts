@@ -566,7 +566,9 @@ describe('Chord Commands Integration', () => {
 
   it('handles edge case: empty symbol string', () => {
     // Command should throw on empty symbol
-    expect(() => new AddChordCommand({ measure: 0, quant: 0 }, '')).toThrow(/symbol cannot be empty/);
+    expect(() => new AddChordCommand({ measure: 0, quant: 0 }, '')).toThrow(
+      /symbol cannot be empty/
+    );
   });
 
   it('handles complex chord symbols', () => {
