@@ -18,14 +18,14 @@ In 4/4 time, one measure holds 4 quarter notes. Use `.select()` to advance to th
 const score = window.riffScore.active;
 
 // Measure 1: C4-F4
-score.select(1)
+score.select(0)
    .addNote('C4', 'quarter')
    .addNote('D4', 'quarter')
    .addNote('E4', 'quarter')
    .addNote('F4', 'quarter');
 
 // Measure 2: G4-C5
-score.select(2)
+score.select(1)
    .addNote('G4', 'quarter')
    .addNote('A4', 'quarter')
    .addNote('B4', 'quarter')
@@ -38,7 +38,7 @@ score.select(2)
 const score = window.riffScore.active;
 
 // All 8 notes fit in one 4/4 measure as eighths
-score.select(1)
+score.select(0)
    .addNote('C4', 'eighth')
    .addNote('D4', 'eighth')
    .addNote('E4', 'eighth')
@@ -55,7 +55,7 @@ score.select(1)
 const score = window.riffScore.active;
 
 // Measure 1: C major chord (half note)
-score.select(1)
+score.select(0)
    .addNote('C4', 'half')
    .move('left')
    .addTone('E4')
@@ -70,7 +70,7 @@ score.addNote('F4', 'half')
    .move('right');
 
 // Measure 2: G major then C major
-score.select(2)
+score.select(1)
    .addNote('G4', 'half')
    .move('left')
    .addTone('B4')
@@ -89,7 +89,7 @@ score.addNote('C4', 'half')
 ```javascript
 const score = window.riffScore.active;
 
-score.select(1)
+score.select(0)
    .addNote('C4', 'quarter')
    .addRest('quarter')
    .addNote('E4', 'quarter')
@@ -157,7 +157,7 @@ score.selectAll('measure')
 const score = window.riffScore.active;
 
 // First add a note, then modify its duration
-score.select(1).addNote('C4', 'quarter');
+score.select(0).addNote('C4', 'quarter');
 
 // Move back to the note and change duration
 score.move('left').setDuration('eighth', true);  // true = dotted
@@ -193,7 +193,7 @@ score.on('batch', (payload) => {
 ```javascript
 const score = window.riffScore.active;
 
-score.select(1);
+score.select(0);
 score.beginTransaction();
 
 for (let i = 0; i < 16; i++) {
@@ -210,7 +210,7 @@ score.commitTransaction('Add Scale Run');  // All 16 notes = 1 undo step
 ```javascript
 const score = window.riffScore.active;
 
-score.select(3)  // Measure 3
+score.select(2)  // Measure 3
    .addRest('whole');
 ```
 
@@ -234,7 +234,7 @@ if (!score.ok) {
 }
 
 // Sticky error state allows checking after a chain
-score.select(1).addNote('C4').move('left').addNote('InvalidPitch').move('right').addNote('E4');
+score.select(0).addNote('C4').move('left').addNote('InvalidPitch').move('right').addNote('E4');
 
 if (score.hasError) {
   console.warn('One or more operations in the chain failed');
@@ -250,7 +250,7 @@ Use `collect()` to capture results from multiple operations for validation or re
 const score = window.riffScore.active;
 
 const report = score.collect((api) => {
-  api.select(1)
+  api.select(0)
      .addNote('C4', 'quarter')
      .addNote('InvalidPitch') // Will result in error
      .addNote('E4', 'quarter');

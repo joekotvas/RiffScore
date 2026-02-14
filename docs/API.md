@@ -78,14 +78,22 @@ The most recently focused or mounted instance.
 
 ---
 
+## Indexing Convention
+
+> **All indices are 0-based.** Use `select(0)` for the first measure, `select(1)` for the second, etc.
+
+For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureIndex`.
+
+---
+
 ## 2. Navigation
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
 | `move` | `move(direction)` | ✅ | Navigate in any direction (left/right/up/down). |
 | `jump` | `jump(target)` | ✅ | `'start-score'`, `'end-score'`, `'start-measure'`, `'end-measure'`. |
-| `select` | `select(measureNum, staffIndex?, eventIndex?, noteIndex?)` | ✅ | Absolute targeting (1-based measure). |
-| `selectAtQuant` | `selectAtQuant(measureNum, quant, staffIndex?)` | ✅ | Target by rhythmic position. |
+| `select` | `select(measureIndex, staffIndex?, eventIndex?, noteIndex?)` | ✅ | Absolute targeting (0-based indices). |
+| `selectAtQuant` | `selectAtQuant(measureIndex, quant, staffIndex?)` | ✅ | Target by rhythmic position. |
 | `selectById` | `selectById(eventId, noteId?)` | ✅ | Target by internal IDs. |
 
 ---
@@ -94,10 +102,10 @@ The most recently focused or mounted instance.
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `addToSelection` | `addToSelection(measureNum, staffIndex, eventIndex)` | ✅ | Cmd+Click toggle behavior. |
-| `selectRangeTo` | `selectRangeTo(measureNum, staffIndex, eventIndex)` | ✅ | Shift+Click range from anchor. |
+| `addToSelection` | `addToSelection(measureIndex, staffIndex, eventIndex)` | ✅ | Cmd+Click toggle behavior. |
+| `selectRangeTo` | `selectRangeTo(measureIndex, staffIndex, eventIndex)` | ✅ | Shift+Click range from anchor. |
 | `selectAll` | `selectAll(scope)` | ✅ | `'score'`, `'measure'`, `'staff'`, `'event'`. |
-| `selectEvent` | `selectEvent(measureNum?, staffIndex?, eventIndex?)` | ✅ | Select all notes in chord. |
+| `selectEvent` | `selectEvent(measureIndex?, staffIndex?, eventIndex?)` | ✅ | Select all notes in chord. |
 | `deselectAll` | `deselectAll()` | ✅ | Clear selection. |
 | `selectFullEvents` | `selectFullEvents()` | ✅ | Fill partial chord selections. |
 | `extendSelectionUp` | `extendSelectionUp()` | ✅ | Vertical extend toward treble. |
@@ -328,12 +336,12 @@ api.clearStatus();
 
 ### Linear Entry ✅
 ```javascript
-api.select(1).addNote('C4').addNote('D4').addNote('E4');
+api.select(0).addNote('C4').addNote('D4').addNote('E4');
 ```
 
 ### Build Chord ✅
 ```javascript
-api.select(1).addNote('C4').move('left').addTone('E4').addTone('G4');
+api.select(0).addNote('C4').move('left').addTone('E4').addTone('G4');
 ```
 
 ### Query State ✅

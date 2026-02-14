@@ -421,7 +421,7 @@ test('Recipe: Create a C Major Scale', () => {
   
   // 2. Execute Recipe Steps (Public API only)
   api.modifiers.setTimeSignature('4/4');
-  api.select(1).addNote('C4', 'quarter');
+  api.select(0).addNote('C4', 'quarter');
   
   // 3. Verify Result
   expect(api.getScore().staves[0].measures[0].events).toHaveLength(1);
