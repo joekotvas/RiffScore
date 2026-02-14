@@ -478,3 +478,118 @@ Run `npm run test` and `npm run lint` to verify.
 | `src/hooks/api/useScoreAPI.ts` | Modify |
 | `src/api.types.ts` | Modify |
 | `src/__tests__/commands/layout/LayoutCommands.test.ts` | Create |
+
+---
+
+## User Walkthrough & Manual Testing
+
+After implementation, verify the following manually:
+
+### 1. Run Tests
+```bash
+npm run test -- --coverage
+npm run lint
+```
+
+### 2. Test Commands via API
+
+Open the demo app and use browser console:
+
+```javascript
+// Get API instance
+const api = window.riffScore.get('demo');
+
+// Test view mode toggle
+console.log('Current view mode:', api.getViewMode()); // 'scroll'
+api.setViewMode('page');
+console.log('After toggle:', api.getViewMode()); // 'page'
+
+// Test undo
+api.undo();
+console.log('After undo:', api.getViewMode()); // 'scroll'
+
+// Test layout config
+api.setLayoutConfig({ staffSize: 120 });
+console.log('Staff size:', api.getLayoutConfig().staffSize); // 120
+
+// Test metadata
+api.setMetadata({ title: 'Test Song', composer: 'Test Composer' });
+console.log('Title:', api.getTitle()); // 'Test Song'
+console.log('Composer:', api.getComposer()); // 'Test Composer'
+
+// Test navigation methods
+api.selectFirstElement();
+// Verify cursor moves to first note
+
+api.selectLastElement();
+// Verify cursor moves to last note
+```
+
+### 3. Verify Undo/Redo
+- Make several changes via API
+- Use `api.undo()` multiple times
+- Verify state reverts correctly
+- Use `api.redo()` to restore
+
+### 4. Check Type Safety
+```bash
+npx tsc --noEmit
+```
+
+---
+
+## Phase Completion & Recalibration
+
+### Before Moving to Phase 3
+
+After completing Phase 2:
+
+1. **Verify command integration**
+   - Commands execute correctly through API
+   - Undo/redo works for all commands
+   - API methods chain properly (return `this`)
+
+2. **Document any API changes**
+   - Did you need to modify APIContext interface?
+   - Are there missing methods that later phases will need?
+
+3. **Review Phase 3 prompt**
+   - Does multi-system rendering have access to layout API?
+   - Are the command signatures correct for what Phase 3 needs?
+
+### Recalibration Checklist
+
+- [ ] All tests pass with 80%+ coverage for commands
+- [ ] API methods work in browser console
+- [ ] Undo/redo works correctly
+- [ ] TypeScript compiles without errors
+- [ ] No lint errors
+- [ ] Phase 3 prompt reviewed and updated if needed
+
+### Commit Template
+
+```bash
+git add src/commands/layout/ src/hooks/api/layout.ts src/hooks/api/metadata.ts \
+        src/hooks/api/useScoreAPI.ts src/api.types.ts src/__tests__/commands/layout/
+git commit -m "feat(#174): add layout and metadata commands and API
+
+- Create SetViewModeCommand, SetLayoutConfigCommand, SetMetadataCommand
+- Create layout.ts and metadata.ts API factories
+- Add selectFirstElement() and selectLastElement() navigation methods
+- Integrate new methods into useScoreAPI
+- Update api.types.ts with new method signatures
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Notes for Subsequent Phases
+
+After this phase, components can use:
+- `api.toggleViewMode()` - Switch between scroll/page view
+- `api.setLayoutConfig()` - Update page size, margins, staff size
+- `api.setMetadata()` - Update title, composer, etc.
+- `api.selectFirstElement()` - Navigate to first note (for Tab from metadata)
+
+Phase 3 will use these APIs to control rendering.
