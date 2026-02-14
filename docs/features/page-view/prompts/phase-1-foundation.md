@@ -2,7 +2,7 @@
 
 **Issue:** [#174](https://github.com/joekotvas/riffscore/issues/174)
 **Estimated Effort:** 2-3 days
-**Dependencies:** None (foundation phase)
+**Dependencies:** Phase 0 (zero-indexed measures)
 
 ---
 
@@ -311,3 +311,121 @@ Run `npm run test` to verify all tests pass.
 | `src/services/MetadataService.ts` | Create |
 | `src/__tests__/services/PageLayoutService.test.ts` | Create |
 | `src/__tests__/services/MetadataService.test.ts` | Create |
+
+---
+
+## User Walkthrough & Manual Testing
+
+After implementation, verify the following manually:
+
+### 1. Run Tests
+```bash
+npm run test -- --coverage
+npm run lint
+```
+
+### 2. Verify Test Coverage
+- Check that `PageLayoutService.ts` has 95%+ coverage
+- Check that `MetadataService.ts` has 95%+ coverage
+
+### 3. Interactive Service Testing
+
+Open a Node REPL or create a test script:
+
+```typescript
+// test-services.ts
+import { calculatePageLayout } from './src/services/PageLayoutService';
+import { validateMetadata, normalizeMetadata } from './src/services/MetadataService';
+import { DEFAULT_LAYOUT_CONFIG, DEFAULT_SCORE_METADATA } from './src/config';
+
+// Test PageLayoutService
+const mockScore = {
+  staves: [{
+    measures: [
+      { events: [{ duration: 16 }, { duration: 16 }] },
+      { events: [{ duration: 16 }, { duration: 16 }] },
+      { events: [{ duration: 16 }, { duration: 16 }] },
+      { events: [{ duration: 16 }, { duration: 16 }] },
+    ]
+  }],
+  keySignature: 'C',
+  timeSignature: { beats: 4, beatType: 4 },
+};
+
+const layout = calculatePageLayout(mockScore, DEFAULT_LAYOUT_CONFIG);
+console.log('Systems:', layout.systems.length);
+console.log('First system measures:', layout.systems[0]?.measures);
+
+// Test MetadataService
+const validation = validateMetadata({ title: '' });
+console.log('Empty title valid?', validation.ok); // Should be false
+
+const normalized = normalizeMetadata({ title: '  My Song  ' });
+console.log('Normalized title:', normalized.title); // Should be 'My Song'
+```
+
+### 4. Type Checking
+```bash
+npx tsc --noEmit
+```
+
+### 5. Verify No Breaking Changes
+- Ensure existing tests still pass
+- Check that `Score` interface extension doesn't break existing code
+
+---
+
+## Phase Completion & Recalibration
+
+### Before Moving to Phase 2
+
+After completing Phase 1:
+
+1. **Verify all services work correctly**
+   - PageLayoutService calculates system breaks as expected
+   - MetadataService validates and normalizes correctly
+
+2. **Document any discoveries**
+   - Unexpected complexity in measure width calculation?
+   - Edge cases that need special handling?
+   - Performance concerns for large scores?
+
+3. **Review Phase 2 prompt**
+   - Are the command interfaces aligned with service signatures?
+   - Do API factory methods have access to necessary context?
+
+### Recalibration Checklist
+
+- [ ] All tests pass with 95%+ coverage
+- [ ] No TypeScript errors
+- [ ] No lint errors
+- [ ] Services work in isolation tests
+- [ ] Any edge cases documented
+- [ ] Phase 2 prompt reviewed and updated if needed
+
+### Commit Template
+
+```bash
+git add src/types.ts src/config.ts src/services/PageLayoutService.ts \
+        src/services/MetadataService.ts src/__tests__/services/
+git commit -m "feat(#174): add foundation types and services for page view
+
+- Add ScoreMetadata, LayoutConfig, SystemLayout, PageLayout types
+- Add layout config defaults and page dimension constants
+- Create PageLayoutService with system break algorithm
+- Create MetadataService with validation and normalization
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Notes for Subsequent Phases
+
+After this phase, the following are available:
+- `ScoreMetadata` and `LayoutConfig` types
+- `calculatePageLayout()` for system break calculation
+- `validateMetadata()` and `normalizeMetadata()` for metadata handling
+- All layout constants in `config.ts`
+
+Phase 2 will create commands that use these services.
