@@ -179,18 +179,22 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   // Flatten layout for hit detection (interaction layer)
   // This replaces the old notePositions calculation
   const notePositions = useMemo(() => {
-    return Object.values(layout.notes).map((noteLayout) => ({
-      x: noteLayout.x,
-      y: noteLayout.y,
-      // Use hit zone dimensions from layout engine
-      width: noteLayout.hitZone.endX - noteLayout.hitZone.startX,
-      height: 20, // Standard vertical hit box height
-      // Metadata
-      staffIndex: noteLayout.staffIndex,
-      measureIndex: noteLayout.measureIndex,
-      eventId: noteLayout.eventId,
-      noteId: noteLayout.noteId,
-    }));
+    return Object.values(layout.notes).map((noteLayout) => {
+      // Calculate absolute X from measureOrigin + localX
+      const measureOrigin = layout.getX.measureOrigin({ measure: noteLayout.measureIndex }) ?? 0;
+      return {
+        x: measureOrigin + noteLayout.localX,
+        y: noteLayout.y,
+        // Use hit zone dimensions from layout engine
+        width: noteLayout.hitZone.endX - noteLayout.hitZone.startX,
+        height: 20, // Standard vertical hit box height
+        // Metadata
+        staffIndex: noteLayout.staffIndex,
+        measureIndex: noteLayout.measureIndex,
+        eventId: noteLayout.eventId,
+        noteId: noteLayout.noteId,
+      };
+    });
   }, [layout]);
 
   // --- CHORD TRACK LAYOUT ---
@@ -235,7 +239,17 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     duration: playbackPosition.duration,
   };
 
-  const { x: unifiedCursorX, numStaves } = useCursorLayout(layout, effectivePlaybackPos, isPlaying);
+  const { measure: cursorMeasure, x: cursorLocalX, numStaves } = useCursorLayout(
+    layout,
+    effectivePlaybackPos,
+    isPlaying
+  );
+
+  // Calculate absolute cursor X by combining measureOrigin + localX
+  const unifiedCursorX =
+    cursorMeasure !== null && cursorLocalX !== null
+      ? (layout.getX.measureOrigin({ measure: cursorMeasure }) ?? 0) + cursorLocalX
+      : null;
 
   // Drag to select hook
   const {

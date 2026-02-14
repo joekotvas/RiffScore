@@ -2,7 +2,7 @@
 
 **Issue:** Preparation for system breaks
 **Date:** 2025-02-13
-**Status:** In Progress (Stages 0-2 Complete)
+**Status:** Complete (All Stages Done)
 
 ---
 
@@ -156,14 +156,43 @@ x={getAbsoluteX(position, layout)}
 
 ---
 
-### Stage 3: useCursorLayout
+## Agent Parallelization Strategy
+
+Stages 3-5 can be researched in parallel using Explore agents before implementation:
+
+### Phase 1: Parallel Research (3 agents)
+
+| Agent | Task | Output |
+|-------|------|--------|
+| **Agent A** | Explore `useCursorLayout.ts` and `ScoreCanvas.tsx` cursor usage | Current implementation patterns, what needs to change |
+| **Agent B** | Explore `useDragToSelect.ts` and `notePositions` in ScoreCanvas | Current hit detection logic, measure context needed |
+| **Agent C** | Explore all files with `NoteLayout.x` and `EventLayout.x` usage | Full list of files needing x→localX rename |
+
+### Phase 2: Implementation (sequential with parallel prep)
+
+After research completes:
+1. **Stages 3+4** (Cursor): Implement together since tightly coupled
+2. **Stage 5** (Drag): Implement independently
+3. **Stage 6** (Cleanup): Batch rename after stages 3-5 verified
+
+### Phase 3: Documentation (parallel with Stage 6)
+
+| Agent | Task |
+|-------|------|
+| **Agent D** | Draft LAYOUT_ENGINE.md updates based on new getX API |
+| **Agent E** | Draft ADR-016-measure-relative-x.md |
+
+---
+
+### Stage 3: useCursorLayout ✅ COMPLETE
 
 **Files:**
 - `src/hooks/layout/useCursorLayout.ts`
 
 **Changes:**
-1. Use `layout.getX({ measure, quant })` instead of building own map
-2. Return `{ measure, x }` instead of absolute X
+1. Added `measure` field to CursorLayout interface
+2. Return `{ measure, x: localX }` instead of absolute X
+3. Updated tests to expect measure-relative coordinates
 
 **Before:**
 ```typescript
@@ -175,66 +204,81 @@ return { x: absoluteX, width, ... };
 return { measure, x: localX, width, ... };
 ```
 
-**Test:** `npm test -- useCursorLayout`
+**Test:** `npm test -- useCursorLayout` ✅ All 12 tests pass
 
 ---
 
-### Stage 4: ScoreCanvas Cursor
+### Stage 4: ScoreCanvas Cursor ✅ COMPLETE
 
 **Files:**
 - `src/components/Canvas/ScoreCanvas.tsx`
 
 **Changes:**
-1. Apply measure transform to cursor positioning
+1. Extract `cursorMeasure` and `cursorLocalX` from useCursorLayout
+2. Calculate absolute X using `measureOrigin + localX`
 
 **Before:**
 ```typescript
+const { x: unifiedCursorX, numStaves } = useCursorLayout(...);
 transform: `translateX(${unifiedCursorX}px)`
 ```
 
 **After:**
 ```typescript
-transform: `translateX(${layout.getX.measureOrigin({ measure: cursor.measure }) + cursor.x}px)`
+const { measure: cursorMeasure, x: cursorLocalX, numStaves } = useCursorLayout(...);
+const unifiedCursorX = cursorMeasure !== null && cursorLocalX !== null
+  ? (layout.getX.measureOrigin({ measure: cursorMeasure }) ?? 0) + cursorLocalX
+  : null;
 ```
 
-**Test:** `npm test -- ScoreCanvas`
+**Test:** `npm test -- ScoreCanvas` ✅ All tests pass
 
 ---
 
-### Stage 5: useDragToSelect
+### Stage 5: useDragToSelect ✅ COMPLETE (Compatible)
 
 **Files:**
 - `src/hooks/interaction/useDragToSelect.ts`
 - `src/components/Canvas/ScoreCanvas.tsx` (notePositions)
 
-**Changes:**
-1. Update `notePositions` to include measure context
-2. Selection rect intersection works per-measure
+**Status:** Already compatible with current implementation.
 
-**Test:** `npm test -- useDragToSelect`
+**Why no changes needed:**
+1. `notePositions` already includes `measureIndex` for each note
+2. `NoteLayout.x` is currently absolute (computed as `absoluteX + xShift` in scoreLayout.ts)
+3. Selection rect is in absolute SVG coordinates
+4. Hit detection compares absolute vs absolute - works correctly
+
+**Note:** When Stage 6 renames `NoteLayout.x` to `localX` (measure-relative), ScoreCanvas will need to compute absolute X for notePositions. Per-measure hit detection will be enhanced when system breaks are implemented.
+
+**Test:** Full test suite passes (1209 tests)
 
 ---
 
-### Stage 6: Layout Types Cleanup
+### Stage 6: Layout Types Cleanup ✅ COMPLETE
 
 **Files:**
 - `src/engines/layout/types.ts`
 - `src/engines/layout/scoreLayout.ts`
+- `src/components/Canvas/ScoreCanvas.tsx`
+- `src/__tests__/engines/layout/scoreLayout.test.ts`
 
 **Changes:**
-1. Rename `NoteLayout.x` → `NoteLayout.localX`
-2. Rename `EventLayout.x` → `EventLayout.localX`
-3. Remove any remaining absolute X references
+1. Renamed `NoteLayout.x` → `NoteLayout.localX` (now measure-relative)
+2. Renamed `EventLayout.x` → `EventLayout.localX` (now measure-relative)
+3. Updated `scoreLayout.ts` to compute measure-relative X
+4. Updated `ScoreCanvas.tsx` notePositions to compute absolute X using measureOrigin
+5. Updated tests to use `localX` instead of `x`
 
-**Test:** `npm test` (full suite)
+**Test:** `npm test` (full suite) ✅ All 1209 tests pass
 
 ---
 
-### Stage 7: Documentation
+### Stage 7: Documentation ✅ COMPLETE
 
 **Files:**
-- `docs/LAYOUT_ENGINE.md` — Update getX documentation
-- `docs/adr/016-measure-relative-x.md` — Create ADR
+- `docs/LAYOUT_ENGINE.md` — Updated getX documentation with new API
+- `docs/adr/016-measure-relative-x.md` — Created ADR documenting design decisions
 
 ---
 
@@ -288,11 +332,11 @@ Each stage is independently testable. If issues arise:
 - [x] Stage 1: ScoreLayout API updated with measure-relative getX
 - [x] Stage 2: ChordTrack uses new getX API
 - [x] All 1209 tests passing after each stage
-- [ ] Stage 3: useCursorLayout returns measure context
-- [ ] Stage 4: ScoreCanvas cursor uses measure-relative positioning
-- [ ] Stage 5: useDragToSelect updated for measure context
-- [ ] Stage 6: Layout types renamed (x → localX)
-- [ ] Stage 7: Documentation updated
+- [x] Stage 3: useCursorLayout returns measure context
+- [x] Stage 4: ScoreCanvas cursor uses measure-relative positioning
+- [x] Stage 5: useDragToSelect compatible (already has measure context)
+- [x] Stage 6: Layout types renamed (x → localX)
+- [x] Stage 7: Documentation updated
 - [ ] Manual verification: chords, cursor, selection work correctly
-- [ ] No absolute X references remain in layout types
-- [ ] No global quant references remain in chord data model
+- [x] No absolute X references remain in layout types
+- [x] No global quant references remain in chord data model

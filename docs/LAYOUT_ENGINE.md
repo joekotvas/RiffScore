@@ -36,11 +36,14 @@ The `scoreLayout.ts` module provides `calculateScoreLayout(score)`, which return
 ```typescript
 interface ScoreLayout {
   staves: StaffLayout[];
-  notes: Record<string, NoteLayout>;
-  events: Record<string, EventLayout>;
+  notes: Record<string, NoteLayout>;   // Note: NoteLayout.localX is measure-relative
+  events: Record<string, EventLayout>; // Note: EventLayout.localX is measure-relative
 
-  // X coordinate accessor
-  getX: (quant: number) => number;
+  // X coordinate accessor (measure-relative)
+  getX: {
+    (params: { measure: number; quant: number }): number | null;  // Position within measure
+    measureOrigin: (params: { measure: number }) => number | null; // Measure's absolute X
+  };
 
   // Y coordinate accessors
   getY: {
@@ -53,14 +56,29 @@ interface ScoreLayout {
 }
 ```
 
-### Using getX for Horizontal Positioning
+### Using getX for Horizontal Positioning (Measure-Relative)
+
+The `getX` function returns **measure-relative** X coordinates. This design supports future system breaks where the same measure could appear at different absolute positions on different lines.
 
 ```typescript
-// Get X position for any quant (beat position)
-const x = layout.getX(48);  // X for beat 3 in 4/4
+// Get measure-relative X position for any position
+const localX = layout.getX({ measure: 1, quant: 48 });  // X within measure 1
 
-// Works for chords, cursors, lyrics, dynamics — any quant-based element
+// Get measure's origin (absolute X)
+const measureOrigin = layout.getX.measureOrigin({ measure: 1 });
+
+// Compute absolute X when needed (e.g., for hit detection)
+const absoluteX = (measureOrigin ?? 0) + (localX ?? 0);
 ```
+
+**Rendering pattern for SVG:**
+```tsx
+<g transform={`translate(${layout.getX.measureOrigin({ measure }) ?? 0}, 0)`}>
+  <Element x={layout.getX({ measure, quant }) ?? 0} />
+</g>
+```
+
+> See [ADR-016: Measure-Relative X Positioning](./adr/016-measure-relative-x.md) for design rationale.
 
 ### Using getY for Vertical Positioning
 

@@ -97,9 +97,8 @@ const processEventLayout = (
 ): EventLayout => {
   const { measureX, staffY, staffIdx, measureIdx, clef } = measureContext;
 
-  // 1. Position Calculation
-  const relativeX = relativeLayout.eventPositions[event.id] || CONFIG.measurePaddingLeft;
-  const absoluteX = measureX + relativeX;
+  // 1. Position Calculation (measure-relative)
+  const localX = relativeLayout.eventPositions[event.id] || CONFIG.measurePaddingLeft;
   const processedEvent = relativeLayout.processedEvents.find((e) => e.id === event.id);
 
   // 2. Width Calculation
@@ -109,7 +108,7 @@ const processEventLayout = (
   }
 
   const eventLayout: EventLayout = {
-    x: absoluteX,
+    localX,
     y: staffY,
     width: eventWidth,
     notes: {},
@@ -123,9 +122,13 @@ const processEventLayout = (
 
       const halfWidth = eventWidth / 2;
       const xShift = processedEvent?.chordLayout?.noteOffsets[note.id] || 0;
+      const noteLocalX = localX + xShift;
+
+      // Compute absolute X for hit zones (needed for hit detection)
+      const absoluteX = measureX + noteLocalX;
 
       const noteLayout: NoteLayout = {
-        x: absoluteX + xShift,
+        localX: noteLocalX,
         y: staffY + getOffsetForPitch(note.pitch, clef),
         noteId: note.id,
         eventId: event.id,
@@ -133,8 +136,8 @@ const processEventLayout = (
         staffIndex: staffIdx,
         pitch: note.pitch,
         hitZone: {
-          startX: absoluteX + xShift - halfWidth,
-          endX: absoluteX + xShift + halfWidth,
+          startX: absoluteX - halfWidth,
+          endX: absoluteX + halfWidth,
           index: 0,
           type: 'EVENT',
           eventId: event.id,
@@ -279,9 +282,9 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
         }
         const measureMap = measureQuantMaps.get(noteLayout.measureIndex)!;
 
-        // Store measure-relative X (note's absolute X - measure's origin X)
+        // Store measure-relative X (noteLayout.localX is already relative)
         if (!measureMap.has(localQuant)) {
-          measureMap.set(localQuant, noteLayout.x - measureLayout.x);
+          measureMap.set(localQuant, noteLayout.localX);
         }
         break;
       }

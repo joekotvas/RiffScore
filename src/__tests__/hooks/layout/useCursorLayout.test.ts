@@ -139,6 +139,7 @@ describe('useCursorLayout', () => {
         useCursorLayout(layout, { measureIndex: 0, quant: 0, duration: 0.1 })
       );
 
+      expect(result.current.measure).toBeNull();
       expect(result.current.x).toBeNull();
       expect(result.current.isGrandStaff).toBe(false);
       expect(result.current.numStaves).toBe(0);
@@ -153,7 +154,9 @@ describe('useCursorLayout', () => {
 
       // Single staff SHOULD use unified cursor now
       // NOTE: First event (quant 0) now force-starts at 0 relative to measure to cover header
-      expect(result.current.x).toBe(80);
+      // X is now measure-relative, so 0 instead of 80 (measureOrigin)
+      expect(result.current.measure).toBe(0);
+      expect(result.current.x).toBe(0);
       expect(result.current.isGrandStaff).toBe(false);
       expect(result.current.numStaves).toBe(1);
     });
@@ -164,6 +167,7 @@ describe('useCursorLayout', () => {
         useCursorLayout(layout, { measureIndex: null, quant: null, duration: 0 })
       );
 
+      expect(result.current.measure).toBeNull();
       expect(result.current.x).toBeNull();
     });
   });
@@ -185,8 +189,10 @@ describe('useCursorLayout', () => {
         useCursorLayout(layout, { measureIndex: 0, quant: 0, duration: 0.1 })
       );
 
-      // x should be measureX + 0 (Header sweep fix)
-      expect(result.current.x).toBe(80); // 80 + 0
+      // x is now measure-relative (0 for first event due to header sweep fix)
+      // measureOrigin would be 80, but x itself is 0
+      expect(result.current.measure).toBe(0);
+      expect(result.current.x).toBe(0);
     });
 
     it('should calculate cursor position at second event', () => {
@@ -195,7 +201,9 @@ describe('useCursorLayout', () => {
         useCursorLayout(layout, { measureIndex: 0, quant: 24, duration: 0.1 })
       );
 
-      expect(result.current.x).toBe(80 + 60); // 140
+      // x is now measure-relative: 60 (not 80 + 60)
+      expect(result.current.measure).toBe(0);
+      expect(result.current.x).toBe(60);
     });
 
     it('should calculate cursor width based on next event', () => {
@@ -215,8 +223,10 @@ describe('useCursorLayout', () => {
         useCursorLayout(layout, { measureIndex: 1, quant: 0, duration: 0.1 })
       );
 
-      // Second measure starts at x: 200, first event at +20 -> Force 0
-      expect(result.current.x).toBe(200); // 200 + 0
+      // x is now measure-relative (0 for first event due to header sweep fix)
+      // measureOrigin would be 200, but x itself is 0
+      expect(result.current.measure).toBe(1);
+      expect(result.current.x).toBe(0);
     });
     it('should calculate cursor position for interleaved events across staves', () => {
       // Setup: Staff 0 has event at 0 and 48. Staff 1 has event at 24.
@@ -273,8 +283,10 @@ describe('useCursorLayout', () => {
         useCursorLayout(mixedLayout, { measureIndex: 0, quant: 24, duration: 0.1 })
       );
 
-      // Should find event at quant 24 from Staff 1 (pos 50) relative to measure X (80)
-      expect(result.current.x).toBe(80 + 50); // 130
+      // x is now measure-relative: 50 (the event position from Staff 1)
+      // measureOrigin would be 80, but x itself is just the relative position
+      expect(result.current.measure).toBe(0);
+      expect(result.current.x).toBe(50);
     });
 
     it('should target NEXT event when playing to drive smooth animation', () => {
@@ -286,17 +298,20 @@ describe('useCursorLayout', () => {
       // Layout has event 1 at +20 (Quant 0), event 2 at +60 (Quant 24).
 
       // Test Paused (Default) - Should target Current Event
+      // x is now measure-relative: 0 (force start for first event)
       const { result: pausedResult } = renderHook(() =>
         useCursorLayout(layout, { measureIndex: 0, quant: 0, duration: 0.5 }, false)
       );
-      expect(pausedResult.current.x).toBe(80); // 80 + 0 (Force Start)
+      expect(pausedResult.current.measure).toBe(0);
+      expect(pausedResult.current.x).toBe(0);
 
       // Test Playing - Should target Next Event
+      // x is now measure-relative: 60 (the next event position)
       const { result: playingResult } = renderHook(() =>
         useCursorLayout(layout, { measureIndex: 0, quant: 0, duration: 0.5 }, true)
       );
-      // Next event is at +60
-      expect(playingResult.current.x).toBe(80 + 60); // 140
+      expect(playingResult.current.measure).toBe(0);
+      expect(playingResult.current.x).toBe(60);
     });
   });
 
@@ -335,8 +350,9 @@ describe('useCursorLayout', () => {
         useCursorLayout(layout, { measureIndex: 0, quant: 0, duration: 0.1 })
       );
 
-      // Should fall back gracefully
-      expect(result.current.x).toBe(80); // Just measure x
+      // Should fall back gracefully - x is now measure-relative (0)
+      expect(result.current.measure).toBe(0);
+      expect(result.current.x).toBe(0);
       expect(result.current.width).toBe(120); // Full measure width
     });
   });

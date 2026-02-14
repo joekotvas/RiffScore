@@ -87,7 +87,8 @@ export interface YBounds {
 }
 
 export interface NoteLayout {
-  x: number;
+  /** X position relative to measure origin */
+  localX: number;
   y: number;
   noteId: string;
   eventId: string;
@@ -98,7 +99,8 @@ export interface NoteLayout {
 }
 
 export interface EventLayout {
-  x: number;
+  /** X position relative to measure origin */
+  localX: number;
   y: number; // Base Y for the staff
   width: number;
   notes: Record<string, NoteLayout>; // noteId -> layout

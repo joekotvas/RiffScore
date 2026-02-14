@@ -86,7 +86,7 @@ describe('calculateScoreLayout', () => {
 
     // Check note layout structure
     const firstNote = layout.notes[noteKeys[0]];
-    expect(firstNote).toHaveProperty('x');
+    expect(firstNote).toHaveProperty('localX');
     expect(firstNote).toHaveProperty('y');
     expect(firstNote).toHaveProperty('noteId');
     expect(firstNote).toHaveProperty('staffIndex');
@@ -142,8 +142,8 @@ describe('calculateScoreLayout', () => {
       if (note1.eventId === note2.eventId) {
         // X positions might be different for notes in the same chord
         // (though if they're perfectly aligned, they could be the same)
-        expect(typeof note1.x).toBe('number');
-        expect(typeof note2.x).toBe('number');
+        expect(typeof note1.localX).toBe('number');
+        expect(typeof note2.localX).toBe('number');
       }
     }
   });
