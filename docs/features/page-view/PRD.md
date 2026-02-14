@@ -67,7 +67,7 @@ Implement a **page view mode** that:
 
 **FR-01:** The editor SHALL support two view modes: **Scroll View** (default) and **Page View**.
 
-**FR-02:** Users SHALL toggle view mode via a toolbar button or keyboard shortcut.
+**FR-02:** Users SHALL toggle view mode via a toolbar button or keyboard shortcut (`Cmd+\` on Mac, `Ctrl+\` on Windows/Linux).
 
 **FR-03:** Switching view modes SHALL preserve all score state (selection, cursor, playback position).
 
@@ -160,7 +160,9 @@ Implement a **page view mode** that:
 
 **FR-29:** Systems SHALL be horizontally justified to fill the content width, EXCEPT the final system which SHALL render at natural width if less than 60% full.
 
-**FR-30:** When a key or time signature change occurs at the start of a system, a courtesy signature SHALL appear at the end of the previous system.
+**FR-30:** *(Deferred to v2)* Courtesy signatures at system breaks.
+
+**FR-30a:** Page numbers SHALL appear centered at the bottom of each page, below the copyright notice (if present on page 1).
 
 ### 3.10 Toolbar Controls
 
@@ -172,6 +174,10 @@ Implement a **page view mode** that:
 
 **FR-34:** The keyboard shortcut `Cmd+,` (Mac) / `Ctrl+,` (Windows/Linux) SHALL open the Score Setup dialog.
 
+**FR-34a:** The toolbar SHALL include a **Print** button that opens the browser print dialog.
+
+**FR-34b:** The Print button SHALL display a printer icon and be grouped with the View Toggle and Score Setup buttons.
+
 ### 3.11 Score Setup Dialog
 
 The Score Setup dialog provides centralized access to score metadata and layout configuration.
@@ -182,14 +188,12 @@ The Score Setup dialog provides centralized access to score metadata and layout 
 
 | Field | Description | Display Location |
 |-------|-------------|------------------|
-| **Title** | Score title (existing) | Centered above first system |
-| **Subtitle** | Secondary title or opus info | Below title, smaller |
-| **Composer** | Composer name | Right-aligned above first system |
-| **Arranger** | Arranger name (optional) | Below composer |
+| **Title** | Score title (pre-filled to "Untitled") | Centered above first system |
+| **Composer** | Composer name (optional) | Right-aligned above first system |
 | **Lyricist** | Lyricist name (optional) | Left-aligned above first system |
-| **Copyright** | Copyright notice | Bottom of first page, centered |
+| **Copyright** | Copyright notice (optional) | Bottom of first page, centered |
 
-**FR-36:** All metadata fields SHALL be optional except Title.
+**FR-36:** All metadata fields SHALL be optional except Title (pre-filled to "Untitled").
 
 **FR-37:** Metadata SHALL be stored in the score JSON and exported to ABC/MusicXML.
 
@@ -202,11 +206,11 @@ The Score Setup dialog provides centralized access to score metadata and layout 
 | Setting | Options | Default |
 |---------|---------|---------|
 | **Page Size** | Letter, A4 | Letter (US) / A4 (International) |
-| **Margins** | Top, Bottom, Left, Right (in inches or mm) | 0.75" all sides |
-| **Staff Size** | Small, Medium, Large, or percentage | Medium (100%) |
+| **Margins** | Narrow, Normal, Wide (dropdown) | Normal (0.75" all sides) |
+| **Staff Size** | Slider from 50% to 150% in 10% increments | 100% |
 | **System Spacing** | Compact, Normal, Relaxed | Normal |
 
-**FR-40:** Layout settings SHALL apply immediately when changed (live preview).
+**FR-40:** Layout settings SHALL apply immediately when changed via a batched command. Pressing Cancel SHALL undo all changes made during the session as a single undo operation.
 
 **FR-41:** Layout settings SHALL persist per-score in the score JSON.
 
@@ -220,7 +224,30 @@ The Score Setup dialog provides centralized access to score metadata and layout 
 
 **FR-45:** Pressing `Enter` (when not in a text field) SHALL save and close the dialog.
 
-**FR-46:** The dialog SHALL be organized into tabs or sections: **Metadata** and **Layout**.
+**FR-46:** The dialog SHALL be a single scrollable form with section headers: **Metadata** and **Layout**.
+
+#### 3.11.4 Inline Metadata Editing (WYSIWYG)
+
+> **Reuses interaction pattern from chord editing.** See SRS section 5.2.3 for full specification.
+
+**FR-47:** Hovering over the title block area SHALL display placeholder text for all empty metadata fields at 50% opacity (matching chord preview styling).
+
+**FR-48:** Users SHALL be able to click directly on rendered metadata text (title, composer, lyricist) to enter edit mode with text selected.
+
+**FR-49:** Inline editing SHALL use the same keyboard navigation as chord editing:
+- `Tab` to save and move to next field
+- `Shift+Tab` to save and move to previous field
+- `Tab` from last field (lyricist) to exit to first note via `api.selectFirstElement()`
+- `Enter` to commit changes
+- `Escape` to cancel and revert
+
+**FR-50:** Metadata fields SHALL be selectable like chords:
+- `Cmd/Ctrl+Click` to select without editing
+- `Delete`/`Backspace` when selected to clear field content
+
+**FR-51:** Inline metadata edits SHALL execute via the `SetMetadataCommand`, enabling undo/redo.
+
+**FR-52:** The Score Setup dialog and inline editing SHALL share the same underlying metadata state.
 
 ---
 
@@ -232,8 +259,11 @@ The Score Setup dialog provides centralized access to score metadata and layout 
 
 **NFR-02:** System break calculation SHALL be memoized and only recalculate when:
 - Page size changes
+- Margins change
+- Staff size changes
 - Measures are added/removed
 - Time signature changes
+- View mode changes to 'page'
 
 **NFR-03:** Rendering 10+ systems SHALL not cause scroll jank (<16ms frame time).
 
@@ -243,7 +273,7 @@ The Score Setup dialog provides centralized access to score metadata and layout 
 
 **NFR-05:** Print SHALL work in all modern browsers (Chrome, Firefox, Safari, Edge).
 
-**NFR-06:** PDF export via browser print SHALL produce searchable text for titles.
+**NFR-06:** Print output saved as PDF SHALL produce searchable text for titles.
 
 ### 4.3 Accessibility
 
@@ -299,18 +329,16 @@ interface PageLayout {
 
 ```typescript
 interface ScoreMetadata {
-  title: string;           // Required (existing)
-  subtitle?: string;       // Optional secondary title
+  title: string;           // Required (pre-filled to "Untitled")
   composer?: string;       // Composer name
-  arranger?: string;       // Arranger name
   lyricist?: string;       // Lyricist name
   copyright?: string;      // Copyright notice
 }
 
 interface LayoutConfig {
   pageSize: 'letter' | 'a4';
-  margins: { top: number; right: number; bottom: number; left: number };
-  staffSize: number;       // Percentage (100 = default)
+  margins: 'narrow' | 'normal' | 'wide';  // Preset margin sizes
+  staffSize: number;       // Percentage (50-150, stepped by 10)
   systemSpacing: 'compact' | 'normal' | 'relaxed';
   viewMode: 'scroll' | 'page';
 }
@@ -323,7 +351,7 @@ interface LayoutConfig {
 | `types.ts` | Add `ScoreMetadata` and `LayoutConfig` interfaces |
 | `scoreLayout.ts` | Add `calculatePageLayout()`, update `measureOrigin` per system |
 | `ScoreCanvas.tsx` | Render multiple `<g>` groups for systems |
-| `ScoreHeader.tsx` | Render metadata (composer, lyricist, subtitle) |
+| `ScoreHeader.tsx` | Render metadata (title, composer, lyricist, copyright) |
 | `Staff.tsx` | Render clef/key on each system, handle tie splitting |
 | `useCursorLayout.ts` | Track system index for cursor positioning |
 | `config.ts` | Add `pageSize`, `viewMode`, `margins`, `staffSize` options |
@@ -339,25 +367,31 @@ interface LayoutConfig {
 - Toggle between scroll view and page view
 - Automatic system breaks based on page width
 - Letter and A4 page sizes
-- Print to PDF via browser dialog
-- Cmd/Ctrl+P keyboard shortcut
+- Print to PDF via browser dialog (toolbar button + Cmd/Ctrl+P)
 - Tie visualization across breaks
 - Playback cursor across systems
-- Basic margin configuration
-- Score Setup dialog with metadata (title, subtitle, composer, arranger, lyricist, copyright)
+- Margin presets (Narrow/Normal/Wide dropdown)
+- Score Setup dialog with metadata (title, composer, lyricist, copyright)
 - Layout configuration (page size, margins, staff size, system spacing)
-- Toolbar view toggle button
+- Toolbar buttons: view toggle, score setup, print
+- Measure numbers at system start
+- Page numbers (centered, bottom of each page)
 
 ### 6.2 Out of Scope (Future)
 
 - Manual system break placement (user-specified)
-- Page numbers and headers/footers
+- Headers/footers (beyond page numbers and copyright)
 - Multiple pages in editor view (pagination within editor)
 - Custom page sizes
 - Landscape orientation
 - Part extraction (separate treble/bass)
 - Coda/segno jump indicators at breaks
 - Ossia staves
+- Slur splitting at system breaks (ties only in v1)
+- Beam groups spanning system breaks
+- Courtesy key/time signatures at system breaks
+- Subtitle and arranger metadata fields
+- Custom margin values (individual top/bottom/left/right)
 
 ---
 
@@ -377,7 +411,6 @@ interface LayoutConfig {
 - [ ] First system indentation (FR-27)
 - [ ] Measure numbers at system start (FR-28)
 - [ ] System justification with ragged last system (FR-29)
-- [ ] Courtesy key/time signatures (FR-30)
 
 ### Phase 3: Tie Splitting
 - [ ] Detect ties crossing system breaks
@@ -392,24 +425,34 @@ interface LayoutConfig {
 
 ### Phase 5: Toolbar & View Mode Toggle
 - [ ] View toggle button with icon (FR-31, FR-32)
-- [ ] Keyboard shortcut for view toggle
+- [ ] Score Setup button (FR-33)
+- [ ] Print button (FR-34a, FR-34b)
+- [ ] Keyboard shortcuts for all toolbar actions
 - [ ] State persistence
 - [ ] Smooth transition animation
 
 ### Phase 6: Score Setup Dialog
-- [ ] Dialog component with tabs (Metadata / Layout)
-- [ ] Metadata fields: title, subtitle, composer, arranger, lyricist, copyright (FR-35–FR-38)
-- [ ] Layout settings: page size, margins, staff size, system spacing (FR-39–FR-42)
+- [ ] Single scrollable form with section headers (FR-46)
+- [ ] Metadata fields: title, composer, lyricist, copyright (FR-35–FR-38)
+- [ ] Layout settings: page size, margins dropdown, staff size slider, system spacing (FR-39–FR-42)
 - [ ] Score Setup toolbar button (FR-33)
 - [ ] Cmd/Ctrl+, keyboard shortcut (FR-34)
-- [ ] Live preview of layout changes (FR-40)
+- [ ] Batched command for undo-on-cancel (FR-40)
 - [ ] Persist settings in score JSON (FR-41)
 
 ### Phase 7: Metadata Rendering
-- [ ] Title/subtitle positioning (centered above first system)
-- [ ] Composer/arranger positioning (right-aligned)
+> **Reuses ChordTrack interaction pattern.** See SDD sections 6.6–6.9.
+
+- [ ] Title positioning (centered above first system)
+- [ ] Composer positioning (right-aligned)
 - [ ] Lyricist positioning (left-aligned)
 - [ ] Copyright footer (bottom of first page)
+- [ ] Page numbers (centered, bottom of each page) (FR-30a)
+- [ ] Hover preview for empty metadata fields (FR-47)
+- [ ] Inline WYSIWYG editing (FR-48–FR-50)
+- [ ] Tab/Shift+Tab navigation between fields (FR-49)
+- [ ] Tab exit to first note via `api.selectFirstElement()` (FR-49)
+- [ ] Metadata selection and deletion (FR-50)
 - [ ] Metadata in print output (FR-38)
 - [ ] Export to ABC/MusicXML (FR-37)
 
@@ -421,14 +464,14 @@ interface LayoutConfig {
 
 ---
 
-## 8. Open Questions
+## 8. Resolved Questions
 
-| # | Question | Impact | Status |
-|---|----------|--------|--------|
-| 1 | Should page view show actual page boundaries (paper outline)? | UX | Open |
-| 2 | How to handle very wide measures (full-measure rests, complex tuplets)? | Algorithm | Open |
-| 3 | Should system breaks be configurable per-score or global preference? | Config | Open |
-| 4 | What happens if a single measure exceeds page width? | Edge case | Open |
+| # | Question | Resolution |
+|---|----------|------------|
+| 1 | Should page view show actual page boundaries (paper outline)? | **Yes.** Users expect WYSIWYG for print. Show subtle page outline in page view. |
+| 2 | How to handle very wide measures (full-measure rests, complex tuplets)? | Allow measures to exceed "ideal" width. If single measure >50% of system width, give it its own system. Never scale down individual measures. |
+| 3 | Should system breaks be configurable per-score or global preference? | **Per-score** for page size and layout settings, with global defaults that new scores inherit. |
+| 4 | What happens if a single measure exceeds page width? | Scale entire score proportionally. Alert user if scaling drops below 50%. This is rare but must be handled gracefully. |
 
 ---
 
