@@ -23,12 +23,7 @@ export interface MeasureNumberProps {
  * Renders a measure number above the staff.
  * Converts 0-based internal index to 1-based display number.
  */
-export const MeasureNumber: React.FC<MeasureNumberProps> = ({
-  measureIndex,
-  x,
-  y,
-  staffScale,
-}) => {
+export const MeasureNumber: React.FC<MeasureNumberProps> = ({ measureIndex, x, y, staffScale }) => {
   const fontSize = 10 * staffScale;
   const displayNumber = toDisplayMeasureNumber(measureIndex);
 

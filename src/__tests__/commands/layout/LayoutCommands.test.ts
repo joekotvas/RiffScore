@@ -4,11 +4,7 @@
  * Tests for SetViewModeCommand, SetLayoutConfigCommand, and SetMetadataCommand.
  */
 
-import {
-  SetViewModeCommand,
-  SetLayoutConfigCommand,
-  SetMetadataCommand,
-} from '@/commands/layout';
+import { SetViewModeCommand, SetLayoutConfigCommand, SetMetadataCommand } from '@/commands/layout';
 import { DEFAULT_LAYOUT_CONFIG, DEFAULT_SCORE_METADATA } from '@/config';
 import type { Score, LayoutConfig, ScoreMetadata } from '@/types';
 
@@ -38,14 +34,12 @@ const createTestScore = (overrides?: Partial<Score>): Score => ({
 /**
  * Creates a score with layout config.
  */
-const createScoreWithLayout = (layout: LayoutConfig): Score =>
-  createTestScore({ layout });
+const createScoreWithLayout = (layout: LayoutConfig): Score => createTestScore({ layout });
 
 /**
  * Creates a score with metadata.
  */
-const createScoreWithMetadata = (metadata: ScoreMetadata): Score =>
-  createTestScore({ metadata });
+const createScoreWithMetadata = (metadata: ScoreMetadata): Score => createTestScore({ metadata });
 
 // ============================================================================
 // SetViewModeCommand Tests
@@ -233,7 +227,9 @@ describe('SetLayoutConfigCommand', () => {
 
     it('ignores invalid page size', () => {
       const score = createScoreWithLayout({ ...DEFAULT_LAYOUT_CONFIG, pageSize: 'letter' });
-      const command = new SetLayoutConfigCommand({ pageSize: 'invalid' as LayoutConfig['pageSize'] });
+      const command = new SetLayoutConfigCommand({
+        pageSize: 'invalid' as LayoutConfig['pageSize'],
+      });
 
       const result = command.execute(score);
 
@@ -262,7 +258,9 @@ describe('SetLayoutConfigCommand', () => {
 
     it('ignores invalid view mode', () => {
       const score = createScoreWithLayout({ ...DEFAULT_LAYOUT_CONFIG, viewMode: 'scroll' });
-      const command = new SetLayoutConfigCommand({ viewMode: 'invalid' as LayoutConfig['viewMode'] });
+      const command = new SetLayoutConfigCommand({
+        viewMode: 'invalid' as LayoutConfig['viewMode'],
+      });
 
       const result = command.execute(score);
 

@@ -103,18 +103,11 @@ const validateStringField = (
  * @param metadata - Metadata to validate (can be partial)
  * @returns Validation result with ok flag and errors object
  */
-export const validateMetadata = (
-  metadata: Partial<ScoreMetadata>
-): MetadataValidationResult => {
+export const validateMetadata = (metadata: Partial<ScoreMetadata>): MetadataValidationResult => {
   const errors: MetadataFieldErrors = {};
 
   // Validate title (required)
-  const titleError = validateStringField(
-    metadata.title,
-    METADATA_LIMITS.title,
-    'Title',
-    true
-  );
+  const titleError = validateStringField(metadata.title, METADATA_LIMITS.title, 'Title', true);
   if (titleError) {
     errors.title = titleError;
   }
@@ -185,9 +178,7 @@ const trimString = (value: string | undefined): string | undefined => {
  * @param metadata - Metadata to normalize (can be partial)
  * @returns Normalized ScoreMetadata with guaranteed title
  */
-export const normalizeMetadata = (
-  metadata: Partial<ScoreMetadata>
-): ScoreMetadata => {
+export const normalizeMetadata = (metadata: Partial<ScoreMetadata>): ScoreMetadata => {
   const trimmedTitle = trimString(metadata.title);
   const trimmedComposer = trimString(metadata.composer);
   const trimmedLyricist = trimString(metadata.lyricist);
@@ -221,9 +212,7 @@ export const normalizeMetadata = (
  * @param overrides - Optional field overrides
  * @returns Normalized ScoreMetadata
  */
-export const createMetadata = (
-  overrides: Partial<ScoreMetadata> = {}
-): ScoreMetadata => {
+export const createMetadata = (overrides: Partial<ScoreMetadata> = {}): ScoreMetadata => {
   return normalizeMetadata({
     ...DEFAULT_SCORE_METADATA,
     ...overrides,

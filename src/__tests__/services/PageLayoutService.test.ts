@@ -14,10 +14,7 @@ import {
   getSystemForMeasure,
   getMeasureOriginInSystem,
 } from '@/services/PageLayoutService';
-import {
-  DEFAULT_LAYOUT_CONFIG,
-  FIRST_SYSTEM_INDENT,
-} from '@/config';
+import { DEFAULT_LAYOUT_CONFIG, FIRST_SYSTEM_INDENT } from '@/config';
 import type { Score, LayoutConfig } from '@/types';
 
 // ============================================================================
@@ -604,7 +601,10 @@ describe('PageLayoutService - Edge Cases', () => {
   it('handles different margin presets', () => {
     const score = createSingleMeasureScore();
 
-    const narrowLayout = calculatePageLayout(score, { ...DEFAULT_LAYOUT_CONFIG, margins: 'narrow' });
+    const narrowLayout = calculatePageLayout(score, {
+      ...DEFAULT_LAYOUT_CONFIG,
+      margins: 'narrow',
+    });
     const wideLayout = calculatePageLayout(score, { ...DEFAULT_LAYOUT_CONFIG, margins: 'wide' });
 
     // Narrow margins = more content width
@@ -614,8 +614,14 @@ describe('PageLayoutService - Edge Cases', () => {
   it('handles different system spacing presets', () => {
     const score = createMultiMeasureScore(8);
 
-    const compactLayout = calculatePageLayout(score, { ...DEFAULT_LAYOUT_CONFIG, systemSpacing: 'compact' });
-    const relaxedLayout = calculatePageLayout(score, { ...DEFAULT_LAYOUT_CONFIG, systemSpacing: 'relaxed' });
+    const compactLayout = calculatePageLayout(score, {
+      ...DEFAULT_LAYOUT_CONFIG,
+      systemSpacing: 'compact',
+    });
+    const relaxedLayout = calculatePageLayout(score, {
+      ...DEFAULT_LAYOUT_CONFIG,
+      systemSpacing: 'relaxed',
+    });
 
     // Relaxed spacing = larger Y gaps between systems
     if (compactLayout.systems.length > 1 && relaxedLayout.systems.length > 1) {

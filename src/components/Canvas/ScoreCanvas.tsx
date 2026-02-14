@@ -488,11 +488,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
                     {/* Grand staff bracket for this system */}
                     {score.staves?.length > 1 && (
-                      <GrandStaffBracket
-                        topY={0}
-                        bottomY={system.height}
-                        x={system.xOffset - 20}
-                      />
+                      <GrandStaffBracket topY={0} bottomY={system.height} x={system.xOffset - 20} />
                     )}
 
                     {/* Staves in this system - TODO: render only system measures */}

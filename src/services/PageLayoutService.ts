@@ -91,10 +91,7 @@ export const calculateSingleMeasureWidth = (
  * @param staffScale - Staff scale factor (1.0 = 100%)
  * @returns Array of measure widths in pixels
  */
-export const calculateAllMeasureWidths = (
-  score: Score,
-  staffScale: number = 1.0
-): number[] => {
+export const calculateAllMeasureWidths = (score: Score, staffScale: number = 1.0): number[] => {
   if (!score.staves.length || !score.staves[0].measures.length) {
     return [];
   }
@@ -202,10 +199,7 @@ export const calculateJustification = (
 ): number => {
   if (systemMeasures.length === 0) return 1.0;
 
-  const naturalWidth = systemMeasures.reduce(
-    (sum, idx) => sum + (measureWidths[idx] ?? 0),
-    0
-  );
+  const naturalWidth = systemMeasures.reduce((sum, idx) => sum + (measureWidths[idx] ?? 0), 0);
 
   const fillRatio = naturalWidth / availableWidth;
 
@@ -356,10 +350,7 @@ export const calculatePageLayout = (
  * @param pageLayout - The page layout to search
  * @returns System index, or -1 if not found
  */
-export const getSystemForMeasure = (
-  measureIndex: number,
-  pageLayout: PageLayout
-): number => {
+export const getSystemForMeasure = (measureIndex: number, pageLayout: PageLayout): number => {
   for (const system of pageLayout.systems) {
     if (system.measures.includes(measureIndex)) {
       return system.index;
@@ -399,10 +390,7 @@ export const getMeasureOriginInSystem = (
 
     // Apply justification if system is justified
     if (system.justification === 1.0 && system.measures.length > 1) {
-      const naturalWidth = system.measures.reduce(
-        (sum, i) => sum + (measureWidths[i] ?? 0),
-        0
-      );
+      const naturalWidth = system.measures.reduce((sum, i) => sum + (measureWidths[i] ?? 0), 0);
       const stretchFactor = system.contentWidth / naturalWidth;
       x += width * stretchFactor;
     } else {
