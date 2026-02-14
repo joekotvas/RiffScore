@@ -848,3 +848,149 @@ Run `npm run test` and visual verification.
 | `src/hooks/layout/useMetadataTrack.ts` | Create |
 | `src/__tests__/components/Canvas/MetadataTrack.test.tsx` | Create |
 | `src/__tests__/hooks/useMetadataTrack.test.ts` | Create |
+
+---
+
+## User Walkthrough & Manual Testing
+
+After implementation, verify the following manually:
+
+### 1. Run Tests
+```bash
+npm run test
+npm run lint
+```
+
+### 2. Start Demo App
+```bash
+npm run demo:dev
+```
+
+### 3. Test Hover Preview
+
+1. Switch to page view
+2. Hover over title block area
+3. **Verify:** Empty fields show placeholder text at 50% opacity
+
+### 4. Test Click-to-Edit
+
+1. Click on the title
+2. **Verify:** Input appears with text selected
+3. Type a new title
+4. Click outside or press Enter
+5. **Verify:** Title updates
+
+### 5. Test Tab Navigation
+
+1. Click on title to edit
+2. Press Tab
+3. **Verify:** Moves to Composer field
+4. Press Tab again
+5. **Verify:** Moves to Lyricist field
+6. Press Tab again
+7. **Verify:** Exits to first note via `selectFirstElement()`
+
+### 6. Test Shift+Tab Navigation
+
+1. Click on Lyricist to edit
+2. Press Shift+Tab
+3. **Verify:** Moves to Composer field
+4. Press Shift+Tab again
+5. **Verify:** Moves to Title field
+
+### 7. Test Escape to Cancel
+
+1. Click on title
+2. Change the text
+3. Press Escape
+4. **Verify:** Original title is restored
+
+### 8. Test Cmd/Ctrl+Click Selection
+
+1. Cmd+Click (Mac) or Ctrl+Click (Windows) on Composer
+2. **Verify:** Field is selected (highlighted) but not in edit mode
+3. Press Delete or Backspace
+4. **Verify:** Field content is cleared
+
+### 9. Test Page Numbers
+
+1. Create a long score that spans multiple pages
+2. Switch to page view
+3. **Verify:** Page number appears centered at bottom of each page
+4. **Verify:** Page numbers increment (1, 2, 3...)
+
+### 10. Test Copyright
+
+1. Add copyright text via Score Setup dialog
+2. **Verify:** Copyright appears at bottom of page 1 only
+3. **Verify:** Copyright is above page number
+
+### 11. Test Print Output
+
+1. Print the score
+2. **Verify:** Metadata appears in print
+3. **Verify:** Placeholder text does NOT appear in print
+4. **Verify:** Page numbers appear on all pages
+
+---
+
+## Phase Completion & Recalibration
+
+### Before Moving to Phase 8
+
+After completing Phase 7:
+
+1. **Verify interaction parity with ChordTrack**
+   - Same hover behavior
+   - Same keyboard navigation
+   - Same selection behavior
+
+2. **Check styling consistency**
+   - Preview opacity matches chords
+   - Input styling matches
+
+3. **Review Phase 8 prompt**
+   - Is metadata correctly structured for export?
+   - Any fields missing from export?
+
+### Recalibration Checklist
+
+- [ ] All tests pass
+- [ ] Hover preview works
+- [ ] Click-to-edit works
+- [ ] Tab/Shift+Tab navigation works
+- [ ] Escape cancels correctly
+- [ ] Selection/deletion works
+- [ ] Page numbers render correctly
+- [ ] Copyright on page 1 only
+- [ ] Print output correct
+- [ ] Phase 8 prompt reviewed and updated if needed
+
+### Commit Template
+
+```bash
+git add src/components/Canvas/MetadataTrack.tsx src/components/Canvas/MetadataField.tsx \
+        src/components/Canvas/MetadataInput.tsx src/components/Canvas/PageFooter.tsx \
+        src/components/Canvas/MetadataTrack.css src/hooks/layout/useMetadataTrack.ts
+git commit -m "feat(#174): implement WYSIWYG metadata editing
+
+- Create MetadataTrack container (reuses ChordTrack pattern)
+- Create MetadataField display component
+- Create MetadataInput with Tab/Escape/Enter handling
+- Create PageFooter with copyright and page numbers
+- Add useMetadataTrack hook for state management
+- Implement hover preview at 50% opacity
+- Implement selectFirstElement() exit on Tab
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Notes for Subsequent Phases
+
+After this phase:
+- Metadata is editable inline (WYSIWYG)
+- Page numbers appear on all pages
+- Copyright appears on page 1
+- Phase 8 will export metadata to ABC/MusicXML
