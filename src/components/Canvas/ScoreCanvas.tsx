@@ -12,11 +12,13 @@ import { Note } from 'tonal';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
 import Staff from './Staff';
+import { PageBoundary } from './PageBoundary';
+import { MeasureNumber } from './MeasureNumber';
 import { getActiveStaff, Staff as StaffType, DEFAULT_CHORD_DISPLAY } from '@/types';
 import { HitZone } from '@/engines/layout/types';
 import { useScoreContext } from '@/context/ScoreContext';
 import { useScoreInteraction } from '@/hooks/interaction';
-import { useAutoScroll, useCursorLayout } from '@/hooks/layout';
+import { useAutoScroll, useCursorLayout, usePageLayout } from '@/hooks/layout';
 import { useScoreLayout } from '@/hooks/layout';
 import { useDragToSelect } from '@/hooks/interaction';
 import GrandStaffBracket from '../Assets/GrandStaffBracket';
@@ -31,8 +33,6 @@ import { getChordVoicing } from '@/services/ChordService';
 
 import './styles/ScoreCanvas.css';
 import type { UseChordTrackReturn } from '@/hooks/chord/useChordTrack';
-
-import './styles/ScoreCanvas.css';
 
 interface ScoreCanvasProps {
   scale: number;
@@ -176,6 +176,10 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   // Use the centralized layout hook for both rendering and hit detection
   const { layout } = useScoreLayout({ score });
 
+  // --- PAGE LAYOUT ---
+  // Use page layout hook for multi-system rendering in page view
+  const { pageLayout, isPageView } = usePageLayout();
+
   // Flatten layout for hit detection (interaction layer)
   // This replaces the old notePositions calculation
   const notePositions = useMemo(() => {
@@ -213,20 +217,30 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
 
   const totalWidth = useMemo(() => {
+    // In page view, use page dimensions
+    if (isPageView) {
+      return pageLayout.dimensions.width;
+    }
+    // In scroll view, calculate from measure positions
     if (layout.staves.length > 0) {
       const firstStaff = layout.staves[0];
       const lastMeasure = firstStaff.measures[firstStaff.measures.length - 1];
       return lastMeasure ? lastMeasure.x + lastMeasure.width + 50 : 800;
     }
     return 800;
-  }, [layout]);
+  }, [layout, isPageView, pageLayout.dimensions.width]);
 
   // SVG height derived from layout (forward-flow pattern)
   const svgHeight = useMemo(() => {
+    // In page view, use page dimensions
+    if (isPageView) {
+      return pageLayout.dimensions.height;
+    }
+    // In scroll view, derive from content
     const contentBottom = layout.getY.content.bottom;
     // Add padding below content
     return contentBottom > 0 ? contentBottom + 50 : 200;
-  }, [layout]);
+  }, [layout, isPageView, pageLayout.dimensions.height]);
 
   // Cursor layout (consumes centralized layout - no duplicate calculations)
   // Calculate cursor layout
@@ -450,72 +464,165 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
         onMouseDown={handleDragSelectMouseDown}
       >
         <g transform={`scale(${scale})`}>
-          {score.staves?.length > 1 && (
-            <>
-              {(() => {
-                const systemBounds = layout.getY.system(0);
-                if (!systemBounds) return null;
+          {/* Page View Rendering */}
+          {isPageView && (
+            <g className="riff-page-view">
+              <PageBoundary pageLayout={pageLayout} />
+
+              {pageLayout.systems.map((system) => {
+                const firstMeasureIndex = system.measures[0];
+
                 return (
-                  <GrandStaffBracket
-                    topY={systemBounds.top}
-                    bottomY={systemBounds.bottom}
-                    x={-20}
-                  />
+                  <g
+                    key={`system-${system.index}`}
+                    className="riff-system"
+                    transform={`translate(0, ${system.y})`}
+                  >
+                    {/* Measure number at start of system */}
+                    <MeasureNumber
+                      measureIndex={firstMeasureIndex}
+                      x={system.xOffset}
+                      y={0}
+                      staffScale={pageLayout.staffScale}
+                    />
+
+                    {/* Grand staff bracket for this system */}
+                    {score.staves?.length > 1 && (
+                      <GrandStaffBracket
+                        topY={0}
+                        bottomY={system.height}
+                        x={system.xOffset - 20}
+                      />
+                    )}
+
+                    {/* Staves in this system - TODO: render only system measures */}
+                    {score.staves?.map((staff: StaffType, staffIndex: number) => {
+                      const staffBaseY = staffIndex * CONFIG.staffSpacing;
+
+                      const interaction = {
+                        selection,
+                        previewNote,
+                        activeDuration,
+                        isDotted,
+                        modifierHeld,
+                        isDragging: dragState.active,
+                        lassoPreviewIds: previewNoteIds,
+                        onAddNote: addNoteToMeasure,
+                        onSelectNote: memoizedOnSelectNote,
+                        onDragStart: memoizedOnDragStart,
+                        onHover: getHoverHandler(staffIndex),
+                      };
+
+                      const isTop = staffIndex === 0;
+                      const isBottom = staffIndex === score.staves.length - 1;
+                      const mouseLimits = {
+                        min: isTop ? CLAMP_LIMITS.OUTER_TOP : -CLAMP_LIMITS.INNER_OFFSET,
+                        max: isBottom
+                          ? CLAMP_LIMITS.OUTER_BOTTOM
+                          : STAFF_HEIGHT + CLAMP_LIMITS.INNER_OFFSET,
+                      };
+
+                      return (
+                        <Staff
+                          key={`${staff.id || staffIndex}-system-${system.index}`}
+                          staffIndex={staffIndex}
+                          clef={staff.clef || (staffIndex === 0 ? 'treble' : 'bass')}
+                          keySignature={staff.keySignature || keySignature}
+                          timeSignature={timeSignature}
+                          measures={staff.measures}
+                          staffLayout={layout.staves[staffIndex]}
+                          baseY={staffBaseY}
+                          scale={scale}
+                          isSystemStart={true}
+                          systemIndex={system.index}
+                          interaction={interaction}
+                          onClefClick={onClefClick}
+                          onKeySigClick={onKeySigClick}
+                          onTimeSigClick={onTimeSigClick}
+                          mouseLimits={mouseLimits}
+                        />
+                      );
+                    })}
+                  </g>
                 );
-              })()}
-            </>
+              })}
+            </g>
           )}
 
-          {score.staves?.map((staff: StaffType, staffIndex: number) => {
-            // Get staff Y from layout (forward-flow pattern)
-            const staffBounds = layout.getY.staff(staffIndex);
-            const staffBaseY = staffBounds?.top ?? CONFIG.baseY + staffIndex * CONFIG.staffSpacing;
+          {/* Scroll View Rendering (existing) */}
+          {!isPageView && (
+            <>
+              {score.staves?.length > 1 && (
+                <>
+                  {(() => {
+                    const systemBounds = layout.getY.system(0);
+                    if (!systemBounds) return null;
+                    return (
+                      <GrandStaffBracket
+                        topY={systemBounds.top}
+                        bottomY={systemBounds.bottom}
+                        x={-20}
+                      />
+                    );
+                  })()}
+                </>
+              )}
 
-            // Construct Interaction State - using memoized callbacks for stable references
-            const interaction = {
-              selection, // Always pass the real selection - isNoteSelected checks staffIndex per-note
-              previewNote, // Global preview note (Staff filters it)
-              activeDuration,
-              isDotted,
-              modifierHeld,
-              isDragging: dragState.active,
-              lassoPreviewIds: previewNoteIds, // Set<string> for O(1) lasso preview lookup
-              onAddNote: addNoteToMeasure,
-              onSelectNote: memoizedOnSelectNote,
-              onDragStart: memoizedOnDragStart,
-              onHover: getHoverHandler(staffIndex),
-            };
+              {score.staves?.map((staff: StaffType, staffIndex: number) => {
+                // Get staff Y from layout (forward-flow pattern)
+                const staffBounds = layout.getY.staff(staffIndex);
+                const staffBaseY =
+                  staffBounds?.top ?? CONFIG.baseY + staffIndex * CONFIG.staffSpacing;
 
-            // Calculate clamping limits for Grand Staff
-            // Outer limits: 4 ledger lines (-48, 90)
-            // Inner limits: 2 ledger lines (24, -24) to avoid overlap
-            const isTop = staffIndex === 0;
-            const isBottom = staffIndex === score.staves.length - 1;
+                // Construct Interaction State - using memoized callbacks for stable references
+                const interaction = {
+                  selection, // Always pass the real selection - isNoteSelected checks staffIndex per-note
+                  previewNote, // Global preview note (Staff filters it)
+                  activeDuration,
+                  isDotted,
+                  modifierHeld,
+                  isDragging: dragState.active,
+                  lassoPreviewIds: previewNoteIds, // Set<string> for O(1) lasso preview lookup
+                  onAddNote: addNoteToMeasure,
+                  onSelectNote: memoizedOnSelectNote,
+                  onDragStart: memoizedOnDragStart,
+                  onHover: getHoverHandler(staffIndex),
+                };
 
-            const mouseLimits = {
-              min: isTop ? CLAMP_LIMITS.OUTER_TOP : -CLAMP_LIMITS.INNER_OFFSET,
-              max: isBottom ? CLAMP_LIMITS.OUTER_BOTTOM : STAFF_HEIGHT + CLAMP_LIMITS.INNER_OFFSET,
-            };
+                // Calculate clamping limits for Grand Staff
+                // Outer limits: 4 ledger lines (-48, 90)
+                // Inner limits: 2 ledger lines (24, -24) to avoid overlap
+                const isTop = staffIndex === 0;
+                const isBottom = staffIndex === score.staves.length - 1;
 
-            return (
-              <Staff
-                key={staff.id || staffIndex}
-                staffIndex={staffIndex}
-                clef={staff.clef || (staffIndex === 0 ? 'treble' : 'bass')}
-                keySignature={staff.keySignature || keySignature}
-                timeSignature={timeSignature}
-                measures={staff.measures}
-                staffLayout={layout.staves[staffIndex]}
-                baseY={staffBaseY}
-                scale={scale}
-                interaction={interaction}
-                onClefClick={onClefClick}
-                onKeySigClick={onKeySigClick}
-                onTimeSigClick={onTimeSigClick}
-                mouseLimits={mouseLimits}
-              />
-            );
-          })}
+                const mouseLimits = {
+                  min: isTop ? CLAMP_LIMITS.OUTER_TOP : -CLAMP_LIMITS.INNER_OFFSET,
+                  max: isBottom
+                    ? CLAMP_LIMITS.OUTER_BOTTOM
+                    : STAFF_HEIGHT + CLAMP_LIMITS.INNER_OFFSET,
+                };
+
+                return (
+                  <Staff
+                    key={staff.id || staffIndex}
+                    staffIndex={staffIndex}
+                    clef={staff.clef || (staffIndex === 0 ? 'treble' : 'bass')}
+                    keySignature={staff.keySignature || keySignature}
+                    timeSignature={timeSignature}
+                    measures={staff.measures}
+                    staffLayout={layout.staves[staffIndex]}
+                    baseY={staffBaseY}
+                    scale={scale}
+                    interaction={interaction}
+                    onClefClick={onClefClick}
+                    onKeySigClick={onKeySigClick}
+                    onTimeSigClick={onTimeSigClick}
+                    mouseLimits={mouseLimits}
+                  />
+                );
+              })}
+            </>
+          )}
 
           {/* Chord Track - rendered AFTER staves so it's on top for event capture */}
           <ChordTrack

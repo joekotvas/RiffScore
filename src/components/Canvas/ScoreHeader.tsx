@@ -10,6 +10,8 @@ interface ScoreHeaderProps {
   keySignature: string;
   timeSignature: string;
   baseY?: number; // Y position for this staff
+  /** Whether to show the time signature. Default: true. Set to false on non-first systems. */
+  showTimeSignature?: boolean;
   onClefClick: (e: React.MouseEvent) => void;
   onKeySigClick: (e: React.MouseEvent) => void;
   onTimeSigClick: (e: React.MouseEvent) => void;
@@ -60,6 +62,7 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
   keySignature,
   timeSignature,
   baseY = CONFIG.baseY,
+  showTimeSignature = true,
   onClefClick,
   onKeySigClick,
   onTimeSigClick,
@@ -146,30 +149,32 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
         })}
       </g>
 
-      {/* Time Signature */}
-      <g onClick={onTimeSigClick} style={{ cursor: 'pointer', userSelect: 'none' }}>
-        <rect x={timeSigStartX} y={baseY} width={timeSigWidth} height="48" fill="transparent" />
-        <text
-          x={timeSigStartX + 15}
-          y={baseY + CONFIG.lineHeight}
-          fontSize={getFontSize(CONFIG.lineHeight)}
-          fontFamily={BRAVURA_FONT}
-          textAnchor="middle"
-          fill={theme.text}
-        >
-          {TIME_SIG_DIGITS[timeSignature.split('/')[0] as keyof typeof TIME_SIG_DIGITS]}
-        </text>
-        <text
-          x={timeSigStartX + 15}
-          y={baseY + CONFIG.lineHeight * 3}
-          fontSize={getFontSize(CONFIG.lineHeight)}
-          fontFamily={BRAVURA_FONT}
-          textAnchor="middle"
-          fill={theme.text}
-        >
-          {TIME_SIG_DIGITS[timeSignature.split('/')[1] as keyof typeof TIME_SIG_DIGITS]}
-        </text>
-      </g>
+      {/* Time Signature - only shown on first system */}
+      {showTimeSignature && (
+        <g onClick={onTimeSigClick} style={{ cursor: 'pointer', userSelect: 'none' }}>
+          <rect x={timeSigStartX} y={baseY} width={timeSigWidth} height="48" fill="transparent" />
+          <text
+            x={timeSigStartX + 15}
+            y={baseY + CONFIG.lineHeight}
+            fontSize={getFontSize(CONFIG.lineHeight)}
+            fontFamily={BRAVURA_FONT}
+            textAnchor="middle"
+            fill={theme.text}
+          >
+            {TIME_SIG_DIGITS[timeSignature.split('/')[0] as keyof typeof TIME_SIG_DIGITS]}
+          </text>
+          <text
+            x={timeSigStartX + 15}
+            y={baseY + CONFIG.lineHeight * 3}
+            fontSize={getFontSize(CONFIG.lineHeight)}
+            fontFamily={BRAVURA_FONT}
+            textAnchor="middle"
+            fill={theme.text}
+          >
+            {TIME_SIG_DIGITS[timeSignature.split('/')[1] as keyof typeof TIME_SIG_DIGITS]}
+          </text>
+        </g>
+      )}
     </g>
   );
 };

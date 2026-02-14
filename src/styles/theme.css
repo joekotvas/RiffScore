@@ -152,4 +152,43 @@
   --riff-modal-max-width-md: 28rem; /* 448px */
   --riff-modal-max-width-lg: 32rem; /* 512px */
   --riff-modal-max-width-xl: 42rem; /* 672px */
+
+  /* ========== Page View ========== */
+  --riff-page-bg: #f5f5f5;
+  --riff-page-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --riff-page-border: 1px solid #ddd;
+  --riff-system-gap-normal: 2;
+  --riff-first-system-indent: 15%;
+  --riff-measure-number-size: 10px;
+  --riff-measure-number-color: #666;
+}
+
+/* ========== Page View Component Styles ========== */
+
+.riff-PageBoundary {
+  filter: drop-shadow(var(--riff-page-shadow));
+}
+
+.riff-page-view {
+  /* Page view container */
+}
+
+.riff-system {
+  /* System group */
+}
+
+.riff-MeasureNumber {
+  font-size: var(--riff-measure-number-size);
+  fill: var(--riff-measure-number-color);
+  font-family: var(--riff-font-sans);
+  font-weight: var(--riff-font-weight-normal);
+}
+
+.riff-Tie {
+  /* Tie arc styling */
+}
+
+.riff-barline--system {
+  stroke: var(--riff-color-text);
+  stroke-width: 1;
 }

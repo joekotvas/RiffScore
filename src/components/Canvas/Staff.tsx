@@ -47,6 +47,12 @@ export interface StaffProps {
   staffLayout?: StaffLayout;
   scale: number;
 
+  // Page view props
+  /** Whether this is the start of a system (renders clef/key sig). Default: true */
+  isSystemStart?: boolean;
+  /** System index (0 = first system, shows time signature). Default: 0 */
+  systemIndex?: number;
+
   // Interaction (Grouped)
   interaction: InteractionState;
 
@@ -75,6 +81,8 @@ const Staff: React.FC<StaffProps> = ({
   baseY = CONFIG.baseY,
   staffLayout,
   scale,
+  isSystemStart = true,
+  systemIndex = 0,
   interaction,
   mouseLimits,
   onClefClick,
@@ -246,25 +254,28 @@ const Staff: React.FC<StaffProps> = ({
 
   return (
     <g className="staff" transform={`translate(0, ${verticalOffset})`}>
-      {/* Staff Header (Clef, Key Sig, Time Sig) */}
-      <ScoreHeader
-        clef={clef}
-        keySignature={keySignature}
-        timeSignature={timeSignature}
-        baseY={CONFIG.baseY} // Use normalized baseY
-        onClefClick={(e) => {
-          e.stopPropagation();
-          if (onClefClick) onClefClick();
-        }}
-        onKeySigClick={(e) => {
-          e.stopPropagation();
-          if (onKeySigClick) onKeySigClick();
-        }}
-        onTimeSigClick={(e) => {
-          e.stopPropagation();
-          if (onTimeSigClick) onTimeSigClick();
-        }}
-      />
+      {/* Staff Header (Clef, Key Sig, Time Sig) - only at system start */}
+      {isSystemStart && (
+        <ScoreHeader
+          clef={clef}
+          keySignature={keySignature}
+          timeSignature={timeSignature}
+          baseY={CONFIG.baseY} // Use normalized baseY
+          showTimeSignature={systemIndex === 0}
+          onClefClick={(e) => {
+            e.stopPropagation();
+            if (onClefClick) onClefClick();
+          }}
+          onKeySigClick={(e) => {
+            e.stopPropagation();
+            if (onKeySigClick) onKeySigClick();
+          }}
+          onTimeSigClick={(e) => {
+            e.stopPropagation();
+            if (onTimeSigClick) onTimeSigClick();
+          }}
+        />
+      )}
 
       {/* Measures */}
       {measureComponents}
