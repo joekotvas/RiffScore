@@ -239,12 +239,13 @@ describe('calculateScoreLayout', () => {
   });
 
   describe('layout.getX', () => {
-    it('should return X position for quants with notes', () => {
+    it('should return measure-relative X position for quants with notes', () => {
       const score = createTestScore();
       const layout = calculateScoreLayout(score);
 
-      // First beat (quant 0) should have a valid X position
-      const x = layout.getX(0);
+      // First beat (quant 0) should have a valid measure-relative X position
+      const x = layout.getX({ measure: 0, quant: 0 });
+      expect(x).not.toBeNull();
       expect(x).toBeGreaterThan(0);
     });
 
@@ -254,17 +255,17 @@ describe('calculateScoreLayout', () => {
 
       // Interpolation uses measure boundaries, not exact note positions
       // So interpolated values progress through the measure
-      const x12 = layout.getX(12); // 12.5% through measure
-      const x48 = layout.getX(48); // 50% through measure
+      const x12 = layout.getX({ measure: 0, quant: 12 }); // ~12.5% through measure
+      const x48 = layout.getX({ measure: 0, quant: 48 }); // ~50% through measure
 
-      // Later quants should have higher X values (further right)
-      expect(x48).toBeGreaterThan(x12);
+      // Later quants should have higher X values (further right within measure)
+      expect(x48).toBeGreaterThan(x12!);
 
-      // Values should be positive (within the score area)
+      // Values should be positive (within the measure)
       expect(x12).toBeGreaterThan(0);
     });
 
-    it('should return 0 for empty score', () => {
+    it('should return null for empty score', () => {
       const emptyScore: Score = {
         title: 'Empty',
         staves: [],
@@ -274,22 +275,67 @@ describe('calculateScoreLayout', () => {
       };
       const layout = calculateScoreLayout(emptyScore);
 
-      expect(layout.getX(0)).toBe(0);
-      expect(layout.getX(100)).toBe(0);
+      expect(layout.getX({ measure: 0, quant: 0 })).toBeNull();
+      expect(layout.getX({ measure: 1, quant: 0 })).toBeNull();
     });
 
-    it('should handle quants in different measures', () => {
+    it('should return null for invalid measure index', () => {
       const score = createTestScore();
       const layout = calculateScoreLayout(score);
-      const quantsPerMeasure = 96; // 4/4 time
 
-      // Beat 1 of measure 1
-      const x_m1_b1 = layout.getX(0);
-      // Beat 1 of measure 2
-      const x_m2_b1 = layout.getX(quantsPerMeasure);
+      // Test score has 2 measures, so measure 99 should return null
+      expect(layout.getX({ measure: 99, quant: 0 })).toBeNull();
+    });
 
-      // Measure 2 should start after measure 1
-      expect(x_m2_b1).toBeGreaterThan(x_m1_b1);
+    it('should return consistent measure-relative positions across measures', () => {
+      const score = createTestScore();
+      const layout = calculateScoreLayout(score);
+
+      // Beat 1 (quant 0) in both measures should have similar relative X
+      const x_m1_b1 = layout.getX({ measure: 0, quant: 0 });
+      const x_m2_b1 = layout.getX({ measure: 1, quant: 0 });
+
+      // Relative positions at the same beat should be similar
+      // (not exact due to different content, but both should be in the measure padding area)
+      expect(x_m1_b1).not.toBeNull();
+      expect(x_m2_b1).not.toBeNull();
+      expect(x_m1_b1).toBeGreaterThan(0);
+      expect(x_m2_b1).toBeGreaterThan(0);
+    });
+
+    describe('measureOrigin', () => {
+      it('should return measure origin X for valid measure', () => {
+        const score = createTestScore();
+        const layout = calculateScoreLayout(score);
+
+        const origin0 = layout.getX.measureOrigin({ measure: 0 });
+        const origin1 = layout.getX.measureOrigin({ measure: 1 });
+
+        expect(origin0).not.toBeNull();
+        expect(origin1).not.toBeNull();
+        // Measure 2 origin should be after measure 1 origin
+        expect(origin1).toBeGreaterThan(origin0!);
+      });
+
+      it('should return null for invalid measure index', () => {
+        const score = createTestScore();
+        const layout = calculateScoreLayout(score);
+
+        expect(layout.getX.measureOrigin({ measure: 99 })).toBeNull();
+      });
+
+      it('should return null for empty score', () => {
+        const emptyScore: Score = {
+          title: 'Empty',
+          staves: [],
+          keySignature: 'C',
+          timeSignature: '4/4',
+          bpm: 120,
+        };
+        const layout = calculateScoreLayout(emptyScore);
+
+        expect(layout.getX.measureOrigin({ measure: 0 })).toBeNull();
+      });
     });
   });
 

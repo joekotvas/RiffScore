@@ -6,13 +6,37 @@
  */
 import { renderHook } from '@testing-library/react';
 import { useCursorLayout } from '@/hooks/layout/useCursorLayout';
-import { ScoreLayout, StaffLayout } from '@/engines/layout/types';
+import { ScoreLayout, StaffLayout, YBounds } from '@/engines/layout/types';
+import { CONFIG } from '@/config';
+
+// Helper to create mock getX function matching the new API
+const createMockGetX = (measureOrigins: number[] = []) => {
+  const getX = (_params: { measure: number; quant: number }): number | null => null;
+  getX.measureOrigin = (params: { measure: number }): number | null =>
+    measureOrigins[params.measure] ?? null;
+  return getX;
+};
+
+// Helper to create mock getY function
+const createMockGetY = (): ScoreLayout['getY'] => {
+  const staffHeight = CONFIG.lineHeight * 4;
+  const bounds: YBounds = { top: CONFIG.baseY, bottom: CONFIG.baseY + staffHeight };
+  return {
+    content: bounds,
+    system: (index: number) => (index === 0 ? bounds : null),
+    staff: (index: number) => (index === 0 ? bounds : null),
+    notes: () => bounds,
+    pitch: () => null,
+  };
+};
 
 describe('useCursorLayout', () => {
   const createEmptyLayout = (): ScoreLayout => ({
     staves: [],
     notes: {},
     events: {},
+    getX: createMockGetX(),
+    getY: createMockGetY(),
   });
 
   const createSingleStaffLayout = (): ScoreLayout => ({
@@ -42,6 +66,8 @@ describe('useCursorLayout', () => {
     ],
     notes: {},
     events: {},
+    getX: createMockGetX([80]),
+    getY: createMockGetY(),
   });
 
   const createGrandStaffLayout = (): ScoreLayout => ({
@@ -102,6 +128,8 @@ describe('useCursorLayout', () => {
     ],
     notes: {},
     events: {},
+    getX: createMockGetX([80, 200]),
+    getY: createMockGetY(),
   });
 
   describe('basic behavior', () => {
@@ -237,6 +265,8 @@ describe('useCursorLayout', () => {
         ],
         notes: {},
         events: {},
+        getX: createMockGetX([80]),
+        getY: createMockGetY(),
       };
 
       const { result } = renderHook(() =>
@@ -297,6 +327,8 @@ describe('useCursorLayout', () => {
         ],
         notes: {},
         events: {},
+        getX: createMockGetX([80]),
+        getY: createMockGetY(),
       };
 
       const { result } = renderHook(() =>

@@ -131,11 +131,23 @@ export interface ScoreLayout {
   events: Record<string, EventLayout>;
 
   /**
-   * Get X coordinate for any quant position.
+   * Get X coordinate for any quant position (measure-relative).
    * Single entry point for ALL positioned elements (chords, cursor, lyrics, dynamics).
-   * Handles exact match lookup and interpolation fallback.
+   *
+   * Usage:
+   * ```typescript
+   * <g transform={`translate(${layout.getX.measureOrigin({ measure }) ?? 0}, 0)`}>
+   *   <Element x={layout.getX({ measure, quant }) ?? 0} />
+   * </g>
+   * ```
    */
-  getX: (quant: number) => number;
+  getX: {
+    /** X position within a measure (measure-relative) */
+    (params: { measure: number; quant: number }): number | null;
+
+    /** Measure's origin X (for SVG transforms) */
+    measureOrigin: (params: { measure: number }) => number | null;
+  };
 
   /**
    * Get Y coordinates for vertical positioning.

@@ -109,11 +109,16 @@ function getBeatPosition(measure: number, quant: number): string {
 }
 
 /**
- * Convert measure-local position to global quant for layout.getX()
- * (Temporary bridge until Stage 1 updates layout API)
+ * Get X position for a chord position using measure-relative layout.
+ * Returns absolute X by combining measureOrigin and local X.
  */
-function positionToGlobalQuant(position: ChordPosition, quantsPerMeasure: number): number {
-  return position.measure * quantsPerMeasure + position.quant;
+function getAbsoluteX(
+  position: ChordPosition,
+  layout: ScoreLayout
+): number {
+  const measureOrigin = layout.getX.measureOrigin({ measure: position.measure }) ?? 0;
+  const localX = layout.getX({ measure: position.measure, quant: position.quant }) ?? 0;
+  return measureOrigin + localX;
 }
 
 /**
@@ -123,8 +128,6 @@ function positionToGlobalQuant(position: ChordPosition, quantsPerMeasure: number
 function xToNearestPosition(
   x: number,
   validPositions: Map<number, Set<number>>,
-  measurePositions: MeasurePosition[],
-  quantsPerMeasure: number,
   layout: ScoreLayout,
   snapDistance = 24
 ): ChordPosition | null {
@@ -133,14 +136,13 @@ function xToNearestPosition(
 
   for (const [measure, quants] of validPositions) {
     for (const quant of quants) {
-      const globalQuant = measure * quantsPerMeasure + quant;
-      const qx = layout.getX(globalQuant);
-      if (qx === null) continue;
+      const position = { measure, quant };
+      const qx = getAbsoluteX(position, layout);
 
       const dist = Math.abs(x - qx);
       if (dist < nearestDist) {
         nearestDist = dist;
-        nearest = { measure, quant };
+        nearest = position;
       }
     }
   }
@@ -215,7 +217,8 @@ export const ChordTrack = memo(function ChordTrack({
   const getChordYOffset = useCallback(
     (position: ChordPosition): number => {
       const { paddingAboveNotes, minY } = CONFIG.chordTrack;
-      const globalQuant = positionToGlobalQuant(position, quantsPerMeasure);
+      // Note: getY.notes still uses global quant for now
+      const globalQuant = position.measure * quantsPerMeasure + position.quant;
 
       const noteY = layout.getY.notes(globalQuant).top;
       const systemNoteY = layout.getY.notes().top;
@@ -245,13 +248,7 @@ export const ChordTrack = memo(function ChordTrack({
       e.preventDefault();
 
       const { x } = clientToSvg(e.clientX, e.clientY, e.currentTarget);
-      const position = xToNearestPosition(
-        x,
-        validPositions,
-        measurePositions,
-        quantsPerMeasure,
-        layout
-      );
+      const position = xToNearestPosition(x, validPositions, layout);
 
       if (position !== null) {
         const existingChord = chords.find(
@@ -269,19 +266,13 @@ export const ChordTrack = memo(function ChordTrack({
         }
       }
     },
-    [validPositions, measurePositions, quantsPerMeasure, layout, chords, onChordClick, onChordSelect, onEmptyClick]
+    [validPositions, layout, chords, onChordClick, onChordSelect, onEmptyClick]
   );
 
   const handleTrackMouseMove = useCallback(
     (e: React.MouseEvent<SVGGElement>) => {
       const { x } = clientToSvg(e.clientX, e.clientY, e.currentTarget);
-      const position = xToNearestPosition(
-        x,
-        validPositions,
-        measurePositions,
-        quantsPerMeasure,
-        layout
-      );
+      const position = xToNearestPosition(x, validPositions, layout);
 
       if (position !== null) {
         const existingChord = chords.find(
@@ -300,7 +291,7 @@ export const ChordTrack = memo(function ChordTrack({
         setCursorStyle('default');
       }
     },
-    [validPositions, measurePositions, quantsPerMeasure, layout, chords]
+    [validPositions, layout, chords]
   );
 
   const handleTrackMouseLeave = useCallback(() => {
@@ -325,15 +316,14 @@ export const ChordTrack = memo(function ChordTrack({
   const chordPositions = useMemo(() => {
     return chords.map((chord) => {
       const position = { measure: chord.measure, quant: chord.quant };
-      const globalQuant = positionToGlobalQuant(position, quantsPerMeasure);
       return {
         chord,
-        x: layout.getX(globalQuant),
+        x: getAbsoluteX(position, layout),
         beatPosition: getBeatPosition(chord.measure, chord.quant),
         yOffset: getChordYOffset(position),
       };
     });
-  }, [chords, layout, quantsPerMeasure, getChordYOffset]);
+  }, [chords, layout, getChordYOffset]);
 
   return (
     <g
@@ -393,7 +383,7 @@ export const ChordTrack = memo(function ChordTrack({
       {editingChordId === 'new' && creatingAt !== null && (
         <g transform={`translate(0, ${getChordYOffset(creatingAt)})`}>
           <ChordInput
-            x={layout.getX(positionToGlobalQuant(creatingAt, quantsPerMeasure))}
+            x={getAbsoluteX(creatingAt, layout)}
             initialValue=""
             onComplete={(value) => onEditComplete(null, value)}
             onCancel={onEditCancel}
@@ -409,7 +399,7 @@ export const ChordTrack = memo(function ChordTrack({
           <text
             className="riff-ChordSymbol riff-ChordSymbol--preview"
             data-testid="chord-preview-ghost"
-            x={layout.getX(positionToGlobalQuant(previewPosition, quantsPerMeasure))}
+            x={getAbsoluteX(previewPosition, layout)}
             y={0}
             textAnchor="middle"
             dominantBaseline="central"

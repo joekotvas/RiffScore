@@ -18,8 +18,6 @@ import {
   calculateBeamingGroups,
   calculateSystemLayout,
   getNoteWidth,
-  quantToX,
-  MeasurePosition,
 } from '@/engines/layout';
 import { calculateTupletBrackets } from '@/engines/layout/tuplets';
 import { ScoreLayout, StaffLayout, MeasureLayoutV2, EventLayout, NoteLayout, YBounds } from './types';
@@ -167,8 +165,11 @@ const processEventLayout = (
  * @returns ScoreLayout object containing full position maps and getX function
  */
 export const calculateScoreLayout = (score: Score): ScoreLayout => {
-  // Default getX for empty scores - returns 0 for any quant
-  const emptyGetX = (): number => 0;
+  // Default getX for empty scores - returns null for any position
+  const emptyGetX = Object.assign(
+    (_params: { measure: number; quant: number }): number | null => null,
+    { measureOrigin: (_params: { measure: number }): number | null => null }
+  );
 
   // Default getY for empty scores
   const emptyGetY: ScoreLayout['getY'] = {
@@ -255,24 +256,32 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
     layout.staves.push(staffLayout);
   });
 
-  // --- Build getX function ---
+  // --- Build getX function (measure-relative) ---
   const timeSignature = score.timeSignature || '4/4';
   const quantsPerMeasure = TIME_SIGNATURES[timeSignature] || TIME_SIGNATURES['4/4'];
 
-  // Build quant→X map from note positions
-  const quantToXMap = new Map<number, number>();
-  Object.values(layout.notes).forEach((noteLayout) => {
-    const measure = score.staves[noteLayout.staffIndex]?.measures[noteLayout.measureIndex];
-    if (!measure) return;
+  // Build per-measure quant→X map (measure-relative coordinates)
+  // Map<measureIndex, Map<localQuant, relativeX>>
+  const measureQuantMaps = new Map<number, Map<number, number>>();
 
-    // Calculate global quant for this note
+  Object.values(layout.notes).forEach((noteLayout) => {
+    const measureData = score.staves[noteLayout.staffIndex]?.measures[noteLayout.measureIndex];
+    const measureLayout = layout.staves[noteLayout.staffIndex]?.measures[noteLayout.measureIndex];
+    if (!measureData || !measureLayout) return;
+
+    // Calculate local quant for this note
     let localQuant = 0;
-    for (const event of measure.events) {
+    for (const event of measureData.events) {
       if (event.id === noteLayout.eventId) {
-        const globalQuant = noteLayout.measureIndex * quantsPerMeasure + localQuant;
-        // Only set if not already set (use first note's X at each quant)
-        if (!quantToXMap.has(globalQuant)) {
-          quantToXMap.set(globalQuant, noteLayout.x);
+        // Initialize measure map if needed
+        if (!measureQuantMaps.has(noteLayout.measureIndex)) {
+          measureQuantMaps.set(noteLayout.measureIndex, new Map<number, number>());
+        }
+        const measureMap = measureQuantMaps.get(noteLayout.measureIndex)!;
+
+        // Store measure-relative X (note's absolute X - measure's origin X)
+        if (!measureMap.has(localQuant)) {
+          measureMap.set(localQuant, noteLayout.x - measureLayout.x);
         }
         break;
       }
@@ -280,13 +289,39 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
     }
   });
 
-  // Build measure positions for interpolation fallback
-  const measurePositions: MeasurePosition[] =
-    layout.staves[0]?.measures.map((m) => ({ x: m.x, width: m.width })) ?? [];
+  // Get measure layouts for origin lookup and interpolation
+  const measureLayouts = layout.staves[0]?.measures ?? [];
 
-  // Pre-bind the lookup function
-  const getX = (quant: number): number =>
-    quantToX(quant, quantToXMap, measurePositions, quantsPerMeasure) ?? 0;
+  // Measure origin lookup function
+  const measureOrigin = (params: { measure: number }): number | null => {
+    const measureLayout = measureLayouts[params.measure];
+    return measureLayout?.x ?? null;
+  };
+
+  // Main getX function (measure-relative)
+  const getXFn = (params: { measure: number; quant: number }): number | null => {
+    const { measure, quant } = params;
+
+    // Check bounds
+    const measureLayout = measureLayouts[measure];
+    if (!measureLayout) return null;
+
+    // Stage 1: Exact match lookup
+    const measureMap = measureQuantMaps.get(measure);
+    if (measureMap) {
+      const exact = measureMap.get(quant);
+      if (exact !== undefined) return exact;
+    }
+
+    // Stage 2: Interpolation fallback
+    // Calculate relative X within the measure based on quant proportion
+    const proportion = quant / quantsPerMeasure;
+    // Use measure width minus padding for content area
+    return CONFIG.measurePaddingLeft + proportion * (measureLayout.width - CONFIG.measurePaddingLeft - CONFIG.measurePaddingRight);
+  };
+
+  // Combine into callable with measureOrigin property
+  const getX = Object.assign(getXFn, { measureOrigin });
 
   // --- Build getY object ---
 

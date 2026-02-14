@@ -133,9 +133,26 @@ describe('ChordTrack', () => {
     { x: 200, width: 200, quant: 96 },
   ];
 
-  const mockQuantToX = (quant: number): number => {
-    // Simple linear mapping: 1 quant = 2 pixels, starting at x=50
-    return 50 + quant * 2;
+  // Mock getX with measure-relative API
+  // Produces same absolute X as old mockQuantToX: x = 50 + globalQuant * 2
+  // where globalQuant = measure * 64 + localQuant
+  const createMockGetX = () => {
+    const quantsPerMeasure = 64;
+    const numMeasures = 2;
+
+    const getX = (params: { measure: number; quant: number }): number | null => {
+      if (params.measure < 0 || params.measure >= numMeasures) return null;
+      // Local X is just quant * 2 (measure-relative)
+      return params.quant * 2;
+    };
+
+    getX.measureOrigin = (params: { measure: number }): number | null => {
+      if (params.measure < 0 || params.measure >= numMeasures) return null;
+      // Origin starts at 50, then advances by quantsPerMeasure * 2 per measure
+      return 50 + params.measure * quantsPerMeasure * 2;
+    };
+
+    return getX;
   };
 
   // Mock layout with getX and getY APIs
@@ -158,7 +175,7 @@ describe('ChordTrack', () => {
       staves: [{ y: staffTop, index: 0, measures: [] }],
       notes: {},
       events: {},
-      getX: mockQuantToX,
+      getX: createMockGetX(),
       getY: {
         content: { top: staffTop, bottom: staffBottom },
         system: (index: number) => (index === 0 ? { top: staffTop, bottom: staffBottom } : null),
