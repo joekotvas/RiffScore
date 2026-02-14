@@ -192,3 +192,25 @@
   stroke: var(--riff-color-text);
   stroke-width: 1;
 }
+
+/* Metadata (Title, Composer) */
+.riff-metadata__title {
+  font-size: var(--riff-font-size-2xl);
+  font-family: var(--riff-font-serif);
+  font-weight: var(--riff-font-weight-bold);
+  fill: var(--riff-color-text);
+}
+
+.riff-metadata__composer {
+  font-size: var(--riff-font-size-lg);
+  font-family: var(--riff-font-serif);
+  font-style: italic;
+  fill: var(--riff-color-text-secondary);
+}
+
+/* Footer (Page Number) */
+.riff-footer__page-number {
+  font-size: var(--riff-font-size-sm);
+  font-family: var(--riff-font-sans);
+  fill: var(--riff-color-text-secondary);
+}

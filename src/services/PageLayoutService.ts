@@ -7,7 +7,18 @@
  * All functions are pure and stateless.
  */
 
-import type { Score, LayoutConfig, PageLayout, SystemLayout } from '@/types';
+import type {
+  Score,
+  LayoutConfig,
+  PageLayout,
+  SystemLayout,
+  ContentArea,
+  MetadataLayout,
+  FooterLayout,
+  MarginsPx,
+  MeasurePosition,
+  ScoreMetadata,
+} from '@/types';
 import {
   DEFAULT_LAYOUT_CONFIG,
   PAGE_DIMENSIONS,
@@ -213,6 +224,125 @@ export const calculateJustification = (
 };
 
 // =============================================================================
+// ANCHOR LAYOUT CALCULATIONS
+// =============================================================================
+
+/**
+ * Calculates metadata (title, composer) layout positions.
+ *
+ * @param metadata - Score metadata
+ * @param contentArea - The content area within margins
+ * @returns MetadataLayout with positioned elements
+ */
+const calculateMetadataLayout = (
+  metadata: ScoreMetadata | undefined,
+  contentArea: ContentArea
+): MetadataLayout => {
+  // Default: no metadata, systems start at content top
+  if (!metadata?.title) {
+    return {
+      title: null,
+      composer: null,
+      bottom: contentArea.y,
+    };
+  }
+
+  // Title positioned at top of content, centered horizontally
+  const titleY = contentArea.y + METADATA_TYPOGRAPHY.titleHeight;
+  const titleX = contentArea.x + contentArea.width / 2;
+
+  let currentY = titleY + METADATA_TYPOGRAPHY.titleSpacing;
+  let composer: MetadataLayout['composer'] = null;
+
+  if (metadata.composer) {
+    const composerY = currentY + METADATA_TYPOGRAPHY.composerHeight / 2;
+    composer = {
+      text: metadata.composer,
+      x: titleX, // Centered below title
+      y: composerY,
+    };
+    currentY += METADATA_TYPOGRAPHY.composerHeight;
+  }
+
+  return {
+    title: { text: metadata.title, x: titleX, y: titleY },
+    composer,
+    bottom: currentY + METADATA_TYPOGRAPHY.blockSpacing,
+  };
+};
+
+/**
+ * Calculates footer layout for page numbers.
+ *
+ * @param contentArea - The content area within margins
+ * @param marginBottom - Bottom margin in pixels
+ * @param pageNumber - Current page number (1-based)
+ * @returns FooterLayout with positioned page number
+ */
+const calculateFooterLayout = (
+  contentArea: ContentArea,
+  marginBottom: number,
+  pageNumber: number = 1
+): FooterLayout => {
+  // Footer sits at bottom of content area, with space for page number
+  const footerHeight = 20; // Space for page number
+  const footerY = contentArea.y + contentArea.height - footerHeight;
+
+  return {
+    y: footerY,
+    pageNumber: {
+      text: String(pageNumber),
+      x: contentArea.x + contentArea.width / 2, // Centered
+      y: contentArea.y + contentArea.height + marginBottom / 2, // In bottom margin
+    },
+  };
+};
+
+/**
+ * Calculates measure positions within a system.
+ *
+ * @param systemXOffset - X offset for the system
+ * @param systemMeasures - Measure indices in this system
+ * @param measureWidths - Array of all measure widths
+ * @param systemContentWidth - Available content width for this system
+ * @param justification - Justification factor (1.0 = full)
+ * @returns Array of MeasurePosition with absolute X and computed width
+ */
+const calculateMeasurePositions = (
+  systemXOffset: number,
+  systemMeasures: number[],
+  measureWidths: number[],
+  systemContentWidth: number,
+  justification: number
+): MeasurePosition[] => {
+  const positions: MeasurePosition[] = [];
+
+  // Calculate natural total width
+  const naturalWidth = systemMeasures.reduce((sum, idx) => sum + (measureWidths[idx] ?? 0), 0);
+
+  // Stretch factor for justified systems
+  const stretchFactor =
+    justification === 1.0 && naturalWidth > 0 ? systemContentWidth / naturalWidth : 1.0;
+
+  let currentX = systemXOffset;
+
+  for (const measureIndex of systemMeasures) {
+    const naturalMeasureWidth = measureWidths[measureIndex] ?? 0;
+    const width = naturalMeasureWidth * stretchFactor;
+
+    positions.push({
+      measureIndex,
+      x: currentX,
+      width,
+    });
+
+    currentX += width;
+  }
+
+  return positions;
+};
+
+// =============================================================================
 // PAGE LAYOUT CALCULATION
 // =============================================================================
 
@@ -235,17 +365,31 @@ export const calculatePageLayout = (
   const staffScale = config.staffSize / 100;
   const systemSpacingMultiplier = SYSTEM_SPACING_MULTIPLIERS[config.systemSpacing];
 
-  // Convert to pixels
+  // Convert margins to pixels
+  const marginsPx: MarginsPx = {
+    top: mmToPx(margins.top),
+    right: mmToPx(margins.right),
+    bottom: mmToPx(margins.bottom),
+    left: mmToPx(margins.left),
+  };
+
+  // Page dimensions in pixels
   const pageWidth = mmToPx(pageDims.width);
   const pageHeight = mmToPx(pageDims.height);
-  const marginTop = mmToPx(margins.top);
-  const marginRight = mmToPx(margins.right);
-  // Note: marginBottom will be used for multi-page layout
-  const marginLeft = mmToPx(margins.left);
 
-  // Content area
-  const contentWidth = pageWidth - marginLeft - marginRight;
-  // Note: contentHeight (pageHeight - marginTop - marginBottom) will be used for multi-page layout
+  // Content area (drawable region within margins)
+  const contentArea: ContentArea = {
+    x: marginsPx.left,
+    y: marginsPx.top,
+    width: pageWidth - marginsPx.left - marginsPx.right,
+    height: pageHeight - marginsPx.top - marginsPx.bottom,
+  };
+
+  // Calculate metadata layout (title, composer positioning)
+  const metadata = calculateMetadataLayout(score.metadata, contentArea);
+
+  // Calculate footer layout (page number positioning)
+  const footer = calculateFooterLayout(contentArea, marginsPx.bottom, 1);
 
   // Calculate header width (clef + key signature + time signature)
   const accidentalCount = getKeySignatureAccidentalCount(score.keySignature);
@@ -258,7 +402,7 @@ export const calculatePageLayout = (
   const measureWidths = calculateAllMeasureWidths(score, staffScale);
 
   // Effective content width for measures (after header)
-  const effectiveContentWidth = contentWidth - headerWidth * staffScale;
+  const effectiveContentWidth = contentArea.width - headerWidth * staffScale;
 
   // Calculate system breaks
   const systemBreaks = calculateSystemBreaks(
@@ -280,48 +424,55 @@ export const calculatePageLayout = (
       ? scaledStaffHeight * stavesCount + CONFIG.staffSpacing * staffScale * (stavesCount - 1)
       : scaledStaffHeight;
 
-  // Header space (title, composer, etc.)
-  const headerSpace = score.metadata
-    ? METADATA_TYPOGRAPHY.titleHeight +
-      (score.metadata.composer ? METADATA_TYPOGRAPHY.composerHeight : 0) +
-      METADATA_TYPOGRAPHY.blockSpacing
-    : 0;
-
   // Build system layouts using forward-flow Y positioning
-  let currentY = marginTop + headerSpace;
+  // Systems start after metadata
+  let currentY = metadata.bottom;
   const systems: SystemLayout[] = [];
 
   for (let i = 0; i < systemBreaks.length; i++) {
-    const measures = systemBreaks[i];
+    const systemMeasures = systemBreaks[i];
     const isFirst = i === 0;
     const isLast = i === systemBreaks.length - 1;
 
-    // First system indent
-    const xOffset = isFirst ? FIRST_SYSTEM_INDENT * effectiveContentWidth : 0;
+    // First system indent (relative to content area)
+    const indentX = isFirst ? FIRST_SYSTEM_INDENT * effectiveContentWidth : 0;
 
-    // Available width for this system
+    // X offset: content area left + header width + indent
+    const xOffset = contentArea.x + headerWidth * staffScale + indentX;
+
+    // Available width for this system (excludes indent)
     const systemContentWidth = isFirst
       ? effectiveContentWidth * (1 - FIRST_SYSTEM_INDENT)
       : effectiveContentWidth;
 
     // Calculate justification
     const justification = calculateJustification(
-      measures,
+      systemMeasures,
       measureWidths,
       systemContentWidth,
       isLast
     );
 
+    // Calculate measure positions within this system
+    const measurePositions = calculateMeasurePositions(
+      xOffset,
+      systemMeasures,
+      measureWidths,
+      systemContentWidth,
+      justification
+    );
+
     systems.push({
       index: i,
-      measures,
+      measures: systemMeasures,
       y: currentY,
       height: systemHeight,
-      xOffset: marginLeft + headerWidth * staffScale + xOffset,
+      xOffset,
       contentWidth: systemContentWidth,
       isFirst,
       isLast,
       justification,
+      measurePositions,
     });
 
     // Advance Y position
@@ -333,9 +484,13 @@ export const calculatePageLayout = (
     pageSize: config.pageSize,
     dimensions: { width: pageWidth, height: pageHeight },
     margins: config.margins,
-    contentWidth,
+    contentWidth: contentArea.width,
     firstSystemIndent: FIRST_SYSTEM_INDENT,
     staffScale,
+    contentArea,
+    marginsPx,
+    metadata,
+    footer,
   };
 };
 

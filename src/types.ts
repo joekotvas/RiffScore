@@ -148,6 +148,18 @@ export interface LayoutConfig {
 }
 
 /**
+ * Position of a single measure within a system.
+ */
+export interface MeasurePosition {
+  /** 0-based measure index */
+  measureIndex: number;
+  /** Absolute X position of measure start */
+  x: number;
+  /** Computed width (may be stretched for justification) */
+  width: number;
+}
+
+/**
  * Computed layout for a single system (line of music).
  */
 export interface SystemLayout {
@@ -169,6 +181,54 @@ export interface SystemLayout {
   isLast: boolean;
   /** Justification factor (1.0 = full, <1.0 = natural) */
   justification: number;
+  /** Pre-computed measure positions within this system */
+  measurePositions: MeasurePosition[];
+}
+
+/**
+ * Content area within page margins (the drawable region).
+ */
+export interface ContentArea {
+  /** Absolute X of content start (after left margin) */
+  x: number;
+  /** Absolute Y of content start (after top margin) */
+  y: number;
+  /** Width of content area (page width - left - right margins) */
+  width: number;
+  /** Height of content area (page height - top - bottom margins) */
+  height: number;
+}
+
+/**
+ * Computed margins in pixels.
+ */
+export interface MarginsPx {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+/**
+ * Layout for metadata (title, composer) at top of page.
+ */
+export interface MetadataLayout {
+  /** Title text and position (null if no title) */
+  title: { text: string; x: number; y: number } | null;
+  /** Composer text and position (null if no composer) */
+  composer: { text: string; x: number; y: number } | null;
+  /** Y position where metadata ends (systems start below this) */
+  bottom: number;
+}
+
+/**
+ * Layout for page footer (page numbers).
+ */
+export interface FooterLayout {
+  /** Y position of footer top */
+  y: number;
+  /** Page number position and text */
+  pageNumber: { text: string; x: number; y: number };
 }
 
 /**
@@ -188,6 +248,14 @@ export interface PageLayout {
   firstSystemIndent: number;
   /** Staff scale factor */
   staffScale: number;
+  /** Content area (drawable region within margins) */
+  contentArea: ContentArea;
+  /** Computed pixel margins */
+  marginsPx: MarginsPx;
+  /** Metadata layout (title, composer positioning) */
+  metadata: MetadataLayout;
+  /** Footer layout (page number positioning) */
+  footer: FooterLayout;
 }
 
 // ========== SCORE ==========

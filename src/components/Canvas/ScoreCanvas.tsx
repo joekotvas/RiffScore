@@ -14,6 +14,8 @@ import { useTheme } from '@/context/ThemeContext';
 import Staff from './Staff';
 import { PageBoundary } from './PageBoundary';
 import { MeasureNumber } from './MeasureNumber';
+import { MetadataBlock } from './MetadataBlock';
+import { PageFooter } from './PageFooter';
 import { getActiveStaff, Staff as StaffType, DEFAULT_CHORD_DISPLAY } from '@/types';
 import { HitZone } from '@/engines/layout/types';
 import { useScoreContext } from '@/context/ScoreContext';
@@ -469,31 +471,39 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             <g className="riff-page-view">
               <PageBoundary pageLayout={pageLayout} />
 
+              {/* Metadata (Title, Composer) at top of page */}
+              <MetadataBlock metadata={pageLayout.metadata} />
+
+              {/* Systems */}
               {pageLayout.systems.map((system) => {
                 const firstMeasureIndex = system.measures[0];
+                // Get the content X (left margin) for positioning
+                const contentX = pageLayout.contentArea.x;
 
                 return (
-                  <g
-                    key={`system-${system.index}`}
-                    className="riff-system"
-                    transform={`translate(0, ${system.y})`}
-                  >
-                    {/* Measure number at start of system */}
+                  <g key={`system-${system.index}`} className="riff-system">
+                    {/* Measure number at start of system (absolute position) */}
                     <MeasureNumber
                       measureIndex={firstMeasureIndex}
                       x={system.xOffset}
-                      y={0}
+                      y={system.y}
                       staffScale={pageLayout.staffScale}
                     />
 
-                    {/* Grand staff bracket for this system */}
+                    {/* Grand staff bracket (absolute position) */}
                     {score.staves?.length > 1 && (
-                      <GrandStaffBracket topY={0} bottomY={system.height} x={system.xOffset - 20} />
+                      <GrandStaffBracket
+                        topY={system.y}
+                        bottomY={system.y + system.height}
+                        x={contentX - 5}
+                      />
                     )}
 
-                    {/* Staves in this system - TODO: render only system measures */}
+                    {/* Staves - wrapped in group with X offset transform */}
                     {score.staves?.map((staff: StaffType, staffIndex: number) => {
-                      const staffBaseY = staffIndex * CONFIG.staffSpacing;
+                      // Calculate absolute Y for this staff within the system
+                      const staffBaseY =
+                        system.y + staffIndex * CONFIG.staffSpacing * pageLayout.staffScale;
 
                       const interaction = {
                         selection,
@@ -518,30 +528,40 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                           : STAFF_HEIGHT + CLAMP_LIMITS.INNER_OFFSET,
                       };
 
+                      // Filter measures to only those in this system
+                      const systemMeasures = system.measures.map((idx) => staff.measures[idx]);
+
                       return (
-                        <Staff
+                        <g
                           key={`${staff.id || staffIndex}-system-${system.index}`}
-                          staffIndex={staffIndex}
-                          clef={staff.clef || (staffIndex === 0 ? 'treble' : 'bass')}
-                          keySignature={staff.keySignature || keySignature}
-                          timeSignature={timeSignature}
-                          measures={staff.measures}
-                          staffLayout={layout.staves[staffIndex]}
-                          baseY={staffBaseY}
-                          scale={scale}
-                          isSystemStart={true}
-                          systemIndex={system.index}
-                          interaction={interaction}
-                          onClefClick={onClefClick}
-                          onKeySigClick={onKeySigClick}
-                          onTimeSigClick={onTimeSigClick}
-                          mouseLimits={mouseLimits}
-                        />
+                          transform={`translate(${contentX}, 0)`}
+                        >
+                          <Staff
+                            staffIndex={staffIndex}
+                            clef={staff.clef || (staffIndex === 0 ? 'treble' : 'bass')}
+                            keySignature={staff.keySignature || keySignature}
+                            timeSignature={timeSignature}
+                            measures={systemMeasures}
+                            staffLayout={layout.staves[staffIndex]}
+                            baseY={staffBaseY}
+                            scale={scale}
+                            isSystemStart={true}
+                            systemIndex={system.index}
+                            interaction={interaction}
+                            onClefClick={onClefClick}
+                            onKeySigClick={onKeySigClick}
+                            onTimeSigClick={onTimeSigClick}
+                            mouseLimits={mouseLimits}
+                          />
+                        </g>
                       );
                     })}
                   </g>
                 );
               })}
+
+              {/* Footer (page number) */}
+              <PageFooter footer={pageLayout.footer} />
             </g>
           )}
 

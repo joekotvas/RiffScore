@@ -45,6 +45,10 @@ const createEmptyPageLayout = (config: LayoutConfig): PageLayout => ({
   contentWidth: Infinity,
   firstSystemIndent: 0,
   staffScale: config.staffSize / 100,
+  contentArea: { x: 0, y: 0, width: 0, height: 0 },
+  marginsPx: { top: 0, right: 0, bottom: 0, left: 0 },
+  metadata: { title: null, composer: null, bottom: 0 },
+  footer: { y: 0, pageNumber: { text: '1', x: 0, y: 0 } },
 });
 
 /**
