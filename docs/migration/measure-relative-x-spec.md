@@ -2,7 +2,7 @@
 
 **Issue:** Preparation for system breaks
 **Date:** 2025-02-13
-**Status:** Planned
+**Status:** In Progress (Stages 0-2 Complete)
 
 ---
 
@@ -58,7 +58,9 @@ interface ScoreLayout {
 
 ## Migration Stages
 
-### Stage 0: ChordSymbol Data Model
+### Stage 0: ChordSymbol Data Model ✅ COMPLETE
+
+**Commits:** 7101c84, 0d4b356, c9f50ba, 93cad52, 23b44eb
 
 **Files:**
 - `src/types.ts` — Interface change
@@ -109,7 +111,9 @@ export interface ChordSymbol {
 
 ---
 
-### Stage 1: ScoreLayout API
+### Stage 1: ScoreLayout API ✅ COMPLETE
+
+**Commit:** a586d3a
 
 **Files:**
 - `src/engines/layout/types.ts`
@@ -121,30 +125,34 @@ export interface ChordSymbol {
 3. Implement `getX({ measure, quant })` and `getX.measureOrigin({ measure })`
 4. Remove old `getX(quant)` function
 
-**Test:** `npm test -- scoreLayout` (expect consumer failures)
+**Test:** `npm test -- scoreLayout` ✅ All 33 tests pass
 
 ---
 
-### Stage 2: ChordTrack
+### Stage 2: ChordTrack ✅ COMPLETE
+
+**Commit:** a586d3a (combined with Stage 1)
 
 **Files:**
 - `src/components/Canvas/ChordTrack/ChordTrack.tsx`
 
 **Changes:**
-1. Update chord positioning to use new API
-2. Chords already have `measure` and `quant` (local)
+1. Added `getAbsoluteX(position, layout)` helper combining measureOrigin + localX
+2. Updated `xToNearestPosition` to use new API
+3. Removed `positionToGlobalQuant` bridge function
+4. Cleaned up dependency arrays (removed unused measurePositions, quantsPerMeasure)
 
 **Before:**
 ```typescript
-x={layout.getX(chord.quant)}
+x={layout.getX(positionToGlobalQuant(position, quantsPerMeasure))}
 ```
 
 **After:**
 ```typescript
-x={layout.getX({ measure: chord.measure, quant: chord.quant }) ?? 0}
+x={getAbsoluteX(position, layout)}
 ```
 
-**Test:** `npm test -- ChordTrack`
+**Test:** `npm test -- ChordTrack` ✅ All 101 tests pass
 
 ---
 
@@ -275,10 +283,16 @@ Each stage is independently testable. If issues arise:
 
 ## Success Criteria
 
-- [ ] Stage 0: ChordSymbol uses `{ measure, quant }` instead of global quant
-- [ ] Stage 0: Old scores auto-migrate to new format
-- [ ] All 1205+ tests passing after each stage
+- [x] Stage 0: ChordSymbol uses `{ measure, quant }` instead of global quant
+- [x] Stage 0: Old scores auto-migrate to new format
+- [x] Stage 1: ScoreLayout API updated with measure-relative getX
+- [x] Stage 2: ChordTrack uses new getX API
+- [x] All 1209 tests passing after each stage
+- [ ] Stage 3: useCursorLayout returns measure context
+- [ ] Stage 4: ScoreCanvas cursor uses measure-relative positioning
+- [ ] Stage 5: useDragToSelect updated for measure context
+- [ ] Stage 6: Layout types renamed (x → localX)
+- [ ] Stage 7: Documentation updated
 - [ ] Manual verification: chords, cursor, selection work correctly
 - [ ] No absolute X references remain in layout types
 - [ ] No global quant references remain in chord data model
-- [ ] Documentation updated
