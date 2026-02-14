@@ -162,6 +162,66 @@ Implement a **page view mode** that:
 
 **FR-30:** When a key or time signature change occurs at the start of a system, a courtesy signature SHALL appear at the end of the previous system.
 
+### 3.10 Toolbar Controls
+
+**FR-31:** The toolbar SHALL include a **View Toggle** button to switch between Scroll View and Page View.
+
+**FR-32:** The View Toggle button SHALL display an icon indicating the current view mode (e.g., horizontal lines for scroll, page outline for page view).
+
+**FR-33:** The toolbar SHALL include a **Score Setup** button that opens the Score Setup dialog.
+
+**FR-34:** The keyboard shortcut `Cmd+,` (Mac) / `Ctrl+,` (Windows/Linux) SHALL open the Score Setup dialog.
+
+### 3.11 Score Setup Dialog
+
+The Score Setup dialog provides centralized access to score metadata and layout configuration.
+
+#### 3.11.1 Page Metadata
+
+**FR-35:** The Score Setup dialog SHALL include fields for the following metadata:
+
+| Field | Description | Display Location |
+|-------|-------------|------------------|
+| **Title** | Score title (existing) | Centered above first system |
+| **Subtitle** | Secondary title or opus info | Below title, smaller |
+| **Composer** | Composer name | Right-aligned above first system |
+| **Arranger** | Arranger name (optional) | Below composer |
+| **Lyricist** | Lyricist name (optional) | Left-aligned above first system |
+| **Copyright** | Copyright notice | Bottom of first page, centered |
+
+**FR-36:** All metadata fields SHALL be optional except Title.
+
+**FR-37:** Metadata SHALL be stored in the score JSON and exported to ABC/MusicXML.
+
+**FR-38:** Metadata SHALL render in print output at appropriate positions.
+
+#### 3.11.2 Layout Configuration
+
+**FR-39:** The Score Setup dialog SHALL include the following layout settings:
+
+| Setting | Options | Default |
+|---------|---------|---------|
+| **Page Size** | Letter, A4 | Letter (US) / A4 (International) |
+| **Margins** | Top, Bottom, Left, Right (in inches or mm) | 0.75" all sides |
+| **Staff Size** | Small, Medium, Large, or percentage | Medium (100%) |
+| **System Spacing** | Compact, Normal, Relaxed | Normal |
+
+**FR-40:** Layout settings SHALL apply immediately when changed (live preview).
+
+**FR-41:** Layout settings SHALL persist per-score in the score JSON.
+
+**FR-42:** A "Reset to Defaults" button SHALL restore all layout settings to defaults.
+
+#### 3.11.3 Dialog Behavior
+
+**FR-43:** The Score Setup dialog SHALL be modal with clear Save/Cancel actions.
+
+**FR-44:** Pressing `Escape` SHALL cancel and close the dialog without saving changes.
+
+**FR-45:** Pressing `Enter` (when not in a text field) SHALL save and close the dialog.
+
+**FR-46:** The dialog SHALL be organized into tabs or sections: **Metadata** and **Layout**.
+
 ---
 
 ## 4. Non-Functional Requirements
@@ -235,15 +295,39 @@ interface PageLayout {
 5. Update getX.measureOrigin to return system-aware X
 ```
 
-### 5.4 Key Implementation Changes
+### 5.4 Score Metadata Model
+
+```typescript
+interface ScoreMetadata {
+  title: string;           // Required (existing)
+  subtitle?: string;       // Optional secondary title
+  composer?: string;       // Composer name
+  arranger?: string;       // Arranger name
+  lyricist?: string;       // Lyricist name
+  copyright?: string;      // Copyright notice
+}
+
+interface LayoutConfig {
+  pageSize: 'letter' | 'a4';
+  margins: { top: number; right: number; bottom: number; left: number };
+  staffSize: number;       // Percentage (100 = default)
+  systemSpacing: 'compact' | 'normal' | 'relaxed';
+  viewMode: 'scroll' | 'page';
+}
+```
+
+### 5.5 Key Implementation Changes
 
 | Component | Change |
 |-----------|--------|
+| `types.ts` | Add `ScoreMetadata` and `LayoutConfig` interfaces |
 | `scoreLayout.ts` | Add `calculatePageLayout()`, update `measureOrigin` per system |
 | `ScoreCanvas.tsx` | Render multiple `<g>` groups for systems |
+| `ScoreHeader.tsx` | Render metadata (composer, lyricist, subtitle) |
 | `Staff.tsx` | Render clef/key on each system, handle tie splitting |
 | `useCursorLayout.ts` | Track system index for cursor positioning |
-| `config.ts` | Add `pageSize`, `viewMode`, `margins` options |
+| `config.ts` | Add `pageSize`, `viewMode`, `margins`, `staffSize` options |
+| New: `ScoreSetupDialog.tsx` | Modal dialog for metadata and layout settings |
 | New: `print.css` | Print-specific stylesheet |
 
 ---
@@ -260,6 +344,9 @@ interface PageLayout {
 - Tie visualization across breaks
 - Playback cursor across systems
 - Basic margin configuration
+- Score Setup dialog with metadata (title, subtitle, composer, arranger, lyricist, copyright)
+- Layout configuration (page size, margins, staff size, system spacing)
+- Toolbar view toggle button
 
 ### 6.2 Out of Scope (Future)
 
@@ -303,13 +390,30 @@ interface PageLayout {
 - [ ] Page break CSS rules
 - [ ] Hide UI chrome in print
 
-### Phase 5: View Mode Toggle
-- [ ] Toolbar button for view mode
-- [ ] Keyboard shortcut
+### Phase 5: Toolbar & View Mode Toggle
+- [ ] View toggle button with icon (FR-31, FR-32)
+- [ ] Keyboard shortcut for view toggle
 - [ ] State persistence
-- [ ] Smooth transition
+- [ ] Smooth transition animation
 
-### Phase 6: Interaction Polish
+### Phase 6: Score Setup Dialog
+- [ ] Dialog component with tabs (Metadata / Layout)
+- [ ] Metadata fields: title, subtitle, composer, arranger, lyricist, copyright (FR-35–FR-38)
+- [ ] Layout settings: page size, margins, staff size, system spacing (FR-39–FR-42)
+- [ ] Score Setup toolbar button (FR-33)
+- [ ] Cmd/Ctrl+, keyboard shortcut (FR-34)
+- [ ] Live preview of layout changes (FR-40)
+- [ ] Persist settings in score JSON (FR-41)
+
+### Phase 7: Metadata Rendering
+- [ ] Title/subtitle positioning (centered above first system)
+- [ ] Composer/arranger positioning (right-aligned)
+- [ ] Lyricist positioning (left-aligned)
+- [ ] Copyright footer (bottom of first page)
+- [ ] Metadata in print output (FR-38)
+- [ ] Export to ABC/MusicXML (FR-37)
+
+### Phase 8: Interaction Polish
 - [ ] Playback across systems
 - [ ] Selection across systems
 - [ ] Keyboard navigation across systems
