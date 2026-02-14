@@ -59,11 +59,13 @@ See [Interaction Configuration](./docs/CONFIGURATION.md#interaction-configuratio
 ```javascript
 const api = window.riffScore.get('my-editor');
 
-api.select(1)                      // Select measure 1
+api.select(0)                      // Select first measure (0-indexed)
    .addNote('C4', 'quarter')       // Add a quarter note
    .addNote('E4')                  // Add with current duration
    .play();                        // Play from selection
 ```
+
+> **Note**: All API indices are 0-based. Use `select(0)` for the first measure, `select(1)` for the second, etc.
 
 See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 
@@ -179,8 +181,8 @@ Control the editor programmatically from external scripts:
 ```javascript
 const api = window.riffScore.get('my-editor');
 
-// Build a chord
-api.select(1)              // Measure 1
+// Build a chord (indices are 0-based)
+api.select(0)              // First measure
    .addNote('C4', 'quarter')
    .addNote('E4')
    .addNote('G4')
@@ -230,6 +232,7 @@ npm run demo:dev
 
 ## Coming Soon
 
+*   **Page View & Print**: Multi-system rendering with automatic line breaks and print support ([#174](https://github.com/joekotvas/riffscore/issues/174))
 *   **Import**: ABC and MusicXML import
 *   **Clipboard API**: Copy, cut, and paste operations
 *   **Move Operations**: Drag-and-drop and keyboard-based event moving
