@@ -373,3 +373,225 @@ Use React DevTools and Performance tab to identify bottlenecks:
 | `src/utils/navigation/crossSystemNav.ts` | Create |
 | `src/hooks/layout/useAutoScroll.ts` | Create |
 | Various test files | Create/Modify |
+
+---
+
+## User Walkthrough & Manual Testing
+
+After implementation, perform comprehensive end-to-end testing:
+
+### 1. Run Full Test Suite
+```bash
+npm run test -- --coverage
+npm run lint
+npm run build
+```
+
+### 2. Start Demo App
+```bash
+npm run demo:dev
+```
+
+### 3. End-to-End Workflow Test
+
+#### A. Create a New Score
+1. Create a new score with 8+ measures
+2. Add notes, rests, chords
+3. Add ties across measure boundaries
+
+#### B. Edit Metadata
+1. Click on title → edit inline
+2. Tab to composer → edit
+3. Tab to lyricist → edit
+4. Tab → verify cursor moves to first note
+
+#### C. Test Page View
+1. Press `Cmd+\` or `Ctrl+\` to switch to page view
+2. Verify systems break correctly
+3. Verify measure numbers appear
+4. Verify ties split at system breaks
+
+#### D. Test Score Setup
+1. Press `Cmd+,` or `Ctrl+,` to open dialog
+2. Change staff size to 80%
+3. Verify live preview updates
+4. Cancel → verify changes reverted
+5. Reopen, make changes, Save
+
+#### E. Test Playback
+1. Start playback
+2. Verify cursor moves across systems
+3. Verify auto-scroll follows cursor
+4. Click to seek on different system
+
+#### F. Test Selection
+1. Select notes spanning system break
+2. Verify selection highlights on both systems
+3. Use arrow keys to navigate across systems
+
+#### G. Test Print
+1. Press `Cmd+P` or `Ctrl+P`
+2. Verify print preview is clean
+3. Export to PDF
+4. Open PDF and verify quality
+
+#### H. Test Export
+1. Export to ABC
+2. Verify metadata in ABC file
+3. Export to MusicXML
+4. Import in external app (if available)
+
+### 4. Performance Testing
+
+Create a large score (100+ measures):
+```javascript
+const api = window.riffScore.get('demo');
+// Add many notes programmatically
+```
+
+**Verify:**
+- [ ] View toggle < 200ms
+- [ ] No scroll jank (< 16ms frame time)
+- [ ] Print dialog opens promptly
+
+### 5. Cross-Browser Testing
+
+| Feature | Chrome | Firefox | Safari | Edge |
+|---------|--------|---------|--------|------|
+| Page View | [ ] | [ ] | [ ] | [ ] |
+| Print | [ ] | [ ] | [ ] | [ ] |
+| Metadata Edit | [ ] | [ ] | [ ] | [ ] |
+| Playback | [ ] | [ ] | [ ] | [ ] |
+| Keyboard Nav | [ ] | [ ] | [ ] | [ ] |
+
+### 6. Accessibility Testing
+
+- [ ] Keyboard-only navigation works
+- [ ] Screen reader announces system breaks
+- [ ] Focus visible on all interactive elements
+- [ ] Dialog traps focus correctly
+
+---
+
+## Documentation Updates
+
+**IMPORTANT:** Before marking Phase 9 complete, update all project documentation.
+
+### Files to Update
+
+| File | Updates Needed |
+|------|----------------|
+| `docs/AGENTS.md` | Add Page View to Quick Navigation |
+| `docs/ARCHITECTURE.md` | Document PageLayoutService, MetadataService |
+| `docs/API.md` | Add layout and metadata API methods |
+| `docs/COMMANDS.md` | Add SetViewMode, SetLayoutConfig, SetMetadata |
+| `docs/KEYBOARD_NAVIGATION.md` | Add cross-system navigation |
+| `docs/CONFIGURATION.md` | Add layout config options |
+| `README.md` | Add Page View feature to features list |
+| `CHANGELOG.md` | Add release notes for #174 |
+
+### Update Checklist
+
+- [ ] `AGENTS.md` updated with new files and patterns
+- [ ] `ARCHITECTURE.md` includes page layout layer
+- [ ] `API.md` documents all new methods
+- [ ] `COMMANDS.md` documents new commands
+- [ ] `KEYBOARD_NAVIGATION.md` covers system breaks
+- [ ] `CONFIGURATION.md` covers layout settings
+- [ ] `README.md` features list updated
+- [ ] `CHANGELOG.md` has entry for #174
+
+### README Feature Entry
+
+Add to features section:
+```markdown
+- **Page View & Print** - View and print scores with automatic system breaks, configurable page sizes (Letter/A4), and professional PDF export
+```
+
+### CHANGELOG Entry
+
+```markdown
+## [Unreleased]
+
+### Added
+- Page View mode with automatic system breaks (#174)
+- Print to PDF via native browser dialog
+- Score Setup dialog for metadata and layout configuration
+- Inline WYSIWYG editing for score metadata (title, composer, lyricist, copyright)
+- Page numbers on all pages
+- Support for Letter and A4 page sizes
+- Configurable margins (Narrow/Normal/Wide)
+- Staff size slider (50-150%)
+- System spacing options (Compact/Normal/Relaxed)
+- Keyboard shortcuts: Cmd/Ctrl+\ (view toggle), Cmd/Ctrl+, (score setup), Cmd/Ctrl+P (print)
+- ABC and MusicXML export includes metadata
+```
+
+---
+
+## Phase Completion & Final Checklist
+
+### Before Closing Issue #174
+
+1. **All tests pass**
+   ```bash
+   npm run test -- --coverage
+   npm run lint
+   npm run build
+   ```
+
+2. **Manual testing complete**
+   - All workflow tests pass
+   - All browsers tested
+   - Accessibility verified
+
+3. **Documentation updated**
+   - All docs listed above updated
+   - README features current
+   - CHANGELOG entry added
+
+4. **Code review ready**
+   - No console errors
+   - No TODO comments left behind
+   - Clean git history
+
+### Final Commit Template
+
+```bash
+git add .
+git commit -m "feat(#174): complete Page View & Print implementation
+
+Phase 9: Polish & Testing
+
+- Implement cross-system playback cursor
+- Implement cross-system selection highlighting
+- Add cross-system keyboard navigation
+- Add auto-scroll during playback
+- Performance optimization with memoization
+- Full integration testing
+- Update project documentation
+
+Closes #174
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+```
+
+### Post-Completion
+
+After closing #174:
+1. Create PR if on feature branch
+2. Update project board
+3. Consider follow-up issues for deferred features (courtesy signatures, manual breaks)
+
+---
+
+## Notes for Future Enhancements
+
+Features deferred to future versions:
+- Manual system break placement
+- Courtesy key/time signatures at system breaks
+- Custom page sizes
+- Landscape orientation
+- Part extraction
+- Slur splitting at system breaks
+- Headers/footers beyond page numbers and copyright
