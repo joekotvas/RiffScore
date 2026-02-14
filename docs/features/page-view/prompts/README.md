@@ -14,8 +14,8 @@ This directory contains agent prompt documents for implementing the Page View & 
 | 1 | ✅ Complete | `1d001d8` | Types, config, and services for page view |
 | 2 | ✅ Complete | `59144e7` | Layout and metadata commands + API |
 | 3 | ✅ Complete | `b797d2e`, `07a7734` | Multi-system rendering for page view |
-| 4 | ⏳ Pending | — | Ready to start |
-| 5 | ⏳ Pending | — | Blocked by Phase 4 |
+| 4 | ✅ Complete | `1c6a1ae`, `edc471f` | Score Setup dialog with live preview |
+| 5 | ⏳ Pending | — | Ready to start |
 | 6 | ⏳ Pending | — | Ready to start |
 | 7 | ⏳ Pending | — | Ready to start |
 | 8 | ⏳ Pending | — | Ready to start |
@@ -155,6 +155,40 @@ const {
 ### Test Results
 - 1407 tests passing (45 new tests since Phase 2)
 - 13 new tests for usePageLayout hook
+- All lint checks passing
+
+---
+
+## Phase 4 Completion Notes
+
+Phase 4 implemented the Score Setup dialog for editing metadata and layout configuration:
+
+### Deliverables
+- **`src/hooks/layout/useScoreSetup.ts`** - Dialog state hook with transaction-based batch undo on cancel
+- **`src/components/Dialog/ScoreSetupDialog/ScoreSetupDialog.tsx`** - Main dialog component with live preview
+- **`src/components/Dialog/ScoreSetupDialog/MetadataSection.tsx`** - Metadata form fields (title, composer, lyricist, copyright)
+- **`src/components/Dialog/ScoreSetupDialog/LayoutSection.tsx`** - Layout controls (page size, margins, staff size, spacing)
+- **`src/components/Dialog/ScoreSetupDialog/ScoreSetupDialog.css`** - BEM-styled dialog CSS with `--riff-*` variables
+- **`src/components/Dialog/ScoreSetupDialog/index.ts`** - Barrel export
+
+### Key Features
+- **Live preview**: Changes apply immediately via `SetMetadataCommand` and `SetLayoutConfigCommand`
+- **Batch undo on cancel**: Uses `beginTransaction()`/`rollbackTransaction()` for clean rollback
+- **Accessibility**: Focus trapping, `aria-modal`, `aria-labelledby`, `aria-required`/`aria-invalid`
+- **Keyboard support**: Escape to cancel, Enter (outside text fields) to save
+- **Validation**: Title required, errors displayed with `role="alert"`
+
+### Key APIs Now Available
+```typescript
+// useScoreSetup hook
+const { isOpen, open, save, cancel, toggle } = useScoreSetup();
+
+// ScoreSetupDialog component
+<ScoreSetupDialog isOpen={isOpen} onSave={save} onCancel={cancel} />
+```
+
+### Test Results
+- 1407 tests passing (32 new tests for Phase 4)
 - All lint checks passing
 
 ---
