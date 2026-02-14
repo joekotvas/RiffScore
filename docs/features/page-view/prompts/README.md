@@ -228,6 +228,54 @@ Page (0,0)
 
 ---
 
+## Phase 8 Completion Notes
+
+Phase 8 added metadata export to ABC and MusicXML formats:
+
+### Deliverables
+- **`src/exporters/abcExporter.ts`** - Added metadata fields (T:, C:, Z:, N:)
+- **`src/exporters/musicXmlExporter.ts`** - Added work/identification elements, XML escaping, MusicXML 4.0
+- **`src/__tests__/exporters/abcExporter.test.ts`** - 8 new metadata tests
+- **`src/__tests__/exporters/musicXmlExporter.test.ts`** - 15 new metadata tests
+
+### ABC Export Fields
+```abc
+X:1
+T:Score Title
+C:Composer Name
+Z:Lyricist: Lyricist Name
+N:Copyright notice
+M:4/4
+```
+
+### MusicXML Export Structure
+```xml
+<work>
+  <work-title>Score Title</work-title>
+</work>
+<identification>
+  <creator type="composer">Composer Name</creator>
+  <creator type="lyricist">Lyricist Name</creator>
+  <rights>Copyright notice</rights>
+  <encoding>
+    <software>RiffScore</software>
+    <encoding-date>2026-02-14</encoding-date>
+  </encoding>
+</identification>
+```
+
+### Key Features
+- XML character escaping (&, <, >, ", ')
+- Optional fields omitted when empty
+- Legacy `score.title` fallback when `score.metadata` is undefined
+- MusicXML upgraded to version 4.0
+
+### Test Results
+- 1431 tests passing (23 new exporter tests)
+- All lint checks passing
+
+---
+
 ## Execution Model
 
 Each prompt is designed for a **prompt executor** that:
