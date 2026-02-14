@@ -12,13 +12,13 @@ This directory contains agent prompt documents for implementing the Page View & 
 |-------|--------|---------|-------|
 | 0 | ✅ Complete | `ef0a604`, `c553ed6`, `bf3b70d`, `3bc059d`, `16b8f13` | API standardized to 0-based indexing |
 | 1 | ✅ Complete | `1d001d8` | Types, config, and services for page view |
-| 2 | ⏳ Pending | — | Ready to start |
-| 3 | ⏳ Pending | — | Blocked by Phases 1, 2 |
-| 4 | ⏳ Pending | — | Blocked by Phase 2 |
-| 5 | ⏳ Pending | — | Blocked by Phases 2, 4 |
+| 2 | ✅ Complete | `59144e7` | Layout and metadata commands + API |
+| 3 | ⏳ Pending | — | Ready to start |
+| 4 | ⏳ Pending | — | Ready to start |
+| 5 | ⏳ Pending | — | Blocked by Phase 4 |
 | 6 | ⏳ Pending | — | Blocked by Phase 3 |
-| 7 | ⏳ Pending | — | Blocked by Phases 2, 3 |
-| 8 | ⏳ Pending | — | Blocked by Phases 1, 2 |
+| 7 | ⏳ Pending | — | Blocked by Phase 3 |
+| 8 | ⏳ Pending | — | Ready to start |
 | 9 | ⏳ Pending | — | Blocked by all |
 
 **Last Updated:** 2026-02-14
@@ -74,6 +74,42 @@ normalizeMetadata(metadata) → ScoreMetadata
 - 1325 tests passing (98 new tests)
 - PageLayoutService: 97.74% statements, 87.14% branches
 - MetadataService: 100% statements, 97.77% branches
+
+---
+
+## Phase 2 Completion Notes
+
+Phase 2 added command pattern infrastructure and API factories:
+
+### Deliverables
+- **`src/commands/layout/`** - SetViewModeCommand, SetLayoutConfigCommand, SetMetadataCommand
+- **`src/hooks/api/layout.ts`** - Layout API factory (getViewMode, setViewMode, toggleViewMode, etc.)
+- **`src/hooks/api/metadata.ts`** - Metadata API factory + navigation helpers
+- **`src/api.types.ts`** - Extended with 18 new method signatures
+
+### Key APIs Now Available
+```typescript
+// Layout API
+api.getViewMode() → 'scroll' | 'page'
+api.setViewMode(mode) → this
+api.toggleViewMode() → this
+api.getLayoutConfig() → LayoutConfig
+api.setLayoutConfig(config) → this
+
+// Metadata API
+api.getMetadata() → ScoreMetadata
+api.setMetadata(metadata) → this
+api.getTitle() / api.setTitle(title)
+api.getComposer() / api.setComposer(composer)
+
+// Navigation (for Tab from metadata)
+api.selectFirstElement() → this
+api.selectLastElement() → this
+```
+
+### Test Results
+- 1362 tests passing (37 new tests)
+- All commands support undo/redo
 
 ---
 
