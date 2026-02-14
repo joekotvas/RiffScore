@@ -113,6 +113,83 @@ export const DEFAULT_CHORD_PLAYBACK: ChordPlaybackConfig = {
   velocity: 50,
 };
 
+// ========== SCORE METADATA ==========
+
+/**
+ * Score metadata for display and export.
+ */
+export interface ScoreMetadata {
+  /** Score title (required, pre-filled to "Untitled") */
+  title: string;
+  /** Composer name */
+  composer?: string;
+  /** Lyricist name */
+  lyricist?: string;
+  /** Copyright notice */
+  copyright?: string;
+}
+
+// ========== LAYOUT CONFIG ==========
+
+/**
+ * Layout configuration for page view.
+ */
+export interface LayoutConfig {
+  /** Page size identifier */
+  pageSize: 'letter' | 'a4';
+  /** Page margins preset */
+  margins: 'narrow' | 'normal' | 'wide';
+  /** Staff size as percentage (100 = default), stepped by 10 */
+  staffSize: number;
+  /** Spacing between systems */
+  systemSpacing: 'compact' | 'normal' | 'relaxed';
+  /** Current view mode */
+  viewMode: 'scroll' | 'page';
+}
+
+/**
+ * Computed layout for a single system (line of music).
+ */
+export interface SystemLayout {
+  /** 0-based system index */
+  index: number;
+  /** Measure indices contained in this system (0-based) */
+  measures: number[];
+  /** Y position of system top */
+  y: number;
+  /** Total height of system */
+  height: number;
+  /** X offset (indent for first system) */
+  xOffset: number;
+  /** Available content width */
+  contentWidth: number;
+  /** First system flag */
+  isFirst: boolean;
+  /** Last system flag */
+  isLast: boolean;
+  /** Justification factor (1.0 = full, <1.0 = natural) */
+  justification: number;
+}
+
+/**
+ * Complete page layout with all systems.
+ */
+export interface PageLayout {
+  /** Systems on this page */
+  systems: SystemLayout[];
+  /** Page dimensions */
+  pageSize: 'letter' | 'a4';
+  dimensions: { width: number; height: number };
+  /** Margins preset */
+  margins: LayoutConfig['margins'];
+  /** Computed content width */
+  contentWidth: number;
+  /** First system indent (0-1) */
+  firstSystemIndent: number;
+  /** Staff scale factor */
+  staffScale: number;
+}
+
 // ========== SCORE ==========
 
 export interface Score {
@@ -124,6 +201,12 @@ export interface Score {
 
   /** Chord symbols for harmonic annotation (sorted by quant ascending) */
   chordTrack?: ChordSymbol[];
+
+  /** Score metadata for display and export */
+  metadata?: ScoreMetadata;
+
+  /** Layout configuration */
+  layout?: LayoutConfig;
 }
 
 // ========== HELPER FUNCTIONS ==========
