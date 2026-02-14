@@ -6,15 +6,6 @@ import { getStaffPitch, STAFF_LETTERS } from '@/services/MusicService';
 
 // ========== HEADER LAYOUT (SSOT) ==========
 
-// Layout constants - single source of truth
-const HEADER_LAYOUT_CONSTANTS = {
-  KEY_SIG_START_X: 45,
-  KEY_SIG_ACCIDENTAL_WIDTH: 10,
-  KEY_SIG_PADDING: 10,
-  TIME_SIG_WIDTH: 30,
-  TIME_SIG_PADDING: 20,
-};
-
 /**
  * Calculates header layout positions based on key signature.
  * This is the SINGLE SOURCE OF TRUTH for header layout calculations.
@@ -22,28 +13,21 @@ const HEADER_LAYOUT_CONSTANTS = {
  * @returns HeaderLayout object with all calculated positions
  */
 export const calculateHeaderLayout = (keySignature: string): HeaderLayout => {
-  const {
-    KEY_SIG_START_X,
-    KEY_SIG_ACCIDENTAL_WIDTH,
-    KEY_SIG_PADDING,
-    TIME_SIG_WIDTH,
-    TIME_SIG_PADDING,
-  } = HEADER_LAYOUT_CONSTANTS;
+  const { keySigStartX, keySigAccidentalWidth, keySigPadding, timeSigWidth, timeSigPadding } =
+    CONFIG.header;
 
   const keySigCount = KEY_SIGNATURES[keySignature]?.count || 0;
-  const keySigVisualWidth = keySigCount > 0 ? keySigCount * KEY_SIG_ACCIDENTAL_WIDTH + 10 : 0;
-  const timeSigStartX = KEY_SIG_START_X + keySigVisualWidth + KEY_SIG_PADDING;
-  const startOfMeasures = timeSigStartX + TIME_SIG_WIDTH + TIME_SIG_PADDING;
+  const keySigVisualWidth = keySigCount > 0 ? keySigCount * keySigAccidentalWidth + 10 : 0;
+  const timeSigStartXPos = keySigStartX + keySigVisualWidth + keySigPadding;
+  const startOfMeasures = timeSigStartXPos + timeSigWidth + timeSigPadding;
 
   return {
-    keySigStartX: KEY_SIG_START_X,
+    keySigStartX,
     keySigVisualWidth,
-    timeSigStartX,
+    timeSigStartX: timeSigStartXPos,
     startOfMeasures,
   };
 };
-
-export const HEADER_CONSTANTS = HEADER_LAYOUT_CONSTANTS;
 
 // ========== TREBLE CLEF PITCHES (C3 to G6) ==========
 // Offset is relative to CONFIG.baseY

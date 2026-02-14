@@ -1,9 +1,9 @@
 // @ts-nocheck
 import React from 'react';
 import { PRECOMPOSED_NOTES_UP, BRAVURA_FONT } from '@/constants/SMuFL';
+import { CONFIG } from '@/config';
 
-// Icon viewport size (scaled down from 24 to 20)
-const ICON_SIZE = 20;
+const ICON_SIZE = CONFIG.toolbar.iconSize;
 
 // Custom sizing for notes that need adjustment (scaled by ~0.83)
 const NOTE_SIZING = {

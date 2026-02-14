@@ -347,6 +347,9 @@ export const LAYOUT = {
     SPACING: HALF_SPACE + 2,
   },
 
+  /** Padding added before noteheads when accidentals are present */
+  ACCIDENTAL_PADDING: NOTE_SPACING_BASE_UNIT * 0.8,
+
   // Hit Detection
   HIT_AREA: {
     WIDTH: 20,

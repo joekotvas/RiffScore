@@ -1,17 +1,22 @@
-import { NOTE_TYPES, TIME_SIGNATURES } from '@/constants';
+import { NOTE_TYPES } from '@/constants';
 import { getActiveStaff, Score, ScoreEvent, Measure, Staff, Note, ChordSymbol } from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
 
 /**
- * Builds a lookup map from global quant position to chord symbol.
+ * Builds a nested lookup map from (measure, quant) to chord symbol.
  * This allows O(1) lookup when rendering events.
  */
-const buildChordLookup = (chordTrack: ChordSymbol[] | undefined): Map<number, string> => {
-  const lookup = new Map<number, string>();
+const buildChordLookup = (
+  chordTrack: ChordSymbol[] | undefined
+): Map<number, Map<number, string>> => {
+  const lookup = new Map<number, Map<number, string>>();
   if (!chordTrack) return lookup;
 
   for (const chord of chordTrack) {
-    lookup.set(chord.quant, chord.symbol);
+    if (!lookup.has(chord.measure)) {
+      lookup.set(chord.measure, new Map<number, string>());
+    }
+    lookup.get(chord.measure)!.set(chord.quant, chord.symbol);
   }
   return lookup;
 };
@@ -54,11 +59,8 @@ export const generateABC = (score: Score, bpm: number): string => {
   const timeSig = score.timeSignature || '4/4';
   const keySig = score.keySignature || 'C';
 
-  // Build chord lookup map for O(1) access by global quant
+  // Build chord lookup map for O(1) access by (measure, quant)
   const chordLookup = buildChordLookup(score.chordTrack);
-
-  // Get quants per measure from time signature (default to 64 for 4/4)
-  const quantsPerMeasure = TIME_SIGNATURES[timeSig] || 64;
 
   // Header
   let abc = `X:1\nT:${score.title}\nM:${timeSig}\nL:1/4\nK:${keySig}\nQ:1/4=${bpm}\n`;
@@ -97,8 +99,6 @@ export const generateABC = (score: Score, bpm: number): string => {
       let localQuant = 0;
 
       measure.events.forEach((event: ScoreEvent) => {
-        // Calculate global quant for chord lookup
-        const globalQuant = measureIndex * quantsPerMeasure + localQuant;
         // Calculate Duration
         let durationString = '';
         const base = NOTE_TYPES[event.duration]?.abcDuration || '';
@@ -136,9 +136,10 @@ export const generateABC = (score: Score, bpm: number): string => {
 
         let prefix = '';
 
-        // Add chord annotation if present at this quant (first staff only)
+        // Add chord annotation if present at this position (first staff only)
         if (includeChords) {
-          const chordSymbol = chordLookup.get(globalQuant);
+          const measureChords = chordLookup.get(measureIndex);
+          const chordSymbol = measureChords?.get(localQuant);
           if (chordSymbol) {
             prefix += `"${chordSymbol}"`;
           }

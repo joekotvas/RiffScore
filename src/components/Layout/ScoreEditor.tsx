@@ -146,30 +146,37 @@ const ScoreEditorContent = ({
       const selectedChordId = selection.chordId;
       if (!selectedChordId) return;
 
-      // Find current chord's quant
+      // Find current chord's position
       const currentChord = chordTrackHook.chords.find((c) => c.id === selectedChordId);
       if (!currentChord) return;
 
-      const currentQuant = currentChord.quant;
-
-      // Get sorted valid quants and find next/previous position
-      const sortedQuants = Array.from(chordTrackHook.validQuants).sort((a, b) => a - b);
-
-      let targetQuant: number | undefined;
-      if (direction === 'next') {
-        targetQuant = sortedQuants.find((q) => q > currentQuant);
-      } else {
-        const previousQuants = sortedQuants.filter((q) => q < currentQuant);
-        targetQuant = previousQuants[previousQuants.length - 1];
-      }
-
-      if (targetQuant !== undefined) {
-        const chordAtQuant = chordTrackHook.chords.find((c) => c.quant === targetQuant);
-        if (chordAtQuant) {
-          chordTrackHook.startEditing(chordAtQuant.id);
-        } else {
-          chordTrackHook.startCreating(targetQuant);
+      // Build sorted list of valid positions from Map<measure, Set<quant>>
+      const sortedPositions: Array<{ measure: number; quant: number }> = [];
+      for (const [measure, quants] of chordTrackHook.validPositions) {
+        for (const quant of quants) {
+          sortedPositions.push({ measure, quant });
         }
+      }
+      sortedPositions.sort((a, b) => a.measure - b.measure || a.quant - b.quant);
+
+      // Find current index
+      const currentIdx = sortedPositions.findIndex(
+        (p) => p.measure === currentChord.measure && p.quant === currentChord.quant
+      );
+      if (currentIdx === -1) return;
+
+      // Find target position
+      const targetIdx = direction === 'next' ? currentIdx + 1 : currentIdx - 1;
+      if (targetIdx < 0 || targetIdx >= sortedPositions.length) return;
+
+      const targetPosition = sortedPositions[targetIdx];
+      const chordAtPosition = chordTrackHook.chords.find(
+        (c) => c.measure === targetPosition.measure && c.quant === targetPosition.quant
+      );
+      if (chordAtPosition) {
+        chordTrackHook.startEditing(chordAtPosition.id);
+      } else {
+        chordTrackHook.startCreating(targetPosition);
       }
     },
     [selection.chordId, chordTrackHook]
@@ -183,9 +190,8 @@ const ScoreEditorContent = ({
     const chord = chordTrackHook.chords.find((c) => c.id === selectedChordId);
     if (!chord) return;
 
-    const quant = chord.quant;
-    const measureIndex = Math.floor(quant / quantsPerMeasure);
-    const localQuant = quant % quantsPerMeasure;
+    const measureIndex = chord.measure;
+    const localQuant = chord.quant;
 
     // Clear chord selection first
     selectionEngine.selectChord(null);

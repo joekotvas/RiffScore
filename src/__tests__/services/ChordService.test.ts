@@ -662,16 +662,18 @@ describe('ChordService - Valid Quant Calculation', () => {
   });
 
   describe('getValidChordQuants', () => {
-    it('returns empty set for empty score', () => {
+    it('returns map with empty sets for score with no events', () => {
       const score = createTestScore([]);
-      const validQuants = getValidChordQuants(score);
-      expect(validQuants.size).toBe(0);
+      const validPositions = getValidChordQuants(score);
+      // Map has entries for measures, but sets are empty when no events
+      const measure0Quants = validPositions.get(0);
+      expect(measure0Quants?.size ?? 0).toBe(0);
     });
 
     it('returns quant 0 for single note at start', () => {
       const score = createTestScore([{ duration: 'quarter' }]);
-      const validQuants = getValidChordQuants(score);
-      expect(validQuants.has(0)).toBe(true);
+      const validPositions = getValidChordQuants(score);
+      expect(validPositions.get(0)?.has(0)).toBe(true);
     });
 
     it('calculates correct quants for quarter notes', () => {
@@ -682,11 +684,12 @@ describe('ChordService - Valid Quant Calculation', () => {
         { duration: 'quarter' },
         { duration: 'quarter' },
       ]);
-      const validQuants = getValidChordQuants(score);
-      expect(validQuants.has(0)).toBe(true);
-      expect(validQuants.has(16)).toBe(true);
-      expect(validQuants.has(32)).toBe(true);
-      expect(validQuants.has(48)).toBe(true);
+      const validPositions = getValidChordQuants(score);
+      const measure0Quants = validPositions.get(0);
+      expect(measure0Quants?.has(0)).toBe(true);
+      expect(measure0Quants?.has(16)).toBe(true);
+      expect(measure0Quants?.has(32)).toBe(true);
+      expect(measure0Quants?.has(48)).toBe(true);
     });
 
     it('includes rest positions as valid chord anchors', () => {
@@ -695,10 +698,11 @@ describe('ChordService - Valid Quant Calculation', () => {
         { duration: 'quarter', isRest: true }, // quant 16 - rest, also valid
         { duration: 'quarter' }, // quant 32 - valid
       ]);
-      const validQuants = getValidChordQuants(score);
-      expect(validQuants.has(0)).toBe(true);
-      expect(validQuants.has(16)).toBe(true); // rests are valid anchor points
-      expect(validQuants.has(32)).toBe(true);
+      const validPositions = getValidChordQuants(score);
+      const measure0Quants = validPositions.get(0);
+      expect(measure0Quants?.has(0)).toBe(true);
+      expect(measure0Quants?.has(16)).toBe(true); // rests are valid anchor points
+      expect(measure0Quants?.has(32)).toBe(true);
     });
 
     it('handles multiple staves', () => {
@@ -748,11 +752,12 @@ describe('ChordService - Valid Quant Calculation', () => {
         ],
       };
 
-      const validQuants = getValidChordQuants(score);
+      const validPositions = getValidChordQuants(score);
       // Staff 1: half note at quant 0
       // Staff 2: quarter note at quant 0, quarter note at quant 16
-      expect(validQuants.has(0)).toBe(true);
-      expect(validQuants.has(16)).toBe(true);
+      const measure0Quants = validPositions.get(0);
+      expect(measure0Quants?.has(0)).toBe(true);
+      expect(measure0Quants?.has(16)).toBe(true);
     });
 
     it('handles multiple measures', () => {
@@ -794,11 +799,11 @@ describe('ChordService - Valid Quant Calculation', () => {
         ],
       };
 
-      const validQuants = getValidChordQuants(score);
-      // Measure 1: quant 0
-      // Measure 2: quant 64 (64 quants per 4/4 measure)
-      expect(validQuants.has(0)).toBe(true);
-      expect(validQuants.has(64)).toBe(true);
+      const validPositions = getValidChordQuants(score);
+      // Measure 0: quant 0
+      // Measure 1: quant 0 (each measure starts fresh)
+      expect(validPositions.get(0)?.has(0)).toBe(true);
+      expect(validPositions.get(1)?.has(0)).toBe(true);
     });
 
     it('handles dotted notes correctly', () => {
@@ -835,10 +840,11 @@ describe('ChordService - Valid Quant Calculation', () => {
         ],
       };
 
-      const validQuants = getValidChordQuants(score);
+      const validPositions = getValidChordQuants(score);
       // Dotted quarter = 24 quants (16 * 1.5), followed by eighth at quant 24
-      expect(validQuants.has(0)).toBe(true);
-      expect(validQuants.has(24)).toBe(true);
+      const measure0Quants = validPositions.get(0);
+      expect(measure0Quants?.has(0)).toBe(true);
+      expect(measure0Quants?.has(24)).toBe(true);
     });
   });
 });

@@ -10,6 +10,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ChordTrack } from '@/components/Canvas/ChordTrack/ChordTrack';
 import type { ChordSymbol, ChordDisplayConfig } from '@/types';
+import type { ScoreLayout } from '@/engines/layout/types';
+import { CONFIG } from '@/config';
 
 // Store the current mock position for coordinate transformation
 // Reset in beforeEach to prevent test pollution
@@ -116,9 +118,9 @@ jest.mock('@/components/Canvas/ChordTrack/ChordTrack.css', () => ({}));
 
 describe('ChordTrack', () => {
   const mockChords: ChordSymbol[] = [
-    { id: 'chord-1', quant: 0, symbol: 'Cmaj7' },
-    { id: 'chord-2', quant: 24, symbol: 'Am7' },
-    { id: 'chord-3', quant: 48, symbol: 'Dm7' },
+    { id: 'chord-1', measure: 0, quant: 0, symbol: 'Cmaj7' },
+    { id: 'chord-2', measure: 0, quant: 24, symbol: 'Am7' },
+    { id: 'chord-3', measure: 0, quant: 48, symbol: 'Dm7' },
   ];
 
   const mockDisplayConfig: ChordDisplayConfig = {
@@ -131,31 +133,84 @@ describe('ChordTrack', () => {
     { x: 200, width: 200, quant: 96 },
   ];
 
-  const mockQuantToX = (quant: number): number => {
-    // Simple linear mapping: 1 quant = 2 pixels, starting at x=50
-    return 50 + quant * 2;
+  // Mock getX with measure-relative API
+  // Produces same absolute X as old mockQuantToX: x = 50 + globalQuant * 2
+  // where globalQuant = measure * 64 + localQuant
+  const createMockGetX = () => {
+    const quantsPerMeasure = 64;
+    const numMeasures = 2;
+
+    const getX = (params: { measure: number; quant: number }): number | null => {
+      if (params.measure < 0 || params.measure >= numMeasures) return null;
+      // Local X is just quant * 2 (measure-relative)
+      return params.quant * 2;
+    };
+
+    getX.measureOrigin = (params: { measure: number }): number | null => {
+      if (params.measure < 0 || params.measure >= numMeasures) return null;
+      // Origin starts at 50, then advances by quantsPerMeasure * 2 per measure
+      return 50 + params.measure * quantsPerMeasure * 2;
+    };
+
+    return getX;
   };
+
+  // Mock layout with getX and getY APIs
+  const createMockLayout = (noteYByQuant?: Map<number, number>): ScoreLayout => {
+    const staffHeight = CONFIG.lineHeight * 4;
+    const staffTop = CONFIG.baseY;
+    const staffBottom = staffTop + staffHeight;
+
+    // Compute system-wide note bounds from all notes in the map
+    let systemNoteBounds = { top: staffTop, bottom: staffBottom };
+    if (noteYByQuant && noteYByQuant.size > 0) {
+      const noteYValues = Array.from(noteYByQuant.values());
+      systemNoteBounds = {
+        top: Math.min(...noteYValues),
+        bottom: Math.max(...noteYValues),
+      };
+    }
+
+    return {
+      staves: [{ y: staffTop, index: 0, measures: [] }],
+      notes: {},
+      events: {},
+      getX: createMockGetX(),
+      getY: {
+        content: { top: staffTop, bottom: staffBottom },
+        system: (index: number) => (index === 0 ? { top: staffTop, bottom: staffBottom } : null),
+        staff: (index: number) => (index === 0 ? { top: staffTop, bottom: staffBottom } : null),
+        notes: (quant?: number) => {
+          if (quant === undefined) return systemNoteBounds;
+          const noteY = noteYByQuant?.get(quant);
+          if (noteY !== undefined) {
+            return { top: noteY, bottom: noteY };
+          }
+          return systemNoteBounds;
+        },
+        pitch: () => null,
+      },
+    };
+  };
+
+  // validPositions: Map<measure, Set<quant>>
+  const mockValidPositions = new Map([
+    [0, new Set([0, 24, 48])],
+    [1, new Set([0, 24])],
+  ]);
 
   const defaultProps = {
     chords: mockChords,
     displayConfig: mockDisplayConfig,
     keySignature: 'C',
     timeSignature: '4/4',
-    validQuants: new Set([0, 24, 48, 72]),
+    validPositions: mockValidPositions,
     measurePositions: mockMeasurePositions,
-    quantToX: mockQuantToX,
-    trackY: 20,
-    quantsPerMeasure: 96,
-    noteYByQuant: new Map<number, number>(),
-    collisionConfig: {
-      MIN_DISTANCE_FROM_STAFF: 40,
-      PADDING_ABOVE_NOTES: 12,
-      MIN_Y: 0,
-      PER_CHORD_MIN_Y: -20,
-    },
+    layout: createMockLayout(),
+    quantsPerMeasure: 64,
     editingChordId: null,
     selectedChordId: null,
-    creatingAtQuant: null,
+    creatingAt: null as { measure: number; quant: number } | null,
     initialValue: null,
     onChordClick: jest.fn(),
     onChordSelect: jest.fn(),
@@ -298,26 +353,33 @@ describe('ChordTrack', () => {
   });
 
   describe('empty space click', () => {
-    it('calls onEmptyClick when clicking empty space at valid quant', () => {
+    it('calls onEmptyClick when clicking empty space at valid position', () => {
       const onEmptyClick = jest.fn();
 
-      // Add quant 72 to validQuants but no chord there
-      const validQuants = new Set([0, 24, 48, 72]);
+      // Add valid positions including measure 1, quant 8 (no chord there)
+      const validPositions = new Map([
+        [0, new Set([0, 24, 48])],
+        [1, new Set([8])],
+      ]);
 
       render(
         <svg data-testid="test-svg">
-          <ChordTrack {...defaultProps} validQuants={validQuants} onEmptyClick={onEmptyClick} />
+          <ChordTrack
+            {...defaultProps}
+            validPositions={validPositions}
+            onEmptyClick={onEmptyClick}
+          />
         </svg>
       );
 
       const hitArea = screen.getByTestId('chord-track-hit-area');
 
-      // Click at quant 72 (x = 50 + 72*2 = 194)
+      // Click at global quant 72 which is measure 1, quant 8 (x = 50 + 72*2 = 194)
       setMockCoordinates(194, 0);
 
       fireEvent.click(hitArea, { clientX: 194, clientY: 0 });
 
-      expect(onEmptyClick).toHaveBeenCalledWith(72);
+      expect(onEmptyClick).toHaveBeenCalledWith({ measure: 1, quant: 8 });
     });
 
     it('does not call onEmptyClick when clicking far from valid quants', () => {
@@ -393,19 +455,27 @@ describe('ChordTrack', () => {
     it('shows ChordInput for new chord creation', () => {
       render(
         <svg>
-          <ChordTrack {...defaultProps} editingChordId="new" creatingAtQuant={72} />
+          <ChordTrack
+            {...defaultProps}
+            editingChordId="new"
+            creatingAt={{ measure: 1, quant: 8 }}
+          />
         </svg>
       );
 
       expect(screen.getByTestId('chord-input')).toBeInTheDocument();
-      // Input for new chord should be at quant 72 -> x = 194
+      // Input for new chord should be at global quant 72 (measure 1 * 64 + quant 8) -> x = 194
       expect(screen.getByTestId('chord-input')).toHaveAttribute('data-x', '194');
     });
 
     it('passes empty string as initialValue for new chord', () => {
       render(
         <svg>
-          <ChordTrack {...defaultProps} editingChordId="new" creatingAtQuant={72} />
+          <ChordTrack
+            {...defaultProps}
+            editingChordId="new"
+            creatingAt={{ measure: 1, quant: 8 }}
+          />
         </svg>
       );
 
@@ -439,7 +509,7 @@ describe('ChordTrack', () => {
           <ChordTrack
             {...defaultProps}
             editingChordId="new"
-            creatingAtQuant={72}
+            creatingAt={{ measure: 1, quant: 8 }}
             onEditComplete={onEditComplete}
           />
         </svg>
@@ -523,7 +593,11 @@ describe('ChordTrack', () => {
     it('does not show preview when editing', () => {
       render(
         <svg data-testid="test-svg">
-          <ChordTrack {...defaultProps} editingChordId="new" creatingAtQuant={72} />
+          <ChordTrack
+            {...defaultProps}
+            editingChordId="new"
+            creatingAt={{ measure: 1, quant: 8 }}
+          />
         </svg>
       );
 
@@ -569,16 +643,37 @@ describe('ChordTrack', () => {
   });
 
   describe('track positioning', () => {
-    it('applies trackY transform to the group', () => {
+    it('computes trackY from layout and applies transform', () => {
+      // With default layout (staff at CONFIG.baseY=80, no notes),
+      // trackY = staffTop - MIN_DISTANCE_FROM_STAFF = 80 - 40 = 40
       render(
         <svg data-testid="test-svg">
-          <ChordTrack {...defaultProps} trackY={30} />
+          <ChordTrack {...defaultProps} />
         </svg>
       );
 
       const trackGroup = screen.getByTestId('chord-track');
 
-      expect(trackGroup).toHaveAttribute('transform', 'translate(0, 30)');
+      // Default trackY = CONFIG.baseY (80) - MIN_DISTANCE_FROM_STAFF (40) = 40
+      expect(trackGroup).toHaveAttribute('transform', 'translate(0, 40)');
+    });
+
+    it('positions track higher when notes are high', () => {
+      // Create layout with a high note (lower Y value)
+      const highNoteY = 30; // Very high on screen
+      const noteMap = new Map([[0, highNoteY]]);
+      const layoutWithHighNote = createMockLayout(noteMap);
+
+      render(
+        <svg data-testid="test-svg">
+          <ChordTrack {...defaultProps} layout={layoutWithHighNote} />
+        </svg>
+      );
+
+      const trackGroup = screen.getByTestId('chord-track');
+
+      // With high note at Y=30, trackY = 30 - PADDING_ABOVE_NOTES (20) = 10
+      expect(trackGroup).toHaveAttribute('transform', 'translate(0, 10)');
     });
   });
 });

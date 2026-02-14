@@ -9,6 +9,8 @@
  */
 import { Score, Staff, ScoreEvent } from '@/types';
 import { CONFIG } from '@/config';
+import { TIME_SIGNATURES } from '@/constants';
+import { getNoteDuration } from '@/utils/core';
 import {
   calculateHeaderLayout,
   calculateMeasureLayout,
@@ -18,7 +20,14 @@ import {
   getNoteWidth,
 } from '@/engines/layout';
 import { calculateTupletBrackets } from '@/engines/layout/tuplets';
-import { ScoreLayout, StaffLayout, MeasureLayoutV2, EventLayout, NoteLayout } from './types';
+import {
+  ScoreLayout,
+  StaffLayout,
+  MeasureLayoutV2,
+  EventLayout,
+  NoteLayout,
+  YBounds,
+} from './types';
 
 // --- Phase 1: Synchronization Helper ---
 
@@ -95,9 +104,8 @@ const processEventLayout = (
 ): EventLayout => {
   const { measureX, staffY, staffIdx, measureIdx, clef } = measureContext;
 
-  // 1. Position Calculation
-  const relativeX = relativeLayout.eventPositions[event.id] || CONFIG.measurePaddingLeft;
-  const absoluteX = measureX + relativeX;
+  // 1. Position Calculation (measure-relative)
+  const localX = relativeLayout.eventPositions[event.id] || CONFIG.measurePaddingLeft;
   const processedEvent = relativeLayout.processedEvents.find((e) => e.id === event.id);
 
   // 2. Width Calculation
@@ -107,7 +115,7 @@ const processEventLayout = (
   }
 
   const eventLayout: EventLayout = {
-    x: absoluteX,
+    localX,
     y: staffY,
     width: eventWidth,
     notes: {},
@@ -121,9 +129,13 @@ const processEventLayout = (
 
       const halfWidth = eventWidth / 2;
       const xShift = processedEvent?.chordLayout?.noteOffsets[note.id] || 0;
+      const noteLocalX = localX + xShift;
+
+      // Compute absolute X for hit zones (needed for hit detection)
+      const absoluteX = measureX + noteLocalX;
 
       const noteLayout: NoteLayout = {
-        x: absoluteX + xShift,
+        localX: noteLocalX,
         y: staffY + getOffsetForPitch(note.pitch, clef),
         noteId: note.id,
         eventId: event.id,
@@ -131,8 +143,8 @@ const processEventLayout = (
         staffIndex: staffIdx,
         pitch: note.pitch,
         hitZone: {
-          startX: absoluteX + xShift - halfWidth,
-          endX: absoluteX + xShift + halfWidth,
+          startX: absoluteX - halfWidth,
+          endX: absoluteX + halfWidth,
           index: 0,
           type: 'EVENT',
           eventId: event.id,
@@ -160,12 +172,30 @@ const processEventLayout = (
  * This is the SINGLE SOURCE OF TRUTH for where everything is on the canvas.
  *
  * @param score - The score data
- * @returns ScoreLayout object containing full position maps
+ * @returns ScoreLayout object containing full position maps and getX function
  */
 export const calculateScoreLayout = (score: Score): ScoreLayout => {
-  const layout: ScoreLayout = { staves: [], notes: {}, events: {} };
+  // Default getX for empty scores - returns null for any position
+  const emptyGetX = Object.assign(
+    (_params: { measure: number; quant: number }): number | null => null,
+    { measureOrigin: (_params: { measure: number }): number | null => null }
+  );
 
-  if (!score.staves || score.staves.length === 0) return layout;
+  // Default getY for empty scores
+  const emptyGetY: ScoreLayout['getY'] = {
+    content: { top: 0, bottom: 0 },
+    system: () => null,
+    staff: () => null,
+    notes: () => ({ top: 0, bottom: 0 }),
+    pitch: () => null,
+  };
+
+  if (!score.staves || score.staves.length === 0) {
+    return { staves: [], notes: {}, events: {}, getX: emptyGetX, getY: emptyGetY };
+  }
+
+  // Partial layout that we'll populate
+  const layout: Omit<ScoreLayout, 'getX' | 'getY'> = { staves: [], notes: {}, events: {} };
 
   const activeStaff = score.staves[0];
   const headerLayout = calculateHeaderLayout(score.keySignature || activeStaff.keySignature || 'C');
@@ -236,5 +266,179 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
     layout.staves.push(staffLayout);
   });
 
-  return layout;
+  // --- Build getX function (measure-relative) ---
+  const timeSignature = score.timeSignature || '4/4';
+  const quantsPerMeasure = TIME_SIGNATURES[timeSignature] || TIME_SIGNATURES['4/4'];
+
+  // Build per-measure quant→X map (measure-relative coordinates)
+  // Map<measureIndex, Map<localQuant, relativeX>>
+  const measureQuantMaps = new Map<number, Map<number, number>>();
+
+  Object.values(layout.notes).forEach((noteLayout) => {
+    const measureData = score.staves[noteLayout.staffIndex]?.measures[noteLayout.measureIndex];
+    const measureLayout = layout.staves[noteLayout.staffIndex]?.measures[noteLayout.measureIndex];
+    if (!measureData || !measureLayout) return;
+
+    // Calculate local quant for this note
+    let localQuant = 0;
+    for (const event of measureData.events) {
+      if (event.id === noteLayout.eventId) {
+        // Initialize measure map if needed
+        if (!measureQuantMaps.has(noteLayout.measureIndex)) {
+          measureQuantMaps.set(noteLayout.measureIndex, new Map<number, number>());
+        }
+        const measureMap = measureQuantMaps.get(noteLayout.measureIndex)!;
+
+        // Store measure-relative X (noteLayout.localX is already relative)
+        if (!measureMap.has(localQuant)) {
+          measureMap.set(localQuant, noteLayout.localX);
+        }
+        break;
+      }
+      localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
+    }
+  });
+
+  // Get measure layouts for origin lookup and interpolation
+  const measureLayouts = layout.staves[0]?.measures ?? [];
+
+  // Measure origin lookup function
+  const measureOrigin = (params: { measure: number }): number | null => {
+    const measureLayout = measureLayouts[params.measure];
+    return measureLayout?.x ?? null;
+  };
+
+  // Main getX function (measure-relative)
+  const getXFn = (params: { measure: number; quant: number }): number | null => {
+    const { measure, quant } = params;
+
+    // Check bounds
+    const measureLayout = measureLayouts[measure];
+    if (!measureLayout) return null;
+
+    // Stage 1: Exact match lookup
+    const measureMap = measureQuantMaps.get(measure);
+    if (measureMap) {
+      const exact = measureMap.get(quant);
+      if (exact !== undefined) return exact;
+    }
+
+    // Stage 2: Interpolation fallback
+    // Calculate relative X within the measure based on quant proportion
+    const proportion = quant / quantsPerMeasure;
+    // Use measure width minus padding for content area
+    return (
+      CONFIG.measurePaddingLeft +
+      proportion * (measureLayout.width - CONFIG.measurePaddingLeft - CONFIG.measurePaddingRight)
+    );
+  };
+
+  // Combine into callable with measureOrigin property
+  const getX = Object.assign(getXFn, { measureOrigin });
+
+  // --- Build getY object ---
+
+  // Staff height is 5 lines = 4 gaps
+  const staffHeight = CONFIG.lineHeight * 4;
+
+  // Content region bounds
+  const lastStaffLayout = layout.staves[layout.staves.length - 1];
+  const contentTop = CONFIG.baseY;
+  const contentBottom = lastStaffLayout
+    ? lastStaffLayout.y + staffHeight
+    : CONFIG.baseY + staffHeight;
+
+  // Memoized system bounds (currently single-system)
+  const systemBoundsCache = new Map<number, YBounds | null>();
+  const system = (index: number): YBounds | null => {
+    if (systemBoundsCache.has(index)) return systemBoundsCache.get(index)!;
+
+    // Currently single-system; returns null for index > 0
+    if (index !== 0 || layout.staves.length === 0) {
+      systemBoundsCache.set(index, null);
+      return null;
+    }
+
+    const bounds: YBounds = { top: contentTop, bottom: contentBottom };
+    systemBoundsCache.set(index, bounds);
+    return bounds;
+  };
+
+  // Memoized staff bounds
+  const staffBoundsCache = new Map<number, YBounds | null>();
+  const staff = (index: number): YBounds | null => {
+    if (staffBoundsCache.has(index)) return staffBoundsCache.get(index)!;
+
+    const staffLayout = layout.staves[index];
+    if (!staffLayout) {
+      staffBoundsCache.set(index, null);
+      return null;
+    }
+
+    const bounds: YBounds = { top: staffLayout.y, bottom: staffLayout.y + staffHeight };
+    staffBoundsCache.set(index, bounds);
+    return bounds;
+  };
+
+  // Note extent (system-wide) - computed once
+  const allNoteYs = Object.values(layout.notes).map((n) => n.y);
+  const defaultBounds = staff(0) ?? { top: CONFIG.baseY, bottom: CONFIG.baseY + staffHeight };
+  const systemNoteBounds: YBounds =
+    allNoteYs.length > 0
+      ? { top: Math.min(...allNoteYs), bottom: Math.max(...allNoteYs) }
+      : defaultBounds;
+
+  // Per-quant note extent maps (built once)
+  const noteTopByQuant = new Map<number, number>();
+  const noteBottomByQuant = new Map<number, number>();
+
+  Object.values(layout.notes).forEach((noteLayout) => {
+    const measure = score.staves[noteLayout.staffIndex]?.measures[noteLayout.measureIndex];
+    if (!measure) return;
+
+    // Calculate global quant for this note (reuse logic from getX)
+    let localQuant = 0;
+    for (const event of measure.events) {
+      if (event.id === noteLayout.eventId) {
+        const globalQuant = noteLayout.measureIndex * quantsPerMeasure + localQuant;
+
+        const currentTop = noteTopByQuant.get(globalQuant) ?? Infinity;
+        if (noteLayout.y < currentTop) noteTopByQuant.set(globalQuant, noteLayout.y);
+
+        const currentBottom = noteBottomByQuant.get(globalQuant) ?? -Infinity;
+        if (noteLayout.y > currentBottom) noteBottomByQuant.set(globalQuant, noteLayout.y);
+        break;
+      }
+      localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
+    }
+  });
+
+  const notes = (quant?: number): YBounds => {
+    if (quant === undefined) {
+      return systemNoteBounds;
+    }
+    return {
+      top: noteTopByQuant.get(quant) ?? systemNoteBounds.top,
+      bottom: noteBottomByQuant.get(quant) ?? systemNoteBounds.bottom,
+    };
+  };
+
+  // Pitch positioning (clef-aware)
+  const pitch = (p: string, staffIndex: number): number | null => {
+    const staffLayout = layout.staves[staffIndex];
+    if (!staffLayout) return null;
+
+    const clef = score.staves[staffIndex]?.clef ?? (staffIndex === 0 ? 'treble' : 'bass');
+    return staffLayout.y + getOffsetForPitch(p, clef);
+  };
+
+  const getY: ScoreLayout['getY'] = {
+    content: { top: contentTop, bottom: contentBottom },
+    system,
+    staff,
+    notes,
+    pitch,
+  };
+
+  return { ...layout, getX, getY };
 };

@@ -6,9 +6,9 @@
  */
 import React from 'react';
 import ToolbarButton from './ToolbarButton';
+import { CONFIG } from '@/config';
 
-// SVG viewport size for compact toolbar icons
-const ICON_SIZE = 20;
+const ICON_SIZE = CONFIG.toolbar.iconSize;
 
 /**
  * Add Measure Icon - Final barline with a plus

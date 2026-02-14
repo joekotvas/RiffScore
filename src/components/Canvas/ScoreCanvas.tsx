@@ -179,18 +179,22 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   // Flatten layout for hit detection (interaction layer)
   // This replaces the old notePositions calculation
   const notePositions = useMemo(() => {
-    return Object.values(layout.notes).map((noteLayout) => ({
-      x: noteLayout.x,
-      y: noteLayout.y,
-      // Use hit zone dimensions from layout engine
-      width: noteLayout.hitZone.endX - noteLayout.hitZone.startX,
-      height: 20, // Standard vertical hit box height
-      // Metadata
-      staffIndex: noteLayout.staffIndex,
-      measureIndex: noteLayout.measureIndex,
-      eventId: noteLayout.eventId,
-      noteId: noteLayout.noteId,
-    }));
+    return Object.values(layout.notes).map((noteLayout) => {
+      // Calculate absolute X from measureOrigin + localX
+      const measureOrigin = layout.getX.measureOrigin({ measure: noteLayout.measureIndex }) ?? 0;
+      return {
+        x: measureOrigin + noteLayout.localX,
+        y: noteLayout.y,
+        // Use hit zone dimensions from layout engine
+        width: noteLayout.hitZone.endX - noteLayout.hitZone.startX,
+        height: 20, // Standard vertical hit box height
+        // Metadata
+        staffIndex: noteLayout.staffIndex,
+        measureIndex: noteLayout.measureIndex,
+        eventId: noteLayout.eventId,
+        noteId: noteLayout.noteId,
+      };
+    });
   }, [layout]);
 
   // --- CHORD TRACK LAYOUT ---
@@ -203,107 +207,6 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       quant: index * quantsPerMeasure,
     }));
   }, [layout.staves, quantsPerMeasure]);
-
-  // Build quant→X map from actual note positions in layout
-  const quantToXMap = useMemo(() => {
-    const map = new Map<number, number>();
-    // Group notes by quant and use the first note's X position
-    Object.values(layout.notes).forEach((noteLayout) => {
-      // Calculate global quant from measureIndex and event position
-      const measure = score.staves[noteLayout.staffIndex]?.measures[noteLayout.measureIndex];
-      if (!measure) return;
-
-      let localQuant = 0;
-      for (const event of measure.events) {
-        if (event.id === noteLayout.eventId) {
-          const globalQuant = noteLayout.measureIndex * quantsPerMeasure + localQuant;
-          // Only set if not already set (use first note's X)
-          if (!map.has(globalQuant)) {
-            map.set(globalQuant, noteLayout.x);
-          }
-          break;
-        }
-        // Accumulate quant for each event using the standard duration calculation
-        localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
-      }
-    });
-    return map;
-  }, [layout.notes, score.staves, quantsPerMeasure]);
-
-  const quantToX = useCallback(
-    (quant: number): number => {
-      // Use actual note position if available
-      const mappedX = quantToXMap.get(quant);
-      if (mappedX !== undefined) return mappedX;
-
-      // Fallback to proportion-based calculation
-      if (measurePositions.length === 0) return 0;
-      const measureIndex = Math.floor(quant / quantsPerMeasure);
-      const localQuant = quant % quantsPerMeasure;
-      const measure = measurePositions[measureIndex];
-      if (!measure) return 0;
-      const proportion = localQuant / quantsPerMeasure;
-      return measure.x + proportion * measure.width;
-    },
-    [quantToXMap, measurePositions, quantsPerMeasure]
-  );
-
-  // Chord track collision avoidance constants
-  const CHORD_COLLISION = useMemo(
-    () => ({
-      MIN_DISTANCE_FROM_STAFF: 40, // Minimum gap above staff top line (B5 equivalent)
-      PADDING_ABOVE_NOTES: 20, // Gap between highest note and chord track
-      MIN_Y: 30, // System baseline won't go higher than this
-      PER_CHORD_MIN_Y: 0, // Individual chords can go all the way to top
-    }),
-    []
-  );
-
-  // Build a map of quant -> highest note Y at that quant position
-  // Used for per-chord collision avoidance
-  const noteYByQuant = useMemo(() => {
-    const map = new Map<number, number>();
-
-    Object.values(layout.notes).forEach((noteLayout) => {
-      const measure = score.staves[noteLayout.staffIndex]?.measures[noteLayout.measureIndex];
-      if (!measure) return;
-
-      let localQuant = 0;
-      for (const event of measure.events) {
-        if (event.id === noteLayout.eventId) {
-          const globalQuant = noteLayout.measureIndex * quantsPerMeasure + localQuant;
-          // Keep the minimum (highest on screen) Y for each quant
-          const existing = map.get(globalQuant);
-          if (existing === undefined || noteLayout.y < existing) {
-            map.set(globalQuant, noteLayout.y);
-          }
-          break;
-        }
-        localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
-      }
-    });
-
-    return map;
-  }, [layout.notes, score.staves, quantsPerMeasure]);
-
-  // System-level chord track Y position (baseline for all chords)
-  // All chords move together based on the highest note in the entire score
-  const chordTrackY = useMemo(() => {
-    // Default position when no notes or all notes are below the threshold
-    const defaultY = CONFIG.baseY - CHORD_COLLISION.MIN_DISTANCE_FROM_STAFF;
-
-    const noteYValues = Object.values(layout.notes).map((n) => n.y);
-    if (noteYValues.length === 0) return defaultY;
-
-    const highestNoteY = Math.min(...noteYValues);
-
-    // Calculate where the chord track should be to clear the highest note
-    const collisionY = highestNoteY - CHORD_COLLISION.PADDING_ABOVE_NOTES;
-
-    // Use the higher position (lower Y value) between collision-based and default
-    // Clamp to MIN_Y (can go all the way to 0 for extreme cases)
-    return Math.max(CHORD_COLLISION.MIN_Y, Math.min(collisionY, defaultY));
-  }, [layout.notes, CHORD_COLLISION]);
 
   // --- DIMENSIONS & REF ---
   const cursorRef = useRef<SVGGElement>(null);
@@ -318,11 +221,12 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     return 800;
   }, [layout]);
 
+  // SVG height derived from layout (forward-flow pattern)
   const svgHeight = useMemo(() => {
-    return (
-      CONFIG.baseY + (score.staves.length - 1) * CONFIG.staffSpacing + CONFIG.lineHeight * 4 + 50
-    );
-  }, [score.staves.length]);
+    const contentBottom = layout.getY.content.bottom;
+    // Add padding below content
+    return contentBottom > 0 ? contentBottom + 50 : 200;
+  }, [layout]);
 
   // Cursor layout (consumes centralized layout - no duplicate calculations)
   // Calculate cursor layout
@@ -335,7 +239,17 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     duration: playbackPosition.duration,
   };
 
-  const { x: unifiedCursorX, numStaves } = useCursorLayout(layout, effectivePlaybackPos, isPlaying);
+  const { measure: cursorMeasure, x: cursorLocalX } = useCursorLayout(
+    layout,
+    effectivePlaybackPos,
+    isPlaying
+  );
+
+  // Calculate absolute cursor X by combining measureOrigin + localX
+  const unifiedCursorX =
+    cursorMeasure !== null && cursorLocalX !== null
+      ? (layout.getX.measureOrigin({ measure: cursorMeasure }) ?? 0) + cursorLocalX
+      : null;
 
   // Drag to select hook
   const {
@@ -362,14 +276,14 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   });
 
   /**
-   * Select the topmost note at a given quant position.
-   * Falls back to nearest note to the left if no note at the quant.
+   * Select the topmost note at a given position.
+   * Falls back to nearest note to the left if no note at the position.
    * Used for focus restoration when leaving chord track.
    */
-  const selectTopmostNoteAtQuant = useCallback(
-    (quant: number) => {
-      const measureIndex = Math.floor(quant / quantsPerMeasure);
-      const localQuant = quant % quantsPerMeasure;
+  const selectTopmostNoteAtPosition = useCallback(
+    (position: { measure: number; quant: number }) => {
+      const measureIndex = position.measure;
+      const localQuant = position.quant;
 
       // Try to find a note at this quant in the topmost staff first
       for (let staffIdx = 0; staffIdx < score.staves.length; staffIdx++) {
@@ -539,18 +453,23 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
           {score.staves?.length > 1 && (
             <>
               {(() => {
-                const topY = CONFIG.baseY;
-                const bottomY =
-                  CONFIG.baseY +
-                  (score.staves.length - 1) * CONFIG.staffSpacing +
-                  CONFIG.lineHeight * 4;
-                return <GrandStaffBracket topY={topY} bottomY={bottomY} x={-20} />;
+                const systemBounds = layout.getY.system(0);
+                if (!systemBounds) return null;
+                return (
+                  <GrandStaffBracket
+                    topY={systemBounds.top}
+                    bottomY={systemBounds.bottom}
+                    x={-20}
+                  />
+                );
               })()}
             </>
           )}
 
           {score.staves?.map((staff: StaffType, staffIndex: number) => {
-            const staffBaseY = CONFIG.baseY + staffIndex * CONFIG.staffSpacing;
+            // Get staff Y from layout (forward-flow pattern)
+            const staffBounds = layout.getY.staff(staffIndex);
+            const staffBaseY = staffBounds?.top ?? CONFIG.baseY + staffIndex * CONFIG.staffSpacing;
 
             // Construct Interaction State - using memoized callbacks for stable references
             const interaction = {
@@ -604,16 +523,13 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             displayConfig={DEFAULT_CHORD_DISPLAY}
             keySignature={keySignature}
             timeSignature={timeSignature}
-            validQuants={chordTrackHook.validQuants}
+            validPositions={chordTrackHook.validPositions}
             measurePositions={measurePositions}
-            quantToX={quantToX}
-            trackY={chordTrackY}
+            layout={layout}
             quantsPerMeasure={quantsPerMeasure}
-            noteYByQuant={noteYByQuant}
-            collisionConfig={CHORD_COLLISION}
             editingChordId={chordTrackHook.editingChordId}
             selectedChordId={chordTrackHook.selectedChordId}
-            creatingAtQuant={chordTrackHook.creatingAtQuant}
+            creatingAt={chordTrackHook.creatingAt}
             initialValue={chordTrackHook.initialValue}
             onChordClick={(chordId) => {
               // Click goes directly to edit mode
@@ -630,8 +546,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 voicing.forEach((note) => playNote(note, '8n'));
               }
             }}
-            onEmptyClick={(quant) => {
-              chordTrackHook.startCreating(quant);
+            onEmptyClick={(position) => {
+              chordTrackHook.startCreating(position);
             }}
             onEditComplete={(chordId, value) => {
               chordTrackHook.completeEdit(chordId, value);
@@ -646,29 +562,41 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 selectionEngine.selectChord(editingId);
               } else {
                 // ESC from creating a new chord -> return focus to topmost note
-                const quant = chordTrackHook.creatingAtQuant;
+                const position = chordTrackHook.creatingAt;
                 chordTrackHook.cancelEdit();
 
-                if (quant !== undefined && quant !== null) {
-                  selectTopmostNoteAtQuant(quant);
+                if (position) {
+                  selectTopmostNoteAtPosition(position);
                 }
               }
             }}
             onNavigateNext={(chordId, value) => {
-              // Find current quant position
-              const currentQuant = chordId
-                ? chordTrackHook.chords.find((c) => c.id === chordId)?.quant
-                : chordTrackHook.creatingAtQuant;
+              // Find current position
+              const currentChord = chordId
+                ? chordTrackHook.chords.find((c) => c.id === chordId)
+                : null;
+              const currentPosition = currentChord
+                ? { measure: currentChord.measure, quant: currentChord.quant }
+                : chordTrackHook.creatingAt;
 
-              if (currentQuant === undefined || currentQuant === null) return;
+              if (!currentPosition) return;
 
-              // Get sorted valid quants and find next position
-              const sortedQuants = Array.from(chordTrackHook.validQuants).sort((a, b) => a - b);
-              const nextQuant = sortedQuants.find((q) => q > currentQuant);
+              // Build sorted list of valid positions
+              const sortedPositions: Array<{ measure: number; quant: number }> = [];
+              for (const [measure, quants] of chordTrackHook.validPositions) {
+                for (const quant of quants) {
+                  sortedPositions.push({ measure, quant });
+                }
+              }
+              sortedPositions.sort((a, b) => a.measure - b.measure || a.quant - b.quant);
 
-              // If no next position, do nothing - the input stays open with the
-              // user's typed value preserved in ChordInput's local state (#220)
-              if (nextQuant === undefined) return;
+              // Find next position
+              const currentIdx = sortedPositions.findIndex(
+                (p) => p.measure === currentPosition.measure && p.quant === currentPosition.quant
+              );
+              if (currentIdx === -1 || currentIdx >= sortedPositions.length - 1) return;
+
+              const nextPosition = sortedPositions[currentIdx + 1];
 
               // Save the current edit and navigate
               chordTrackHook.completeEdit(chordId, value);
@@ -676,33 +604,46 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               // Use setTimeout to ensure state is updated after completeEdit
               setTimeout(() => {
                 const updatedChords = chordTrackHook.chords;
-                const chordAtQuant = updatedChords.find((c) => c.quant === nextQuant);
+                const chordAtPosition = updatedChords.find(
+                  (c) => c.measure === nextPosition.measure && c.quant === nextPosition.quant
+                );
 
-                if (chordAtQuant) {
+                if (chordAtPosition) {
                   // Edit existing chord
-                  chordTrackHook.startEditing(chordAtQuant.id);
+                  chordTrackHook.startEditing(chordAtPosition.id);
                 } else {
                   // Create new chord at this position
-                  chordTrackHook.startCreating(nextQuant);
+                  chordTrackHook.startCreating(nextPosition);
                 }
               }, 0);
             }}
             onNavigatePrevious={(chordId, value) => {
-              // Find current quant position
-              const currentQuant = chordId
-                ? chordTrackHook.chords.find((c) => c.id === chordId)?.quant
-                : chordTrackHook.creatingAtQuant;
+              // Find current position
+              const currentChord = chordId
+                ? chordTrackHook.chords.find((c) => c.id === chordId)
+                : null;
+              const currentPosition = currentChord
+                ? { measure: currentChord.measure, quant: currentChord.quant }
+                : chordTrackHook.creatingAt;
 
-              if (currentQuant === undefined || currentQuant === null) return;
+              if (!currentPosition) return;
 
-              // Get sorted valid quants and find previous position
-              const sortedQuants = Array.from(chordTrackHook.validQuants).sort((a, b) => a - b);
-              const previousQuants = sortedQuants.filter((q) => q < currentQuant);
-              const previousQuant = previousQuants[previousQuants.length - 1];
+              // Build sorted list of valid positions
+              const sortedPositions: Array<{ measure: number; quant: number }> = [];
+              for (const [measure, quants] of chordTrackHook.validPositions) {
+                for (const quant of quants) {
+                  sortedPositions.push({ measure, quant });
+                }
+              }
+              sortedPositions.sort((a, b) => a.measure - b.measure || a.quant - b.quant);
 
-              // If no previous position, do nothing - the input stays open with the
-              // user's typed value preserved in ChordInput's local state (#220)
-              if (previousQuant === undefined) return;
+              // Find previous position
+              const currentIdx = sortedPositions.findIndex(
+                (p) => p.measure === currentPosition.measure && p.quant === currentPosition.quant
+              );
+              if (currentIdx <= 0) return;
+
+              const previousPosition = sortedPositions[currentIdx - 1];
 
               // Save the current edit and navigate
               chordTrackHook.completeEdit(chordId, value);
@@ -710,28 +651,31 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               // Use setTimeout to ensure state is updated after completeEdit
               setTimeout(() => {
                 const updatedChords = chordTrackHook.chords;
-                const chordAtQuant = updatedChords.find((c) => c.quant === previousQuant);
+                const chordAtPosition = updatedChords.find(
+                  (c) =>
+                    c.measure === previousPosition.measure && c.quant === previousPosition.quant
+                );
 
-                if (chordAtQuant) {
+                if (chordAtPosition) {
                   // Edit existing chord
-                  chordTrackHook.startEditing(chordAtQuant.id);
+                  chordTrackHook.startEditing(chordAtPosition.id);
                 } else {
                   // Create new chord at this position
-                  chordTrackHook.startCreating(previousQuant);
+                  chordTrackHook.startCreating(previousPosition);
                 }
               }, 0);
             }}
             onDelete={(chordId) => {
-              // Get the chord's quant before deletion for focus restoration
+              // Get the chord's position before deletion for focus restoration
               const chord = chordTrackHook.chords.find((c) => c.id === chordId);
-              const chordQuant = chord?.quant;
+              const chordPosition = chord ? { measure: chord.measure, quant: chord.quant } : null;
 
               // Delete the chord
               chordTrackHook.deleteChord(chordId);
 
-              // Restore focus to topmost note at the chord's quant
-              if (chordQuant !== undefined) {
-                selectTopmostNoteAtQuant(chordQuant);
+              // Restore focus to topmost note at the chord's position
+              if (chordPosition) {
+                selectTopmostNoteAtPosition(chordPosition);
               }
             }}
           />
@@ -747,27 +691,27 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 opacity: isPlaybackVisible ? 1 : 0,
               }}
             >
-              <line
-                x1={0}
-                y1={CONFIG.baseY - 20}
-                x2={0}
-                y2={
-                  CONFIG.baseY + (numStaves - 1) * CONFIG.staffSpacing + CONFIG.lineHeight * 4 + 20
-                }
-                stroke={theme.accent}
-                strokeWidth="3"
-                opacity="0.8"
-              />
-              <circle cx={0} cy={CONFIG.baseY - 20} r="4" fill={theme.accent} opacity="0.9" />
-              <circle
-                cx={0}
-                cy={
-                  CONFIG.baseY + (numStaves - 1) * CONFIG.staffSpacing + CONFIG.lineHeight * 4 + 20
-                }
-                r="4"
-                fill={theme.accent}
-                opacity="0.9"
-              />
+              {(() => {
+                const systemBounds = layout.getY.system(0);
+                const cursorTop = (systemBounds?.top ?? CONFIG.baseY) - 20;
+                const cursorBottom =
+                  (systemBounds?.bottom ?? CONFIG.baseY + CONFIG.lineHeight * 4) + 20;
+                return (
+                  <>
+                    <line
+                      x1={0}
+                      y1={cursorTop}
+                      x2={0}
+                      y2={cursorBottom}
+                      stroke={theme.accent}
+                      strokeWidth="3"
+                      opacity="0.8"
+                    />
+                    <circle cx={0} cy={cursorTop} r="4" fill={theme.accent} opacity="0.9" />
+                    <circle cx={0} cy={cursorBottom} r="4" fill={theme.accent} opacity="0.9" />
+                  </>
+                );
+              })()}
             </g>
           )}
 

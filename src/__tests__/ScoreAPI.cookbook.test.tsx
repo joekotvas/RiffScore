@@ -287,16 +287,21 @@ describe('Cookbook: Chord Symbol Recipes', () => {
         .addNote('F4', 'quarter');
     });
 
-    // Get valid positions (quantsPerBeat varies by environment)
-    const validQuants = score.getValidChordQuants();
-    expect(validQuants.length).toBeGreaterThanOrEqual(4);
+    // Get valid positions (returns Map<measure, Set<quant>>)
+    const validPositions = score.getValidChordPositions();
+    const measureQuants = validPositions.get(0);
+    expect(measureQuants).toBeDefined();
+    expect(measureQuants!.size).toBeGreaterThanOrEqual(4);
+
+    // Convert to sorted array for test assertions
+    const sortedQuants = Array.from(measureQuants!).sort((a, b) => a - b);
 
     // Add chords at beat 1 and beat 2
     act(() => {
-      score.addChord(validQuants[0], 'C');
+      score.addChord({ measure: 0, quant: sortedQuants[0] }, 'C');
     });
     act(() => {
-      score.addChord(validQuants[1], 'F');
+      score.addChord({ measure: 0, quant: sortedQuants[1] }, 'F');
     });
 
     expect(score.ok).toBe(true);
@@ -304,9 +309,9 @@ describe('Cookbook: Chord Symbol Recipes', () => {
     const chords = score.getChords();
     expect(chords.length).toBe(2);
     expect(chords[0].symbol).toBe('C');
-    expect(chords[0].quant).toBe(validQuants[0]);
+    expect(chords[0].quant).toBe(sortedQuants[0]);
     expect(chords[1].symbol).toBe('F');
-    expect(chords[1].quant).toBe(validQuants[1]);
+    expect(chords[1].quant).toBe(sortedQuants[1]);
   });
 
   /**
@@ -329,13 +334,14 @@ describe('Cookbook: Chord Symbol Recipes', () => {
         .addNote('F4', 'quarter');
     });
 
-    const validQuants = score.getValidChordQuants();
+    const validPositions = score.getValidChordPositions();
+    const measureQuants = Array.from(validPositions.get(0) || []).sort((a, b) => a - b);
 
     act(() => {
-      score.addChord(validQuants[0], 'C');
+      score.addChord({ measure: 0, quant: measureQuants[0] }, 'C');
     });
     act(() => {
-      score.addChord(validQuants[1], 'F');
+      score.addChord({ measure: 0, quant: measureQuants[1] }, 'F');
     });
 
     // Get all chords, select the second one

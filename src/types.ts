@@ -1,4 +1,5 @@
 import { ThemeName } from './themes';
+import { TIME_SIGNATURES } from './constants';
 
 /**
  * Type definitions for the Sheet Music Editor
@@ -58,13 +59,16 @@ export interface Staff {
 
 /**
  * Represents a chord symbol in the chord track.
- * Anchored to a global quant position.
+ * Anchored to a measure-local position for robust measure operations.
  */
 export interface ChordSymbol {
   /** Unique identifier (generated via chordId() from utils/id.ts) */
   id: string;
 
-  /** Global quant position (measureIndex * quantsPerMeasure + localQuant) */
+  /** Measure index (0-based) */
+  measure: number;
+
+  /** Local quant position within the measure (0 = start of measure) */
   quant: number;
 
   /** Canonical chord symbol (letter-name notation, e.g., 'Cmaj7', 'Am', 'G7') */
@@ -163,6 +167,38 @@ export const getActiveStaff = (score: Score, staffIndex: number = 0): Staff => {
 };
 
 /**
+ * Migrates chordTrack from global quant to measure-local { measure, quant } format.
+ * Old format: { id, quant, symbol } where quant is global
+ * New format: { id, measure, quant, symbol } where quant is local to measure
+ */
+const migrateChordTrack = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Accepts unknown chord formats during migration
+  chordTrack: any[] | undefined,
+  timeSignature: string
+): ChordSymbol[] | undefined => {
+  if (!chordTrack || chordTrack.length === 0) return chordTrack;
+
+  // Check if migration is needed (first chord without measure field = old format)
+  const needsMigration = chordTrack[0].measure === undefined;
+  if (!needsMigration) return chordTrack;
+
+  const quantsPerMeasure = TIME_SIGNATURES[timeSignature] || 64;
+
+  return chordTrack.map((chord) => {
+    const globalQuant = chord.quant;
+    const measure = Math.floor(globalQuant / quantsPerMeasure);
+    const localQuant = globalQuant % quantsPerMeasure;
+
+    return {
+      id: chord.id,
+      measure,
+      quant: localQuant,
+      symbol: chord.symbol,
+    };
+  });
+};
+
+/**
  * Migrates an old-format score to the new staves model
  * Also syncs top-level legacy fields (measures, keySignature, clef) back to staves[0]
  */
@@ -202,13 +238,20 @@ export const migrateScore = (oldScore: any): Score => {
 
       result.staves = [updatedStaff, ...result.staves.slice(1)];
     }
+
+    // Migrate chord track from global quant to measure-local format
+    if (result.chordTrack) {
+      result.chordTrack = migrateChordTrack(result.chordTrack, result.timeSignature || '4/4');
+    }
+
     return result as Score;
   }
 
   // Migrate legacy single-staff format (no staves array)
+  const timeSig = oldScore.timeSignature || '4/4';
   return {
     title: oldScore.title || 'Composition',
-    timeSignature: oldScore.timeSignature || '4/4',
+    timeSignature: timeSig,
     keySignature: oldScore.keySignature || 'C',
     bpm: oldScore.bpm || 120,
     staves: [
@@ -222,6 +265,8 @@ export const migrateScore = (oldScore: any): Score => {
         ],
       },
     ],
+    // Migrate chord track from global quant to measure-local format
+    chordTrack: migrateChordTrack(oldScore.chordTrack, timeSig),
   };
 };
 

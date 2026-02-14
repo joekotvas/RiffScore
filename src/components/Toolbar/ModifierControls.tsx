@@ -8,9 +8,9 @@ import React from 'react';
 import TieIcon from '../Assets/TieIcon';
 import ToolbarButton from './ToolbarButton';
 import { DOTS, BRAVURA_FONT } from '@/constants/SMuFL';
+import { CONFIG } from '@/config';
 
-// SVG viewport and font size for compact toolbar icons
-const ICON_SIZE = 20;
+const ICON_SIZE = CONFIG.toolbar.iconSize;
 
 /**
  * Bravura-based augmentation dot icon for toolbar

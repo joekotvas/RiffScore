@@ -23,6 +23,9 @@ interface PlaybackPosition {
 }
 
 interface CursorLayout {
+  /** Measure index for cursor position */
+  measure: number | null;
+  /** X position within the measure (measure-relative) */
   x: number | null;
   width: number;
   isGrandStaff: boolean;
@@ -48,12 +51,12 @@ export const useCursorLayout = (
   const cursor = useMemo(() => {
     // No layout - no cursor
     if (layout.staves.length === 0) {
-      return { x: null, width: 0 };
+      return { measure: null, x: null, width: 0 };
     }
 
     const { measureIndex, quant } = playbackPosition;
     if (measureIndex === null || quant === null) {
-      return { x: null, width: 0 };
+      return { measure: null, x: null, width: 0 };
     }
 
     // Aggregate events from ALL staves to build unified system grid
@@ -63,11 +66,10 @@ export const useCursorLayout = (
       .filter(Boolean);
 
     if (relevantMeasures.length === 0) {
-      return { x: null, width: 0 };
+      return { measure: null, x: null, width: 0 };
     }
 
-    // Use first measure for base X (they are all aligned)
-    const baseMeasureX = relevantMeasures[0].x;
+    // Use first measure for base width (all measures at same quant are aligned)
     const baseMeasureWidth = relevantMeasures[0].width;
 
     // Build unified quant -> x map
@@ -99,12 +101,14 @@ export const useCursorLayout = (
     const quantPosition = getQuantPositionFromMap(quantToX, quant, baseMeasureWidth, isPlaying);
 
     return {
-      x: baseMeasureX + quantPosition.x,
+      measure: measureIndex,
+      x: quantPosition.x, // measure-relative X
       width: quantPosition.width,
     };
   }, [layout.staves, playbackPosition, isPlaying]);
 
   return {
+    measure: cursor.measure,
     x: cursor.x,
     width: cursor.width,
     isGrandStaff,

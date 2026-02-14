@@ -490,12 +490,12 @@ export interface MusicEditorAPI {
 
   // --- Chord CRUD Operations ---
   /**
-   * Add a chord symbol at the specified quant position.
-   * @param quant - Global quant position for the chord
+   * Add a chord symbol at the specified position.
+   * @param position - Position as { measure, quant }
    * @param symbol - Chord symbol string (e.g., 'Cmaj7', 'Dm', 'G7')
    * @status implemented
    */
-  addChord(quant: number, symbol: string): this;
+  addChord(position: { measure: number; quant: number }, symbol: string): this;
   /**
    * Update an existing chord symbol.
    * @param chordId - ID of the chord to update
@@ -511,7 +511,7 @@ export interface MusicEditorAPI {
   removeChord(chordId: string): this;
   /**
    * Get all chord symbols in the score.
-   * @returns Array of chord symbols sorted by quant ascending
+   * @returns Array of chord symbols sorted by position ascending
    * @status implemented
    */
   getChords(): ChordSymbol[];
@@ -523,18 +523,18 @@ export interface MusicEditorAPI {
    */
   getChord(chordId: string): ChordSymbol | null;
   /**
-   * Get the chord at a specific quant position.
-   * @param quant - Global quant position
+   * Get the chord at a specific position.
+   * @param position - Position as { measure, quant }
    * @returns The chord at that position or null if none exists
    * @status implemented
    */
-  getChordAtQuant(quant: number): ChordSymbol | null;
+  getChordAt(position: { measure: number; quant: number }): ChordSymbol | null;
   /**
-   * Get all valid quant positions where chords can be placed.
-   * @returns Array of valid quant positions
+   * Get all valid positions where chords can be placed.
+   * @returns Map of measure index to set of valid local quants
    * @status implemented
    */
-  getValidChordQuants(): number[];
+  getValidChordPositions(): Map<number, Set<number>>;
 
   // --- Chord Selection ---
   /**
@@ -544,11 +544,11 @@ export interface MusicEditorAPI {
    */
   selectChord(chordId: string): this;
   /**
-   * Select the chord at a specific quant position.
-   * @param quant - Global quant position
+   * Select the chord at a specific position.
+   * @param position - Position as { measure, quant }
    * @status implemented
    */
-  selectChordAtQuant(quant: number): this;
+  selectChordAt(position: { measure: number; quant: number }): this;
   /**
    * Deselect the currently selected chord.
    * @status implemented

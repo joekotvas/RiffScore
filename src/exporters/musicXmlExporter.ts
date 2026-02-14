@@ -1,4 +1,4 @@
-import { NOTE_TYPES, KEY_SIGNATURES, TIME_SIGNATURES } from '@/constants';
+import { NOTE_TYPES, KEY_SIGNATURES } from '@/constants';
 import { getActiveStaff, Score, Staff, Measure, ScoreEvent, ChordSymbol } from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
 
@@ -131,13 +131,15 @@ export const generateMusicXML = (score: Score) => {
   // Phase 2: Iterate over all staves
   const staves = score.staves || [getActiveStaff(score)];
   const timeSig = score.timeSignature || '4/4';
-  const quantsPerMeasure = TIME_SIGNATURES[timeSig] || 64;
 
-  // Build chord map indexed by global quant position (only for first part)
-  const chordMap = new Map<number, ChordSymbol>();
+  // Build chord map indexed by (measure, quant) position (only for first part)
+  const chordMap = new Map<number, Map<number, ChordSymbol>>();
   if (score.chordTrack) {
     for (const chord of score.chordTrack) {
-      chordMap.set(chord.quant, chord);
+      if (!chordMap.has(chord.measure)) {
+        chordMap.set(chord.measure, new Map<number, ChordSymbol>());
+      }
+      chordMap.get(chord.measure)!.set(chord.quant, chord);
     }
   }
 
@@ -232,8 +234,8 @@ export const generateMusicXML = (score: Score) => {
       measure.events.forEach((event: ScoreEvent) => {
         // Insert harmony element before note if chord exists at this position (first part only)
         if (staffIndex === 0) {
-          const globalQuant = mIndex * quantsPerMeasure + localQuant;
-          const chord = chordMap.get(globalQuant);
+          const measureChords = chordMap.get(mIndex);
+          const chord = measureChords?.get(localQuant);
           if (chord) {
             xml += generateHarmonyElement(chord);
           }

@@ -21,6 +21,38 @@ export interface Config {
   headerWidth: number;
   staffSpacing: number;
 
+  // Chord track positioning
+  chordTrack: {
+    /** Minimum distance above staff top line */
+    minDistanceFromStaff: number;
+    /** Gap between highest note and chord symbol */
+    paddingAboveNotes: number;
+    /** Absolute minimum Y position (top of canvas) */
+    minY: number;
+  };
+
+  // Toolbar sizing
+  toolbar: {
+    /** Icon size for toolbar buttons */
+    iconSize: number;
+  };
+
+  // Header layout (clef, key sig, time sig)
+  header: {
+    /** Clef symbol width */
+    clefWidth: number;
+    /** X position where key signature starts */
+    keySigStartX: number;
+    /** Width per accidental in key signature */
+    keySigAccidentalWidth: number;
+    /** Padding after key signature */
+    keySigPadding: number;
+    /** Time signature width */
+    timeSigWidth: number;
+    /** Padding after time signature */
+    timeSigPadding: number;
+  };
+
   debug?: {
     enabled: boolean;
     logCommands: boolean;
@@ -40,6 +72,25 @@ export const CONFIG: Config = {
   scoreMarginLeft: 60,
   headerWidth: 60,
   staffSpacing: 120,
+
+  chordTrack: {
+    minDistanceFromStaff: 40,
+    paddingAboveNotes: 20,
+    minY: 0,
+  },
+
+  toolbar: {
+    iconSize: 20,
+  },
+
+  header: {
+    clefWidth: 40,
+    keySigStartX: 45,
+    keySigAccidentalWidth: 10,
+    keySigPadding: 10,
+    timeSigWidth: 30,
+    timeSigPadding: 20,
+  },
 
   debug: {
     enabled: true,
