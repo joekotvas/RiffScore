@@ -11,8 +11,8 @@ This directory contains agent prompt documents for implementing the Page View & 
 | Phase | Status | Commits | Notes |
 |-------|--------|---------|-------|
 | 0 | ✅ Complete | `ef0a604`, `c553ed6`, `bf3b70d`, `3bc059d`, `16b8f13` | API standardized to 0-based indexing |
-| 1 | ⏳ Pending | — | Ready to start |
-| 2 | ⏳ Pending | — | Blocked by Phase 1 |
+| 1 | ✅ Complete | `1d001d8` | Types, config, and services for page view |
+| 2 | ⏳ Pending | — | Ready to start |
 | 3 | ⏳ Pending | — | Blocked by Phases 1, 2 |
 | 4 | ⏳ Pending | — | Blocked by Phase 2 |
 | 5 | ⏳ Pending | — | Blocked by Phases 2, 4 |
@@ -44,6 +44,36 @@ See [CHANGELOG.md](../../../../CHANGELOG.md) for migration details.
 ### Test Results
 - 1227 tests passing
 - All documentation updated
+
+---
+
+## Phase 1 Completion Notes
+
+Phase 1 established the foundation types and services for page view:
+
+### Deliverables
+- **`src/types.ts`** - Extended with `ScoreMetadata`, `LayoutConfig`, `SystemLayout`, `PageLayout` types
+- **`src/config.ts`** - Added layout defaults (`DEFAULT_LAYOUT_CONFIG`, `MARGIN_PRESETS`, `PAGE_DIMENSIONS`, `SYSTEM_SPACING_MULTIPLIERS`)
+- **`src/services/PageLayoutService.ts`** - System break algorithm, measure width calculation, justification logic
+- **`src/services/MetadataService.ts`** - Validation and normalization following ADR-011 structured feedback
+
+### Key APIs Now Available
+```typescript
+// PageLayoutService
+calculatePageLayout(score, config) → PageLayout
+calculateSystemBreaks(measureWidths, contentWidth, indent) → number[][]
+getSystemForMeasure(measureIndex, layout) → number
+getMeasureOriginInSystem(measureIndex, layout, widths) → { x, systemIndex }
+
+// MetadataService
+validateMetadata(metadata) → { ok, errors }
+normalizeMetadata(metadata) → ScoreMetadata
+```
+
+### Test Results
+- 1325 tests passing (98 new tests)
+- PageLayoutService: 97.74% statements, 87.14% branches
+- MetadataService: 100% statements, 97.77% branches
 
 ---
 

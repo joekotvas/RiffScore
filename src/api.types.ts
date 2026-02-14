@@ -27,6 +27,8 @@ import type {
   ChordSymbol,
   ChordDisplayConfig,
   ChordPlaybackConfig,
+  LayoutConfig,
+  ScoreMetadata,
 } from './types';
 
 // ========== UTILITY TYPES ==========
@@ -396,6 +398,104 @@ export interface MusicEditorAPI {
    * @status implemented
    */
   setStaffLayout(type: 'grand' | 'single'): this;
+
+  // --- Layout API ---
+  /**
+   * Get the current view mode (scroll or page).
+   * @status implemented
+   */
+  getViewMode(): LayoutConfig['viewMode'];
+  /**
+   * Set the view mode.
+   * @status implemented
+   */
+  setViewMode(mode: LayoutConfig['viewMode']): this;
+  /**
+   * Toggle between scroll and page view modes.
+   * @status implemented
+   */
+  toggleViewMode(): this;
+  /**
+   * Get the current layout configuration.
+   * @status implemented
+   */
+  getLayoutConfig(): LayoutConfig;
+  /**
+   * Update layout configuration.
+   * @status implemented
+   */
+  setLayoutConfig(config: Partial<LayoutConfig>): this;
+  /**
+   * Reset layout configuration to defaults.
+   * @status implemented
+   */
+  resetLayoutConfig(): this;
+
+  // --- Metadata API ---
+  /**
+   * Get the score metadata.
+   * @status implemented
+   */
+  getMetadata(): ScoreMetadata;
+  /**
+   * Update score metadata.
+   * @status implemented
+   */
+  setMetadata(metadata: Partial<ScoreMetadata>): this;
+  /**
+   * Get the score title.
+   * @status implemented
+   */
+  getTitle(): string;
+  /**
+   * Set the score title.
+   * @status implemented
+   */
+  setTitle(title: string): this;
+  /**
+   * Get the composer name.
+   * @status implemented
+   */
+  getComposer(): string | undefined;
+  /**
+   * Set the composer name.
+   * @status implemented
+   */
+  setComposer(composer: string): this;
+  /**
+   * Get the lyricist name.
+   * @status implemented
+   */
+  getLyricist(): string | undefined;
+  /**
+   * Set the lyricist name.
+   * @status implemented
+   */
+  setLyricist(lyricist: string): this;
+  /**
+   * Get the copyright notice.
+   * @status implemented
+   */
+  getCopyright(): string | undefined;
+  /**
+   * Set the copyright notice.
+   * @status implemented
+   */
+  setCopyright(copyright: string): this;
+
+  // --- Navigation (from Metadata) ---
+  /**
+   * Select the first element in the score.
+   * Used for Tab navigation from metadata fields.
+   * @status implemented
+   */
+  selectFirstElement(): this;
+  /**
+   * Select the last element in the score.
+   * Used for Shift+Tab navigation from metadata fields.
+   * @status implemented
+   */
+  selectLastElement(): this;
 
   // --- Lifecycle & IO ---
   /**
