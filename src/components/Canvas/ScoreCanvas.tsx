@@ -477,33 +477,52 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               {/* Systems */}
               {pageLayout.systems.map((system) => {
                 const firstMeasureIndex = system.measures[0];
-                // Get the content X (left margin) for positioning
+                // Content X is the left margin
                 const contentX = pageLayout.contentArea.x;
+                // Staff scale factor for sizing content to fit page
+                const staffScale = pageLayout.staffScale;
+
+                // Calculate staff positions in the scaled coordinate system
+                // Staff internally renders at CONFIG.baseY (80), we need to position it at system.y
+                // Transform order: translate then scale means point (x,y) -> (tx + x*s, ty + y*s)
+                const translateY = system.y - CONFIG.baseY * staffScale;
+
+                // First system indent (applied to measures, not header)
+                const firstSystemIndent = system.isFirst
+                  ? pageLayout.firstSystemIndent * system.contentWidth
+                  : 0;
+
+                // Calculate actual staff heights for bracket
+                const singleStaffHeight = 48 * staffScale; // 4 lines * 12px line height
+                const totalStaffHeight =
+                  score.staves.length > 1
+                    ? singleStaffHeight * score.staves.length +
+                      CONFIG.staffSpacing * staffScale * (score.staves.length - 1)
+                    : singleStaffHeight;
 
                 return (
                   <g key={`system-${system.index}`} className="riff-system">
-                    {/* Measure number at start of system (absolute position) */}
+                    {/* Measure number at start of system */}
                     <MeasureNumber
                       measureIndex={firstMeasureIndex}
-                      x={system.xOffset}
+                      x={contentX + firstSystemIndent}
                       y={system.y}
-                      staffScale={pageLayout.staffScale}
+                      staffScale={staffScale}
                     />
 
-                    {/* Grand staff bracket (absolute position) */}
+                    {/* Grand staff bracket */}
                     {score.staves?.length > 1 && (
                       <GrandStaffBracket
                         topY={system.y}
-                        bottomY={system.y + system.height}
-                        x={contentX - 5}
+                        bottomY={system.y + totalStaffHeight}
+                        x={contentX - 10}
                       />
                     )}
 
-                    {/* Staves - wrapped in group with X offset transform */}
+                    {/* Staves - scaled and positioned */}
                     {score.staves?.map((staff: StaffType, staffIndex: number) => {
-                      // Calculate absolute Y for this staff within the system
-                      const staffBaseY =
-                        system.y + staffIndex * CONFIG.staffSpacing * pageLayout.staffScale;
+                      // Calculate Y offset for this staff within the system (scaled)
+                      const staffYOffset = staffIndex * CONFIG.staffSpacing * staffScale;
 
                       const interaction = {
                         selection,
@@ -534,7 +553,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                       return (
                         <g
                           key={`${staff.id || staffIndex}-system-${system.index}`}
-                          transform={`translate(${contentX}, 0)`}
+                          transform={`translate(${contentX + firstSystemIndent}, ${translateY + staffYOffset}) scale(${staffScale})`}
                         >
                           <Staff
                             staffIndex={staffIndex}
@@ -543,7 +562,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                             timeSignature={timeSignature}
                             measures={systemMeasures}
                             staffLayout={layout.staves[staffIndex]}
-                            baseY={staffBaseY}
+                            baseY={CONFIG.baseY}
                             scale={scale}
                             isSystemStart={true}
                             systemIndex={system.index}
