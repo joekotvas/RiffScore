@@ -300,7 +300,7 @@ flowchart TD
 | `calculateTupletBracket` | tuplets.ts | Bracket positioning |
 | `getOffsetForPitch` | positioning.ts | Pitch → Y offset (clef-aware) |
 | `clientToSvg` | coordinateUtils.ts | Client coords → SVG coords |
-| `xToNearestQuant` | coordinateUtils.ts | X position → nearest quant |
+| ~~`xToNearestQuant`~~ | coordinateUtils.ts | ~~X position → nearest quant~~ (deprecated, use measure-aware lookup) |
 
 ---
 

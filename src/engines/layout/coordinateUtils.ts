@@ -2,7 +2,6 @@
  * coordinateUtils.ts
  *
  * Shared coordinate transformation utilities for score layout.
- * All X position logic flows through these functions.
  *
  * @see Issue #204
  */
@@ -22,6 +21,10 @@ export interface MeasurePosition {
 /**
  * Convert quant to X coordinate.
  * Two-stage lookup: exact match from map, then interpolation fallback.
+ *
+ * @deprecated Use `layout.getX({ measure, quant })` instead.
+ * This function uses global quants which don't support system breaks.
+ * @see ADR-016: Measure-Relative X Positioning
  */
 export function quantToX(
   quant: number,
@@ -47,6 +50,10 @@ export function quantToX(
 
 /**
  * Find nearest quant position to an X coordinate.
+ *
+ * @deprecated Use measure-aware position lookup instead.
+ * This function uses global quants which don't support system breaks.
+ * @see ChordTrack.tsx xToNearestPosition for the new pattern.
  */
 export function xToNearestQuant(
   x: number,
