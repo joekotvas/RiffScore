@@ -9,12 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - **Release Workflow Documentation**: New [RELEASE_WORKFLOW.md](docs/RELEASE_WORKFLOW.md) with step-by-step checklist for version releases, including verification, changelog updates, GitHub releases, and LinkedIn announcements.
+- **ADR-016: Measure-Relative X Positioning**: Design decision documenting the coordinate system migration for system breaks support. See [ADR-016](docs/adr/016-measure-relative-x.md).
 
 ### Changed
 - **Chord Input UX ([#220](https://github.com/joekotvas/riffscore/issues/220))**:
   - Raised chord baseline height for better visual separation from staff.
   - Simplified placeholder text to "Cm7".
   - Tab/Shift+Tab now stays in edit mode when at the last/first chord position instead of closing the editor.
+
+### Refactoring
+- **Measure-Relative X Positioning ([#204](https://github.com/joekotvas/riffscore/issues/204))**: Complete migration to measure-relative coordinates to prepare for system breaks (multi-line rendering).
+  - **ScoreLayout API**: `getX({ measure, quant })` now returns measure-relative X; `getX.measureOrigin({ measure })` returns absolute origin.
+  - **ChordSymbol Data Model**: Chords now use `{ measure, quant }` instead of global quant. Old scores auto-migrate.
+  - **Layout Types**: `NoteLayout.x` and `EventLayout.x` renamed to `localX` (measure-relative).
+  - **Cursor & Hit Detection**: Updated `useCursorLayout`, `ScoreCanvas`, and `useDragToSelect` to use new coordinate system.
+  - **Deprecations**: `quantToX()` and `xToNearestQuant()` in `coordinateUtils.ts` deprecated in favor of measure-aware lookups.
+  - See [migration spec](docs/migration/measure-relative-x-spec.md) for full details.
 
 ## [1.0.0-alpha.9] - 2026-02-13
 
