@@ -10,12 +10,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 - **Release Workflow Documentation**: New [RELEASE_WORKFLOW.md](docs/RELEASE_WORKFLOW.md) with step-by-step checklist for version releases, including verification, changelog updates, GitHub releases, and LinkedIn announcements.
 - **ADR-016: Measure-Relative X Positioning**: Design decision documenting the coordinate system migration for system breaks support. See [ADR-016](docs/adr/016-measure-relative-x.md).
+- **Measure Index Utilities ([#227](https://github.com/joekotvas/riffscore/issues/227))**: New `@/utils/measureIndex` module with conversion helpers:
+  - `toDisplayMeasureNumber()` - Convert 0-based index to 1-based display number
+  - `toInternalMeasureIndex()` - Convert 1-based display to 0-based index
+  - `isValidMeasureIndex()` - Validate measure index bounds
+  - `clampMeasureIndex()` - Clamp index to valid range
 
 ### Changed
 - **Chord Input UX ([#220](https://github.com/joekotvas/riffscore/issues/220))**:
   - Raised chord baseline height for better visual separation from staff.
   - Simplified placeholder text to "Cm7".
   - Tab/Shift+Tab now stays in edit mode when at the last/first chord position instead of closing the editor.
+
+### Breaking Changes
+- **API Measure Indices Now 0-Based ([#227](https://github.com/joekotvas/riffscore/issues/227))**: All API methods now use 0-based measure indices for consistency with standard programming conventions. This affects:
+  - `select(measureIndex, ...)` - was `select(measureNum, ...)` with 1-based input
+  - `selectAtQuant(measureIndex, quant, ...)` - was 1-based
+  - `addToSelection(measureIndex, ...)` - was 1-based
+  - `selectRangeTo(measureIndex, ...)` - was 1-based
+  - `selectEvent(measureIndex, ...)` - was 1-based
+
+  **Migration**: Change `select(1)` to `select(0)` for first measure, `select(2)` to `select(1)` for second measure, etc. For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureIndex`.
 
 ### Refactoring
 - **Measure-Relative X Positioning ([#204](https://github.com/joekotvas/riffscore/issues/204))**: Complete migration to measure-relative coordinates to prepare for system breaks (multi-line rendering).
