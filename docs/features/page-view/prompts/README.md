@@ -14,10 +14,11 @@ This directory contains agent prompt documents for implementing the Page View & 
 | 1 | ✅ Complete | `1d001d8` | Types, config, and services for page view |
 | 2 | ✅ Complete | `59144e7` | Layout and metadata commands + API |
 | 3 | ✅ Complete | `b797d2e`, `07a7734` | Multi-system rendering for page view |
+| 3b | ⏳ Pending | — | Fix margin/anchor positioning issues |
 | 4 | ✅ Complete | `1c6a1ae`, `edc471f` | Score Setup dialog with live preview |
-| 5 | ⏳ Pending | — | Ready to start |
-| 6 | ⏳ Pending | — | Ready to start |
-| 7 | ⏳ Pending | — | Ready to start |
+| 5 | ⏳ Pending | — | Blocked by Phase 3b |
+| 6 | ⏳ Pending | — | Blocked by Phase 3b |
+| 7 | ⏳ Pending | — | Blocked by Phase 3b |
 | 8 | ⏳ Pending | — | Ready to start |
 | 9 | ⏳ Pending | — | Blocked by all |
 
@@ -213,14 +214,15 @@ Each prompt is designed for a **prompt executor** that:
 | 1 | [Foundation & Data Model](./phase-1-foundation.md) | 2-3 days | Phase 0 |
 | 2 | [Commands & API](./phase-2-commands-api.md) | 1-2 days | Phase 1 |
 | 3 | [Multi-System Rendering](./phase-3-multi-system-rendering.md) | 3-4 days | Phases 1, 2 |
+| 3b | [Layout Anchoring](./phase-3b-layout-anchoring.md) | 1-2 days | Phase 3 |
 | 4 | [Score Setup Dialog](./phase-4-score-setup-dialog.md) | 2-3 days | Phase 2 |
-| 5 | [Toolbar Controls](./phase-5-toolbar-controls.md) | 1 day | Phases 2, 4 |
-| 6 | [Print Support](./phase-6-print-support.md) | 2 days | Phase 3 |
-| 7 | [Metadata Rendering](./phase-7-metadata-rendering.md) | 3-4 days | Phases 2, 3 |
+| 5 | [Toolbar Controls](./phase-5-toolbar-controls.md) | 1 day | Phases 2, 4, 3b |
+| 6 | [Print Support](./phase-6-print-support.md) | 2 days | Phase 3b |
+| 7 | [Metadata Rendering](./phase-7-metadata-rendering.md) | 3-4 days | Phases 2, 3b |
 | 8 | [Export Integration](./phase-8-export-integration.md) | 1 day | Phases 1, 2 |
 | 9 | [Polish & Testing](./phase-9-polish-testing.md) | 2-3 days | All |
 
-**Total Estimated Effort:** 18-25 days
+**Total Estimated Effort:** 19-27 days
 
 ---
 
@@ -235,13 +237,15 @@ Phase 0 (Zero-Indexed Measures) ← PREREQUISITE
              │        │
              │        ├─── Phase 3 (Multi-System Rendering)
              │        │        │
-             │        │        ├─── Phase 6 (Print Support)
-             │        │        │
-             │        │        └─── Phase 7 (Metadata Rendering)
+             │        │        └─── Phase 3b (Layout Anchoring) ← FIX
+             │        │                 │
+             │        │                 ├─── Phase 6 (Print Support)
+             │        │                 │
+             │        │                 └─── Phase 7 (Metadata Rendering)
              │        │
              │        ├─── Phase 4 (Score Setup Dialog)
              │        │        │
-             │        │        └─── Phase 5 (Toolbar Controls)
+             │        │        └─── Phase 5 (Toolbar Controls) ← also needs 3b
              │        │
              │        └─── Phase 8 (Export Integration)
              │
@@ -254,15 +258,16 @@ Phase 0 (Zero-Indexed Measures) ← PREREQUISITE
 
 Phases that can run in parallel (after dependencies met):
 - **Phases 3, 4, 8** can run in parallel after Phase 2 completes
-- **Phases 5, 6, 7** can run in parallel after Phase 3 completes
+- **Phases 5, 6, 7** can run in parallel after Phase 3b completes
 
 Maximum parallelism execution order:
 1. Phase 0 (sequential, prerequisite)
 2. Phase 1 (sequential)
 3. Phase 2 (sequential)
 4. Phases 3 + 4 + 8 (parallel)
-5. Phases 5 + 6 + 7 (parallel, after Phase 3)
-6. Phase 9 (sequential, final)
+5. Phase 3b (sequential, fixes Phase 3 issues)
+6. Phases 5 + 6 + 7 (parallel, after Phase 3b)
+7. Phase 9 (sequential, final)
 
 ---
 
