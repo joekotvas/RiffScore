@@ -6,6 +6,47 @@ This directory contains agent prompt documents for implementing the Page View & 
 
 ---
 
+## Implementation Status
+
+| Phase | Status | Commits | Notes |
+|-------|--------|---------|-------|
+| 0 | ✅ Complete | `ef0a604`, `c553ed6`, `bf3b70d`, `3bc059d`, `16b8f13` | API standardized to 0-based indexing |
+| 1 | ⏳ Pending | — | Ready to start |
+| 2 | ⏳ Pending | — | Blocked by Phase 1 |
+| 3 | ⏳ Pending | — | Blocked by Phases 1, 2 |
+| 4 | ⏳ Pending | — | Blocked by Phase 2 |
+| 5 | ⏳ Pending | — | Blocked by Phases 2, 4 |
+| 6 | ⏳ Pending | — | Blocked by Phase 3 |
+| 7 | ⏳ Pending | — | Blocked by Phases 2, 3 |
+| 8 | ⏳ Pending | — | Blocked by Phases 1, 2 |
+| 9 | ⏳ Pending | — | Blocked by all |
+
+**Last Updated:** 2026-02-14
+
+---
+
+## Phase 0 Completion Notes
+
+Phase 0 established the 0-based indexing convention throughout the codebase:
+
+### Deliverables
+- **`src/utils/measureIndex.ts`** - Conversion utilities (`toDisplayMeasureNumber`, `toInternalMeasureIndex`, `isValidMeasureIndex`, `clampMeasureIndex`)
+- **JSDoc documentation** - All measure-related types now document 0-based convention
+- **API standardization** - All API methods use 0-based indices consistently
+
+### Breaking Change
+The API now uses 0-based measure indices:
+- `select(0)` = first measure (was `select(1)`)
+- `select(1)` = second measure (was `select(2)`)
+
+See [CHANGELOG.md](../../../../CHANGELOG.md) for migration details.
+
+### Test Results
+- 1227 tests passing
+- All documentation updated
+
+---
+
 ## Execution Model
 
 Each prompt is designed for a **prompt executor** that:
