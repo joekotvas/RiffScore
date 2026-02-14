@@ -570,3 +570,127 @@ Run `npm run test` and verify in demo app.
 | `src/components/Dialog/ScoreSetupDialog/index.ts` | Create |
 | `src/hooks/layout/useScoreSetup.ts` | Create |
 | `src/__tests__/components/Dialog/ScoreSetupDialog.test.tsx` | Create |
+
+---
+
+## User Walkthrough & Manual Testing
+
+After implementation, verify the following manually:
+
+### 1. Run Tests
+```bash
+npm run test
+npm run lint
+```
+
+### 2. Start Demo App
+```bash
+npm run demo:dev
+```
+
+### 3. Open Score Setup Dialog
+
+Via keyboard: `Cmd+,` (Mac) or `Ctrl+,` (Windows/Linux)
+
+Or via console:
+```javascript
+// Trigger dialog open (depends on implementation)
+```
+
+### 4. Test Metadata Fields
+
+- [ ] Title field is pre-filled with current title
+- [ ] Title field shows validation error when empty
+- [ ] Composer, Lyricist, Copyright fields accept input
+- [ ] Changes appear immediately in score (live preview)
+
+### 5. Test Layout Settings
+
+- [ ] Page Size dropdown works (Letter/A4)
+- [ ] Margins dropdown works (Narrow/Normal/Wide)
+- [ ] Staff Size slider works (50-150%)
+- [ ] System Spacing dropdown works (Compact/Normal/Relaxed)
+- [ ] Changes apply immediately (live preview)
+
+### 6. Test Cancel Behavior
+
+1. Open dialog
+2. Make several changes
+3. Press Escape or click Cancel
+4. **Verify:** All changes are undone (single undo batch)
+
+### 7. Test Save Behavior
+
+1. Open dialog
+2. Make changes
+3. Press Enter or click Save
+4. **Verify:** Changes persist
+5. Close and reopen dialog
+6. **Verify:** Changes are still there
+
+### 8. Test Accessibility
+
+- [ ] Dialog traps focus
+- [ ] Tab navigates through fields
+- [ ] Screen reader announces dialog title
+- [ ] Required field (*) is announced
+- [ ] Error messages are announced
+
+---
+
+## Phase Completion & Recalibration
+
+### Before Moving to Phase 5
+
+After completing Phase 4:
+
+1. **Verify dialog functionality**
+   - All fields work correctly
+   - Live preview updates score
+   - Cancel reverts all changes
+
+2. **Check dialog styling**
+   - Matches overall app design
+   - Responsive on different screen sizes
+   - Scrollable content works
+
+3. **Accessibility audit**
+   - Test with keyboard only
+   - Test with screen reader (if available)
+
+4. **Review Phase 5 prompt**
+   - Does toolbar button correctly open dialog?
+   - Are keyboard shortcuts consistent?
+
+### Recalibration Checklist
+
+- [ ] All tests pass
+- [ ] Dialog opens/closes correctly
+- [ ] Live preview works
+- [ ] Cancel undoes batched changes
+- [ ] Accessibility requirements met
+- [ ] Phase 5 prompt reviewed and updated if needed
+
+### Commit Template
+
+```bash
+git add src/components/Dialog/ScoreSetupDialog/ src/hooks/layout/useScoreSetup.ts
+git commit -m "feat(#174): implement Score Setup dialog
+
+- Create ScoreSetupDialog with MetadataSection and LayoutSection
+- Implement live preview with batched undo on cancel
+- Add useScoreSetup hook for dialog state
+- Style with ScoreSetupDialog.css
+- Meet accessibility requirements (ARIA, focus trap)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Notes for Subsequent Phases
+
+After this phase:
+- Score Setup dialog is functional
+- `useScoreSetup` hook manages dialog state
+- Phase 5 will add toolbar button to open dialog
