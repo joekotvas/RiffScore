@@ -281,12 +281,16 @@ export interface Melody {
 // ========== SELECTION ==========
 
 /**
- * Represents a note in the selection array
+ * Represents a note in the selection array.
  */
 export interface SelectedNote {
+  /** 0-based staff index */
   staffIndex: number;
+  /** 0-based measure index (array index into staff.measures) */
   measureIndex: number;
+  /** Event ID within the measure */
   eventId: string;
+  /** Note ID within the event, or null for single-note events */
   noteId: string | null;
 }
 
@@ -297,23 +301,31 @@ export interface SelectedNote {
 export interface VerticalAnchors {
   /** Direction of this vertical extension series */
   direction: 'up' | 'down';
-  /** Map of global time (measureIndex * 100000 + quant) to anchor note for that slice */
+  /** Map of global time (0-based measureIndex * 100000 + quant) to anchor note for that slice */
   sliceAnchors: Record<number, SelectedNote>;
   /** Snapshot of selection when vertical extension started */
   originSelection: SelectedNote[];
 }
 
 /**
- * Selection State for the editor
+ * Selection State for the editor.
+ * All indices are 0-based (array indices).
  */
 export interface Selection {
-  staffIndex: number; // Index of the selected staff (0 for single staff, 0 or 1 for Grand Staff)
-  measureIndex: number | null; // Index of the selected measure
-  eventId: string | null; // ID of the selected event
-  noteId: string | null; // ID of the selected note (for chords)
-  selectedNotes: SelectedNote[]; // List of all selected notes (including the primary one above)
-  anchor?: SelectedNote | null; // The static "anchor" point for range selection
-  verticalAnchors?: VerticalAnchors | null; // Per-slice anchors for vertical extension
+  /** 0-based staff index (0 for single staff, 0 or 1 for Grand Staff) */
+  staffIndex: number;
+  /** 0-based measure index (array index into staff.measures), or null if no selection */
+  measureIndex: number | null;
+  /** Event ID within the measure, or null if no selection */
+  eventId: string | null;
+  /** Note ID within the event (for chords), or null for single-note events */
+  noteId: string | null;
+  /** List of all selected notes (including the primary one above) */
+  selectedNotes: SelectedNote[];
+  /** The static "anchor" point for range selection */
+  anchor?: SelectedNote | null;
+  /** Per-slice anchors for vertical extension */
+  verticalAnchors?: VerticalAnchors | null;
 
   /** Selected chord symbol ID (when chord track is focused). Default: null */
   chordId?: string | null;
@@ -342,19 +354,31 @@ export const createDefaultSelection = (): Selection => ({
 /**
  * Represents the ghost cursor state for note preview.
  * Used when navigating to empty space where a note could be placed.
+ * All indices are 0-based (array indices).
  */
 export interface PreviewNote {
+  /** 0-based measure index (array index into staff.measures) */
   measureIndex: number;
+  /** 0-based staff index */
   staffIndex: number;
-  quant: number; // Position in quants within measure
-  visualQuant: number; // Visual position (may differ for display)
-  pitch: string; // Preview pitch (e.g., "C4")
-  duration: string; // Duration name ('quarter', 'half', etc.)
+  /** Position in quants within measure (0 = start of measure) */
+  quant: number;
+  /** Visual position (may differ from quant for display purposes) */
+  visualQuant: number;
+  /** Preview pitch (e.g., "C4") */
+  pitch: string;
+  /** Duration name ('quarter', 'half', etc.) */
+  duration: string;
+  /** Whether the preview note is dotted */
   dotted: boolean;
-  mode: 'APPEND' | 'INSERT' | 'CHORD'; // Append at end or insert at position
-  index: number; // Event index where this would be inserted
+  /** Insertion mode: append at end, insert at position, or add to chord */
+  mode: 'APPEND' | 'INSERT' | 'CHORD';
+  /** 0-based event index where this would be inserted */
+  index: number;
+  /** Whether the preview is for a rest */
   isRest: boolean;
-  source?: 'keyboard' | 'mouse' | 'hover'; // How the ghost cursor was triggered
+  /** How the ghost cursor was triggered */
+  source?: 'keyboard' | 'mouse' | 'hover';
 }
 
 // ========== NAVIGATION RESULT TYPES ==========
@@ -371,22 +395,37 @@ export interface AudioFeedback {
 /**
  * Partial selection used in navigation results.
  * Contains the core fields needed to update selection state.
+ * All indices are 0-based (array indices).
  */
 export interface NavigationSelection {
+  /** 0-based staff index */
   staffIndex: number;
+  /** 0-based measure index (array index), or null if not selecting a note */
   measureIndex: number | null;
+  /** Event ID within the measure, or null */
   eventId: string | null;
+  /** Note ID within the event, or null */
   noteId: string | null;
+  /** Additional selected notes */
   selectedNotes?: Array<{
+    /** 0-based staff index */
     staffIndex: number;
+    /** 0-based measure index */
     measureIndex: number;
+    /** Event ID within the measure */
     eventId: string;
+    /** Note ID within the event, or null */
     noteId: string | null;
   }>;
+  /** Anchor point for range selection */
   anchor?: {
+    /** 0-based staff index */
     staffIndex: number;
+    /** 0-based measure index */
     measureIndex: number;
+    /** Event ID within the measure */
     eventId: string;
+    /** Note ID within the event, or null */
     noteId: string | null;
   } | null;
 }

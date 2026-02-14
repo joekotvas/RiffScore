@@ -16,19 +16,31 @@
 import { useMemo } from 'react';
 import { ScoreLayout } from '@/engines/layout/types';
 
+/**
+ * Playback position state from the playback system.
+ */
 interface PlaybackPosition {
+  /** 0-based measure index (array index), or null if not positioned */
   measureIndex: number | null;
+  /** Local quant position within the measure (0 = start), or null */
   quant: number | null;
+  /** Duration of the current note/rest in quants */
   duration: number;
 }
 
+/**
+ * Calculated cursor layout for playback visualization.
+ */
 interface CursorLayout {
-  /** Measure index for cursor position */
+  /** 0-based measure index for cursor position, or null if not positioned */
   measure: number | null;
-  /** X position within the measure (measure-relative) */
+  /** X position within the measure (measure-relative), or null */
   x: number | null;
+  /** Width of the cursor in pixels */
   width: number;
+  /** Whether the score has multiple staves (grand staff) */
   isGrandStaff: boolean;
+  /** Number of staves in the score */
   numStaves: number;
 }
 

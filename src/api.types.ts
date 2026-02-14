@@ -4,6 +4,15 @@
  * This file defines the public contract for external script control.
  * Kept separate from data model types for clarity and maintainability.
  *
+ * ## Indexing Convention
+ *
+ * - **User-facing parameters** (measureNum): 1-based (display numbers)
+ * - **Internal indices** (measureIndex, position.measure): 0-based (array indices)
+ * - **Staff/event/note indices**: Always 0-based
+ *
+ * The API methods that accept `measureNum` convert to 0-based internally.
+ * Methods accepting `position: { measure, quant }` expect 0-based measure indices.
+ *
  * @see docs/migration/api_reference_draft.md
  */
 
@@ -110,12 +119,19 @@ export interface MusicEditorAPI {
    */
   jump(target: 'start-score' | 'end-score' | 'start-measure' | 'end-measure'): this;
   /**
-   * Select an event by measure number (1-based) and optional indices.
+   * Select an event by measure number and optional indices.
+   * @param measureNum - 1-based measure number (display number, not array index)
+   * @param staffIndex - 0-based staff index (default: 0)
+   * @param eventIndex - 0-based event index within the measure (default: 0)
+   * @param noteIndex - 0-based note index within the event (default: 0)
    * @status implemented
    */
   select(measureNum: number, staffIndex?: number, eventIndex?: number, noteIndex?: number): this;
   /**
    * Select by rhythmic position within a measure.
+   * @param measureNum - 1-based measure number (display number, not array index)
+   * @param quant - Local quant position within the measure (0 = start of measure)
+   * @param staffIndex - 0-based staff index (default: 0)
    * @status implemented
    */
   selectAtQuant(measureNum: number, quant: number, staffIndex?: number): this;
@@ -161,6 +177,10 @@ export interface MusicEditorAPI {
   // --- Selection (Multi-Select) ---
   /**
    * Add an event to the current selection (Cmd+Click toggle behavior).
+   * @param measureNum - 1-based measure number (display number, not array index)
+   * @param staffIndex - 0-based staff index
+   * @param eventIndex - 0-based event index within the measure
+   * @param noteIndex - 0-based note index within the event (optional)
    * @status implemented
    */
   addToSelection(
@@ -171,6 +191,10 @@ export interface MusicEditorAPI {
   ): this;
   /**
    * Extend selection from anchor to target (Shift+Click range behavior).
+   * @param measureNum - 1-based measure number (display number, not array index)
+   * @param staffIndex - 0-based staff index
+   * @param eventIndex - 0-based event index within the measure
+   * @param noteIndex - 0-based note index within the event (optional)
    * @status implemented
    */
   selectRangeTo(
@@ -491,7 +515,9 @@ export interface MusicEditorAPI {
   // --- Chord CRUD Operations ---
   /**
    * Add a chord symbol at the specified position.
-   * @param position - Position as { measure, quant }
+   * @param position - Position object:
+   *   - measure: 0-based measure index (array index, not display number)
+   *   - quant: Local quant position within measure (0 = start of measure)
    * @param symbol - Chord symbol string (e.g., 'Cmaj7', 'Dm', 'G7')
    * @status implemented
    */
@@ -524,14 +550,16 @@ export interface MusicEditorAPI {
   getChord(chordId: string): ChordSymbol | null;
   /**
    * Get the chord at a specific position.
-   * @param position - Position as { measure, quant }
+   * @param position - Position object:
+   *   - measure: 0-based measure index (array index, not display number)
+   *   - quant: Local quant position within measure (0 = start of measure)
    * @returns The chord at that position or null if none exists
    * @status implemented
    */
   getChordAt(position: { measure: number; quant: number }): ChordSymbol | null;
   /**
    * Get all valid positions where chords can be placed.
-   * @returns Map of measure index to set of valid local quants
+   * @returns Map of 0-based measure index to set of valid local quants
    * @status implemented
    */
   getValidChordPositions(): Map<number, Set<number>>;
@@ -545,7 +573,9 @@ export interface MusicEditorAPI {
   selectChord(chordId: string): this;
   /**
    * Select the chord at a specific position.
-   * @param position - Position as { measure, quant }
+   * @param position - Position object:
+   *   - measure: 0-based measure index (array index, not display number)
+   *   - quant: Local quant position within measure (0 = start of measure)
    * @status implemented
    */
   selectChordAt(position: { measure: number; quant: number }): this;
