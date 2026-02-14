@@ -460,3 +460,127 @@ Run `npm run test` and visual verification in demo app.
 - Measure numbers appear at system start
 - Numbers positioned above top staff
 - First measure of each system shows number
+
+---
+
+## User Walkthrough & Manual Testing
+
+After implementation, verify the following manually:
+
+### 1. Run Tests
+```bash
+npm run test
+npm run lint
+```
+
+### 2. Start Demo App
+```bash
+npm run demo:dev
+```
+
+### 3. Visual Verification in Page View
+
+Switch to page view via console:
+```javascript
+const api = window.riffScore.get('demo');
+api.setViewMode('page');
+```
+
+**Verify:**
+- [ ] Score renders across multiple systems (not one horizontal line)
+- [ ] First system is indented (~15% from left)
+- [ ] Each system shows clef and key signature at start
+- [ ] Time signature appears only on first system
+- [ ] Barlines extend across all staves (grand staff)
+- [ ] Measure numbers appear at start of each system
+- [ ] Final system is ragged (not justified) if less than 60% full
+
+### 4. Test Tie Splitting
+
+Create a score with ties crossing measure boundaries:
+1. Add notes that tie across where a system break will occur
+2. Switch to page view
+3. Verify tie arc appears at end of first system
+4. Verify continuation arc appears at start of next system
+
+### 5. Test Page Boundary
+
+- [ ] Page outline/boundary is visible in page view
+- [ ] Content fits within margins
+- [ ] Page dimensions match Letter/A4 settings
+
+### 6. Test Layout Changes
+
+```javascript
+api.setLayoutConfig({ staffSize: 80 });
+// Systems should reflow (fewer measures per system)
+
+api.setLayoutConfig({ staffSize: 120 });
+// Systems should reflow (more measures per system)
+
+api.setLayoutConfig({ pageSize: 'a4' });
+// Page dimensions should change
+```
+
+---
+
+## Phase Completion & Recalibration
+
+### Before Moving to Phase 4
+
+After completing Phase 3:
+
+1. **Verify visual correctness**
+   - Systems break at logical points
+   - No overlapping elements
+   - Ties render correctly at breaks
+
+2. **Performance check**
+   - Create a 100-measure score
+   - Switch to page view
+   - Verify no scroll jank
+
+3. **Document rendering quirks**
+   - Any edge cases with clef rendering?
+   - Key signature positioning issues?
+   - Barline alignment problems?
+
+4. **Review Phase 4 prompt**
+   - Does Score Setup dialog need access to page layout state?
+   - Are there display issues that affect dialog preview?
+
+### Recalibration Checklist
+
+- [ ] All tests pass
+- [ ] Visual rendering correct in demo app
+- [ ] Tie splitting works at system breaks
+- [ ] Measure numbers display correctly
+- [ ] Performance acceptable for large scores
+- [ ] Phase 4 prompt reviewed and updated if needed
+
+### Commit Template
+
+```bash
+git add src/hooks/layout/usePageLayout.ts src/components/Canvas/
+git commit -m "feat(#174): implement multi-system rendering for page view
+
+- Create usePageLayout hook for system break calculation
+- Update ScoreCanvas for multi-system rendering
+- Add MeasureNumber component for system-start numbers
+- Update Staff to render clef/key on every system
+- Update Tie for system break splitting
+- Update Barline for cross-staff rendering
+- Add PageBoundary component
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Notes for Subsequent Phases
+
+After this phase:
+- Page view renders correctly with multiple systems
+- `usePageLayout` hook provides system layout data
+- Tie splitting handles cross-system ties
+- Foundation ready for Phase 4 (Score Setup Dialog)
