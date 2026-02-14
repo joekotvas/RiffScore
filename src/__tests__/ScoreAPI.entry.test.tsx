@@ -51,7 +51,7 @@ describe('ScoreAPI Entry Methods', () => {
 
       // Add 3 notes
       act(() => {
-        api.select(1).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
+        api.select(0).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
       });
 
       // Verify notes were added
@@ -60,7 +60,7 @@ describe('ScoreAPI Entry Methods', () => {
 
       // Select first event and create triplet
       act(() => {
-        api.select(1, 0, 0, 0);
+        api.select(0, 0, 0, 0);
       });
 
       // Verify selection is set
@@ -86,12 +86,12 @@ describe('ScoreAPI Entry Methods', () => {
 
       // Add notes
       act(() => {
-        api.select(1).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
+        api.select(0).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
       });
 
       // Select first event and create tuplet
       act(() => {
-        api.select(1, 0, 0, 0);
+        api.select(0, 0, 0, 0);
       });
 
       act(() => {
@@ -104,7 +104,7 @@ describe('ScoreAPI Entry Methods', () => {
 
       // Try to create another tuplet starting from event 0 (which is already in a tuplet)
       act(() => {
-        api.select(1, 0, 0, 0); // Select first event (already in tuplet)
+        api.select(0, 0, 0, 0); // Select first event (already in tuplet)
       });
 
       act(() => {
@@ -124,12 +124,12 @@ describe('ScoreAPI Entry Methods', () => {
 
       // Fill measure 1 with 3 eighth notes (= 24 quants)
       act(() => {
-        api.select(1).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
+        api.select(0).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
       });
 
       // Create triplet on all 3 events
       act(() => {
-        api.select(1, 0, 0, 0);
+        api.select(0, 0, 0, 0);
       });
       act(() => {
         api.makeTuplet(3, 2);
@@ -143,7 +143,7 @@ describe('ScoreAPI Entry Methods', () => {
       // Now insert a whole note at the start (64 quants) with insert mode
       // This should push the tuplet events to the next measure
       act(() => {
-        api.select(1, 0, 0, 0).addNote('G3', 'whole', false, { mode: 'insert' });
+        api.select(0, 0, 0, 0).addNote('G3', 'whole', false, { mode: 'insert' });
       });
 
       // Verify the tuplet events were moved AND their tuplet info is preserved
@@ -166,7 +166,7 @@ describe('ScoreAPI Entry Methods', () => {
       const api = getAPI('unmake-no-tuplet');
 
       act(() => {
-        api.select(1).addNote('C4', 'quarter');
+        api.select(0).addNote('C4', 'quarter');
         api.move('left').unmakeTuplet();
       });
 
@@ -183,11 +183,11 @@ describe('ScoreAPI Entry Methods', () => {
 
       // Create tuplet
       act(() => {
-        api.select(1).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
+        api.select(0).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
       });
 
       act(() => {
-        api.select(1, 0, 0, 0);
+        api.select(0, 0, 0, 0);
       });
 
       act(() => {
@@ -200,7 +200,7 @@ describe('ScoreAPI Entry Methods', () => {
 
       // Select an event in the tuplet for removal
       act(() => {
-        api.select(1, 0, 0, 0); // Select first event in the tuplet
+        api.select(0, 0, 0, 0); // Select first event in the tuplet
       });
 
       // Verify selection
@@ -241,7 +241,7 @@ describe('ScoreAPI Entry Methods', () => {
       const api = getAPI('tie-toggle');
 
       act(() => {
-        api.select(1).addNote('C4', 'quarter');
+        api.select(0).addNote('C4', 'quarter');
       });
 
       // Toggle on - with advance cursor model, must move back to select inserted note
@@ -283,7 +283,7 @@ describe('ScoreAPI Entry Methods', () => {
       const api = getAPI('tie-set');
 
       act(() => {
-        api.select(1).addNote('C4', 'quarter');
+        api.select(0).addNote('C4', 'quarter');
       });
 
       act(() => {

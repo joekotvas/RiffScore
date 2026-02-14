@@ -33,7 +33,7 @@ describe('ScoreAPI Custom Staves & Alto Clef (Phase 6B)', () => {
 
     // Select first measure (sets measure context for addNote)
     await act(async () => {
-      api.select(1);
+      api.select(0);
     });
 
     // Deselect event to trigger append mode (instead of overwrite at selected event)
@@ -71,7 +71,7 @@ describe('ScoreAPI Custom Staves & Alto Clef (Phase 6B)', () => {
 
     // Select Staff 2 (3rd staff). Measure index 0 (1-based API = 1)
     await act(async () => {
-      api.select(1, 2);
+      api.select(0, 2);
     });
 
     // Add note

@@ -6,12 +6,15 @@
  *
  * ## Indexing Convention
  *
- * - **User-facing parameters** (measureNum): 1-based (display numbers)
- * - **Internal indices** (measureIndex, position.measure): 0-based (array indices)
- * - **Staff/event/note indices**: Always 0-based
+ * All indices in the API are **0-based** (array indices):
+ * - measureIndex: 0 = first measure
+ * - staffIndex: 0 = first staff (treble in grand staff)
+ * - eventIndex: 0 = first event in measure
+ * - noteIndex: 0 = first note in chord
+ * - position.measure: 0 = first measure
+ * - quant: 0 = start of measure
  *
- * The API methods that accept `measureNum` convert to 0-based internally.
- * Methods accepting `position: { measure, quant }` expect 0-based measure indices.
+ * For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureIndex`.
  *
  * @see docs/migration/api_reference_draft.md
  */
@@ -119,22 +122,22 @@ export interface MusicEditorAPI {
    */
   jump(target: 'start-score' | 'end-score' | 'start-measure' | 'end-measure'): this;
   /**
-   * Select an event by measure number and optional indices.
-   * @param measureNum - 1-based measure number (display number, not array index)
+   * Select an event by measure index and optional indices.
+   * @param measureIndex - 0-based measure index (array index)
    * @param staffIndex - 0-based staff index (default: 0)
    * @param eventIndex - 0-based event index within the measure (default: 0)
    * @param noteIndex - 0-based note index within the event (default: 0)
    * @status implemented
    */
-  select(measureNum: number, staffIndex?: number, eventIndex?: number, noteIndex?: number): this;
+  select(measureIndex: number, staffIndex?: number, eventIndex?: number, noteIndex?: number): this;
   /**
    * Select by rhythmic position within a measure.
-   * @param measureNum - 1-based measure number (display number, not array index)
+   * @param measureIndex - 0-based measure index (array index)
    * @param quant - Local quant position within the measure (0 = start of measure)
    * @param staffIndex - 0-based staff index (default: 0)
    * @status implemented
    */
-  selectAtQuant(measureNum: number, quant: number, staffIndex?: number): this;
+  selectAtQuant(measureIndex: number, quant: number, staffIndex?: number): this;
   /**
    * Select by internal event/note IDs.
    * @status implemented
@@ -177,28 +180,28 @@ export interface MusicEditorAPI {
   // --- Selection (Multi-Select) ---
   /**
    * Add an event to the current selection (Cmd+Click toggle behavior).
-   * @param measureNum - 1-based measure number (display number, not array index)
+   * @param measureIndex - 0-based measure index (array index)
    * @param staffIndex - 0-based staff index
    * @param eventIndex - 0-based event index within the measure
    * @param noteIndex - 0-based note index within the event (optional)
    * @status implemented
    */
   addToSelection(
-    measureNum: number,
+    measureIndex: number,
     staffIndex: number,
     eventIndex: number,
     noteIndex?: number
   ): this;
   /**
    * Extend selection from anchor to target (Shift+Click range behavior).
-   * @param measureNum - 1-based measure number (display number, not array index)
+   * @param measureIndex - 0-based measure index (array index)
    * @param staffIndex - 0-based staff index
    * @param eventIndex - 0-based event index within the measure
    * @param noteIndex - 0-based note index within the event (optional)
    * @status implemented
    */
   selectRangeTo(
-    measureNum: number,
+    measureIndex: number,
     staffIndex: number,
     eventIndex: number,
     noteIndex?: number
@@ -210,9 +213,12 @@ export interface MusicEditorAPI {
   selectAll(scope?: 'score' | 'measure' | 'staff' | 'event'): this;
   /**
    * Select all notes in an event (chord).
+   * @param measureIndex - 0-based measure index (optional, uses current if not provided)
+   * @param staffIndex - 0-based staff index (optional)
+   * @param eventIndex - 0-based event index (optional)
    * @status implemented
    */
-  selectEvent(measureNum?: number, staffIndex?: number, eventIndex?: number): this;
+  selectEvent(measureIndex?: number, staffIndex?: number, eventIndex?: number): this;
   /**
    * Clear all selections.
    * @status implemented

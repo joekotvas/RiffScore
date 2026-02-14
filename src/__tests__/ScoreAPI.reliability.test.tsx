@@ -51,7 +51,7 @@ describe('ScoreAPI Reliability (Issue #140)', () => {
     const api = getAPI(TEST_ID);
 
     // Select the first event (m0.e0) which is a note (n0: C4)
-    api.select(1, 0, 0); // Measure 1, Staff 0, Event 0
+    api.select(0, 0, 0); // Measure 1, Staff 0, Event 0
 
     // Changing pitch using setPitch (not updatePitch)
     api.setPitch('D4');
@@ -68,7 +68,7 @@ describe('ScoreAPI Reliability (Issue #140)', () => {
 
     // Select something
     const firstEventId = api.getScore().staves[0].measures[0].events[0].id;
-    api.select(1, 0, 0); // Measure 1, Staff 0, Event 0
+    api.select(0, 0, 0); // Measure 1, Staff 0, Event 0
 
     // Should be updated immediately (SelectionEngine is already sync)
     expect(api.getSelection().eventId).toBe(firstEventId);
