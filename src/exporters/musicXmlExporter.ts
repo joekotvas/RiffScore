@@ -1,6 +1,78 @@
 import { NOTE_TYPES, KEY_SIGNATURES } from '@/constants';
-import { getActiveStaff, Score, Staff, Measure, ScoreEvent, ChordSymbol } from '@/types';
+import { DEFAULT_SCORE_METADATA } from '@/config';
+import {
+  getActiveStaff,
+  Score,
+  Staff,
+  Measure,
+  ScoreEvent,
+  ChordSymbol,
+  ScoreMetadata,
+} from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
+
+// ============================================================================
+// XML UTILITIES
+// ============================================================================
+
+/**
+ * Escape special XML characters.
+ */
+const escapeXml = (str: string): string => {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+};
+
+/**
+ * Format date as YYYY-MM-DD.
+ */
+const formatDate = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
+
+/**
+ * Export score metadata to MusicXML elements.
+ */
+const exportMetadataToXML = (metadata: ScoreMetadata): string => {
+  let xml = '';
+
+  // <work> element
+  xml += '  <work>\n';
+  xml += `    <work-title>${escapeXml(metadata.title)}</work-title>\n`;
+  xml += '  </work>\n';
+
+  // <identification> element
+  xml += '  <identification>\n';
+
+  // Composer
+  if (metadata.composer) {
+    xml += `    <creator type="composer">${escapeXml(metadata.composer)}</creator>\n`;
+  }
+
+  // Lyricist
+  if (metadata.lyricist) {
+    xml += `    <creator type="lyricist">${escapeXml(metadata.lyricist)}</creator>\n`;
+  }
+
+  // Copyright
+  if (metadata.copyright) {
+    xml += `    <rights>${escapeXml(metadata.copyright)}</rights>\n`;
+  }
+
+  // Encoding info
+  xml += '    <encoding>\n';
+  xml += '      <software>RiffScore</software>\n';
+  xml += `      <encoding-date>${formatDate(new Date())}</encoding-date>\n`;
+  xml += '    </encoding>\n';
+
+  xml += '  </identification>\n';
+
+  return xml;
+};
 
 // ============================================================================
 // CHORD SYMBOL TO MUSICXML HARMONY MAPPING
@@ -127,10 +199,16 @@ const generateHarmonyElement = (chord: ChordSymbol): string => {
   return xml;
 };
 
-export const generateMusicXML = (score: Score) => {
+export const generateMusicXML = (score: Score): string => {
   // Phase 2: Iterate over all staves
   const staves = score.staves || [getActiveStaff(score)];
   const timeSig = score.timeSignature || '4/4';
+
+  // Use metadata with fallback to defaults, then fall back to legacy title field
+  const metadata: ScoreMetadata = score.metadata ?? {
+    ...DEFAULT_SCORE_METADATA,
+    title: score.title,
+  };
 
   // Build chord map indexed by (measure, quant) position (only for first part)
   const chordMap = new Map<number, Map<number, ChordSymbol>>();
@@ -151,9 +229,14 @@ export const generateMusicXML = (score: Score) => {
   }
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
-<score-partwise version="3.1">
-  <part-list>`;
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="4.0">
+`;
+
+  // Metadata
+  xml += exportMetadataToXML(metadata);
+
+  xml += `  <part-list>`;
 
   // Generate Part List
   staves.forEach((_, index) => {

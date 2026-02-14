@@ -1,11 +1,11 @@
 /**
  * MusicXML Exporter Tests
  *
- * Tests clef export correctness for all clef types.
+ * Tests clef export correctness, metadata export, and chord symbol export.
  */
 
 import { generateMusicXML } from '@/exporters/musicXmlExporter';
-import { Score } from '@/types';
+import { Score, ScoreMetadata } from '@/types';
 
 /**
  * Create a minimal score with the specified clef
@@ -428,5 +428,178 @@ describe('MusicXML Chord Symbol Export', () => {
     const measure2Index = xml.indexOf('<measure number="2">');
     const secondHarmonyIndex = xml.lastIndexOf('<harmony>');
     expect(secondHarmonyIndex).toBeGreaterThan(measure2Index);
+  });
+});
+
+/**
+ * Create a minimal score with metadata
+ */
+const createScoreWithMetadata = (metadata: ScoreMetadata): Score => ({
+  title: metadata.title,
+  metadata,
+  timeSignature: '4/4',
+  keySignature: 'C',
+  bpm: 120,
+  staves: [
+    {
+      id: 'staff-1',
+      clef: 'treble',
+      keySignature: 'C',
+      measures: [
+        {
+          id: 'measure-1',
+          events: [
+            {
+              id: 'event-1',
+              duration: 'quarter',
+              dotted: false,
+              notes: [{ id: 'note-1', pitch: 'C4' }],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+});
+
+describe('MusicXML Export - Metadata', () => {
+  it('exports title in work-title', () => {
+    const score = createScoreWithMetadata({ title: 'My Song' });
+    const xml = generateMusicXML(score);
+    expect(xml).toContain('<work-title>My Song</work-title>');
+  });
+
+  it('exports composer as creator', () => {
+    const score = createScoreWithMetadata({
+      title: 'My Song',
+      composer: 'John Doe',
+    });
+    const xml = generateMusicXML(score);
+    expect(xml).toContain('<creator type="composer">John Doe</creator>');
+  });
+
+  it('exports lyricist as creator', () => {
+    const score = createScoreWithMetadata({
+      title: 'My Song',
+      lyricist: 'Jane Smith',
+    });
+    const xml = generateMusicXML(score);
+    expect(xml).toContain('<creator type="lyricist">Jane Smith</creator>');
+  });
+
+  it('exports copyright in rights', () => {
+    const score = createScoreWithMetadata({
+      title: 'My Song',
+      copyright: '© 2026 John Doe',
+    });
+    const xml = generateMusicXML(score);
+    expect(xml).toContain('<rights>© 2026 John Doe</rights>');
+  });
+
+  it('escapes XML special characters in title', () => {
+    const score = createScoreWithMetadata({
+      title: 'Rock & Roll',
+    });
+    const xml = generateMusicXML(score);
+    expect(xml).toContain('<work-title>Rock &amp; Roll</work-title>');
+  });
+
+  it('escapes XML special characters in composer', () => {
+    const score = createScoreWithMetadata({
+      title: 'Test',
+      composer: '<Unknown>',
+    });
+    const xml = generateMusicXML(score);
+    expect(xml).toContain('<creator type="composer">&lt;Unknown&gt;</creator>');
+  });
+
+  it('escapes all XML special characters', () => {
+    const score = createScoreWithMetadata({
+      title: 'Test & "Quotes" <Angles> \'Apostrophe\'',
+    });
+    const xml = generateMusicXML(score);
+    expect(xml).toContain('&amp;');
+    expect(xml).toContain('&quot;');
+    expect(xml).toContain('&lt;');
+    expect(xml).toContain('&gt;');
+    expect(xml).toContain('&apos;');
+  });
+
+  it('includes encoding information', () => {
+    const score = createScoreWithMetadata({ title: 'Test' });
+    const xml = generateMusicXML(score);
+    expect(xml).toContain('<software>RiffScore</software>');
+    expect(xml).toContain('<encoding-date>');
+  });
+
+  it('includes encoding date in YYYY-MM-DD format', () => {
+    const score = createScoreWithMetadata({ title: 'Test' });
+    const xml = generateMusicXML(score);
+    // Match YYYY-MM-DD pattern
+    expect(xml).toMatch(/<encoding-date>\d{4}-\d{2}-\d{2}<\/encoding-date>/);
+  });
+
+  it('omits optional fields when not present', () => {
+    const score = createScoreWithMetadata({ title: 'My Song' });
+    const xml = generateMusicXML(score);
+    expect(xml).not.toContain('type="composer"');
+    expect(xml).not.toContain('type="lyricist"');
+    expect(xml).not.toContain('<rights>');
+  });
+
+  it('uses legacy title when metadata is not specified', () => {
+    const score = createScoreWithClef('treble');
+    // Remove metadata to test fallback to legacy title
+    delete (score as Partial<Score>).metadata;
+    const xml = generateMusicXML(score);
+    expect(xml).toContain('<work-title>Test Score</work-title>');
+  });
+
+  it('exports all metadata fields together', () => {
+    const score = createScoreWithMetadata({
+      title: 'Complete Song',
+      composer: 'Composer Name',
+      lyricist: 'Lyricist Name',
+      copyright: '© 2026 Publisher',
+    });
+    const xml = generateMusicXML(score);
+
+    expect(xml).toContain('<work-title>Complete Song</work-title>');
+    expect(xml).toContain('<creator type="composer">Composer Name</creator>');
+    expect(xml).toContain('<creator type="lyricist">Lyricist Name</creator>');
+    expect(xml).toContain('<rights>© 2026 Publisher</rights>');
+  });
+
+  it('includes work element with title', () => {
+    const score = createScoreWithMetadata({ title: 'Work Test' });
+    const xml = generateMusicXML(score);
+    expect(xml).toContain('<work>');
+    expect(xml).toContain('</work>');
+  });
+
+  it('includes identification element', () => {
+    const score = createScoreWithMetadata({ title: 'ID Test' });
+    const xml = generateMusicXML(score);
+    expect(xml).toContain('<identification>');
+    expect(xml).toContain('</identification>');
+  });
+
+  it('uses MusicXML 4.0 version', () => {
+    const score = createScoreWithMetadata({ title: 'Version Test' });
+    const xml = generateMusicXML(score);
+    expect(xml).toContain('version="4.0"');
+    expect(xml).toContain('MusicXML 4.0');
+  });
+
+  it('places metadata before part-list', () => {
+    const score = createScoreWithMetadata({ title: 'Order Test' });
+    const xml = generateMusicXML(score);
+
+    const workIndex = xml.indexOf('<work>');
+    const identificationIndex = xml.indexOf('<identification>');
+    const partListIndex = xml.indexOf('<part-list>');
+
+    expect(workIndex).toBeLessThan(identificationIndex);
+    expect(identificationIndex).toBeLessThan(partListIndex);
   });
 });

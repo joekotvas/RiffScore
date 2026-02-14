@@ -1,6 +1,43 @@
 import { NOTE_TYPES } from '@/constants';
-import { getActiveStaff, Score, ScoreEvent, Measure, Staff, Note, ChordSymbol } from '@/types';
+import { DEFAULT_SCORE_METADATA } from '@/config';
+import {
+  getActiveStaff,
+  Score,
+  ScoreEvent,
+  Measure,
+  Staff,
+  Note,
+  ChordSymbol,
+  ScoreMetadata,
+} from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
+
+/**
+ * Export score metadata to ABC header fields.
+ */
+const exportMetadata = (metadata: ScoreMetadata): string[] => {
+  const lines: string[] = [];
+
+  // T: - Title (required)
+  lines.push(`T:${metadata.title}`);
+
+  // C: - Composer (optional)
+  if (metadata.composer) {
+    lines.push(`C:${metadata.composer}`);
+  }
+
+  // Z: - Transcription (used for lyricist)
+  if (metadata.lyricist) {
+    lines.push(`Z:Lyricist: ${metadata.lyricist}`);
+  }
+
+  // N: - Notes (used for copyright)
+  if (metadata.copyright) {
+    lines.push(`N:${metadata.copyright}`);
+  }
+
+  return lines;
+};
 
 /**
  * Builds a nested lookup map from (measure, quant) to chord symbol.
@@ -62,8 +99,21 @@ export const generateABC = (score: Score, bpm: number): string => {
   // Build chord lookup map for O(1) access by (measure, quant)
   const chordLookup = buildChordLookup(score.chordTrack);
 
+  // Use metadata with fallback to defaults, then fall back to legacy title field
+  const metadata: ScoreMetadata = score.metadata ?? {
+    ...DEFAULT_SCORE_METADATA,
+    title: score.title,
+  };
+
   // Header
-  let abc = `X:1\nT:${score.title}\nM:${timeSig}\nL:1/4\nK:${keySig}\nQ:1/4=${bpm}\n`;
+  const lines: string[] = [];
+  lines.push('X:1');
+  lines.push(...exportMetadata(metadata));
+  lines.push(`M:${timeSig}`);
+  lines.push('L:1/4');
+  lines.push(`K:${keySig}`);
+  lines.push(`Q:1/4=${bpm}`);
+  let abc = lines.join('\n') + '\n';
 
   // Staves definition if multiple
   if (staves.length > 1) {
