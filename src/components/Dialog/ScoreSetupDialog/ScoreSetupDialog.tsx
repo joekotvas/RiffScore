@@ -117,11 +117,7 @@ const ScoreSetupDialogContent: React.FC<{
   }, [handleSave]);
 
   return (
-    <div
-      className="riff-ScoreSetupDialog-backdrop"
-      onClick={onCancel}
-      role="presentation"
-    >
+    <div className="riff-ScoreSetupDialog-backdrop" onClick={onCancel} role="presentation">
       <div
         ref={dialogRef}
         className="riff-ScoreSetupDialog"
@@ -147,15 +143,8 @@ const ScoreSetupDialogContent: React.FC<{
 
         {/* Scrollable content */}
         <div className="riff-ScoreSetupDialog__content">
-          <MetadataSection
-            metadata={metadata}
-            onChange={handleMetadataChange}
-            errors={errors}
-          />
-          <LayoutSection
-            layout={layout}
-            onChange={handleLayoutChange}
-          />
+          <MetadataSection metadata={metadata} onChange={handleMetadataChange} errors={errors} />
+          <LayoutSection layout={layout} onChange={handleLayoutChange} />
         </div>
 
         {/* Footer */}
@@ -191,11 +180,7 @@ const ScoreSetupDialogContent: React.FC<{
  * - Full keyboard support (Escape to cancel, Enter to save)
  * - Focus trapping for accessibility
  */
-export const ScoreSetupDialog: React.FC<ScoreSetupDialogProps> = ({
-  isOpen,
-  onSave,
-  onCancel,
-}) => {
+export const ScoreSetupDialog: React.FC<ScoreSetupDialogProps> = ({ isOpen, onSave, onCancel }) => {
   // Render nothing when closed.
   // The inner component remounts on each open, resetting all state.
   if (!isOpen) return null;

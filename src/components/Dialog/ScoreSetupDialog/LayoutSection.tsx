@@ -25,10 +25,7 @@ interface LayoutSectionProps {
  * - Staff Size (50-150%)
  * - System Spacing (Compact, Normal, Relaxed)
  */
-export const LayoutSection: React.FC<LayoutSectionProps> = ({
-  layout,
-  onChange,
-}) => {
+export const LayoutSection: React.FC<LayoutSectionProps> = ({ layout, onChange }) => {
   const handlePageSizeChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       onChange({ pageSize: e.target.value as LayoutConfig['pageSize'] });

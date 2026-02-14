@@ -114,13 +114,7 @@ describe('MetadataSection', () => {
   };
 
   it('renders all metadata fields', () => {
-    render(
-      <MetadataSection
-        metadata={defaultMetadata}
-        onChange={jest.fn()}
-        errors={{}}
-      />
-    );
+    render(<MetadataSection metadata={defaultMetadata} onChange={jest.fn()} errors={{}} />);
 
     expect(screen.getByLabelText(/title/i)).toHaveValue('Test Title');
     expect(screen.getByLabelText(/composer/i)).toHaveValue('Test Composer');
@@ -132,13 +126,7 @@ describe('MetadataSection', () => {
     const user = userEvent.setup();
     const onChange = jest.fn();
 
-    render(
-      <MetadataSection
-        metadata={defaultMetadata}
-        onChange={onChange}
-        errors={{}}
-      />
-    );
+    render(<MetadataSection metadata={defaultMetadata} onChange={onChange} errors={{}} />);
 
     const titleInput = screen.getByLabelText(/title/i);
     // Type a single character to trigger onChange
@@ -147,9 +135,7 @@ describe('MetadataSection', () => {
     // onChange should be called with updated metadata
     expect(onChange).toHaveBeenCalled();
     // Last call should have title with appended character (controlled input behavior)
-    expect(onChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ title: 'Test TitleX' })
-    );
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Test TitleX' }));
   });
 
   it('shows error for title field', () => {
@@ -166,30 +152,15 @@ describe('MetadataSection', () => {
   });
 
   it('marks title field as required', () => {
-    render(
-      <MetadataSection
-        metadata={defaultMetadata}
-        onChange={jest.fn()}
-        errors={{}}
-      />
-    );
+    render(<MetadataSection metadata={defaultMetadata} onChange={jest.fn()} errors={{}} />);
 
     expect(screen.getByLabelText(/title/i)).toHaveAttribute('aria-required', 'true');
   });
 
   it('has copyright placeholder', () => {
-    render(
-      <MetadataSection
-        metadata={{ title: 'Test' }}
-        onChange={jest.fn()}
-        errors={{}}
-      />
-    );
+    render(<MetadataSection metadata={{ title: 'Test' }} onChange={jest.fn()} errors={{}} />);
 
-    expect(screen.getByLabelText(/copyright/i)).toHaveAttribute(
-      'placeholder',
-      '© 2026 Your Name'
-    );
+    expect(screen.getByLabelText(/copyright/i)).toHaveAttribute('placeholder', '© 2026 Your Name');
   });
 });
 
@@ -207,12 +178,7 @@ describe('LayoutSection', () => {
   };
 
   it('renders all layout controls', () => {
-    render(
-      <LayoutSection
-        layout={defaultLayout}
-        onChange={jest.fn()}
-      />
-    );
+    render(<LayoutSection layout={defaultLayout} onChange={jest.fn()} />);
 
     expect(screen.getByLabelText(/page size/i)).toHaveValue('letter');
     expect(screen.getByLabelText(/margins/i)).toHaveValue('normal');
@@ -224,12 +190,7 @@ describe('LayoutSection', () => {
     const user = userEvent.setup();
     const onChange = jest.fn();
 
-    render(
-      <LayoutSection
-        layout={defaultLayout}
-        onChange={onChange}
-      />
-    );
+    render(<LayoutSection layout={defaultLayout} onChange={onChange} />);
 
     await user.selectOptions(screen.getByLabelText(/page size/i), 'a4');
     expect(onChange).toHaveBeenCalledWith({ pageSize: 'a4' });
@@ -239,12 +200,7 @@ describe('LayoutSection', () => {
     const user = userEvent.setup();
     const onChange = jest.fn();
 
-    render(
-      <LayoutSection
-        layout={defaultLayout}
-        onChange={onChange}
-      />
-    );
+    render(<LayoutSection layout={defaultLayout} onChange={onChange} />);
 
     await user.selectOptions(screen.getByLabelText(/margins/i), 'wide');
     expect(onChange).toHaveBeenCalledWith({ margins: 'wide' });
@@ -254,12 +210,7 @@ describe('LayoutSection', () => {
     const user = userEvent.setup();
     const onChange = jest.fn();
 
-    render(
-      <LayoutSection
-        layout={defaultLayout}
-        onChange={onChange}
-      />
-    );
+    render(<LayoutSection layout={defaultLayout} onChange={onChange} />);
 
     const slider = screen.getByRole('slider');
     // Note: userEvent doesn't support range input changes well,
@@ -273,24 +224,14 @@ describe('LayoutSection', () => {
     const user = userEvent.setup();
     const onChange = jest.fn();
 
-    render(
-      <LayoutSection
-        layout={defaultLayout}
-        onChange={onChange}
-      />
-    );
+    render(<LayoutSection layout={defaultLayout} onChange={onChange} />);
 
     await user.selectOptions(screen.getByLabelText(/system spacing/i), 'compact');
     expect(onChange).toHaveBeenCalledWith({ systemSpacing: 'compact' });
   });
 
   it('displays current staff size value', () => {
-    render(
-      <LayoutSection
-        layout={{ ...defaultLayout, staffSize: 120 }}
-        onChange={jest.fn()}
-      />
-    );
+    render(<LayoutSection layout={{ ...defaultLayout, staffSize: 120 }} onChange={jest.fn()} />);
 
     expect(screen.getByText('120%')).toBeInTheDocument();
   });

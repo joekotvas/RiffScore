@@ -73,7 +73,9 @@
   line-height: 1;
   cursor: pointer;
   border-radius: var(--riff-border-radius);
-  transition: background-color var(--riff-transition-fast), color var(--riff-transition-fast);
+  transition:
+    background-color var(--riff-transition-fast),
+    color var(--riff-transition-fast);
 }
 
 .riff-ScoreSetupDialog__close:hover {
@@ -155,7 +157,9 @@
   background-color: var(--riff-color-bg);
   border: var(--riff-border-width) solid var(--riff-color-border);
   border-radius: var(--riff-border-radius-md);
-  transition: border-color var(--riff-transition-fast), box-shadow var(--riff-transition-fast);
+  transition:
+    border-color var(--riff-transition-fast),
+    box-shadow var(--riff-transition-fast);
 }
 
 .riff-ScoreSetupDialog__input:focus,
@@ -267,7 +271,9 @@
   font-weight: var(--riff-font-weight-medium);
   border-radius: var(--riff-border-radius-md);
   cursor: pointer;
-  transition: background-color var(--riff-transition-fast), opacity var(--riff-transition-fast);
+  transition:
+    background-color var(--riff-transition-fast),
+    opacity var(--riff-transition-fast);
   border: none;
 }
 

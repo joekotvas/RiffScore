@@ -27,11 +27,7 @@ interface MetadataSectionProps {
  * - Lyricist
  * - Copyright
  */
-export const MetadataSection: React.FC<MetadataSectionProps> = ({
-  metadata,
-  onChange,
-  errors,
-}) => {
+export const MetadataSection: React.FC<MetadataSectionProps> = ({ metadata, onChange, errors }) => {
   const handleChange = useCallback(
     (field: keyof ScoreMetadata, value: string) => {
       onChange({
