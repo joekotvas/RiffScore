@@ -14,12 +14,12 @@ This directory contains agent prompt documents for implementing the Page View & 
 | 1 | ✅ Complete | `1d001d8` | Types, config, and services for page view |
 | 2 | ✅ Complete | `59144e7` | Layout and metadata commands + API |
 | 3 | ✅ Complete | `b797d2e`, `07a7734` | Multi-system rendering for page view |
-| 3b | ⏳ Pending | — | Fix margin/anchor positioning issues |
+| 3b | ✅ Complete | `1d4289b` | Anchor-based layout for margins |
 | 4 | ✅ Complete | `1c6a1ae`, `edc471f` | Score Setup dialog with live preview |
-| 5 | ⏳ Pending | — | Blocked by Phase 3b |
-| 6 | ⏳ Pending | — | Blocked by Phase 3b |
-| 7 | ⏳ Pending | — | Blocked by Phase 3b |
-| 8 | ⏳ Pending | — | Ready to start |
+| 5 | ⏳ Pending | — | Ready to start |
+| 6 | ⏳ Pending | — | Ready to start |
+| 7 | ⏳ Pending | — | Ready to start |
+| 8 | ✅ Complete | `fe9264a` | ABC + MusicXML metadata export |
 | 9 | ⏳ Pending | — | Blocked by all |
 
 **Last Updated:** 2026-02-14
@@ -190,6 +190,40 @@ const { isOpen, open, save, cancel, toggle } = useScoreSetup();
 
 ### Test Results
 - 1407 tests passing (32 new tests for Phase 4)
+- All lint checks passing
+
+---
+
+## Phase 3b Completion Notes
+
+Phase 3b fixed margin/positioning issues identified during visual verification:
+
+### Issues Fixed
+- Measures were flush with left edge (ignoring margins)
+- Title was flush with top-left (no margin offset)
+- Staff content didn't use system X offset
+
+### Deliverables
+- **`src/types.ts`** - Added `ContentArea`, `MetadataLayout`, `FooterLayout`, `MarginsPx`, `MeasurePosition` interfaces
+- **`src/services/PageLayoutService.ts`** - Added anchor layout calculations
+- **`src/components/Canvas/MetadataBlock.tsx`** - Title/composer rendering (created)
+- **`src/components/Canvas/PageFooter.tsx`** - Page number rendering (created)
+- **`src/components/Canvas/ScoreCanvas.tsx`** - Anchor-based page view rendering
+- **`src/styles/theme.css`** - Metadata and footer CSS styles
+- **`src/config.ts`** - Added `titleSpacing` to METADATA_TYPOGRAPHY
+
+### Key Architecture
+```
+Page (0,0)
+└── ContentArea (marginLeft, marginTop)
+    ├── MetadataBlock (title/composer, centered)
+    ├── Systems (flow from metadata.bottom)
+    │   └── measurePositions[] (pre-computed absolute X)
+    └── Footer (page number at bottom)
+```
+
+### Test Results
+- 1431 tests passing (24 new since Phase 4)
 - All lint checks passing
 
 ---
