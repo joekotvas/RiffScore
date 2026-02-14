@@ -403,3 +403,117 @@ Run `npm run test` and verify in all browsers.
 | `src/styles/print.css` | Create |
 | `src/styles/index.css` | Modify (import print.css) |
 | `src/__tests__/services/PrintService.test.ts` | Create |
+
+---
+
+## User Walkthrough & Manual Testing
+
+After implementation, verify the following manually:
+
+### 1. Run Tests
+```bash
+npm run test
+npm run lint
+```
+
+### 2. Start Demo App
+```bash
+npm run demo:dev
+```
+
+### 3. Test Print Dialog
+
+1. Switch to page view
+2. Press `Cmd+P` (Mac) or `Ctrl+P` (Windows)
+3. Print dialog should open
+
+**Verify in print preview:**
+- [ ] Toolbar is hidden
+- [ ] Scrollbars are hidden
+- [ ] Only score content is visible
+- [ ] Background is white
+- [ ] All notation is black (high contrast)
+- [ ] Page boundary outline is hidden
+
+### 4. Test PDF Export
+
+1. In print dialog, select "Save as PDF"
+2. Save the file
+3. Open the PDF
+
+**Verify:**
+- [ ] PDF looks identical to print preview
+- [ ] Text is searchable (vector, not rasterized)
+- [ ] Multiple pages work correctly
+
+### 5. Cross-Browser Testing
+
+Test in each browser:
+
+| Browser | Print Dialog Opens | Preview Correct | PDF Export |
+|---------|-------------------|-----------------|------------|
+| Chrome  | [ ] | [ ] | [ ] |
+| Firefox | [ ] | [ ] | [ ] |
+| Safari  | [ ] | [ ] | [ ] |
+| Edge    | [ ] | [ ] | [ ] |
+
+### 6. Test Print Cleanup
+
+After closing print dialog:
+- [ ] `riff-printing` class removed from body
+- [ ] UI elements visible again
+- [ ] No visual artifacts
+
+---
+
+## Phase Completion & Recalibration
+
+### Before Moving to Phase 7
+
+After completing Phase 6:
+
+1. **Verify print quality**
+   - Clean, professional output
+   - No missing elements
+   - Correct page breaks
+
+2. **Cross-browser compatibility**
+   - All major browsers work
+   - No browser-specific issues
+
+3. **Review Phase 7 prompt**
+   - Will metadata render correctly in print?
+   - Are page numbers positioned correctly?
+
+### Recalibration Checklist
+
+- [ ] All tests pass
+- [ ] Print dialog opens correctly
+- [ ] Print preview shows only score
+- [ ] PDF export produces vector output
+- [ ] Works in all major browsers
+- [ ] Phase 7 prompt reviewed and updated if needed
+
+### Commit Template
+
+```bash
+git add src/services/PrintService.ts src/styles/print.css src/styles/index.css
+git commit -m "feat(#174): implement print support
+
+- Create PrintService with prepare/restore/dialog functions
+- Create print.css stylesheet
+- Hide UI elements in print
+- Ensure high-contrast output
+- Add page break control for systems
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Notes for Subsequent Phases
+
+After this phase:
+- Print produces clean PDF output
+- `@media print` styles hide UI elements
+- Phase 7 will add metadata that appears in print
