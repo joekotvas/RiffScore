@@ -323,3 +323,106 @@ Run `npm run test` and verify in demo app.
 | `src/utils/platform.ts` | Create/Verify |
 | `src/__tests__/components/Toolbar/ViewToggle.test.tsx` | Create |
 | `src/__tests__/components/Toolbar/PrintButton.test.tsx` | Create |
+
+---
+
+## User Walkthrough & Manual Testing
+
+After implementation, verify the following manually:
+
+### 1. Run Tests
+```bash
+npm run test
+npm run lint
+```
+
+### 2. Start Demo App
+```bash
+npm run demo:dev
+```
+
+### 3. Test View Toggle Button
+
+- [ ] Button appears in toolbar
+- [ ] Click toggles between Scroll View and Page View
+- [ ] Icon changes to reflect current mode
+- [ ] Tooltip shows correct label and shortcut
+
+### 4. Test Score Setup Button
+
+- [ ] Button appears in toolbar with gear icon
+- [ ] Click opens Score Setup dialog
+- [ ] Tooltip shows "Score Setup (Cmd+,)" or "Score Setup (Ctrl+,)"
+
+### 5. Test Print Button
+
+- [ ] Button appears in toolbar with printer icon
+- [ ] Click opens browser print dialog
+- [ ] Print preview shows score without UI chrome
+
+### 6. Test Keyboard Shortcuts
+
+| Shortcut | Expected Action | Mac | Windows |
+|----------|-----------------|-----|---------|
+| Toggle View | `Cmd+\` | `Ctrl+\` | Switches view mode |
+| Score Setup | `Cmd+,` | `Ctrl+,` | Opens dialog |
+| Print | `Cmd+P` | `Ctrl+P` | Opens print dialog |
+
+### 7. Test Button Grouping
+
+- [ ] View Toggle, Score Setup, and Print buttons are grouped together
+- [ ] Divider separates this group from other toolbar items
+
+---
+
+## Phase Completion & Recalibration
+
+### Before Moving to Phase 6
+
+After completing Phase 5:
+
+1. **Verify all buttons work**
+   - Each button performs correct action
+   - Keyboard shortcuts work
+   - Tooltips are accurate
+
+2. **Check toolbar layout**
+   - Buttons don't overflow
+   - Icons are correct size
+   - Grouping is logical
+
+3. **Review Phase 6 prompt**
+   - Does Print button correctly trigger PrintService?
+   - Are there any shortcut conflicts?
+
+### Recalibration Checklist
+
+- [ ] All tests pass
+- [ ] All three buttons work correctly
+- [ ] All keyboard shortcuts work
+- [ ] Tooltips accurate on Mac and Windows
+- [ ] Phase 6 prompt reviewed and updated if needed
+
+### Commit Template
+
+```bash
+git add src/components/Toolbar/ src/utils/platform.ts
+git commit -m "feat(#174): add toolbar controls for page view
+
+- Create ViewToggle button with scroll/page icons
+- Create ScoreSetupButton to open dialog
+- Create PrintButton to trigger print
+- Add keyboard shortcuts (Cmd/Ctrl + \\, ,, P)
+- Update Toolbar with new button group
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Notes for Subsequent Phases
+
+After this phase:
+- Toolbar has all page view controls
+- Users can toggle view mode, open setup, and print
+- Phase 6 will implement the print stylesheet and service
