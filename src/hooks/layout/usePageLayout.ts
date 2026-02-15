@@ -12,20 +12,27 @@ import {
   getSystemForMeasure,
   getMeasureOriginInSystem,
   calculateAllMeasureWidths,
+  getPageForMeasure,
 } from '@/services/PageLayoutService';
-import type { PageLayout, SystemLayout, LayoutConfig } from '@/types';
+import type { PageLayout, SystemLayout, LayoutConfig, Page } from '@/types';
 import { DEFAULT_LAYOUT_CONFIG } from '@/config';
 
 /**
  * Result type for usePageLayout hook.
  */
 export interface UsePageLayoutResult {
-  /** Complete page layout with all systems */
+  /** Complete page layout with all pages and systems */
   pageLayout: PageLayout;
   /** Current view mode */
   viewMode: LayoutConfig['viewMode'];
   /** Whether currently in page view mode */
   isPageView: boolean;
+  /** Total number of pages */
+  pageCount: number;
+  /** Get a page by index */
+  getPage: (pageIndex: number) => Page | null;
+  /** Get the page index for a given measure */
+  getPageForMeasure: (measureIndex: number) => number;
   /** Get the system layout for a given measure index */
   getSystem: (measureIndex: number) => SystemLayout | null;
   /** Get the X position of a measure within its system */
@@ -38,6 +45,10 @@ export interface UsePageLayoutResult {
  * Empty page layout for scroll view mode.
  */
 const createEmptyPageLayout = (config: LayoutConfig): PageLayout => ({
+  pages: [],
+  pageCount: 0,
+  pageGap: 0,
+  totalHeight: 0,
   systems: [],
   pageSize: config.pageSize,
   dimensions: { width: 0, height: 0 },
@@ -105,10 +116,31 @@ export const usePageLayout = (): UsePageLayoutResult => {
     [isPageView, pageLayout, measureWidths]
   );
 
+  // Get a page by index
+  const getPage = useCallback(
+    (pageIndex: number): Page | null => {
+      if (!isPageView) return null;
+      return pageLayout.pages[pageIndex] ?? null;
+    },
+    [isPageView, pageLayout]
+  );
+
+  // Get page index for a measure
+  const getPageForMeasureCallback = useCallback(
+    (measureIndex: number): number => {
+      if (!isPageView) return -1;
+      return getPageForMeasure(measureIndex, pageLayout);
+    },
+    [isPageView, pageLayout]
+  );
+
   return {
     pageLayout,
     viewMode,
     isPageView,
+    pageCount: pageLayout.pageCount,
+    getPage,
+    getPageForMeasure: getPageForMeasureCallback,
     getSystem,
     getMeasureX,
     measureWidths,

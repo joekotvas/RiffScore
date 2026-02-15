@@ -276,15 +276,15 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
   // SVG height derived from layout (forward-flow pattern)
   const svgHeight = useMemo(() => {
-    // In page view, use page dimensions
+    // In page view, use total height (all pages + gaps)
     if (isPageView) {
-      return pageLayout.dimensions.height;
+      return pageLayout.totalHeight;
     }
     // In scroll view, derive from content
     const contentBottom = layout.getY.content.bottom;
     // Add padding below content
     return contentBottom > 0 ? contentBottom + 50 : 200;
-  }, [layout, isPageView, pageLayout.dimensions.height]);
+  }, [layout, isPageView, pageLayout.totalHeight]);
 
   // Cursor layout (consumes centralized layout - no duplicate calculations)
   // Calculate cursor layout
@@ -508,147 +508,161 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
         onMouseDown={handleDragSelectMouseDown}
       >
         <g transform={`scale(${scale})`}>
-          {/* Page View Rendering */}
+          {/* Page View Rendering - Multi-page support */}
           {isPageView && (
             <g className="riff-page-view">
-              <PageBoundary pageLayout={pageLayout} />
+              {pageLayout.pages.map((page) => (
+                <g
+                  key={`page-${page.index}`}
+                  className="riff-page"
+                  transform={`translate(0, ${page.canvasY})`}
+                >
+                  {/* Page boundary (white background, border) */}
+                  <PageBoundary pageLayout={pageLayout} />
 
-              {/* Metadata (Title, Composer, Lyricist) - editable */}
-              <MetadataTrack
-                metadata={metadataTrack.metadata}
-                layout={pageLayout.metadata}
-                editingField={metadataTrack.editingField}
-                selectedField={metadataTrack.selectedField}
-                initialValue={metadataTrack.initialValue}
-                onFieldClick={metadataTrack.startEditing}
-                onFieldSelect={metadataTrack.selectField}
-                onEditComplete={metadataTrack.completeEdit}
-                onEditCancel={metadataTrack.cancelEdit}
-                onDelete={metadataTrack.deleteField}
-                onNavigateNext={metadataTrack.navigateToNext}
-                onNavigatePrevious={metadataTrack.navigateToPrevious}
-              />
-
-              {/* Systems */}
-              {pageLayout.systems.map((system) => {
-                const firstMeasureIndex = system.measures[0];
-                // Content X is the left margin
-                const contentX = pageLayout.contentArea.x;
-                // Staff scale factor for sizing content to fit page
-                const staffScale = pageLayout.staffScale;
-
-                // Calculate staff positions in the scaled coordinate system
-                // Staff internally renders at CONFIG.baseY (80), we need to position it at system.y
-                // Transform order: translate then scale means point (x,y) -> (tx + x*s, ty + y*s)
-                const translateY = system.y - CONFIG.baseY * staffScale;
-
-                // First system indent (applied to measures, not header)
-                const firstSystemIndent = system.isFirst
-                  ? pageLayout.firstSystemIndent * system.contentWidth
-                  : 0;
-
-                // Calculate bracket height: treble top line to bass bottom line
-                const singleStaffHeight = 48 * staffScale; // 4 spaces * 12px = 48px
-                const totalStaffHeight =
-                  score.staves.length > 1
-                    ? singleStaffHeight +
-                      CONFIG.staffSpacing * staffScale * (score.staves.length - 1)
-                    : singleStaffHeight;
-
-                return (
-                  <g key={`system-${system.index}`} className="riff-system">
-                    {/* Measure number at start of system */}
-                    <MeasureNumber
-                      measureIndex={firstMeasureIndex}
-                      x={contentX + firstSystemIndent}
-                      y={system.y}
-                      staffScale={staffScale}
+                  {/* Metadata (Title, Composer, Lyricist) - only on first page */}
+                  {page.isFirst && (
+                    <MetadataTrack
+                      metadata={metadataTrack.metadata}
+                      layout={pageLayout.metadata}
+                      editingField={metadataTrack.editingField}
+                      selectedField={metadataTrack.selectedField}
+                      initialValue={metadataTrack.initialValue}
+                      onFieldClick={metadataTrack.startEditing}
+                      onFieldSelect={metadataTrack.selectField}
+                      onEditComplete={metadataTrack.completeEdit}
+                      onEditCancel={metadataTrack.cancelEdit}
+                      onDelete={metadataTrack.deleteField}
+                      onNavigateNext={metadataTrack.navigateToNext}
+                      onNavigatePrevious={metadataTrack.navigateToPrevious}
                     />
+                  )}
 
-                    {/* Grand staff bracket - right edge aligned with system start */}
-                    {score.staves?.length > 1 && (
-                      <GrandStaffBracket
-                        topY={system.y}
-                        bottomY={system.y + totalStaffHeight}
-                        x={contentX + firstSystemIndent - 20}
-                      />
-                    )}
+                  {/* Systems on this page */}
+                  {page.systems.map((system) => {
+                    const firstMeasureIndex = system.measures[0];
+                    // Content X is the left margin
+                    const contentX = pageLayout.contentArea.x;
+                    // Staff scale factor for sizing content to fit page
+                    const staffScale = pageLayout.staffScale;
 
-                    {/* Staves - scaled and positioned */}
-                    {score.staves?.map((staff: StaffType, staffIndex: number) => {
-                      // Calculate Y offset for this staff within the system (scaled)
-                      const staffYOffset = staffIndex * CONFIG.staffSpacing * staffScale;
+                    // Calculate staff positions in the scaled coordinate system
+                    // Staff internally renders at CONFIG.baseY (80), we need to position it at system.y
+                    // Transform order: translate then scale means point (x,y) -> (tx + x*s, ty + y*s)
+                    const translateY = system.y - CONFIG.baseY * staffScale;
 
-                      const interaction = {
-                        selection,
-                        previewNote,
-                        activeDuration,
-                        isDotted,
-                        modifierHeld,
-                        isDragging: dragState.active,
-                        lassoPreviewIds: previewNoteIds,
-                        onAddNote: addNoteToMeasure,
-                        onSelectNote: memoizedOnSelectNote,
-                        onDragStart: memoizedOnDragStart,
-                        onHover: getHoverHandler(staffIndex),
-                      };
+                    // First system indent (applied to measures, not header)
+                    // Note: isFirst here means first system OF THE SCORE, not first system on page
+                    const firstSystemIndent = system.isFirst
+                      ? pageLayout.firstSystemIndent * system.contentWidth
+                      : 0;
 
-                      const isTop = staffIndex === 0;
-                      const isBottom = staffIndex === score.staves.length - 1;
-                      const mouseLimits = {
-                        min: isTop ? CLAMP_LIMITS.OUTER_TOP : -CLAMP_LIMITS.INNER_OFFSET,
-                        max: isBottom
-                          ? CLAMP_LIMITS.OUTER_BOTTOM
-                          : STAFF_HEIGHT + CLAMP_LIMITS.INNER_OFFSET,
-                      };
+                    // Calculate bracket height: treble top line to bass bottom line
+                    const singleStaffHeight = 48 * staffScale; // 4 spaces * 12px = 48px
+                    const totalStaffHeight =
+                      score.staves.length > 1
+                        ? singleStaffHeight +
+                          CONFIG.staffSpacing * staffScale * (score.staves.length - 1)
+                        : singleStaffHeight;
 
-                      // Filter measures to only those in this system
-                      const systemMeasures = system.measures.map((idx) => staff.measures[idx]);
+                    return (
+                      <g key={`system-${system.index}`} className="riff-system">
+                        {/* Measure number at start of system */}
+                        <MeasureNumber
+                          measureIndex={firstMeasureIndex}
+                          x={contentX + firstSystemIndent}
+                          y={system.y}
+                          staffScale={staffScale}
+                        />
 
-                      return (
-                        <g
-                          key={`${staff.id || staffIndex}-system-${system.index}`}
-                          transform={`translate(${contentX + firstSystemIndent}, ${translateY + staffYOffset}) scale(${staffScale})`}
-                        >
-                          <Staff
-                            staffIndex={staffIndex}
-                            clef={staff.clef || (staffIndex === 0 ? 'treble' : 'bass')}
-                            keySignature={staff.keySignature || keySignature}
-                            timeSignature={timeSignature}
-                            measures={systemMeasures}
-                            measureIndices={system.measures}
-                            staffLayout={layout.staves[staffIndex]}
-                            baseY={CONFIG.baseY}
-                            scale={scale}
-                            isSystemStart={true}
-                            systemIndex={system.index}
-                            isLastSystem={system.isLast}
-                            interaction={interaction}
-                            onClefClick={onClefClick}
-                            onKeySigClick={onKeySigClick}
-                            onTimeSigClick={onTimeSigClick}
-                            mouseLimits={mouseLimits}
+                        {/* Grand staff bracket - right edge aligned with system start */}
+                        {score.staves?.length > 1 && (
+                          <GrandStaffBracket
+                            topY={system.y}
+                            bottomY={system.y + totalStaffHeight}
+                            x={contentX + firstSystemIndent - 20}
                           />
-                        </g>
-                      );
-                    })}
-                  </g>
-                );
-              })}
+                        )}
 
-              {/* Footer (page number, copyright on page 1) */}
-              <PageFooter
-                footer={pageLayout.footer}
-                isFirstPage={true}
-                editingCopyright={metadataTrack.editingField === 'copyright'}
-                selectedCopyright={metadataTrack.selectedField === 'copyright'}
-                copyrightInitialValue={metadataTrack.initialValue}
-                onCopyrightClick={() => metadataTrack.startEditing('copyright')}
-                onCopyrightSelect={() => metadataTrack.selectField('copyright')}
-                onCopyrightEditComplete={(value) => metadataTrack.completeEdit('copyright', value)}
-                onCopyrightEditCancel={() => metadataTrack.cancelEdit()}
-                onCopyrightDelete={() => metadataTrack.deleteField('copyright')}
-              />
+                        {/* Staves - scaled and positioned */}
+                        {score.staves?.map((staff: StaffType, staffIndex: number) => {
+                          // Calculate Y offset for this staff within the system (scaled)
+                          const staffYOffset = staffIndex * CONFIG.staffSpacing * staffScale;
+
+                          const interaction = {
+                            selection,
+                            previewNote,
+                            activeDuration,
+                            isDotted,
+                            modifierHeld,
+                            isDragging: dragState.active,
+                            lassoPreviewIds: previewNoteIds,
+                            onAddNote: addNoteToMeasure,
+                            onSelectNote: memoizedOnSelectNote,
+                            onDragStart: memoizedOnDragStart,
+                            onHover: getHoverHandler(staffIndex),
+                          };
+
+                          const isTop = staffIndex === 0;
+                          const isBottom = staffIndex === score.staves.length - 1;
+                          const mouseLimits = {
+                            min: isTop ? CLAMP_LIMITS.OUTER_TOP : -CLAMP_LIMITS.INNER_OFFSET,
+                            max: isBottom
+                              ? CLAMP_LIMITS.OUTER_BOTTOM
+                              : STAFF_HEIGHT + CLAMP_LIMITS.INNER_OFFSET,
+                          };
+
+                          // Filter measures to only those in this system
+                          const systemMeasures = system.measures.map((idx) => staff.measures[idx]);
+
+                          return (
+                            <g
+                              key={`${staff.id || staffIndex}-system-${system.index}`}
+                              transform={`translate(${contentX + firstSystemIndent}, ${translateY + staffYOffset}) scale(${staffScale})`}
+                            >
+                              <Staff
+                                staffIndex={staffIndex}
+                                clef={staff.clef || (staffIndex === 0 ? 'treble' : 'bass')}
+                                keySignature={staff.keySignature || keySignature}
+                                timeSignature={timeSignature}
+                                measures={systemMeasures}
+                                measureIndices={system.measures}
+                                staffLayout={layout.staves[staffIndex]}
+                                baseY={CONFIG.baseY}
+                                scale={scale}
+                                isSystemStart={true}
+                                systemIndex={system.index}
+                                isLastSystem={system.isLast}
+                                interaction={interaction}
+                                onClefClick={onClefClick}
+                                onKeySigClick={onKeySigClick}
+                                onTimeSigClick={onTimeSigClick}
+                                mouseLimits={mouseLimits}
+                              />
+                            </g>
+                          );
+                        })}
+                      </g>
+                    );
+                  })}
+
+                  {/* Footer (page number, copyright only on page 1) */}
+                  <PageFooter
+                    footer={page.footer}
+                    isFirstPage={page.isFirst}
+                    editingCopyright={page.isFirst && metadataTrack.editingField === 'copyright'}
+                    selectedCopyright={page.isFirst && metadataTrack.selectedField === 'copyright'}
+                    copyrightInitialValue={metadataTrack.initialValue}
+                    onCopyrightClick={() => metadataTrack.startEditing('copyright')}
+                    onCopyrightSelect={() => metadataTrack.selectField('copyright')}
+                    onCopyrightEditComplete={(value) =>
+                      metadataTrack.completeEdit('copyright', value)
+                    }
+                    onCopyrightEditCancel={() => metadataTrack.cancelEdit()}
+                    onCopyrightDelete={() => metadataTrack.deleteField('copyright')}
+                  />
+                </g>
+              ))}
             </g>
           )}
 

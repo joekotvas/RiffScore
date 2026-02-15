@@ -129,6 +129,65 @@ export interface ScoreMetadata {
   copyright?: string;
 }
 
+// ========== EDITOR CONFIG ==========
+
+/**
+ * Low-level editor configuration constants.
+ * Controls rendering dimensions, spacing, and debug settings.
+ */
+export interface EditorConfig {
+  lineHeight: number;
+  topMargin: number;
+  baseY: number;
+  quantsPerMeasure: number;
+  measurePaddingLeft: number;
+  measurePaddingRight: number;
+  scoreMarginLeft: number;
+  headerWidth: number;
+  staffSpacing: number;
+
+  /** Chord track positioning */
+  chordTrack: {
+    /** Minimum distance above staff top line */
+    minDistanceFromStaff: number;
+    /** Gap between highest note and chord symbol */
+    paddingAboveNotes: number;
+    /** Absolute minimum Y position (top of canvas) */
+    minY: number;
+  };
+
+  /** Toolbar sizing */
+  toolbar: {
+    /** Icon size for toolbar buttons */
+    iconSize: number;
+  };
+
+  /** Header layout (clef, key sig, time sig) */
+  header: {
+    /** Clef symbol width */
+    clefWidth: number;
+    /** X position where key signature starts */
+    keySigStartX: number;
+    /** Width per accidental in key signature */
+    keySigAccidentalWidth: number;
+    /** Padding after key signature */
+    keySigPadding: number;
+    /** Time signature width */
+    timeSigWidth: number;
+    /** Padding after time signature */
+    timeSigPadding: number;
+  };
+
+  /** Debug settings */
+  debug?: {
+    enabled: boolean;
+    logCommands: boolean;
+    logStateChanges: boolean;
+    logValidation: boolean;
+    showHitZones?: boolean;
+  };
+}
+
 // ========== LAYOUT CONFIG ==========
 
 /**
@@ -234,10 +293,36 @@ export interface FooterLayout {
 }
 
 /**
- * Complete page layout with all systems.
+ * Layout for a single page in multi-page pagination.
+ */
+export interface Page {
+  /** 0-based page index */
+  index: number;
+  /** Systems on this page (Y coordinates are page-relative) */
+  systems: SystemLayout[];
+  /** Footer layout for this page */
+  footer: FooterLayout;
+  /** Y offset of this page within the canvas */
+  canvasY: number;
+  /** Whether this is the first page (shows metadata) */
+  isFirst: boolean;
+  /** Whether this is the last page */
+  isLast: boolean;
+}
+
+/**
+ * Complete page layout with all pages and systems.
  */
 export interface PageLayout {
-  /** Systems on this page */
+  /** All pages in the score (for multi-page pagination) */
+  pages: Page[];
+  /** Total number of pages */
+  pageCount: number;
+  /** Visual gap between pages in pixels */
+  pageGap: number;
+  /** Total canvas height (all pages + gaps) */
+  totalHeight: number;
+  /** Systems on first page (backwards compatibility) */
   systems: SystemLayout[];
   /** Page dimensions */
   pageSize: 'letter' | 'a4';
@@ -256,7 +341,7 @@ export interface PageLayout {
   marginsPx: MarginsPx;
   /** Metadata layout (title, composer positioning) */
   metadata: MetadataLayout;
-  /** Footer layout (page number positioning) */
+  /** Footer layout for first page (backwards compatibility) */
   footer: FooterLayout;
 }
 

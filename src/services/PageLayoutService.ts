@@ -18,6 +18,7 @@ import type {
   MarginsPx,
   MeasurePosition,
   ScoreMetadata,
+  Page,
 } from '@/types';
 import {
   DEFAULT_LAYOUT_CONFIG,
@@ -27,6 +28,8 @@ import {
   FIRST_SYSTEM_INDENT,
   LAYOUT_WIDTHS,
   METADATA_TYPOGRAPHY,
+  PAGE_GAP,
+  FOOTER_HEIGHT,
 } from '@/config';
 import { CONFIG } from '@/config';
 import { calculateMeasureWidth } from '@/engines/layout';
@@ -314,6 +317,110 @@ const calculateFooterLayout = (
   return result;
 };
 
+// =============================================================================
+// MULTI-PAGE PAGINATION
+// =============================================================================
+
+/**
+ * Calculates available height for systems on a page.
+ *
+ * @param pageIndex - 0-based page index
+ * @param contentArea - The content area dimensions
+ * @param metadataBottom - Y position where metadata ends (only affects page 0)
+ * @returns Available height for systems in pixels
+ */
+export const calculateAvailableContentHeight = (
+  pageIndex: number,
+  contentArea: ContentArea,
+  metadataBottom: number
+): number => {
+  // Reserve space for footer
+  const baseHeight = contentArea.height - FOOTER_HEIGHT;
+
+  if (pageIndex === 0) {
+    // First page: subtract metadata block height
+    const metadataHeight = metadataBottom - contentArea.y;
+    return baseHeight - metadataHeight;
+  }
+
+  // Subsequent pages: full content area minus footer
+  return baseHeight;
+};
+
+/**
+ * Distributes systems across pages based on available height.
+ *
+ * Uses greedy fill algorithm: place systems on current page until
+ * adding another would exceed available height, then start new page.
+ *
+ * @param systems - All systems to distribute (with heights calculated)
+ * @param contentArea - Content area dimensions
+ * @param metadataBottom - Y position where metadata ends
+ * @param systemSpacing - Spacing between systems
+ * @param systemHeight - Height of each system
+ * @returns Array of page assignments with page-relative system Y coordinates
+ */
+export const distributeSystemsToPages = (
+  systems: SystemLayout[],
+  contentArea: ContentArea,
+  metadataBottom: number,
+  systemSpacing: number,
+  systemHeight: number
+): { pageIndex: number; systems: SystemLayout[] }[] => {
+  if (systems.length === 0) {
+    return [];
+  }
+
+  const pages: { pageIndex: number; systems: SystemLayout[] }[] = [];
+  let currentPageSystems: SystemLayout[] = [];
+  let currentPageIndex = 0;
+  let currentY = 0;
+
+  for (const system of systems) {
+    const availableHeight = calculateAvailableContentHeight(
+      currentPageIndex,
+      contentArea,
+      metadataBottom
+    );
+
+    // Starting Y for this page
+    const pageStartY = currentPageIndex === 0 ? metadataBottom : contentArea.y;
+
+    // Check if system fits on current page
+    const systemTotalHeight = systemHeight + (currentPageSystems.length > 0 ? systemSpacing : 0);
+
+    if (currentY + systemTotalHeight > availableHeight && currentPageSystems.length > 0) {
+      // Current page is full, start new page
+      pages.push({ pageIndex: currentPageIndex, systems: currentPageSystems });
+      currentPageIndex++;
+      currentPageSystems = [];
+      currentY = 0;
+    }
+
+    // Calculate page-relative Y position
+    const pageRelativeY =
+      currentPageIndex === 0
+        ? metadataBottom + currentY
+        : contentArea.y + currentY;
+
+    // Add system to current page with page-relative Y
+    currentPageSystems.push({
+      ...system,
+      y: pageRelativeY,
+    });
+
+    // Advance Y position (include spacing for next system)
+    currentY += systemHeight + systemSpacing;
+  }
+
+  // Don't forget the last page
+  if (currentPageSystems.length > 0) {
+    pages.push({ pageIndex: currentPageIndex, systems: currentPageSystems });
+  }
+
+  return pages;
+};
+
 /**
  * Calculates measure positions within a system.
  *
@@ -447,10 +554,8 @@ export const calculatePageLayout = (
       ? scaledStaffHeight * stavesCount + CONFIG.staffSpacing * staffScale * (stavesCount - 1)
       : scaledStaffHeight;
 
-  // Build system layouts using forward-flow Y positioning
-  // Systems start after metadata
-  let currentY = metadata.bottom;
-  const systems: SystemLayout[] = [];
+  // Build system layouts (without final Y positions - will be set during page distribution)
+  const allSystems: SystemLayout[] = [];
 
   for (let i = 0; i < systemBreaks.length; i++) {
     const systemMeasures = systemBreaks[i];
@@ -485,10 +590,10 @@ export const calculatePageLayout = (
       justification
     );
 
-    systems.push({
+    allSystems.push({
       index: i,
       measures: systemMeasures,
-      y: currentY,
+      y: 0, // Will be set during page distribution
       height: systemHeight,
       xOffset,
       contentWidth: systemContentWidth,
@@ -497,13 +602,59 @@ export const calculatePageLayout = (
       justification,
       measurePositions,
     });
-
-    // Advance Y position
-    currentY += systemHeight + systemSpacing;
   }
 
+  // Distribute systems across pages
+  const pageAssignments = distributeSystemsToPages(
+    allSystems,
+    contentArea,
+    metadata.bottom,
+    systemSpacing,
+    systemHeight
+  );
+
+  // Build Page objects
+  const pages: Page[] = pageAssignments.map(({ pageIndex, systems: pageSystems }) => {
+    const canvasY = pageIndex * (pageHeight + PAGE_GAP);
+
+    // Update system indices relative to this page
+    const pageRelativeSystems = pageSystems.map((system, idx) => ({
+      ...system,
+      // isFirst only for first system on first page
+      isFirst: pageIndex === 0 && idx === 0,
+      // isLast only for last system on last page
+      isLast: pageIndex === pageAssignments.length - 1 && idx === pageSystems.length - 1,
+    }));
+
+    return {
+      index: pageIndex,
+      systems: pageRelativeSystems,
+      footer: calculateFooterLayout(
+        contentArea,
+        marginsPx.bottom,
+        pageIndex + 1, // 1-based page number
+        pageIndex === 0 ? effectiveMetadata.copyright : undefined
+      ),
+      canvasY,
+      isFirst: pageIndex === 0,
+      isLast: pageIndex === pageAssignments.length - 1,
+    };
+  });
+
+  const pageCount = pages.length;
+  const totalHeight = pageCount * pageHeight + Math.max(0, pageCount - 1) * PAGE_GAP;
+
+  // For backwards compatibility, use first page systems and footer
+  const firstPageSystems = pages[0]?.systems ?? [];
+  const firstPageFooter =
+    pages[0]?.footer ?? calculateFooterLayout(contentArea, marginsPx.bottom, 1);
+
   return {
-    systems,
+    pages,
+    pageCount,
+    pageGap: PAGE_GAP,
+    totalHeight,
+    systems: firstPageSystems,
     pageSize: config.pageSize,
     dimensions: { width: pageWidth, height: pageHeight },
     margins: config.margins,
@@ -513,7 +664,7 @@ export const calculatePageLayout = (
     contentArea,
     marginsPx,
     metadata,
-    footer,
+    footer: firstPageFooter,
   };
 };
 
@@ -577,4 +728,22 @@ export const getMeasureOriginInSystem = (
   }
 
   return null;
+};
+
+/**
+ * Finds which page contains a given measure.
+ *
+ * @param measureIndex - 0-based measure index
+ * @param pageLayout - The page layout to search
+ * @returns Page index, or -1 if not found
+ */
+export const getPageForMeasure = (measureIndex: number, pageLayout: PageLayout): number => {
+  for (const page of pageLayout.pages) {
+    for (const system of page.systems) {
+      if (system.measures.includes(measureIndex)) {
+        return page.index;
+      }
+    }
+  }
+  return -1;
 };

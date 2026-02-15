@@ -13,8 +13,11 @@ import {
   calculatePageLayout,
   getSystemForMeasure,
   getMeasureOriginInSystem,
+  getPageForMeasure,
+  calculateAvailableContentHeight,
+  distributeSystemsToPages,
 } from '@/services/PageLayoutService';
-import { DEFAULT_LAYOUT_CONFIG, FIRST_SYSTEM_INDENT } from '@/config';
+import { DEFAULT_LAYOUT_CONFIG, FIRST_SYSTEM_INDENT, PAGE_GAP, FOOTER_HEIGHT } from '@/config';
 import type { Score, LayoutConfig } from '@/types';
 
 // ============================================================================
@@ -652,5 +655,256 @@ describe('PageLayoutService - Edge Cases', () => {
     for (let i = 0; i < measureCount; i++) {
       expect(allMeasures).toContain(i);
     }
+  });
+});
+
+// ============================================================================
+// MULTI-PAGE PAGINATION TESTS
+// ============================================================================
+
+describe('PageLayoutService - Multi-Page Pagination', () => {
+  describe('calculateAvailableContentHeight', () => {
+    const contentArea = { x: 50, y: 50, width: 600, height: 800 };
+    const metadataBottom = 120; // Metadata takes 70px (120 - 50)
+
+    it('returns reduced height for page 0 due to metadata', () => {
+      const height = calculateAvailableContentHeight(0, contentArea, metadataBottom);
+      // 800 - FOOTER_HEIGHT - (120 - 50) = 800 - 40 - 70 = 690
+      expect(height).toBe(800 - FOOTER_HEIGHT - 70);
+    });
+
+    it('returns full content height for subsequent pages', () => {
+      const height = calculateAvailableContentHeight(1, contentArea, metadataBottom);
+      // 800 - FOOTER_HEIGHT = 760
+      expect(height).toBe(800 - FOOTER_HEIGHT);
+    });
+
+    it('page 0 has less available height than page 1', () => {
+      const page0Height = calculateAvailableContentHeight(0, contentArea, metadataBottom);
+      const page1Height = calculateAvailableContentHeight(1, contentArea, metadataBottom);
+      expect(page0Height).toBeLessThan(page1Height);
+    });
+  });
+
+  describe('distributeSystemsToPages', () => {
+    const contentArea = { x: 50, y: 50, width: 600, height: 400 };
+    const metadataBottom = 100;
+    const systemSpacing = 20;
+    const systemHeight = 80;
+
+    const createMockSystems = (count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        index: i,
+        measures: [i],
+        y: 0,
+        height: systemHeight,
+        xOffset: 100,
+        contentWidth: 500,
+        isFirst: i === 0,
+        isLast: i === count - 1,
+        justification: 1.0,
+        measurePositions: [],
+      }));
+
+    it('returns empty array for no systems', () => {
+      const result = distributeSystemsToPages(
+        [],
+        contentArea,
+        metadataBottom,
+        systemSpacing,
+        systemHeight
+      );
+      expect(result).toEqual([]);
+    });
+
+    it('places single system on single page', () => {
+      const systems = createMockSystems(1);
+      const result = distributeSystemsToPages(
+        systems,
+        contentArea,
+        metadataBottom,
+        systemSpacing,
+        systemHeight
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].pageIndex).toBe(0);
+      expect(result[0].systems).toHaveLength(1);
+    });
+
+    it('distributes systems across multiple pages when needed', () => {
+      // With reduced contentArea.height, systems should overflow to multiple pages
+      const smallContentArea = { x: 50, y: 50, width: 600, height: 200 };
+      const systems = createMockSystems(5);
+      const result = distributeSystemsToPages(
+        systems,
+        smallContentArea,
+        metadataBottom,
+        systemSpacing,
+        systemHeight
+      );
+
+      expect(result.length).toBeGreaterThan(1);
+      // Each page should have at least one system
+      result.forEach((page) => {
+        expect(page.systems.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('sets page-relative Y coordinates', () => {
+      const systems = createMockSystems(2);
+      const result = distributeSystemsToPages(
+        systems,
+        contentArea,
+        metadataBottom,
+        systemSpacing,
+        systemHeight
+      );
+
+      // First system on page 0 should start at metadataBottom
+      expect(result[0].systems[0].y).toBe(metadataBottom);
+    });
+  });
+
+  describe('getPageForMeasure', () => {
+    it('returns -1 for empty layout', () => {
+      const score = createEmptyScore();
+      const layout = calculatePageLayout(score);
+      expect(getPageForMeasure(0, layout)).toBe(-1);
+    });
+
+    it('returns correct page for single page score', () => {
+      const score = createSingleMeasureScore();
+      const layout = calculatePageLayout(score);
+      expect(getPageForMeasure(0, layout)).toBe(0);
+    });
+
+    it('returns -1 for measure not in layout', () => {
+      const score = createSingleMeasureScore();
+      const layout = calculatePageLayout(score);
+      expect(getPageForMeasure(999, layout)).toBe(-1);
+    });
+
+    it('finds measures on correct pages in multi-page layout', () => {
+      // Create a score with many measures to force multi-page
+      const score = createMultiMeasureScore(30);
+      const layout = calculatePageLayout(score);
+
+      // Verify all measures can be found on some page
+      for (let i = 0; i < 30; i++) {
+        const pageIndex = getPageForMeasure(i, layout);
+        expect(pageIndex).toBeGreaterThanOrEqual(0);
+      }
+    });
+  });
+
+  describe('calculatePageLayout - pagination fields', () => {
+    it('includes pages array', () => {
+      const score = createSingleMeasureScore();
+      const layout = calculatePageLayout(score);
+      expect(layout.pages).toBeDefined();
+      expect(Array.isArray(layout.pages)).toBe(true);
+    });
+
+    it('includes pageCount', () => {
+      const score = createSingleMeasureScore();
+      const layout = calculatePageLayout(score);
+      expect(layout.pageCount).toBeGreaterThan(0);
+      expect(layout.pageCount).toBe(layout.pages.length);
+    });
+
+    it('includes pageGap constant', () => {
+      const score = createSingleMeasureScore();
+      const layout = calculatePageLayout(score);
+      expect(layout.pageGap).toBe(PAGE_GAP);
+    });
+
+    it('calculates totalHeight correctly for single page', () => {
+      const score = createSingleMeasureScore();
+      const layout = calculatePageLayout(score);
+      // Single page: totalHeight = page height
+      expect(layout.totalHeight).toBe(layout.dimensions.height);
+    });
+
+    it('calculates totalHeight correctly for multiple pages', () => {
+      const score = createMultiMeasureScore(30);
+      const layout = calculatePageLayout(score);
+
+      if (layout.pageCount > 1) {
+        // Multiple pages: totalHeight = (pageCount * pageHeight) + ((pageCount - 1) * pageGap)
+        const expectedHeight =
+          layout.pageCount * layout.dimensions.height +
+          (layout.pageCount - 1) * PAGE_GAP;
+        expect(layout.totalHeight).toBe(expectedHeight);
+      }
+    });
+
+    it('pages have correct canvasY offsets', () => {
+      const score = createMultiMeasureScore(30);
+      const layout = calculatePageLayout(score);
+
+      layout.pages.forEach((page, index) => {
+        const expectedCanvasY = index * (layout.dimensions.height + PAGE_GAP);
+        expect(page.canvasY).toBe(expectedCanvasY);
+      });
+    });
+
+    it('isFirst flag only true for page 0', () => {
+      const score = createMultiMeasureScore(30);
+      const layout = calculatePageLayout(score);
+
+      layout.pages.forEach((page, index) => {
+        expect(page.isFirst).toBe(index === 0);
+      });
+    });
+
+    it('isLast flag only true for last page', () => {
+      const score = createMultiMeasureScore(30);
+      const layout = calculatePageLayout(score);
+      const lastIndex = layout.pages.length - 1;
+
+      layout.pages.forEach((page, index) => {
+        expect(page.isLast).toBe(index === lastIndex);
+      });
+    });
+
+    it('page numbers increment from 1', () => {
+      const score = createMultiMeasureScore(30);
+      const layout = calculatePageLayout(score);
+
+      layout.pages.forEach((page, index) => {
+        expect(page.footer.pageNumber.text).toBe(String(index + 1));
+      });
+    });
+
+    it('copyright only appears on page 1', () => {
+      const score: Score = {
+        ...createMultiMeasureScore(30),
+        metadata: {
+          title: 'Test',
+          copyright: '2024 Test',
+        },
+      };
+      const layout = calculatePageLayout(score);
+
+      layout.pages.forEach((page, index) => {
+        if (index === 0) {
+          expect(page.footer.copyright).toBeDefined();
+        } else {
+          expect(page.footer.copyright).toBeUndefined();
+        }
+      });
+    });
+
+    it('maintains backwards compatibility with systems and footer fields', () => {
+      const score = createSingleMeasureScore();
+      const layout = calculatePageLayout(score);
+
+      // systems should equal first page systems
+      expect(layout.systems).toEqual(layout.pages[0]?.systems ?? []);
+
+      // footer should equal first page footer
+      expect(layout.footer).toEqual(layout.pages[0]?.footer);
+    });
   });
 });

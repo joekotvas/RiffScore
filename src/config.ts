@@ -2,11 +2,14 @@
  * Configuration Constants for Sheet Music Editor
  */
 
-import type { ScoreMetadata, LayoutConfig } from './types';
+import type { ScoreMetadata, LayoutConfig, EditorConfig } from './types';
 
 // Re-export themes for backwards compatibility
 export { COLORS, THEMES, DEFAULT_THEME } from './themes';
 export type { ThemeName, Theme } from './themes';
+
+// Re-export EditorConfig type (formerly Config, now defined in types.ts)
+export type { EditorConfig } from './types';
 
 // =============================================================================
 // PAGE VIEW CONFIGURATION
@@ -51,15 +54,25 @@ export const PAGE_DIMENSIONS = {
  * System spacing multipliers (relative to staff height).
  */
 export const SYSTEM_SPACING_MULTIPLIERS = {
-  compact: 1.5,
-  normal: 2.0,
-  relaxed: 2.5,
+  compact: 1,
+  normal: 1.5,
+  relaxed: 2,
 } as const;
 
 /**
  * First system indent as percentage of content width (0-1).
  */
 export const FIRST_SYSTEM_INDENT = 0.15;
+
+/**
+ * Visual gap between pages in pixels (for multi-page pagination).
+ */
+export const PAGE_GAP = 24;
+
+/**
+ * Footer height reserved at bottom of each page in pixels.
+ */
+export const FOOTER_HEIGHT = 40;
 
 /**
  * Layout element widths in pixels (at 100% scale).
@@ -89,62 +102,10 @@ export const TIMING = {
 } as const;
 
 // =============================================================================
-// LAYOUT CONFIGURATION
+// EDITOR CONFIGURATION
 // =============================================================================
 
-export interface Config {
-  lineHeight: number;
-  topMargin: number;
-  baseY: number;
-  quantsPerMeasure: number;
-  measurePaddingLeft: number;
-  measurePaddingRight: number;
-  scoreMarginLeft: number;
-  headerWidth: number;
-  staffSpacing: number;
-
-  // Chord track positioning
-  chordTrack: {
-    /** Minimum distance above staff top line */
-    minDistanceFromStaff: number;
-    /** Gap between highest note and chord symbol */
-    paddingAboveNotes: number;
-    /** Absolute minimum Y position (top of canvas) */
-    minY: number;
-  };
-
-  // Toolbar sizing
-  toolbar: {
-    /** Icon size for toolbar buttons */
-    iconSize: number;
-  };
-
-  // Header layout (clef, key sig, time sig)
-  header: {
-    /** Clef symbol width */
-    clefWidth: number;
-    /** X position where key signature starts */
-    keySigStartX: number;
-    /** Width per accidental in key signature */
-    keySigAccidentalWidth: number;
-    /** Padding after key signature */
-    keySigPadding: number;
-    /** Time signature width */
-    timeSigWidth: number;
-    /** Padding after time signature */
-    timeSigPadding: number;
-  };
-
-  debug?: {
-    enabled: boolean;
-    logCommands: boolean;
-    logStateChanges: boolean;
-    logValidation: boolean;
-    showHitZones?: boolean;
-  };
-}
-
-export const CONFIG: Config = {
+export const CONFIG: EditorConfig = {
   lineHeight: 12,
   topMargin: 20,
   baseY: 80,
