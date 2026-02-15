@@ -383,9 +383,6 @@ export const distributeSystemsToPages = (
       metadataBottom
     );
 
-    // Starting Y for this page
-    const pageStartY = currentPageIndex === 0 ? metadataBottom : contentArea.y;
-
     // Check if system fits on current page
     const systemTotalHeight = systemHeight + (currentPageSystems.length > 0 ? systemSpacing : 0);
 
@@ -512,14 +509,6 @@ export const calculatePageLayout = (
   // Use score.metadata if available, otherwise create from score.title
   const effectiveMetadata = score.metadata ?? { title: score.title };
   const metadata = calculateMetadataLayout(effectiveMetadata, contentArea);
-
-  // Calculate footer layout (page number and copyright positioning)
-  const footer = calculateFooterLayout(
-    contentArea,
-    marginsPx.bottom,
-    1,
-    effectiveMetadata.copyright
-  );
 
   // Calculate header width (clef + key signature + time signature)
   const accidentalCount = getKeySignatureAccidentalCount(score.keySignature);
