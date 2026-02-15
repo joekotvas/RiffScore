@@ -88,6 +88,14 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 *   **Playback**: Chord voicings play back alongside the score.
 *   **Full API**: CRUD, selection, and navigation via `addChord()`, `selectChord()`, etc.
 
+### Page View & Print
+*   **Multi-System Layout**: Automatic system breaks with first system indent and justified measures.
+*   **Multi-Page Pagination**: True page breaks with visual gaps between pages.
+*   **Layout Options**: Letter/A4 page sizes, margin presets, staff size (50-150%), system spacing.
+*   **Score Setup Dialog**: Configure metadata (title, composer, copyright) and layout via `Cmd+,`.
+*   **Inline Editing**: Click directly on title, composer, or copyright to edit in place.
+*   **Print Support**: Professional PDF output via native browser dialog (`Cmd+P`).
+
 ### Machine-Addressable API
 *   **Imperative Control**: Programmatically control the score via `window.riffScore` ([API Reference](./docs/API.md))
 *   **Fluent Chaining**: `api.select(1).addNote('C4').play()` — chainable methods for concise scripting.
@@ -126,6 +134,10 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 | **History** |||
 | `Cmd+Z` | `Ctrl+Z` | Undo |
 | `Cmd+Shift+Z` | `Ctrl+Y` | Redo |
+| **Page View** |||
+| `Cmd+\` | `Ctrl+\` | Toggle scroll/page view |
+| `Cmd+,` | `Ctrl+,` | Open Score Setup dialog |
+| `Cmd+P` | `Ctrl+P` | Print |
 
 See the [Interaction Guide](./docs/INTERACTION.md) for the complete keyboard reference.
 

@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.0.0-alpha.10] - Unreleased
 
 ### Added
+- **Page View & Print ([#174](https://github.com/joekotvas/riffscore/issues/174))**: Complete page view mode with professional document layout.
+  - **Multi-System Rendering**: Automatic system breaks with first system indent and justified measures.
+  - **Multi-Page Pagination**: True page breaks with 24px visual gap between pages.
+  - **Page Layout Options**: Letter/A4 page sizes, Narrow/Normal/Wide margins, 50-150% staff size, Compact/Normal/Relaxed system spacing.
+  - **Score Setup Dialog**: Metadata and layout configuration with live preview (`Cmd+,` / `Ctrl+,`).
+  - **Inline Metadata Editing**: Click-to-edit title, composer, lyricist, and copyright directly on the page.
+  - **Page Numbers**: Centered at bottom of each page; copyright on page 1 only.
+  - **Print Support**: Native browser print dialog via `Cmd+P` / `Ctrl+P` with clean PDF output.
+  - **View Toggle**: Toolbar button and keyboard shortcut (`Cmd+\` / `Ctrl+\`) to switch between scroll and page view.
+  - **Export Integration**: ABC and MusicXML exports include metadata fields.
+  - **New Services**: `PageLayoutService` for layout calculations, `MetadataService` for validation.
+  - **New Commands**: `SetViewModeCommand`, `SetLayoutConfigCommand`, `SetMetadataCommand`.
+  - **New API Methods**: `getViewMode()`, `setViewMode()`, `toggleViewMode()`, `getLayoutConfig()`, `setLayoutConfig()`, `getMetadata()`, `setMetadata()`, `getTitle()`, `setTitle()`, `getComposer()`, `setComposer()`, etc.
 - **Release Workflow Documentation**: New [RELEASE_WORKFLOW.md](docs/RELEASE_WORKFLOW.md) with step-by-step checklist for version releases, including verification, changelog updates, GitHub releases, and LinkedIn announcements.
 - **ADR-016: Measure-Relative X Positioning**: Design decision documenting the coordinate system migration for system breaks support. See [ADR-016](docs/adr/016-measure-relative-x.md).
 - **Measure Index Utilities ([#227](https://github.com/joekotvas/riffscore/issues/227))**: New `@/utils/measureIndex` module with conversion helpers:

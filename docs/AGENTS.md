@@ -16,6 +16,7 @@
 | Understand the data schema | [DATA_MODEL.md](./DATA_MODEL.md) |
 | Work on layout/rendering | [LAYOUT_ENGINE.md](./LAYOUT_ENGINE.md) |
 | Understand keyboard nav | [KEYBOARD_NAVIGATION.md](./KEYBOARD_NAVIGATION.md) |
+| Work on page view/print | [features/page-view/](./features/page-view/) |
 | Review design decisions | [ADRs](./adr/) |
 | Release a new version | [RELEASE_WORKFLOW.md](./RELEASE_WORKFLOW.md) |
 
@@ -74,6 +75,8 @@ Key patterns:
 | `src/hooks/api/playback.ts` | play, pause, stop |
 | `src/hooks/api/io.ts` | loadScore, reset, export |
 | `src/hooks/api/events.ts` | on() subscription wrapper |
+| `src/hooks/api/layout.ts` | getViewMode, setViewMode, toggleViewMode, getLayoutConfig |
+| `src/hooks/api/metadata.ts` | getMetadata, setMetadata, getTitle, setTitle, etc. |
 
 ### Layout Engine
 | File | Purpose |
@@ -83,6 +86,14 @@ Key patterns:
 | `src/engines/layout/beaming.ts` | Beam groups |
 | `src/engines/layout/stems.ts` | Stem directions/lengths |
 | `src/engines/layout/tuplets.ts` | Tuplet brackets |
+
+### Page View Hooks
+| File | Purpose |
+|------|---------|
+| `src/hooks/layout/usePageLayout.ts` | Page layout data for multi-system rendering |
+| `src/hooks/layout/useMetadataTrack.ts` | Inline metadata editing state |
+| `src/hooks/layout/useScoreSetup.ts` | Score Setup dialog state |
+| `src/hooks/layout/usePrintHandler.ts` | Print support with Cmd+P |
 
 ### Utilities
 | File | Purpose |
@@ -100,6 +111,9 @@ Key patterns:
 |------|---------|
 | `src/services/MusicService.ts` | Tonal.js wrapper (theory) |
 | `src/services/TimelineService.ts` | Playback timing |
+| `src/services/PageLayoutService.ts` | Page view layout: system breaks, measure positioning, pagination |
+| `src/services/MetadataService.ts` | Score metadata validation and normalization |
+| `src/services/ChordService.ts` | Chord symbol parsing and voicing |
 
 ### Components
 | Location | Contains |

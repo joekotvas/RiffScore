@@ -14,15 +14,16 @@ This directory contains agent prompt documents for implementing the Page View & 
 | 1 | ✅ Complete | `1d001d8` | Types, config, and services for page view |
 | 2 | ✅ Complete | `59144e7` | Layout and metadata commands + API |
 | 3 | ✅ Complete | `b797d2e`, `07a7734` | Multi-system rendering for page view |
-| 3b | ✅ Complete | `1d4289b` | Anchor-based layout for margins |
+| 3b | ✅ Complete | `1d4289b`, `de56514`, `4e42dc6` | Anchor-based layout + fixes |
 | 4 | ✅ Complete | `1c6a1ae`, `edc471f` | Score Setup dialog with live preview |
-| 5 | ⏳ Pending | — | Ready to start |
-| 6 | ⏳ Pending | — | Ready to start |
-| 7 | ⏳ Pending | — | Ready to start |
+| 5 | ✅ Complete | `607fe24` | ViewToggle toolbar control |
+| 6 | ✅ Complete | `607fe24` | Print support with @media print |
+| 7 | ✅ Complete | `607fe24` | MetadataTrack inline editing |
+| 7b | ✅ Complete | `57e30bc` | Multi-page pagination |
 | 8 | ✅ Complete | `fe9264a` | ABC + MusicXML metadata export |
-| 9 | ⏳ Pending | — | Blocked by all |
+| 9 | ⏳ In Progress | — | Final polish & documentation |
 
-**Last Updated:** 2026-02-14
+**Last Updated:** 2026-02-15
 
 ---
 
@@ -303,6 +304,130 @@ M:4/4
 ### Test Results
 - 1431 tests passing (23 new exporter tests)
 - All lint checks passing
+
+---
+
+## Phase 5 Completion Notes
+
+Phase 5 added the toolbar view toggle control:
+
+### Deliverables
+- **`src/components/Toolbar/ViewToggle.tsx`** - Toggle button for scroll/page view modes
+- **`src/components/Toolbar/ViewToggle.css`** - BEM-styled button with icon states
+- **`src/__tests__/components/Toolbar/ViewToggle.test.tsx`** - 8 unit tests
+
+### Key Features
+- Icon switches between scroll (horizontal lines) and page (document) icons
+- Tooltip shows current mode and keyboard shortcut (`Cmd+\`)
+- Integrates with `useScoreAPI().toggleViewMode()`
+
+### Test Results
+- 1528 tests passing
+- All lint checks passing
+
+---
+
+## Phase 6 Completion Notes
+
+Phase 6 added print support with proper CSS media queries:
+
+### Deliverables
+- **`src/styles/theme.css`** - `@media print` rules for page view
+- **`src/components/Layout/ScoreEditor.tsx`** - `usePrintHandler` hook for Cmd+P
+- **`src/hooks/layout/usePrintHandler.ts`** - Print preparation with style settling
+
+### Key Features
+- Print only shows SVG canvas (hides toolbar, sidebars)
+- Automatic view mode switch to page view for printing
+- 100ms style settling delay before `window.print()`
+- CSS hides page shadows, borders for clean print output
+
+### Test Results
+- All existing tests pass
+- Manual print verification successful
+
+---
+
+## Phase 7 Completion Notes
+
+Phase 7 implemented inline metadata editing in page view:
+
+### Deliverables
+- **`src/components/Canvas/MetadataTrack.tsx`** - Title, composer, lyricist rendering with inline editing
+- **`src/components/Canvas/MetadataField.tsx`** - Individual editable field component
+- **`src/components/Canvas/PageFooter.tsx`** - Page number and copyright with inline editing
+- **`src/hooks/layout/useMetadataTrack.ts`** - State management hook
+
+### Key Features
+- Click-to-edit with foreignObject text inputs
+- Tab/Shift+Tab navigation between fields
+- Cmd/Ctrl+Click for selection without editing
+- Delete/Backspace to clear fields
+- Escape to cancel, blur to commit
+- Placeholder text for empty optional fields
+
+### Interaction Flow
+```
+Title → Composer → Lyricist → [Tab exits to first note]
+                            ← [Shift+Tab navigates back]
+```
+
+### Test Results
+- All existing tests pass
+- Manual verification of editing workflow
+
+---
+
+## Phase 7b Completion Notes (Multi-Page Pagination)
+
+Phase 7b added true multi-page support with page breaks:
+
+### Deliverables
+- **`src/types.ts`** - Added `Page` interface, extended `PageLayout` with pagination fields
+- **`src/config.ts`** - Added `PAGE_GAP` (24px), `FOOTER_HEIGHT` (40px) constants
+- **`src/services/PageLayoutService.ts`** - Page distribution algorithm, `getPageForMeasure()`
+- **`src/hooks/layout/usePageLayout.ts`** - Extended with `pageCount`, `getPage()`, `getPageForMeasure()`
+- **`src/components/Canvas/ScoreCanvas.tsx`** - Multi-page rendering with `canvasY` offsets
+- **`src/__tests__/services/PageLayoutService.test.ts`** - 23 new pagination tests
+
+### Key Architecture
+```typescript
+interface Page {
+  index: number;           // 0-based page index
+  systems: SystemLayout[]; // Systems on this page (Y is page-relative)
+  footer: FooterLayout;    // Footer for this page
+  canvasY: number;         // Y offset in canvas
+  isFirst: boolean;        // Shows metadata
+  isLast: boolean;
+}
+```
+
+### Page Distribution Algorithm
+- Greedy fill: place systems until page height exceeded, then start new page
+- Page 0 has less available height due to metadata block
+- 24px visual gap between pages (like document viewers)
+- Page-relative Y coordinates for simpler rendering
+
+### Key APIs
+```typescript
+// PageLayoutService
+getPageForMeasure(measureIndex, layout) → number
+calculateAvailableContentHeight(pageIndex, contentArea, metadataBottom) → number
+distributeSystemsToPages(systems, contentArea, ...) → { pageIndex, systems }[]
+
+// usePageLayout hook
+pageCount: number
+getPage(pageIndex): Page | null
+getPageForMeasure(measureIndex): number
+```
+
+### Test Results
+- 70 PageLayoutService tests (all pass)
+- 1528 total tests (all pass)
+
+### Type Refactoring
+- Moved `Config` interface to `types.ts` as `EditorConfig`
+- Updated `SYSTEM_SPACING_MULTIPLIERS` (compact: 1, normal: 1.5, relaxed: 2)
 
 ---
 
