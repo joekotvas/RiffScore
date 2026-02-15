@@ -386,7 +386,9 @@ export const calculatePageLayout = (
   };
 
   // Calculate metadata layout (title, composer positioning)
-  const metadata = calculateMetadataLayout(score.metadata, contentArea);
+  // Use score.metadata if available, otherwise create from score.title
+  const effectiveMetadata = score.metadata ?? { title: score.title };
+  const metadata = calculateMetadataLayout(effectiveMetadata, contentArea);
 
   // Calculate footer layout (page number positioning)
   const footer = calculateFooterLayout(contentArea, marginsPx.bottom, 1);

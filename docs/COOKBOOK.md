@@ -381,6 +381,28 @@ console.log('Event ID:', sel.eventId);
 console.log('Selected notes:', sel.selectedNotes.length);
 ```
 
+### Select Event at Quant Position
+
+Use `selectAtQuant()` to target an event by its rhythmic position within a measure.
+
+```javascript
+const score = window.riffScore.active;
+
+// Select the event at beat 2 of measure 1 (quant 16 = one quarter note in)
+score.selectAtQuant(0, 16);
+
+// Select at beat 3 of measure 3 on the bass staff
+score.selectAtQuant(2, 32, 1);
+
+// Quant reference (4/4 time, 64 quants per measure):
+// Beat 1: quant 0
+// Beat 2: quant 16
+// Beat 3: quant 32
+// Beat 4: quant 48
+```
+
+> **Note**: If no event exists at the exact quant, the cursor moves to that position as a ghost cursor (ready to insert).
+
 ### Get Configuration
 
 ```javascript

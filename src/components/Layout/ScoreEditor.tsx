@@ -14,7 +14,6 @@ import { useChordTrack } from '@hooks/chord/useChordTrack';
 // Components
 import ScoreCanvas from '@components/Canvas/ScoreCanvas';
 import Toolbar, { ToolbarHandle } from '@components/Toolbar/Toolbar';
-import { ScoreTitleField } from '@components/Layout/ScoreTitleField';
 import ShortcutsOverlay from '@components/Layout/Overlays/ShortcutsOverlay';
 import ConfirmDialog from '@components/Layout/Overlays/ConfirmDialog';
 import Portal from '@components/Layout/Portal';
@@ -44,7 +43,6 @@ interface ScoreEditorContentProps {
   label?: string;
   showToolbar?: boolean;
   showBackground?: boolean;
-  showScoreTitle?: boolean;
   enableKeyboard?: boolean;
   enablePlayback?: boolean;
 }
@@ -58,7 +56,6 @@ const ScoreEditorContent = ({
   label,
   showToolbar = true,
   showBackground = true,
-  showScoreTitle = true,
   enableKeyboard = true,
   enablePlayback = true,
 }: ScoreEditorContentProps) => {
@@ -349,22 +346,6 @@ const ScoreEditorContent = ({
       )}
 
       <div className="riff-ScoreEditor__content" style={{ backgroundColor: theme.background }}>
-        {showScoreTitle && (
-          <div className="riff-ScoreEditor__title-wrapper">
-            <ScoreTitleField
-              title={score.title}
-              isEditing={titleEditor.isEditing}
-              setIsEditing={titleEditor.setIsEditing}
-              buffer={titleEditor.buffer}
-              setBuffer={titleEditor.setBuffer}
-              commit={titleEditor.commit}
-              inputRef={titleEditor.inputRef}
-              theme={theme}
-              scale={scale}
-            />
-          </div>
-        )}
-
         <ScoreCanvas
           scale={scale}
           playbackPosition={playback.playbackPosition}

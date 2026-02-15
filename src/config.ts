@@ -78,7 +78,7 @@ export const METADATA_TYPOGRAPHY = {
   titleHeight: 30,
   titleSpacing: 8,
   composerHeight: 16,
-  blockSpacing: 20,
+  blockSpacing: 40,
 } as const;
 
 /**

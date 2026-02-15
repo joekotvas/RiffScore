@@ -226,6 +226,36 @@ Page (0,0)
 - 1431 tests passing (24 new since Phase 4)
 - All lint checks passing
 
+### Additional Fixes (2026-02-14)
+
+Further refinements to page view rendering:
+
+**Title Unification**
+- Removed external HTML `ScoreTitleField` from `ScoreEditor.tsx`
+- Title now renders inside SVG canvas in both scroll and page view
+- Scroll view title left-aligned with score start (`x=0`, `textAnchor="start"`)
+- `PageLayoutService.ts` falls back to `score.title` when `score.metadata` is undefined
+- Deleted `ScoreTitleField.tsx` and `ScoreTitleField.css` (dead code cleanup)
+
+**Layout Improvements**
+- Increased `METADATA_TYPOGRAPHY.blockSpacing` from 20px to 40px for better visual separation
+- Grand staff bracket X position now accounts for first system indent
+- Fixed bracket height formula to correctly span treble top line to bass bottom line
+
+**Page View Interaction Fixes**
+- Added `measureIndices` prop to `Staff.tsx` for correct measure index mapping in page view
+- Added `isLastSystem` prop to `Staff.tsx` - final barline only renders on actual last measure
+- Fixed layout lookup to use `actualMeasureIndex` instead of local array index
+
+**Files Modified**
+- `src/components/Canvas/ScoreCanvas.tsx` - Scroll view title, page view bracket/barline fixes
+- `src/components/Canvas/Staff.tsx` - `measureIndices`, `isLastSystem` props, layout lookup fix
+- `src/components/Layout/ScoreEditor.tsx` - Removed ScoreTitleField usage
+- `src/services/PageLayoutService.ts` - Metadata fallback to score.title
+- `src/config.ts` - Increased blockSpacing
+- `src/hooks/layout/useFontLoaded.ts` - Removed dead ScoreTitleField CSS
+- `src/styles/index.css` - Removed ScoreTitleField.css import
+
 ---
 
 ## Phase 8 Completion Notes

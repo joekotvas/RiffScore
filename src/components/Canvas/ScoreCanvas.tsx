@@ -452,7 +452,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       ref={containerRef}
       data-testid="score-canvas-container"
       className="riff-ScoreCanvas"
-      style={{ marginTop: '-30px', backgroundColor: theme.background }}
+      style={{ backgroundColor: theme.background }}
       onClick={handleBackgroundClick}
       tabIndex={0}
       onMouseEnter={() => onHoverChange(true)}
@@ -492,11 +492,11 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                   ? pageLayout.firstSystemIndent * system.contentWidth
                   : 0;
 
-                // Calculate actual staff heights for bracket
-                const singleStaffHeight = 48 * staffScale; // 4 lines * 12px line height
+                // Calculate bracket height: treble top line to bass bottom line
+                const singleStaffHeight = 48 * staffScale; // 4 spaces * 12px = 48px
                 const totalStaffHeight =
                   score.staves.length > 1
-                    ? singleStaffHeight * score.staves.length +
+                    ? singleStaffHeight +
                       CONFIG.staffSpacing * staffScale * (score.staves.length - 1)
                     : singleStaffHeight;
 
@@ -510,12 +510,12 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                       staffScale={staffScale}
                     />
 
-                    {/* Grand staff bracket */}
+                    {/* Grand staff bracket - right edge aligned with system start */}
                     {score.staves?.length > 1 && (
                       <GrandStaffBracket
                         topY={system.y}
                         bottomY={system.y + totalStaffHeight}
-                        x={contentX - 10}
+                        x={contentX + firstSystemIndent - 20}
                       />
                     )}
 
@@ -561,11 +561,13 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                             keySignature={staff.keySignature || keySignature}
                             timeSignature={timeSignature}
                             measures={systemMeasures}
+                            measureIndices={system.measures}
                             staffLayout={layout.staves[staffIndex]}
                             baseY={CONFIG.baseY}
                             scale={scale}
                             isSystemStart={true}
                             systemIndex={system.index}
+                            isLastSystem={system.isLast}
                             interaction={interaction}
                             onClefClick={onClefClick}
                             onKeySigClick={onKeySigClick}
@@ -587,6 +589,18 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
           {/* Scroll View Rendering (existing) */}
           {!isPageView && (
             <>
+              {/* Title left-aligned with score start */}
+              {score.title && (
+                <text
+                  x={0}
+                  y={40}
+                  textAnchor="start"
+                  className="riff-metadata__title"
+                >
+                  {score.title}
+                </text>
+              )}
+
               {score.staves?.length > 1 && (
                 <>
                   {(() => {

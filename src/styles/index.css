@@ -25,7 +25,6 @@
 
 /* Layout */
 @import '../components/Layout/styles/ScoreEditor.css';
-@import '../components/Layout/styles/ScoreTitleField.css';
 
 /* Overlays */
 @import '../components/Layout/Overlays/styles/ShortcutsOverlay.css';

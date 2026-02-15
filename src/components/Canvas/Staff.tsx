@@ -52,6 +52,10 @@ export interface StaffProps {
   isSystemStart?: boolean;
   /** System index (0 = first system, shows time signature). Default: 0 */
   systemIndex?: number;
+  /** Whether this is the last system (controls final barline). Default: true */
+  isLastSystem?: boolean;
+  /** Actual measure indices in the score (for page view). If not provided, uses array index. */
+  measureIndices?: number[];
 
   // Interaction (Grouped)
   interaction: InteractionState;
@@ -83,6 +87,8 @@ const Staff: React.FC<StaffProps> = ({
   scale,
   isSystemStart = true,
   systemIndex = 0,
+  isLastSystem = true,
+  measureIndices,
   interaction,
   mouseLimits,
   onClefClick,
@@ -102,8 +108,12 @@ const Staff: React.FC<StaffProps> = ({
   let currentX = startOfMeasures;
 
   const measureComponents = measures.map((measure, index: number) => {
+    // Use actual measure index if provided (page view), otherwise use array index
+    const actualMeasureIndex = measureIndices?.[index] ?? index;
+
     // Use centralized layout if available, otherwise calculate
-    const measureLayoutV2 = staffLayout?.measures[index];
+    // Use actual measure index for layout lookup (important for page view)
+    const measureLayoutV2 = staffLayout?.measures[actualMeasureIndex];
     const legacyLayout = measureLayoutV2?.legacyLayout;
 
     const width = measureLayoutV2?.width ?? calculateMeasureWidth(measure.events, measure.isPickup);
@@ -125,9 +135,9 @@ const Staff: React.FC<StaffProps> = ({
       <Measure
         key={measure.id}
         startX={currentX}
-        measureIndex={index}
+        measureIndex={actualMeasureIndex}
         measureData={measure}
-        isLast={index === measures.length - 1}
+        isLast={index === measures.length - 1 && isLastSystem}
         forcedWidth={width}
         forcedEventPositions={forcedPositions}
         measureLayout={measureLayoutV2}
