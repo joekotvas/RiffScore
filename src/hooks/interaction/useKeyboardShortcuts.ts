@@ -11,6 +11,9 @@ import {
   SelectAllCommand,
   ExtendSelectionVerticallyCommand,
 } from '@/commands/selection';
+import { SetViewModeCommand } from '@/commands/layout';
+import { openPrintDialog } from '@/services/PrintService';
+import { DEFAULT_LAYOUT_CONFIG } from '@/config';
 
 /**
  * Hook to handle global keyboard shortcuts.
@@ -36,18 +39,24 @@ interface ChordTrackHandlers {
   escapeToNotes?: () => void;
 }
 
+interface ViewControlHandlers {
+  /** Toggle the Score Setup dialog */
+  toggleScoreSetup?: () => void;
+}
+
 export const useKeyboardShortcuts = (
   logic: UseScoreLogicGroupedReturn,
   playback: UsePlaybackReturn,
   meta: UIState,
   handlers: { handleTitleCommit: () => void },
-  chordTrack?: ChordTrackHandlers
+  chordTrack?: ChordTrackHandlers,
+  viewControls?: ViewControlHandlers
 ) => {
   // Access grouped API from logic
   const { selection } = logic.state;
   const score = logic.state.score;
   const { move: moveSelection, switchStaff } = logic.navigation;
-  const { selectionEngine, scoreRef } = logic.engines;
+  const { selectionEngine, scoreRef, dispatch } = logic.engines;
 
   const { isEditingTitle, isHoveringScore, scoreContainerRef, isAnyMenuOpen } = meta;
   const { handleTitleCommit } = handlers;
@@ -60,6 +69,7 @@ export const useKeyboardShortcuts = (
   const isHoveringScoreRef = useRef(isHoveringScore);
   const isAnyMenuOpenRef = useRef(isAnyMenuOpen);
   const chordTrackRef = useRef(chordTrack);
+  const viewControlsRef = useRef(viewControls);
 
   // Keep refs in sync with current values
   useEffect(() => {
@@ -73,6 +83,10 @@ export const useKeyboardShortcuts = (
   useEffect(() => {
     chordTrackRef.current = chordTrack;
   }, [chordTrack]);
+
+  useEffect(() => {
+    viewControlsRef.current = viewControls;
+  }, [viewControls]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Keyboard Handler
@@ -177,6 +191,29 @@ export const useKeyboardShortcuts = (
         return;
       }
 
+      // Cmd/Ctrl+\: Toggle view mode (scroll/page)
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+        e.preventDefault();
+        const currentMode = score.layout?.viewMode ?? DEFAULT_LAYOUT_CONFIG.viewMode;
+        const newMode = currentMode === 'scroll' ? 'page' : 'scroll';
+        dispatch(new SetViewModeCommand(newMode));
+        return;
+      }
+
+      // Cmd/Ctrl+,: Open Score Setup dialog
+      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+        e.preventDefault();
+        viewControlsRef.current?.toggleScoreSetup?.();
+        return;
+      }
+
+      // Cmd/Ctrl+P: Print (prevent default browser print dialog, use our prepared version)
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        openPrintDialog();
+        return;
+      }
+
       // Cmd/Ctrl+Shift+Up/Down: Extend selection vertically
       if (
         (e.metaKey || e.ctrlKey) &&
@@ -219,6 +256,7 @@ export const useKeyboardShortcuts = (
       moveSelection,
       switchStaff,
       selectionEngine,
+      dispatch,
       isEditingTitle,
       handleTitleCommit,
       scoreContainerRef,

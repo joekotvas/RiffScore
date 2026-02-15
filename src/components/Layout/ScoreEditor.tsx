@@ -260,7 +260,8 @@ const ScoreEditorContent = ({
       isDisabled: !enableKeyboard,
     },
     { handleTitleCommit: titleEditor.commit },
-    { navigateAndEdit: handleChordTabNavigate, escapeToNotes: handleChordEscapeToNotes }
+    { navigateAndEdit: handleChordTabNavigate, escapeToNotes: handleChordEscapeToNotes },
+    { toggleScoreSetup: () => toolbarRef.current?.toggleScoreSetup() }
   );
 
   // --- Event Handlers ---

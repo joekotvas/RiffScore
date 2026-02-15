@@ -14,8 +14,9 @@ import { useTheme } from '@/context/ThemeContext';
 import Staff from './Staff';
 import { PageBoundary } from './PageBoundary';
 import { MeasureNumber } from './MeasureNumber';
-import { MetadataBlock } from './MetadataBlock';
+import { MetadataTrack } from './MetadataTrack';
 import { PageFooter } from './PageFooter';
+import { useMetadataTrack } from '@/hooks/layout/useMetadataTrack';
 import { getActiveStaff, Staff as StaffType, DEFAULT_CHORD_DISPLAY } from '@/types';
 import { HitZone } from '@/engines/layout/types';
 import { useScoreContext } from '@/context/ScoreContext';
@@ -181,6 +182,47 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   // --- PAGE LAYOUT ---
   // Use page layout hook for multi-system rendering in page view
   const { pageLayout, isPageView } = usePageLayout();
+
+  // --- METADATA TRACK HOOK ---
+  // For inline editing of title, composer, lyricist, copyright in page view
+  const metadataTrack = useMetadataTrack({
+    scoreRef,
+    score,
+    dispatch,
+    selectFirstElement: () => {
+      // Select first note in score when Tab exits metadata
+      if (score.staves.length > 0) {
+        const staff = score.staves[0];
+        for (let mIdx = 0; mIdx < staff.measures.length; mIdx++) {
+          const measure = staff.measures[mIdx];
+          if (measure.events.length > 0) {
+            const firstEvent = measure.events[0];
+            if (firstEvent.notes.length > 0) {
+              handleNoteSelection(mIdx, firstEvent.id, firstEvent.notes[0]?.id ?? null, 0);
+              return;
+            }
+          }
+        }
+      }
+    },
+    selectLastElement: () => {
+      // Select last note in score when Shift+Tab exits metadata
+      if (score.staves.length > 0) {
+        const staff = score.staves[0];
+        for (let mIdx = staff.measures.length - 1; mIdx >= 0; mIdx--) {
+          const measure = staff.measures[mIdx];
+          if (measure.events.length > 0) {
+            const lastEvent = measure.events[measure.events.length - 1];
+            if (lastEvent.notes.length > 0) {
+              const lastNote = lastEvent.notes[lastEvent.notes.length - 1];
+              handleNoteSelection(mIdx, lastEvent.id, lastNote?.id ?? null, 0);
+              return;
+            }
+          }
+        }
+      }
+    },
+  });
 
   // Flatten layout for hit detection (interaction layer)
   // This replaces the old notePositions calculation
@@ -471,8 +513,21 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             <g className="riff-page-view">
               <PageBoundary pageLayout={pageLayout} />
 
-              {/* Metadata (Title, Composer) at top of page */}
-              <MetadataBlock metadata={pageLayout.metadata} />
+              {/* Metadata (Title, Composer, Lyricist) - editable */}
+              <MetadataTrack
+                metadata={metadataTrack.metadata}
+                layout={pageLayout.metadata}
+                editingField={metadataTrack.editingField}
+                selectedField={metadataTrack.selectedField}
+                initialValue={metadataTrack.initialValue}
+                onFieldClick={metadataTrack.startEditing}
+                onFieldSelect={metadataTrack.selectField}
+                onEditComplete={metadataTrack.completeEdit}
+                onEditCancel={metadataTrack.cancelEdit}
+                onDelete={metadataTrack.deleteField}
+                onNavigateNext={metadataTrack.navigateToNext}
+                onNavigatePrevious={metadataTrack.navigateToPrevious}
+              />
 
               {/* Systems */}
               {pageLayout.systems.map((system) => {
@@ -581,8 +636,19 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 );
               })}
 
-              {/* Footer (page number) */}
-              <PageFooter footer={pageLayout.footer} />
+              {/* Footer (page number, copyright on page 1) */}
+              <PageFooter
+                footer={pageLayout.footer}
+                isFirstPage={true}
+                editingCopyright={metadataTrack.editingField === 'copyright'}
+                selectedCopyright={metadataTrack.selectedField === 'copyright'}
+                copyrightInitialValue={metadataTrack.initialValue}
+                onCopyrightClick={() => metadataTrack.startEditing('copyright')}
+                onCopyrightSelect={() => metadataTrack.selectField('copyright')}
+                onCopyrightEditComplete={(value) => metadataTrack.completeEdit('copyright', value)}
+                onCopyrightEditCancel={() => metadataTrack.cancelEdit()}
+                onCopyrightDelete={() => metadataTrack.deleteField('copyright')}
+              />
             </g>
           )}
 

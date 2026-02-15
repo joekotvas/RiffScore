@@ -272,30 +272,46 @@ const calculateMetadataLayout = (
 };
 
 /**
- * Calculates footer layout for page numbers.
+ * Calculates footer layout for page numbers and copyright.
  *
  * @param contentArea - The content area within margins
  * @param marginBottom - Bottom margin in pixels
  * @param pageNumber - Current page number (1-based)
- * @returns FooterLayout with positioned page number
+ * @param copyright - Optional copyright text (page 1 only)
+ * @returns FooterLayout with positioned page number and copyright
  */
 const calculateFooterLayout = (
   contentArea: ContentArea,
   marginBottom: number,
-  pageNumber: number = 1
+  pageNumber: number = 1,
+  copyright?: string
 ): FooterLayout => {
   // Footer sits at bottom of content area, with space for page number
   const footerHeight = 20; // Space for page number
   const footerY = contentArea.y + contentArea.height - footerHeight;
 
-  return {
+  const centerX = contentArea.x + contentArea.width / 2;
+  const pageNumberY = contentArea.y + contentArea.height + marginBottom / 2;
+
+  const result: FooterLayout = {
     y: footerY,
     pageNumber: {
       text: String(pageNumber),
-      x: contentArea.x + contentArea.width / 2, // Centered
-      y: contentArea.y + contentArea.height + marginBottom / 2, // In bottom margin
+      x: centerX,
+      y: pageNumberY,
     },
   };
+
+  // Add copyright on page 1 only, positioned above page number
+  if (pageNumber === 1) {
+    result.copyright = {
+      text: copyright ?? '',
+      x: centerX,
+      y: pageNumberY - 16, // Above page number
+    };
+  }
+
+  return result;
 };
 
 /**
@@ -390,8 +406,13 @@ export const calculatePageLayout = (
   const effectiveMetadata = score.metadata ?? { title: score.title };
   const metadata = calculateMetadataLayout(effectiveMetadata, contentArea);
 
-  // Calculate footer layout (page number positioning)
-  const footer = calculateFooterLayout(contentArea, marginsPx.bottom, 1);
+  // Calculate footer layout (page number and copyright positioning)
+  const footer = calculateFooterLayout(
+    contentArea,
+    marginsPx.bottom,
+    1,
+    effectiveMetadata.copyright
+  );
 
   // Calculate header width (clef + key signature + time signature)
   const accidentalCount = getKeySignatureAccidentalCount(score.keySignature);

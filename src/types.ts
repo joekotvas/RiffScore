@@ -222,13 +222,15 @@ export interface MetadataLayout {
 }
 
 /**
- * Layout for page footer (page numbers).
+ * Layout for page footer (page numbers, copyright).
  */
 export interface FooterLayout {
   /** Y position of footer top */
   y: number;
   /** Page number position and text */
   pageNumber: { text: string; x: number; y: number };
+  /** Copyright position and text (page 1 only) */
+  copyright?: { text: string; x: number; y: number };
 }
 
 /**

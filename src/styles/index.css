@@ -29,3 +29,6 @@
 /* Overlays */
 @import '../components/Layout/Overlays/styles/ShortcutsOverlay.css';
 @import '../components/Layout/Overlays/styles/ConfirmDialog.css';
+
+/* Print */
+@import './print.css';
