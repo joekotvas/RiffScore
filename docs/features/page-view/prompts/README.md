@@ -21,7 +21,7 @@ This directory contains agent prompt documents for implementing the Page View & 
 | 7 | ✅ Complete | `607fe24` | MetadataTrack inline editing |
 | 7b | ✅ Complete | `57e30bc` | Multi-page pagination |
 | 8 | ✅ Complete | `fe9264a` | ABC + MusicXML metadata export |
-| 9 | ⏳ In Progress | — | Final polish & documentation |
+| 9 | ✅ Complete | `e0de1a6`, `2ca0447` | Documentation updates |
 
 **Last Updated:** 2026-02-15
 
@@ -428,6 +428,30 @@ getPageForMeasure(measureIndex): number
 ### Type Refactoring
 - Moved `Config` interface to `types.ts` as `EditorConfig`
 - Updated `SYSTEM_SPACING_MULTIPLIERS` (compact: 1, normal: 1.5, relaxed: 2)
+
+---
+
+## Phase 9 Completion Notes
+
+Phase 9 completed documentation updates for the Page View & Print feature:
+
+### Documentation Updated
+- **`docs/AGENTS.md`** - Added page view to Quick Navigation, PageLayoutService/MetadataService/ChordService to Services, layout.ts/metadata.ts to API Modules, Page View Hooks section
+- **`docs/API.md`** - Added Layout & View Mode section (8 methods), Metadata section (10 methods), bumped to v1.0.0-alpha.10
+- **`README.md`** - Added Page View & Print feature section with keyboard shortcuts
+- **`CHANGELOG.md`** - Added comprehensive release notes for #174
+
+### Code Cleanup
+- Removed unused `pageStartY` and `footer` variables from PageLayoutService.ts (lint warnings)
+- Moved `Config` interface to `types.ts` as `EditorConfig` (type/config separation)
+
+### Test Results
+- 1528 tests passing
+- All lint checks passing
+- Build successful
+
+### Feature Complete
+Issue #174 is ready for final review and PR creation.
 
 ---
 
