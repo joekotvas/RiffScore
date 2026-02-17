@@ -1,31 +1,57 @@
 import { MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT, KEY_SIGNATURES, LAYOUT, STEM } from '@/constants';
 import { CONFIG } from '@/config';
 import { getNoteDuration } from '@/utils/core';
-import { Note, ChordLayout, HeaderLayout } from './types';
+import { Note, ChordLayout, SystemPreamble } from './types';
 import { getStaffPitch, STAFF_LETTERS } from '@/services/MusicService';
 
-// ========== HEADER LAYOUT (SSOT) ==========
+// ========== SYSTEM PREAMBLE (SSOT) ==========
+
+interface SystemPreambleOptions {
+  /** Whether this is the first system (shows time signature). Default: true */
+  isFirstSystem?: boolean;
+}
 
 /**
- * Calculates header layout positions based on key signature.
- * This is the SINGLE SOURCE OF TRUTH for header layout calculations.
+ * Calculates system preamble layout (clef, key signature, time signature).
+ * This is the SINGLE SOURCE OF TRUTH for preamble layout calculations.
+ *
  * @param keySignature - The key signature string (e.g., 'C', 'G', 'F')
- * @returns HeaderLayout object with all calculated positions
+ * @param options - Configuration options
+ * @param options.isFirstSystem - Whether to include time signature (default: true)
+ * @returns SystemPreamble object with all calculated positions
  */
-export const calculateHeaderLayout = (keySignature: string): HeaderLayout => {
+export const calculateSystemPreamble = (
+  keySignature: string,
+  options: SystemPreambleOptions = {}
+): SystemPreamble => {
+  const { isFirstSystem = true } = options;
   const { keySigStartX, keySigAccidentalWidth, keySigPadding, timeSigWidth, timeSigPadding } =
-    CONFIG.header;
+    CONFIG.preamble;
 
   const keySigCount = KEY_SIGNATURES[keySignature]?.count || 0;
   const keySigVisualWidth = keySigCount > 0 ? keySigCount * keySigAccidentalWidth + 10 : 0;
-  const timeSigStartXPos = keySigStartX + keySigVisualWidth + keySigPadding;
-  const startOfMeasures = timeSigStartXPos + timeSigWidth + timeSigPadding;
 
+  // Time signature only on first system
+  if (isFirstSystem) {
+    const timeSigStartXPos = keySigStartX + keySigVisualWidth + keySigPadding;
+    const measuresX = timeSigStartXPos + timeSigWidth + timeSigPadding;
+    return {
+      keySigStartX,
+      keySigVisualWidth,
+      timeSigStartX: timeSigStartXPos,
+      measuresX,
+      hasTimeSignature: true,
+    };
+  }
+
+  // Subsequent systems: no time signature, narrower preamble
+  const measuresX = keySigStartX + keySigVisualWidth + keySigPadding;
   return {
     keySigStartX,
     keySigVisualWidth,
-    timeSigStartX: timeSigStartXPos,
-    startOfMeasures,
+    timeSigStartX: 0, // Not used for subsequent systems
+    measuresX,
+    hasTimeSignature: false,
   };
 };
 

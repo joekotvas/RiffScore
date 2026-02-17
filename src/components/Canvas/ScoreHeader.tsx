@@ -2,7 +2,7 @@ import React from 'react';
 import { KEY_SIGNATURES, KEY_SIGNATURE_OFFSETS, KeySignatureOffsets } from '@/constants';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
-import { calculateHeaderLayout } from '@/engines/layout';
+import { calculateSystemPreamble } from '@/engines/layout';
 import { ACCIDENTALS, CLEFS, TIME_SIG_DIGITS, BRAVURA_FONT, getFontSize } from '@/constants/SMuFL';
 
 interface ScoreHeaderProps {
@@ -69,20 +69,21 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
 }) => {
   const { theme } = useTheme();
 
-  // Use centralized layout calculation (SSOT)
-  const headerLayout = calculateHeaderLayout(keySignature);
-  const { keySigStartX, keySigVisualWidth, timeSigStartX, startOfMeasures } = headerLayout;
-  const { keySigAccidentalWidth, timeSigWidth, clefWidth } = CONFIG.header;
+  // Use centralized preamble layout calculation (SSOT)
+  // showTimeSignature indicates first system (wider preamble)
+  const preamble = calculateSystemPreamble(keySignature, { isFirstSystem: showTimeSignature });
+  const { keySigStartX, keySigVisualWidth, timeSigStartX, measuresX } = preamble;
+  const { keySigAccidentalWidth, timeSigWidth, clefWidth } = CONFIG.preamble;
 
   return (
     <g className="ScoreHeader">
-      {/* Staff Lines for Clef Area - Extended to start of measures */}
+      {/* Staff Lines for Preamble Area - Extended to start of measures */}
       {[0, 1, 2, 3, 4].map((i) => (
         <line
           key={`staff-head-${i}`}
           x1={0}
           y1={baseY + i * CONFIG.lineHeight}
-          x2={startOfMeasures}
+          x2={measuresX}
           y2={baseY + i * CONFIG.lineHeight}
           stroke={theme.score.line}
           strokeWidth="1"

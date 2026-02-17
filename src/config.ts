@@ -54,9 +54,9 @@ export const PAGE_DIMENSIONS = {
  * System spacing multipliers (relative to staff height).
  */
 export const SYSTEM_SPACING_MULTIPLIERS = {
-  compact: 1,
-  normal: 1.5,
-  relaxed: 2,
+  compact: 0.5,
+  normal: 1,
+  relaxed: 1.5,
 } as const;
 
 /**
@@ -73,16 +73,6 @@ export const PAGE_GAP = 24;
  * Footer height reserved at bottom of each page in pixels.
  */
 export const FOOTER_HEIGHT = 40;
-
-/**
- * Layout element widths in pixels (at 100% scale).
- */
-export const LAYOUT_WIDTHS = {
-  clef: 30,
-  timeSignature: 24,
-  barline: 2,
-  keySignaturePerAccidental: 10,
-} as const;
 
 /**
  * Metadata typography heights in pixels.
@@ -113,7 +103,6 @@ export const CONFIG: EditorConfig = {
   measurePaddingLeft: 36,
   measurePaddingRight: 0,
   scoreMarginLeft: 60,
-  headerWidth: 60,
   staffSpacing: 120,
 
   chordTrack: {
@@ -126,7 +115,8 @@ export const CONFIG: EditorConfig = {
     iconSize: 20,
   },
 
-  header: {
+  /** System preamble widths (clef, key signature, time signature) */
+  preamble: {
     clefWidth: 40,
     keySigStartX: 45,
     keySigAccidentalWidth: 10,

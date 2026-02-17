@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { Score } from '@/types';
 import { calculateScoreLayout } from '@/engines/layout/scoreLayout';
-import { ScoreLayout } from '@/engines/layout/types';
-import { calculateHeaderLayout } from '@/engines/layout';
+import { ScoreLayout, SystemPreamble } from '@/engines/layout/types';
+import { calculateSystemPreamble } from '@/engines/layout';
 
 interface UseScoreLayoutProps {
   score: Score;
@@ -10,12 +10,8 @@ interface UseScoreLayoutProps {
 
 interface UseScoreLayoutReturn {
   layout: ScoreLayout;
-  headerLayout: {
-    keySigStartX: number;
-    keySigVisualWidth: number;
-    timeSigStartX: number;
-    startOfMeasures: number;
-  };
+  /** System preamble layout (clef, key sig, time sig positioning) */
+  preamble: SystemPreamble;
 }
 
 /**
@@ -23,21 +19,21 @@ interface UseScoreLayoutReturn {
  * This serves as the single source of truth for rendering and hit detection.
  *
  * @param score - The score data
- * @returns ScoreLayout object and header layout
+ * @returns ScoreLayout object and system preamble layout
  */
 export const useScoreLayout = ({ score }: UseScoreLayoutProps): UseScoreLayoutReturn => {
   const layout = useMemo(() => {
     return calculateScoreLayout(score);
   }, [score]);
 
-  const headerLayout = useMemo(() => {
+  const preamble = useMemo(() => {
     const activeStaff = score.staves?.[0];
     const keySignature = score.keySignature || activeStaff?.keySignature || 'C';
-    return calculateHeaderLayout(keySignature);
+    return calculateSystemPreamble(keySignature);
   }, [score.staves, score.keySignature]);
 
   return {
     layout,
-    headerLayout,
+    preamble,
   };
 };

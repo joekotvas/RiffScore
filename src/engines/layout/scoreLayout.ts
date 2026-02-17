@@ -12,7 +12,7 @@ import { CONFIG } from '@/config';
 import { TIME_SIGNATURES } from '@/constants';
 import { getNoteDuration } from '@/utils/core';
 import {
-  calculateHeaderLayout,
+  calculateSystemPreamble,
   calculateMeasureLayout,
   getOffsetForPitch,
   calculateBeamingGroups,
@@ -198,7 +198,7 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
   const layout: Omit<ScoreLayout, 'getX' | 'getY'> = { staves: [], notes: {}, events: {} };
 
   const activeStaff = score.staves[0];
-  const headerLayout = calculateHeaderLayout(score.keySignature || activeStaff.keySignature || 'C');
+  const preamble = calculateSystemPreamble(score.keySignature || activeStaff.keySignature || 'C');
 
   // 1. Calculate System Metrics (Grand Staff Logic)
   const { widths: synchronizedWidths, forcedPositions: synchronizedForcedPositions } =
@@ -215,7 +215,7 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
       measures: [],
     };
 
-    let currentMeasureX = headerLayout.startOfMeasures;
+    let currentMeasureX = preamble.measuresX;
 
     staff.measures.forEach((measure, measureIdx) => {
       const width = synchronizedWidths[measureIdx];

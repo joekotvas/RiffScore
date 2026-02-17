@@ -3,7 +3,7 @@ import { CONFIG } from '@/config';
 import {
   calculateMeasureWidth,
   calculateMeasureLayout,
-  calculateHeaderLayout,
+  calculateSystemPreamble,
 } from '@/engines/layout';
 import { getActiveStaff, Score, Selection, PreviewNote } from '@/types';
 import { getNoteDuration } from '@/utils/core';
@@ -51,9 +51,9 @@ export const useAutoScroll = ({
   // 2. Measure Start X Cache (O(1) lookup during playback)
   // Cache invalidates when measures or keySignature changes
   const measureStartXCache = useMemo(() => {
-    const { startOfMeasures } = calculateHeaderLayout(keySignature);
-    const cache = [startOfMeasures];
-    let x = startOfMeasures;
+    const { measuresX } = calculateSystemPreamble(keySignature);
+    const cache = [measuresX];
+    let x = measuresX;
 
     for (const measure of activeStaff.measures || []) {
       x += calculateMeasureWidth(measure.events, measure.isPickup);

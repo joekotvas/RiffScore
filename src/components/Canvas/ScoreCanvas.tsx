@@ -25,7 +25,7 @@ import { useAutoScroll, useCursorLayout, usePageLayout } from '@/hooks/layout';
 import { useScoreLayout } from '@/hooks/layout';
 import { useDragToSelect } from '@/hooks/interaction';
 import GrandStaffBracket from '../Assets/GrandStaffBracket';
-import { CLAMP_LIMITS, STAFF_HEIGHT, TIME_SIGNATURES } from '@/constants';
+import { CLAMP_LIMITS, STAFF_HEIGHT, STAFF_GEOMETRY, TIME_SIGNATURES } from '@/constants';
 import { getNoteDuration } from '@/utils/core';
 import { findEventAtQuantPosition } from '@/utils/navigation/crossStaff';
 import { LassoSelectCommand } from '@/commands/selection';
@@ -36,6 +36,8 @@ import { getChordVoicing } from '@/services/ChordService';
 
 import './styles/ScoreCanvas.css';
 import type { UseChordTrackReturn } from '@/hooks/chord/useChordTrack';
+import { calculateStretchFactor } from '@/engines/layout';
+import { calculateAllMeasureWidths } from '@/services/PageLayoutService';
 
 interface ScoreCanvasProps {
   scale: number;
@@ -553,16 +555,41 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
                     // First system indent (applied to measures, not header)
                     // Note: isFirst here means first system OF THE SCORE, not first system on page
+                    // system.contentWidth is already reduced for first system, so we need to
+                    // compute the full effective width to get the correct visual indent
+                    const fullEffectiveWidth = system.isFirst
+                      ? system.contentWidth / (1 - pageLayout.firstSystemIndent)
+                      : system.contentWidth;
                     const firstSystemIndent = system.isFirst
-                      ? pageLayout.firstSystemIndent * system.contentWidth
+                      ? pageLayout.firstSystemIndent * fullEffectiveWidth
                       : 0;
 
+                    // ─── STRETCH FACTOR CALCULATION ───
+                    // Stretch factor ensures measures fill the available system width.
+                    // Grand staff measures stay aligned because we use max width across all staves.
+                    //
+                    // Coordinate conversion:
+                    //   system.contentWidth: page coords (preamble already excluded)
+                    //   measureWidths: staff coords (unscaled, staffScale=1.0)
+                    //   availableForMeasures: staff coords (contentWidth / staffScale)
+                    //
+                    // Formula: stretchFactor = availableForMeasures / naturalMeasuresWidth
+                    const measureWidths = calculateAllMeasureWidths(score, 1.0); // staff coords
+                    const systemMeasureWidths = system.measures.map((idx) => measureWidths[idx] || 0);
+                    const naturalMeasuresWidth = systemMeasureWidths.reduce((a, b) => a + b, 0);
+                    const availableForMeasures = system.contentWidth / staffScale; // page → staff coords
+                    const systemStretchFactor = calculateStretchFactor(
+                      naturalMeasuresWidth,
+                      availableForMeasures,
+                      system.justification
+                    );
+
                     // Calculate bracket height: treble top line to bass bottom line
-                    const singleStaffHeight = 48 * staffScale; // 4 spaces * 12px = 48px
+                    const singleStaffHeight = STAFF_GEOMETRY.height * staffScale;
                     const totalStaffHeight =
                       score.staves.length > 1
                         ? singleStaffHeight +
-                          CONFIG.staffSpacing * staffScale * (score.staves.length - 1)
+                          STAFF_GEOMETRY.spacing * staffScale * (score.staves.length - 1)
                         : singleStaffHeight;
 
                     return (
@@ -633,6 +660,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                                 isSystemStart={true}
                                 systemIndex={system.index}
                                 isLastSystem={system.isLast}
+                                stretchFactor={systemStretchFactor}
                                 interaction={interaction}
                                 onClefClick={onClefClick}
                                 onKeySigClick={onKeySigClick}

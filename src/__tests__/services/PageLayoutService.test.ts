@@ -17,6 +17,7 @@ import {
   calculateAvailableContentHeight,
   distributeSystemsToPages,
 } from '@/services/PageLayoutService';
+import { calculateStretchFactor } from '@/engines/layout';
 import { DEFAULT_LAYOUT_CONFIG, FIRST_SYSTEM_INDENT, PAGE_GAP, FOOTER_HEIGHT } from '@/config';
 import type { Score, LayoutConfig } from '@/types';
 
@@ -298,26 +299,33 @@ describe('PageLayoutService - Measure Width Calculation', () => {
 // ============================================================================
 
 describe('PageLayoutService - System Breaks', () => {
+  // Helper to create config with same width for first and subsequent systems (legacy behavior)
+  const uniformConfig = (width: number, indent: number = 0.15) => ({
+    firstSystemWidth: width,
+    subsequentSystemWidth: width,
+    firstSystemIndent: indent,
+  });
+
   describe('calculateSystemBreaks', () => {
     it('returns empty array for no measures', () => {
-      const result = calculateSystemBreaks([], 800);
+      const result = calculateSystemBreaks([], uniformConfig(800));
       expect(result).toEqual([]);
     });
 
     it('puts single measure in one system', () => {
-      const result = calculateSystemBreaks([100], 800);
+      const result = calculateSystemBreaks([100], uniformConfig(800));
       expect(result).toEqual([[0]]);
     });
 
     it('fits multiple measures in one system if they fit', () => {
-      const result = calculateSystemBreaks([100, 100, 100], 800);
+      const result = calculateSystemBreaks([100, 100, 100], uniformConfig(800));
       expect(result).toEqual([[0, 1, 2]]);
     });
 
     it('breaks to new system when measures overflow', () => {
       // First system has reduced width due to indent (15%)
       // Available: 800 * 0.85 = 680
-      const result = calculateSystemBreaks([300, 300, 300, 300], 800);
+      const result = calculateSystemBreaks([300, 300, 300, 300], uniformConfig(800));
       // First system: 300 + 300 = 600 < 680, so measures 0,1 fit
       // Second system: 300 + 300 = 600 < 800, so measures 2,3 fit
       expect(result).toHaveLength(2);
@@ -329,14 +337,14 @@ describe('PageLayoutService - System Breaks', () => {
 
     it('always accepts first measure in system even if wider than available', () => {
       // Edge case: single measure wider than content width
-      const result = calculateSystemBreaks([1000], 800);
+      const result = calculateSystemBreaks([1000], uniformConfig(800));
       expect(result).toEqual([[0]]);
     });
 
     it('applies first system indent correctly', () => {
       // First system: 800 * (1 - 0.15) = 680
       // Measures: 350 + 350 = 700 > 680, so only first measure fits
-      const result = calculateSystemBreaks([350, 350], 800, 0.15);
+      const result = calculateSystemBreaks([350, 350], uniformConfig(800, 0.15));
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual([0]);
       expect(result[1]).toEqual([1]);
@@ -345,7 +353,7 @@ describe('PageLayoutService - System Breaks', () => {
     it('does not apply indent to subsequent systems', () => {
       // First system (with indent): 800 * 0.85 = 680
       // Second system (no indent): 800
-      const result = calculateSystemBreaks([350, 400, 400], 800, 0.15);
+      const result = calculateSystemBreaks([350, 400, 400], uniformConfig(800, 0.15));
       // First system: 350 fits in 680
       // 350 + 400 = 750 > 680, so break
       // Second system: 400 + 400 = 800 <= 800, fits
@@ -357,8 +365,27 @@ describe('PageLayoutService - System Breaks', () => {
     it('handles zero indent', () => {
       // With zero indent, all 800px is available for first system
       // 200 + 200 + 200 = 600 < 800, so all fit
-      const result = calculateSystemBreaks([200, 200, 200], 800, 0);
+      const result = calculateSystemBreaks([200, 200, 200], uniformConfig(800, 0));
       expect(result).toEqual([[0, 1, 2]]);
+    });
+
+    it('handles different widths for first vs subsequent systems', () => {
+      // First system: 600px (wider preamble), after indent (15%): 510px
+      // Subsequent systems: 700px (narrower preamble, no time sig)
+      const config = {
+        firstSystemWidth: 600,
+        subsequentSystemWidth: 700,
+        firstSystemIndent: 0.15,
+      };
+      // Measures: 300, 300, 350, 350
+      // First system: 300 fits in 510, 300+300=600 > 510, so only [0]
+      // Second system: 300+350=650 < 700, so [1,2]
+      // Third system: 350 < 700, so [3]
+      const result = calculateSystemBreaks([300, 300, 350, 350], config);
+      expect(result).toHaveLength(3);
+      expect(result[0]).toEqual([0]);
+      expect(result[1]).toEqual([1, 2]);
+      expect(result[2]).toEqual([3]);
     });
   });
 });
@@ -400,6 +427,76 @@ describe('PageLayoutService - Justification', () => {
       // 479/800 = 59.875% < 60% - should be ragged
       const result = calculateJustification([0, 1], [240, 239], 800, true);
       expect(result).toBeLessThan(1.0);
+    });
+  });
+
+  describe('System Right Edge Alignment', () => {
+    it('justified systems have measures that fill contentWidth', () => {
+      // Create a score with enough measures to span multiple systems
+      const score = createMultiMeasureScore(12);
+      const layout = calculatePageLayout(score);
+
+      // Get measure widths from the page layout
+      const measureWidths = calculateAllMeasureWidths(score, 100);
+
+      // Check each justified system
+      for (const system of layout.systems) {
+        if (system.justification !== 1.0) {
+          // Ragged system - skip
+          continue;
+        }
+
+        // Calculate natural width of measures (preamble is separate, stored on system)
+        const measuresNaturalWidth = system.measures.reduce(
+          (sum, measureIndex) => sum + measureWidths[measureIndex],
+          0
+        );
+
+        // preambleWidth is in staff coords, contentWidth is for measures only (page coords)
+        // So we just compare measures natural width to contentWidth
+        const stretchFactor = calculateStretchFactor(
+          measuresNaturalWidth,
+          system.contentWidth,
+          system.justification
+        );
+
+        // Calculate stretched width
+        const stretchedWidth = measuresNaturalWidth * stretchFactor;
+
+        // Verify stretched width matches contentWidth (within tolerance)
+        expect(stretchedWidth).toBeCloseTo(system.contentWidth, 1);
+      }
+    });
+
+    it('non-first justified systems have consistent right edge', () => {
+      const score = createMultiMeasureScore(16);
+      const layout = calculatePageLayout(score);
+
+      // Non-first justified systems should have the same contentWidth
+      // (first system is narrower due to indent)
+      const justifiedNonFirstSystems = layout.systems.filter(
+        (s) => s.justification === 1.0 && !s.isFirst
+      );
+
+      if (justifiedNonFirstSystems.length > 1) {
+        const expectedContentWidth = justifiedNonFirstSystems[0].contentWidth;
+        for (const system of justifiedNonFirstSystems) {
+          expect(system.contentWidth).toBe(expectedContentWidth);
+        }
+      }
+    });
+
+    it('first system contentWidth accounts for indent', () => {
+      const score = createMultiMeasureScore(16);
+      const layout = calculatePageLayout(score);
+
+      const firstSystem = layout.systems.find((s) => s.isFirst);
+      const secondSystem = layout.systems.find((s) => !s.isFirst);
+
+      if (firstSystem && secondSystem) {
+        // First system should be narrower due to indent
+        expect(firstSystem.contentWidth).toBeLessThan(secondSystem.contentWidth);
+      }
     });
   });
 });
@@ -614,7 +711,9 @@ describe('PageLayoutService - Edge Cases', () => {
     expect(narrowLayout.contentWidth).toBeGreaterThan(wideLayout.contentWidth);
   });
 
-  it('handles different system spacing presets', () => {
+  it('ignores systemSpacing preset in page view (uses vertical justification)', () => {
+    // Page view uses vertical justification instead of fixed spacing presets
+    // All preset values should produce the same layout
     const score = createMultiMeasureScore(8);
 
     const compactLayout = calculatePageLayout(score, {
@@ -626,11 +725,11 @@ describe('PageLayoutService - Edge Cases', () => {
       systemSpacing: 'relaxed',
     });
 
-    // Relaxed spacing = larger Y gaps between systems
+    // Both should have the same system positions (vertical justification)
     if (compactLayout.systems.length > 1 && relaxedLayout.systems.length > 1) {
       const compactGap = compactLayout.systems[1].y - compactLayout.systems[0].y;
       const relaxedGap = relaxedLayout.systems[1].y - relaxedLayout.systems[0].y;
-      expect(relaxedGap).toBeGreaterThan(compactGap);
+      expect(relaxedGap).toBe(compactGap);
     }
   });
 
@@ -689,7 +788,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
   describe('distributeSystemsToPages', () => {
     const contentArea = { x: 50, y: 50, width: 600, height: 400 };
     const metadataBottom = 100;
-    const systemSpacing = 20;
+    const defaultSpacing = 48; // 1 staff height for single-page scores
     const systemHeight = 80;
 
     const createMockSystems = (count: number) =>
@@ -700,6 +799,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         height: systemHeight,
         xOffset: 100,
         contentWidth: 500,
+        preambleWidth: 100,
         isFirst: i === 0,
         isLast: i === count - 1,
         justification: 1.0,
@@ -711,7 +811,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         [],
         contentArea,
         metadataBottom,
-        systemSpacing,
+        defaultSpacing,
         systemHeight
       );
       expect(result).toEqual([]);
@@ -723,7 +823,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         systems,
         contentArea,
         metadataBottom,
-        systemSpacing,
+        defaultSpacing,
         systemHeight
       );
 
@@ -740,7 +840,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         systems,
         smallContentArea,
         metadataBottom,
-        systemSpacing,
+        defaultSpacing,
         systemHeight
       );
 
@@ -757,12 +857,112 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         systems,
         contentArea,
         metadataBottom,
-        systemSpacing,
+        defaultSpacing,
         systemHeight
       );
 
       // First system on page 0 should start at metadataBottom
       expect(result[0].systems[0].y).toBe(metadataBottom);
+    });
+
+    it('uses defaultSpacing for single-page scores', () => {
+      const systems = createMockSystems(2);
+      const result = distributeSystemsToPages(
+        systems,
+        contentArea,
+        metadataBottom,
+        defaultSpacing,
+        systemHeight
+      );
+
+      // Single page with 2 systems should use defaultSpacing
+      expect(result).toHaveLength(1);
+      const gap = result[0].systems[1].y - result[0].systems[0].y;
+      expect(gap).toBe(systemHeight + defaultSpacing);
+    });
+
+    it('returns justifiedSpacing for each page', () => {
+      const systems = createMockSystems(2);
+      const result = distributeSystemsToPages(
+        systems,
+        contentArea,
+        metadataBottom,
+        defaultSpacing,
+        systemHeight
+      );
+
+      expect(result[0]).toHaveProperty('justifiedSpacing');
+      expect(typeof result[0].justifiedSpacing).toBe('number');
+    });
+
+    it('vertically justifies full pages', () => {
+      // Create enough systems to fill multiple pages
+      // With contentArea.height=400, metadataBottom=100, systemHeight=80, minSpacing=12
+      // Page 0: available = 400 - 40 (footer) - (100-50) = 310
+      // Can fit: floor((310 + 12) / (80 + 12)) = 3 systems
+      // Page 1+: available = 400 - 40 = 360
+      // Can fit: floor((360 + 12) / (80 + 12)) = 4 systems
+      const systems = createMockSystems(7); // 3 on page 0, 4 on page 1
+      const result = distributeSystemsToPages(
+        systems,
+        contentArea,
+        metadataBottom,
+        defaultSpacing,
+        systemHeight
+      );
+
+      // Should span 2 pages
+      expect(result.length).toBeGreaterThanOrEqual(2);
+
+      // Full pages should have justified spacing
+      const fullPageIndex = 0;
+      if (result[fullPageIndex].systems.length > 1) {
+        const spacing = result[fullPageIndex].justifiedSpacing;
+        // Justified spacing should be greater than minimum (12px)
+        expect(spacing).toBeGreaterThanOrEqual(12);
+      }
+    });
+
+    it('justifies single page when at capacity', () => {
+      // Create a content area that can fit exactly 3 systems with minimum spacing
+      // Available height = 310 (400 - 40 footer - 50 metadata offset)
+      // 3 systems with min spacing: 80 + (80+12) + (80+12) = 264 < 310
+      // 4 systems with min spacing: 264 + (80+12) = 356 > 310
+      // So 3 systems is at capacity
+      const systems = createMockSystems(3);
+      const result = distributeSystemsToPages(
+        systems,
+        contentArea,
+        metadataBottom,
+        defaultSpacing,
+        systemHeight
+      );
+
+      // Should be single page
+      expect(result).toHaveLength(1);
+      // Should be justified (spacing > minimum) because page is at capacity
+      const spacing = result[0].justifiedSpacing;
+      // Justified spacing = (310 - 3*80) / 2 = 35
+      expect(spacing).toBeGreaterThan(12); // MIN_SYSTEM_SPACING = 12
+    });
+
+    it('final page uses previous page spacing', () => {
+      // Create a multi-page score where final page has fewer systems
+      const largeContentArea = { x: 50, y: 50, width: 600, height: 600 };
+      const systems = createMockSystems(5);
+      const result = distributeSystemsToPages(
+        systems,
+        largeContentArea,
+        metadataBottom,
+        defaultSpacing,
+        systemHeight
+      );
+
+      if (result.length > 1) {
+        const previousPageSpacing = result[result.length - 2].justifiedSpacing;
+        const finalPageSpacing = result[result.length - 1].justifiedSpacing;
+        expect(finalPageSpacing).toBe(previousPageSpacing);
+      }
     });
   });
 

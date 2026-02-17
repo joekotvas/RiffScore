@@ -143,7 +143,6 @@ export interface EditorConfig {
   measurePaddingLeft: number;
   measurePaddingRight: number;
   scoreMarginLeft: number;
-  headerWidth: number;
   staffSpacing: number;
 
   /** Chord track positioning */
@@ -162,8 +161,8 @@ export interface EditorConfig {
     iconSize: number;
   };
 
-  /** Header layout (clef, key sig, time sig) */
-  header: {
+  /** System preamble layout (clef, key sig, time sig at start of each system) */
+  preamble: {
     /** Clef symbol width */
     clefWidth: number;
     /** X position where key signature starts */
@@ -220,21 +219,27 @@ export interface MeasurePosition {
 
 /**
  * Computed layout for a single system (line of music).
+ *
+ * Coordinate reference:
+ * - All X values are in PAGE coordinates (pixels at final render size)
+ * - preambleWidth is in STAFF coordinates (unscaled, multiply by staffScale for page coords)
  */
 export interface SystemLayout {
   /** 0-based system index */
   index: number;
   /** Measure indices contained in this system (0-based) */
   measures: number[];
-  /** Y position of system top */
+  /** Y position of system top (page coords) */
   y: number;
-  /** Total height of system */
+  /** Total height of system (page coords) */
   height: number;
-  /** X offset (indent for first system) */
+  /** X position where measures start (page coords, includes preamble + indent) */
   xOffset: number;
-  /** Available content width */
+  /** Available width for measures (page coords, preamble already excluded) */
   contentWidth: number;
-  /** First system flag */
+  /** Preamble width in staff coords (narrower on subsequent systems - no time sig) */
+  preambleWidth: number;
+  /** First system flag (has time signature in preamble) */
   isFirst: boolean;
   /** Last system flag */
   isLast: boolean;

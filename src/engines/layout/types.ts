@@ -68,11 +68,23 @@ export interface TupletBracketGroup {
   number: number;
 }
 
-export interface HeaderLayout {
+/**
+ * System preamble layout (clef, key signature, time signature).
+ * The preamble appears at the start of each system before the measures.
+ *
+ * Note: Time signature only appears on the first system. Use
+ * calculateSystemPreamble(keySignature, { isFirstSystem: false })
+ * for subsequent systems to get a narrower preamble.
+ */
+export interface SystemPreamble {
   keySigStartX: number;
   keySigVisualWidth: number;
+  /** X position of time signature (only valid when isFirstSystem=true) */
   timeSigStartX: number;
-  startOfMeasures: number;
+  /** X position where measures begin (after preamble) */
+  measuresX: number;
+  /** Whether this preamble includes time signature */
+  hasTimeSignature: boolean;
 }
 
 // ========== SINGLE SOURCE OF TRUTH LAYOUT TYPES ==========
