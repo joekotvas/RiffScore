@@ -16,3 +16,4 @@ export { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export { useDragToSelect } from './useDragToSelect';
 export { useMeasureInteraction } from './useMeasureInteraction';
 export { useScoreInteraction } from './useScoreInteraction';
+export { useZoomDrag } from './useZoomDrag';

@@ -185,6 +185,25 @@ export interface EditorConfig {
     logValidation: boolean;
     showHitZones?: boolean;
   };
+
+  /** Editor footer settings */
+  footer: {
+    /** Footer height in pixels */
+    height: number;
+    /** Padding inside footer */
+    paddingHorizontal: number;
+    /** Zoom control settings */
+    zoom: {
+      /** Minimum zoom level (percentage) */
+      min: number;
+      /** Maximum zoom level (percentage) */
+      max: number;
+      /** Step size for drag (percentage per pixel) */
+      dragStep: number;
+      /** Width of the drag handle hit area */
+      handleWidth: number;
+    };
+  };
 }
 
 // ========== LAYOUT CONFIG ==========
@@ -274,13 +293,15 @@ export interface MarginsPx {
 }
 
 /**
- * Layout for metadata (title, composer) at top of page.
+ * Layout for metadata (title, composer, lyricist) at top of page.
  */
 export interface MetadataLayout {
   /** Title text and position (null if no title) */
   title: { text: string; x: number; y: number } | null;
-  /** Composer text and position (null if no composer) */
+  /** Composer text and position - right-aligned below title (null if no composer) */
   composer: { text: string; x: number; y: number } | null;
+  /** Lyricist text and position - left-aligned below title (null if no lyricist) */
+  lyricist: { text: string; x: number; y: number } | null;
   /** Y position where metadata ends (systems start below this) */
   bottom: number;
 }

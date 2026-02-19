@@ -251,7 +251,12 @@ export const calculateJustification = (
 // =============================================================================
 
 /**
- * Calculates metadata (title, composer) layout positions.
+ * Calculates metadata (title, composer, lyricist) layout positions.
+ *
+ * Standard sheet music layout:
+ * - Title: centered at top
+ * - Composer: right-aligned below title
+ * - Lyricist: left-aligned below title (same line as composer)
  *
  * @param metadata - Score metadata
  * @param contentArea - The content area within margins
@@ -266,6 +271,7 @@ const calculateMetadataLayout = (
     return {
       title: null,
       composer: null,
+      lyricist: null,
       bottom: contentArea.y,
     };
   }
@@ -276,20 +282,37 @@ const calculateMetadataLayout = (
 
   let currentY = titleY + METADATA_TYPOGRAPHY.titleSpacing;
   let composer: MetadataLayout['composer'] = null;
+  let lyricist: MetadataLayout['lyricist'] = null;
 
-  if (metadata.composer) {
-    const composerY = currentY + METADATA_TYPOGRAPHY.composerHeight / 2;
-    composer = {
-      text: metadata.composer,
-      x: titleX, // Centered below title
-      y: composerY,
-    };
+  // Composer and lyricist share the same line below title
+  const hasComposerOrLyricist = metadata.composer || metadata.lyricist;
+
+  if (hasComposerOrLyricist) {
+    const lineY = currentY + METADATA_TYPOGRAPHY.composerHeight / 2;
+
+    if (metadata.composer) {
+      composer = {
+        text: metadata.composer,
+        x: contentArea.x + contentArea.width, // Right-aligned
+        y: lineY,
+      };
+    }
+
+    if (metadata.lyricist) {
+      lyricist = {
+        text: metadata.lyricist,
+        x: contentArea.x, // Left-aligned
+        y: lineY,
+      };
+    }
+
     currentY += METADATA_TYPOGRAPHY.composerHeight;
   }
 
   return {
     title: { text: metadata.title, x: titleX, y: titleY },
     composer,
+    lyricist,
     bottom: currentY + METADATA_TYPOGRAPHY.blockSpacing,
   };
 };

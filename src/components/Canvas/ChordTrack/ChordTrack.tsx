@@ -69,6 +69,13 @@ interface ChordTrackProps {
   /** Override initial value for input (for "type to replace" behavior) */
   initialValue: string | null;
 
+  // Page view filtering (optional)
+  /** Measure indices on this page (for filtering in page view) */
+  pageMeasureIndices?: number[];
+
+  /** Override Y position for chord track (used in page view) */
+  pageTrackY?: number;
+
   // Event handlers
   /** Called when a chord is clicked (enters edit mode) */
   onChordClick: (chordId: string) => void;
@@ -162,6 +169,8 @@ export const ChordTrack = memo(function ChordTrack({
   selectedChordId,
   creatingAt,
   initialValue,
+  pageMeasureIndices,
+  pageTrackY,
   onChordClick,
   onChordSelect,
   onEmptyClick,
@@ -171,6 +180,27 @@ export const ChordTrack = memo(function ChordTrack({
   onNavigateNext,
   onNavigatePrevious,
 }: ChordTrackProps) {
+  // Filter chords and valid positions to this page (if pageMeasureIndices provided)
+  const measureSet = useMemo(
+    () => (pageMeasureIndices ? new Set(pageMeasureIndices) : null),
+    [pageMeasureIndices]
+  );
+
+  const filteredChords = useMemo(
+    () => (measureSet ? chords.filter((c) => measureSet.has(c.measure)) : chords),
+    [chords, measureSet]
+  );
+
+  const filteredValidPositions = useMemo(() => {
+    if (!measureSet) return validPositions;
+    const filtered = new Map<number, Set<number>>();
+    for (const [measure, quants] of validPositions) {
+      if (measureSet.has(measure)) {
+        filtered.set(measure, quants);
+      }
+    }
+    return filtered;
+  }, [validPositions, measureSet]);
   const [cursorStyle, setCursorStyle] = useState<'default' | 'text' | 'pointer'>('default');
   const [hoveredChordId, setHoveredChordId] = useState<string | null>(null);
   const [previewPosition, setPreviewPosition] = useState<ChordPosition | null>(null);
@@ -182,7 +212,12 @@ export const ChordTrack = memo(function ChordTrack({
 
   // System-level chord track Y position (baseline for all chords)
   // Positioned to clear the highest note in the system
+  // In page view, use pageTrackY override if provided
   const trackY = useMemo(() => {
+    if (pageTrackY !== undefined) {
+      return pageTrackY;
+    }
+
     const { minDistanceFromStaff, paddingAboveNotes, minY } = CONFIG.chordTrack;
 
     const staffTop = layout.getY.staff(0)?.top ?? CONFIG.baseY;
@@ -194,7 +229,7 @@ export const ChordTrack = memo(function ChordTrack({
     // Use the higher position (lower Y value) between collision-based and default
     // Clamp to minY (can go all the way to 0 for extreme cases)
     return Math.max(minY, Math.min(collisionY, defaultY));
-  }, [layout]);
+  }, [layout, pageTrackY]);
 
   // Compute cursor style based on hover state and meta key
   // Using useMemo instead of useEffect to avoid synchronous setState in effect
@@ -244,10 +279,10 @@ export const ChordTrack = memo(function ChordTrack({
       e.preventDefault();
 
       const { x } = clientToSvg(e.clientX, e.clientY, e.currentTarget);
-      const position = xToNearestPosition(x, validPositions, layout);
+      const position = xToNearestPosition(x, filteredValidPositions, layout);
 
       if (position !== null) {
-        const existingChord = chords.find(
+        const existingChord = filteredChords.find(
           (c) => c.measure === position.measure && c.quant === position.quant
         );
         if (existingChord) {
@@ -262,16 +297,16 @@ export const ChordTrack = memo(function ChordTrack({
         }
       }
     },
-    [validPositions, layout, chords, onChordClick, onChordSelect, onEmptyClick]
+    [filteredValidPositions, layout, filteredChords, onChordClick, onChordSelect, onEmptyClick]
   );
 
   const handleTrackMouseMove = useCallback(
     (e: React.MouseEvent<SVGGElement>) => {
       const { x } = clientToSvg(e.clientX, e.clientY, e.currentTarget);
-      const position = xToNearestPosition(x, validPositions, layout);
+      const position = xToNearestPosition(x, filteredValidPositions, layout);
 
       if (position !== null) {
-        const existingChord = chords.find(
+        const existingChord = filteredChords.find(
           (c) => c.measure === position.measure && c.quant === position.quant
         );
         setHoveredChordId(existingChord?.id ?? null);
@@ -287,7 +322,7 @@ export const ChordTrack = memo(function ChordTrack({
         setCursorStyle('default');
       }
     },
-    [validPositions, layout, chords]
+    [filteredValidPositions, layout, filteredChords]
   );
 
   const handleTrackMouseLeave = useCallback(() => {
@@ -310,7 +345,7 @@ export const ChordTrack = memo(function ChordTrack({
 
   // Pre-compute chord positions to avoid recalculating on every render
   const chordPositions = useMemo(() => {
-    return chords.map((chord) => {
+    return filteredChords.map((chord) => {
       const position = { measure: chord.measure, quant: chord.quant };
       return {
         chord,
@@ -319,7 +354,7 @@ export const ChordTrack = memo(function ChordTrack({
         yOffset: getChordYOffset(position),
       };
     });
-  }, [chords, layout, getChordYOffset]);
+  }, [filteredChords, layout, getChordYOffset]);
 
   return (
     <g

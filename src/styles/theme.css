@@ -165,12 +165,35 @@
 
 /* ========== Page View Component Styles ========== */
 
+/* Container for all pages in page view */
+.riff-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px; /* PAGE_GAP from config */
+  padding: var(--riff-spacing-4);
+  min-height: 100%;
+}
+
+/* Wrapper div for each page (enables CSS page-break) */
+.riff-page-wrapper {
+  flex-shrink: 0;
+}
+
+/* Individual page SVG */
+.riff-page-svg {
+  display: block;
+  background: white;
+  box-shadow: var(--riff-page-shadow);
+  border: var(--riff-page-border);
+}
+
 .riff-PageBoundary {
-  filter: drop-shadow(var(--riff-page-shadow));
+  /* Page boundary rect inside SVG - no drop-shadow needed, wrapper has box-shadow */
 }
 
 .riff-page-view {
-  /* Page view container */
+  /* Legacy: single-SVG page view container (scroll view fallback) */
 }
 
 .riff-system {

@@ -84,6 +84,30 @@
     page-break-before: always;
   }
 
+  /* Page wrapper controls page breaks for separate-SVG-per-page structure */
+  .riff-page-wrapper {
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+
+  /* Last page should not force a break after */
+  .riff-page-wrapper:last-child {
+    page-break-after: auto;
+  }
+
+  /* Hide gaps between pages when printing */
+  .riff-pages {
+    gap: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  /* Remove page shadows/borders in print */
+  .riff-page-svg {
+    box-shadow: none !important;
+    border: none !important;
+  }
+
   /* ---------------------------------------------------------------------------
      Sizing and Overflow
      --------------------------------------------------------------------------- */

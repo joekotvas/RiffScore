@@ -17,6 +17,7 @@ import Toolbar, { ToolbarHandle } from '@components/Toolbar/Toolbar';
 import ShortcutsOverlay from '@components/Layout/Overlays/ShortcutsOverlay';
 import ConfirmDialog from '@components/Layout/Overlays/ConfirmDialog';
 import Portal from '@components/Layout/Portal';
+import EditorFooter from '@components/Layout/EditorFooter';
 
 // Commands
 import { SetSingleStaffCommand } from '@commands/SetSingleStaffCommand';
@@ -64,7 +65,7 @@ const ScoreEditorContent = ({
   const scoreLogic = useScoreContext();
 
   // Grouped API destructuring
-  const { score, selection } = scoreLogic.state;
+  const { score, selection, previewNote } = scoreLogic.state;
   const { dispatch, scoreRef, selectionEngine } = scoreLogic.engines;
   const { activeDuration, isDotted, activeAccidental } = scoreLogic.tools;
   const { select: handleNoteSelection, focus: focusScore } = scoreLogic.navigation;
@@ -78,6 +79,8 @@ const ScoreEditorContent = ({
   const [showHelp, setShowHelp] = useState(false);
   const [isHoveringScore, setIsHoveringScore] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState<InstrumentType>('bright');
+  const [viewportZoom, setViewportZoom] = useState(100); // Viewport zoom in percentage
+  const [isFullscreen, setIsFullscreen] = useState(false);
   // Error state temporarily disabled/unused
   // const [errorMsg, setErrorMsg] = useState(null);
   const errorMsg = null;
@@ -249,6 +252,10 @@ const ScoreEditorContent = ({
     handleNoteSelection,
   ]);
 
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen((prev) => !prev);
+  }, []);
+
   useKeyboardShortcuts(
     scoreLogic,
     playback,
@@ -261,7 +268,7 @@ const ScoreEditorContent = ({
     },
     { handleTitleCommit: titleEditor.commit },
     { navigateAndEdit: handleChordTabNavigate, escapeToNotes: handleChordEscapeToNotes },
-    { toggleScoreSetup: () => toolbarRef.current?.toggleScoreSetup() }
+    { toggleScoreSetup: () => toolbarRef.current?.toggleScoreSetup(), toggleFullscreen }
   );
 
   // --- Event Handlers ---
@@ -306,9 +313,11 @@ const ScoreEditorContent = ({
   }, [selection, exitPlaybackMode]);
 
   // --- Render ---
+  const editorClassName = `riff-ScoreEditor${isFullscreen ? ' riff-ScoreEditor--fullscreen' : ''}`;
+
   return (
     <div
-      className="riff-ScoreEditor"
+      className={editorClassName}
       data-testid="score-editor"
       style={{
         backgroundColor: showBackground ? theme.panelBackground : 'transparent',
@@ -337,6 +346,8 @@ const ScoreEditorContent = ({
           errorMsg={errorMsg}
           onToggleHelp={() => setShowHelp(true)}
           onEscape={handleEscape}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggleFullscreen}
         />
       )}
 
@@ -346,21 +357,37 @@ const ScoreEditorContent = ({
         </Portal>
       )}
 
-      <div className="riff-ScoreEditor__content" style={{ backgroundColor: theme.background }}>
-        <ScoreCanvas
-          scale={scale}
-          playbackPosition={playback.playbackPosition}
-          containerRef={scoreContainerRef}
-          onHoverChange={handleHoverChange}
-          onBackgroundClick={handleBackgroundClick}
-          onKeySigClick={() => toolbarRef.current?.openKeySigMenu()}
-          onTimeSigClick={() => toolbarRef.current?.openTimeSigMenu()}
-          onClefClick={() => toolbarRef.current?.openClefMenu()}
-          isPlaying={playback.isPlaying}
-          isPlaybackVisible={playback.isActive}
-          chordTrack={chordTrackHook}
-        />
+      <div className="riff-ScoreEditor__viewport" style={{ backgroundColor: theme.background }}>
+        <div
+          className="riff-ScoreEditor__content"
+          style={{
+            transform: `scale(${viewportZoom / 100})`,
+            transformOrigin: 'top center',
+          }}
+        >
+          <ScoreCanvas
+            scale={scale}
+            playbackPosition={playback.playbackPosition}
+            containerRef={scoreContainerRef}
+            onHoverChange={handleHoverChange}
+            onBackgroundClick={handleBackgroundClick}
+            onKeySigClick={() => toolbarRef.current?.openKeySigMenu()}
+            onTimeSigClick={() => toolbarRef.current?.openTimeSigMenu()}
+            onClefClick={() => toolbarRef.current?.openClefMenu()}
+            isPlaying={playback.isPlaying}
+            isPlaybackVisible={playback.isActive}
+            chordTrack={chordTrackHook}
+          />
+        </div>
       </div>
+
+      <EditorFooter
+        selection={selection}
+        previewNote={previewNote}
+        score={score}
+        zoom={viewportZoom}
+        onZoomChange={setViewportZoom}
+      />
 
       {pendingClefChange && (
         <Portal>

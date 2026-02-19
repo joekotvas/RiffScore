@@ -71,8 +71,10 @@ export const PAGE_GAP = 24;
 
 /**
  * Footer height reserved at bottom of each page in pixels.
+ * Note: Footer content (page number, copyright) renders in the margin,
+ * so this is just a buffer to keep systems from touching the content edge.
  */
-export const FOOTER_HEIGHT = 40;
+export const FOOTER_HEIGHT = 20;
 
 /**
  * Metadata typography heights in pixels.
@@ -131,5 +133,24 @@ export const CONFIG: EditorConfig = {
     logStateChanges: true,
     logValidation: true,
     showHitZones: false, // Show red/cyan debug rectangles for hit zones
+  },
+
+  /** Editor footer settings */
+  footer: {
+    /** Footer height in pixels */
+    height: 28,
+    /** Padding inside footer */
+    paddingHorizontal: 12,
+    /** Zoom control settings */
+    zoom: {
+      /** Minimum zoom level (percentage) */
+      min: 25,
+      /** Maximum zoom level (percentage) */
+      max: 400,
+      /** Step size for drag (percentage per pixel) */
+      dragStep: 1,
+      /** Width of the drag handle hit area */
+      handleWidth: 24,
+    },
   },
 };

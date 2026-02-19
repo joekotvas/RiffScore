@@ -42,6 +42,8 @@ interface ChordTrackHandlers {
 interface ViewControlHandlers {
   /** Toggle the Score Setup dialog */
   toggleScoreSetup?: () => void;
+  /** Toggle fullscreen mode */
+  toggleFullscreen?: () => void;
 }
 
 export const useKeyboardShortcuts = (
@@ -211,6 +213,13 @@ export const useKeyboardShortcuts = (
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         openPrintDialog();
+        return;
+      }
+
+      // Cmd/Ctrl+Shift+F: Toggle fullscreen mode
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        viewControlsRef.current?.toggleFullscreen?.();
         return;
       }
 

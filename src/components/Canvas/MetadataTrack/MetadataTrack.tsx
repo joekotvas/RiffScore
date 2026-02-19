@@ -90,16 +90,16 @@ const FIELD_CONFIGS: Record<MetadataFieldName, Omit<FieldConfig, 'field'>> = {
     placeholder: 'Composer',
     fontSize: '14px',
     fontWeight: 'normal',
-    textAnchor: 'middle',
-    textAlign: 'center',
+    textAnchor: 'end', // Right-aligned
+    textAlign: 'right',
     required: false,
   },
   lyricist: {
     placeholder: 'Lyricist',
     fontSize: '14px',
     fontWeight: 'normal',
-    textAnchor: 'middle',
-    textAlign: 'center',
+    textAnchor: 'start', // Left-aligned
+    textAlign: 'left',
     required: false,
   },
   copyright: {
@@ -112,10 +112,6 @@ const FIELD_CONFIGS: Record<MetadataFieldName, Omit<FieldConfig, 'field'>> = {
   },
 };
 
-/**
- * Spacing between composer and lyricist lines.
- */
-const COMPOSER_LYRICIST_SPACING = 18;
 
 // ============================================================================
 // HELPERS
@@ -147,8 +143,8 @@ function getFieldY(layout: MetadataLayout, field: MetadataFieldName): number {
     case 'composer':
       return layout.composer?.y ?? (layout.title?.y ?? 0) + 30;
     case 'lyricist':
-      // Lyricist is positioned below composer
-      return (layout.composer?.y ?? (layout.title?.y ?? 0) + 30) + COMPOSER_LYRICIST_SPACING;
+      // Lyricist is on the same line as composer (left side)
+      return layout.lyricist?.y ?? layout.composer?.y ?? (layout.title?.y ?? 0) + 30;
     case 'copyright':
       // Copyright is in the footer, handled separately
       return 0;
@@ -163,8 +159,9 @@ function getFieldX(layout: MetadataLayout, field: MetadataFieldName): number {
     case 'title':
       return layout.title?.x ?? 0;
     case 'composer':
+      return layout.composer?.x ?? 0;
     case 'lyricist':
-      return layout.composer?.x ?? layout.title?.x ?? 0;
+      return layout.lyricist?.x ?? 0;
     case 'copyright':
       return layout.title?.x ?? 0;
   }
@@ -293,6 +290,7 @@ export const MetadataTrack = memo(function MetadataTrack({
           height={30}
           fill="transparent"
           style={{ cursor: cursorStyle }}
+          onMouseDown={handleMouseDown}
           onMouseEnter={() => handleFieldMouseEnter(field)}
           onMouseLeave={handleFieldMouseLeave}
           onClick={(e) => handleFieldClick(field, e)}
@@ -310,6 +308,7 @@ export const MetadataTrack = memo(function MetadataTrack({
           height={30}
           fill="transparent"
           style={{ cursor: cursorStyle }}
+          onMouseDown={handleMouseDown}
           onMouseEnter={() => handleFieldMouseEnter(field)}
           onMouseLeave={handleFieldMouseLeave}
           onClick={(e) => handleFieldClick(field, e)}

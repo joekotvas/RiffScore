@@ -94,7 +94,8 @@ describe('MetadataTrack', () => {
 
   const mockLayout: MetadataLayout = {
     title: { text: 'Test Song', x: 400, y: 50 },
-    composer: { text: 'Test Composer', x: 400, y: 80 },
+    composer: { text: 'Test Composer', x: 800, y: 80 }, // Right-aligned
+    lyricist: { text: 'Test Lyricist', x: 0, y: 80 }, // Left-aligned
     bottom: 120,
   };
 

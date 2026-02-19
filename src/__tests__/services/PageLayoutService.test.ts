@@ -768,13 +768,13 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
 
     it('returns reduced height for page 0 due to metadata', () => {
       const height = calculateAvailableContentHeight(0, contentArea, metadataBottom);
-      // 800 - FOOTER_HEIGHT - (120 - 50) = 800 - 40 - 70 = 690
+      // 800 - FOOTER_HEIGHT - (120 - 50) = 800 - 20 - 70 = 710
       expect(height).toBe(800 - FOOTER_HEIGHT - 70);
     });
 
     it('returns full content height for subsequent pages', () => {
       const height = calculateAvailableContentHeight(1, contentArea, metadataBottom);
-      // 800 - FOOTER_HEIGHT = 760
+      // 800 - FOOTER_HEIGHT = 780
       expect(height).toBe(800 - FOOTER_HEIGHT);
     });
 

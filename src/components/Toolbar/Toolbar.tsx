@@ -28,6 +28,7 @@ import PlaybackControls from './PlaybackControls';
 import ViewToggle from './ViewToggle';
 import ScoreSetupButton from './ScoreSetupButton';
 import PrintButton from './PrintButton';
+import FullscreenButton from './FullscreenButton';
 // import MidiControls from './MidiControls';
 import Divider from './Divider';
 import { DropdownTrigger } from './Menus/DropdownOverlay';
@@ -65,6 +66,10 @@ interface ToolbarProps {
 
   // Data
   melodies: Melody[];
+
+  // Fullscreen
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 export interface ToolbarHandle {
@@ -97,6 +102,8 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
       onInstrumentChange,
       samplerLoaded,
       onEscape,
+      isFullscreen = false,
+      onToggleFullscreen,
     },
     ref
   ) => {
@@ -290,6 +297,13 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
             <ViewToggle variant="ghost" />
             <ScoreSetupButton onClick={scoreSetup.open} variant="ghost" />
             <PrintButton variant="ghost" />
+            {onToggleFullscreen && (
+              <FullscreenButton
+                isFullscreen={isFullscreen}
+                onToggle={onToggleFullscreen}
+                variant="ghost"
+              />
+            )}
           </div>
 
           <Divider />
