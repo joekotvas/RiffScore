@@ -520,7 +520,7 @@ export const calculateMeasureLayout = (
   // Stretch event X positions
   const stretchedEvents = processedEvents.map((event) => ({
     ...event,
-    x: event.x * stretchFactor,
+    x: (event.x ?? 0) * stretchFactor,
   }));
 
   // Stretch event positions map
