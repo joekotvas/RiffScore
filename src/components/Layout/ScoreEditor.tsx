@@ -32,6 +32,7 @@ import { findEventAtQuantPosition } from '@/utils/navigation/crossStaff';
 import { getNoteDuration, isRestEvent } from '@/utils/core';
 import { TIME_SIGNATURES } from '@/constants';
 import { getMidi } from '@/services/MusicService';
+import { DEFAULT_LAYOUT_CONFIG } from '@/config';
 
 import './styles/ScoreEditor.css';
 
@@ -362,7 +363,10 @@ const ScoreEditorContent = ({
           className="riff-ScoreEditor__content"
           style={{
             transform: `scale(${viewportZoom / 100})`,
-            transformOrigin: 'top center',
+            transformOrigin:
+              (score.layout?.viewMode ?? DEFAULT_LAYOUT_CONFIG.viewMode) === 'scroll'
+                ? 'top left'
+                : 'top center',
           }}
         >
           <ScoreCanvas
