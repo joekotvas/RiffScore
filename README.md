@@ -244,7 +244,6 @@ npm run demo:dev
 
 ## Coming Soon
 
-*   **Page View & Print**: Multi-system rendering with automatic line breaks and print support ([#174](https://github.com/joekotvas/riffscore/issues/174))
 *   **Import**: ABC and MusicXML import
 *   **Clipboard API**: Copy, cut, and paste operations
 *   **Move Operations**: Drag-and-drop and keyboard-based event moving

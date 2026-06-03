@@ -5,7 +5,9 @@ All notable changes to RiffScore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.0.0-alpha.10] - Unreleased
+## [Unreleased]
+
+## [1.0.0-alpha.10] - 2026-06-03
 
 ### Added
 - **Page View & Print ([#174](https://github.com/joekotvas/riffscore/issues/174))**: Complete page view mode with professional document layout.
@@ -53,6 +55,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - **Cursor & Hit Detection**: Updated `useCursorLayout`, `ScoreCanvas`, and `useDragToSelect` to use new coordinate system.
   - **Deprecations**: `quantToX()` and `xToNearestQuant()` in `coordinateUtils.ts` deprecated in favor of measure-aware lookups.
   - See [migration spec](docs/migration/measure-relative-x-spec.md) for full details.
+
+### Fixed
+- Resolved a TypeScript error in `measure.test.ts` and an ESLint error in `EditorFooter.tsx` that were blocking a clean `typecheck`/`lint`. The zoom control now derives its displayed value during render instead of synchronizing state in a `useEffect` (avoiding cascading renders), with no change in behavior.
+
+### Documentation
+- **Correctness Audit, Verification Strategy & QA ([docs/audit/](docs/audit/))**: Added a multi-dimensional music-theory/typesetting/edge-case audit (verified findings grouped into root-cause clusters with a phased remediation plan), a layered verification strategy (unit / property / golden-structural / reference-oracle / browser-geometry), and an independent QA of both. These establish the correctness remediation roadmap for subsequent releases; they document known gaps and do not change runtime behavior.
 
 ## [1.0.0-alpha.9] - 2026-02-13
 
