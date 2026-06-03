@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useTheme } from '@context/ThemeContext';
 import { useZoomDrag } from '@hooks/interaction';
 import { useSelectionStatus, type SelectionStatus } from '@hooks/editor';
@@ -58,22 +58,21 @@ const ZoomControl: React.FC<ZoomControlProps> = ({ value, onChange }) => {
     onChange,
   });
 
-  // Sync input value when zoom changes externally (e.g., via drag)
-  useEffect(() => {
-    if (!isEditing) {
-      setInputValue(String(value));
-    }
-  }, [value, isEditing]);
+  // While not editing, the input mirrors the external value (drag, arrows) directly
+  // via `displayValue` below — no effect needed. `inputValue` is the edit buffer,
+  // seeded from `value` on focus.
+  const displayValue = isEditing ? inputValue : String(value);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
   }, []);
 
   const handleInputFocus = useCallback(() => {
+    setInputValue(String(value));
     setIsEditing(true);
     // Select all text on focus
     setTimeout(() => inputRef.current?.select(), 0);
-  }, []);
+  }, [value]);
 
   const handleInputBlur = useCallback(() => {
     setIsEditing(false);
@@ -128,7 +127,7 @@ const ZoomControl: React.FC<ZoomControlProps> = ({ value, onChange }) => {
         ref={inputRef}
         type="text"
         className="riff-EditorFooter__zoom-input"
-        value={inputValue}
+        value={displayValue}
         onChange={handleInputChange}
         onFocus={handleInputFocus}
         onBlur={handleInputBlur}

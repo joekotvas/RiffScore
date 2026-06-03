@@ -711,8 +711,8 @@ describe('measure.ts', () => {
       );
 
       for (let i = 0; i < events.length; i++) {
-        expect(layoutStretched.processedEvents[i].x).toBeCloseTo(
-          layoutNormal.processedEvents[i].x * stretchFactor,
+        expect(layoutStretched.processedEvents[i]!.x!).toBeCloseTo(
+          layoutNormal.processedEvents[i]!.x! * stretchFactor,
           5
         );
       }
