@@ -6,7 +6,7 @@
 
 > **See also**: [Cookbook](./COOKBOOK.md) • [Configuration](./CONFIGURATION.md) • [Architecture](./ARCHITECTURE.md) • [Coding Patterns](./CODING_PATTERNS.md)
 
-**Version:** 1.0.0-alpha.8  
+**Version:** 1.0.0-alpha.10  
 **Access:**
 -   **React**: `const ref = useRef<MusicEditorAPI>(null)`
 -   **Global**: `window.riffScore.get('my-score-id')` or `window.riffScore.active`
@@ -34,21 +34,23 @@
 
 ## Internal Architecture
 
-The API is implemented using a **factory pattern** with 11 domain-specific modules:
+The API is implemented using a **factory pattern** with 13 domain-specific modules:
 
 ```
 src/hooks/api/
 ├── index.ts        # Barrel exports
 ├── types.ts        # APIContext interface
 ├── navigation.ts   # move, jump, select, selectById
-├── selection.ts    # selectAll, extend*, selectFullEvents  
+├── selection.ts    # selectAll, extend*, selectFullEvents
 ├── entry.ts        # addNote, addRest, addTone
 ├── modification.ts # setPitch, transpose, structure
 ├── history.ts      # undo, redo, transactions
 ├── playback.ts     # play, pause, stop
 ├── io.ts           # loadScore, reset, export
 ├── events.ts       # on() subscription wrapper
-└── chords.ts       # addChord, updateChord, removeChord, selectChord
+├── chords.ts       # addChord, updateChord, removeChord, selectChord
+├── layout.ts       # getViewMode, setViewMode, toggleViewMode, getLayoutConfig
+└── metadata.ts     # getMetadata, setMetadata, getTitle, setTitle, etc.
 ```
 
 Each factory receives an `APIContext` containing refs and dispatch functions, then returns methods bound to `this` via `ThisType<MusicEditorAPI>` for fluent chaining.
@@ -78,14 +80,22 @@ The most recently focused or mounted instance.
 
 ---
 
+## Indexing Convention
+
+> **All indices are 0-based.** Use `select(0)` for the first measure, `select(1)` for the second, etc.
+
+For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureIndex`.
+
+---
+
 ## 2. Navigation
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
 | `move` | `move(direction)` | ✅ | Navigate in any direction (left/right/up/down). |
 | `jump` | `jump(target)` | ✅ | `'start-score'`, `'end-score'`, `'start-measure'`, `'end-measure'`. |
-| `select` | `select(measureNum, staffIndex?, eventIndex?, noteIndex?)` | ✅ | Absolute targeting (1-based measure). |
-| `selectAtQuant` | `selectAtQuant(measureNum, quant, staffIndex?)` | ✅ | Target by rhythmic position. |
+| `select` | `select(measureIndex, staffIndex?, eventIndex?, noteIndex?)` | ✅ | Absolute targeting (0-based indices). |
+| `selectAtQuant` | `selectAtQuant(measureIndex, quant, staffIndex?)` | ✅ | Target by rhythmic position. |
 | `selectById` | `selectById(eventId, noteId?)` | ✅ | Target by internal IDs. |
 
 ---
@@ -94,10 +104,10 @@ The most recently focused or mounted instance.
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `addToSelection` | `addToSelection(measureNum, staffIndex, eventIndex)` | ✅ | Cmd+Click toggle behavior. |
-| `selectRangeTo` | `selectRangeTo(measureNum, staffIndex, eventIndex)` | ✅ | Shift+Click range from anchor. |
+| `addToSelection` | `addToSelection(measureIndex, staffIndex, eventIndex)` | ✅ | Cmd+Click toggle behavior. |
+| `selectRangeTo` | `selectRangeTo(measureIndex, staffIndex, eventIndex)` | ✅ | Shift+Click range from anchor. |
 | `selectAll` | `selectAll(scope)` | ✅ | `'score'`, `'measure'`, `'staff'`, `'event'`. |
-| `selectEvent` | `selectEvent(measureNum?, staffIndex?, eventIndex?)` | ✅ | Select all notes in chord. |
+| `selectEvent` | `selectEvent(measureIndex?, staffIndex?, eventIndex?)` | ✅ | Select all notes in chord. |
 | `deselectAll` | `deselectAll()` | ✅ | Clear selection. |
 | `selectFullEvents` | `selectFullEvents()` | ✅ | Fill partial chord selections. |
 | `extendSelectionUp` | `extendSelectionUp()` | ✅ | Vertical extend toward treble. |
@@ -237,7 +247,61 @@ The most recently focused or mounted instance.
 
 ---
 
-## 11. History & Clipboard
+## 14. Layout & View Mode ✅
+
+| Method | Signature | Status | Description |
+| :--- | :--- | :--- | :--- |
+| `getViewMode` | `getViewMode()` | ✅ | Get current view mode (`'scroll'` or `'page'`). |
+| `setViewMode` | `setViewMode(mode)` | ✅ | Set view mode. |
+| `toggleViewMode` | `toggleViewMode()` | ✅ | Toggle between scroll and page view. |
+| `getLayoutConfig` | `getLayoutConfig()` | ✅ | Get current layout configuration. |
+| `setLayoutConfig` | `setLayoutConfig(config)` | ✅ | Update layout configuration (partial merge). |
+
+### LayoutConfig Properties
+
+```typescript
+interface LayoutConfig {
+  pageSize: 'letter' | 'a4';           // Page dimensions
+  margins: 'narrow' | 'normal' | 'wide'; // Margin preset
+  staffSize: number;                    // 50-150 (percentage)
+  systemSpacing: 'compact' | 'normal' | 'relaxed';
+  viewMode: 'scroll' | 'page';
+}
+```
+
+---
+
+## 15. Metadata ✅
+
+| Method | Signature | Status | Description |
+| :--- | :--- | :--- | :--- |
+| `getMetadata` | `getMetadata()` | ✅ | Get complete score metadata. |
+| `setMetadata` | `setMetadata(metadata)` | ✅ | Update metadata (partial merge). |
+| `getTitle` | `getTitle()` | ✅ | Get score title. |
+| `setTitle` | `setTitle(title)` | ✅ | Set score title. |
+| `getComposer` | `getComposer()` | ✅ | Get composer name. |
+| `setComposer` | `setComposer(composer)` | ✅ | Set composer name. |
+| `getLyricist` | `getLyricist()` | ✅ | Get lyricist name. |
+| `setLyricist` | `setLyricist(lyricist)` | ✅ | Set lyricist name. |
+| `getCopyright` | `getCopyright()` | ✅ | Get copyright notice. |
+| `setCopyright` | `setCopyright(copyright)` | ✅ | Set copyright notice. |
+| `selectFirstElement` | `selectFirstElement()` | ✅ | Select first note (for Tab from metadata). |
+| `selectLastElement` | `selectLastElement()` | ✅ | Select last note (for Shift+Tab from metadata). |
+
+### ScoreMetadata Properties
+
+```typescript
+interface ScoreMetadata {
+  title?: string;      // Required for Score Setup save
+  composer?: string;   // Optional
+  lyricist?: string;   // Optional
+  copyright?: string;  // Appears on page 1 footer
+}
+```
+
+---
+
+## 16. History & Clipboard
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
@@ -328,12 +392,12 @@ api.clearStatus();
 
 ### Linear Entry ✅
 ```javascript
-api.select(1).addNote('C4').addNote('D4').addNote('E4');
+api.select(0).addNote('C4').addNote('D4').addNote('E4');
 ```
 
 ### Build Chord ✅
 ```javascript
-api.select(1).addNote('C4').move('left').addTone('E4').addTone('G4');
+api.select(0).addNote('C4').move('left').addTone('E4').addTone('G4');
 ```
 
 ### Query State ✅

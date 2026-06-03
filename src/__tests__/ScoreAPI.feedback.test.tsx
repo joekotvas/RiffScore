@@ -52,7 +52,7 @@ describe('ScoreAPI Feedback & Error Handling', () => {
       const api = getAPI('feedback-success');
 
       act(() => {
-        api.select(1).addNote('C4', 'quarter');
+        api.select(0).addNote('C4', 'quarter');
       });
 
       expect(api.result).toEqual(
@@ -71,7 +71,7 @@ describe('ScoreAPI Feedback & Error Handling', () => {
       const api = getAPI('feedback-error');
 
       act(() => {
-        api.select(1).addNote('InvalidPitch');
+        api.select(0).addNote('InvalidPitch');
       });
 
       expect(api.result).toEqual(
@@ -96,7 +96,7 @@ describe('ScoreAPI Feedback & Error Handling', () => {
 
       // 2. Cause Error
       act(() => {
-        api.select(1).addNote('InvalidPitch');
+        api.select(0).addNote('InvalidPitch');
       });
       expect(api.result.ok).toBe(false);
       expect(api.hasError).toBe(true);
@@ -126,7 +126,7 @@ describe('ScoreAPI Feedback & Error Handling', () => {
       let batchResult: ReturnType<MusicEditorAPI['collect']> | undefined;
       act(() => {
         batchResult = api.collect((a) => {
-          a.select(1).addNote('C4').addNote('D4').addNote('InvalidPitch');
+          a.select(0).addNote('C4').addNote('D4').addNote('InvalidPitch');
         });
       });
 
@@ -188,7 +188,7 @@ describe('ScoreAPI Feedback & Error Handling', () => {
 
       // Success Op
       act(() => {
-        api.select(1).addNote('C4');
+        api.select(0).addNote('C4');
       });
 
       expect(opSpy).toHaveBeenCalledWith(expect.objectContaining({ method: 'addNote', ok: true }));

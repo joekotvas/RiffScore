@@ -226,7 +226,7 @@ describe('API Navigation', () => {
     render(<RiffScore id="nav-test" />);
     const api = getAPI('nav-test');
 
-    api.select(1, 0, 0);
+    api.select(0, 0, 0);
     const before = api.getSelection().eventId;
     
     api.move('right');
@@ -244,13 +244,13 @@ When testing entry methods, verify via **selection state** rather than event cou
 ```typescript
 // ✅ Good - selection is authoritative
 test('addNote succeeds', () => {
-  api.select(1).addNote('C4');
+  api.select(0).addNote('C4');
   expect(api.getSelection().eventId).toBeDefined();
 });
 
 // ⚠️ Fragile - may return stale data
 test('addNote adds event', () => {
-  api.select(1).addNote('C4');
+  api.select(0).addNote('C4');
   expect(api.getScore().staves[0].measures[0].events).toHaveLength(1);
 });
 ```
@@ -282,7 +282,7 @@ test('score callback fires on mutation', async () => {
   const callback = jest.fn();
   api.on('score', callback);
 
-  api.select(1).addNote('C4');
+  api.select(0).addNote('C4');
 
   // Callback fires after React processes state update
   await waitFor(() => {

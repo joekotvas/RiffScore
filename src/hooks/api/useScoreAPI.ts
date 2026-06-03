@@ -30,6 +30,9 @@ import {
   createPlaybackMethods,
   createIOMethods,
   createChordMethods,
+  createLayoutMethods,
+  createMetadataMethods,
+  createMetadataNavigationMethods,
   APIContext,
 } from '.';
 
@@ -272,6 +275,9 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
       ...createPlaybackMethods(context),
       ...createIOMethods(context),
       ...createChordMethods(context),
+      ...createLayoutMethods(context),
+      ...createMetadataMethods(context),
+      ...createMetadataNavigationMethods(context),
 
       // Data Accessors (Bound Closures)
       getScore: () => ctx.engines.engine.getState(),

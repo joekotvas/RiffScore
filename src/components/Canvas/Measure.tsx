@@ -87,6 +87,7 @@ const Measure: React.FC<MeasureProps> = ({
   forcedEventPositions,
   layout,
   measureLayout, // V2 Layout (SSOT)
+  stretchFactor = 1.0, // Justification stretch factor
   interaction,
 }) => {
   const { theme } = useTheme();
@@ -107,17 +108,29 @@ const Measure: React.FC<MeasureProps> = ({
     clef,
     measureData.isPickup ?? false,
     forcedEventPositions,
-    forcedWidth
+    forcedWidth,
+    stretchFactor
   );
 
-  // Extract layout data - prefer centralized source, fallback to hook
-  const hitZones = measureLayout?.legacyLayout?.hitZones ?? fallbackLayout.hitZones;
-  const eventPositions =
-    measureLayout?.legacyLayout?.eventPositions ?? fallbackLayout.eventPositions;
-  const totalWidth = measureLayout?.legacyLayout?.totalWidth ?? fallbackLayout.totalWidth;
-  const effectiveWidth = measureLayout?.width ?? fallbackLayout.effectiveWidth;
-  const centeredEvents =
-    measureLayout?.legacyLayout?.processedEvents ?? fallbackLayout.centeredEvents;
+  // Extract layout data
+  // When stretching (page view justification), use fallback which has stretched positions
+  // Otherwise prefer centralized source for SSOT
+  const useStretched = stretchFactor !== 1.0;
+  const hitZones = useStretched
+    ? fallbackLayout.hitZones
+    : (measureLayout?.legacyLayout?.hitZones ?? fallbackLayout.hitZones);
+  const eventPositions = useStretched
+    ? fallbackLayout.eventPositions
+    : (measureLayout?.legacyLayout?.eventPositions ?? fallbackLayout.eventPositions);
+  const totalWidth = useStretched
+    ? fallbackLayout.totalWidth
+    : (measureLayout?.legacyLayout?.totalWidth ?? fallbackLayout.totalWidth);
+  const effectiveWidth = useStretched
+    ? fallbackLayout.effectiveWidth
+    : (measureLayout?.width ?? fallbackLayout.effectiveWidth);
+  const centeredEvents = useStretched
+    ? fallbackLayout.centeredEvents
+    : (measureLayout?.legacyLayout?.processedEvents ?? fallbackLayout.centeredEvents);
   const beamGroups: BeamGroup[] = measureLayout?.beamGroups ?? fallbackLayout.beamGroups;
   const tupletGroups: TupletBracketGroup[] =
     measureLayout?.tupletGroups ?? fallbackLayout.tupletGroups;

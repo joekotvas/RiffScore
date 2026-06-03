@@ -61,7 +61,7 @@ describe('ScoreAPI Events', () => {
     // Trigger change via navigation
     await act(async () => {
       // Assuming selecting a measure triggers a selection update
-      result.current.select(1, 0, 0, 0);
+      result.current.select(0, 0, 0, 0);
     });
 
     // Callback should fire with new selection state
@@ -104,7 +104,7 @@ describe('ScoreAPI Events', () => {
 
     // Trigger first event
     await act(async () => {
-      result.current.select(1);
+      result.current.select(0);
     });
     expect(callback).toHaveBeenCalledTimes(1);
 
@@ -115,7 +115,7 @@ describe('ScoreAPI Events', () => {
 
     // Trigger second event
     await act(async () => {
-      result.current.select(1); // Re-selecting same or different
+      result.current.select(0); // Re-selecting same or different
     });
 
     // Callback count remains 1
@@ -136,7 +136,7 @@ describe('ScoreAPI Events', () => {
     });
 
     await act(async () => {
-      result.current.select(1);
+      result.current.select(0);
     });
 
     expect(cb1).toHaveBeenCalledTimes(1);
@@ -160,7 +160,7 @@ describe('ScoreAPI Events', () => {
 
     // Trigger event
     await act(async () => {
-      result.current.select(1);
+      result.current.select(0);
     });
 
     // Safe callback should still run despite the other one crashing
@@ -205,8 +205,8 @@ describe('ScoreAPI Events', () => {
       // createModificationMethods uses begin/commit for multi-selection.
       // Or we can use exposed transaction methods.
       result.current.beginTransaction();
-      result.current.select(1).addNote('C4');
-      result.current.select(1).addNote('E4');
+      result.current.select(0).addNote('C4');
+      result.current.select(0).addNote('E4');
       result.current.commitTransaction('Add Chord');
     });
 

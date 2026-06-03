@@ -30,30 +30,11 @@ const FONT_LOADING_CSS = `
   .RiffScore.font-loaded svg text {
     visibility: visible;
   }
-  /* Loading title overlay */
-  .RiffScore.font-loading .ScoreTitleField,
-  .RiffScore.font-loading .ScoreTitleFieldInput {
-    visibility: hidden;
-    position: relative;
-  }
-  .RiffScore.font-loading .ScoreTitleField::after {
-    content: 'Loading';
-    animation: typingEllipsis 3s steps(1) infinite;
-    position: absolute;
-    /* NOTE: left value must match ScoreTitleField padding (px-[1.75rem]) */
-    left: 1.75rem;
-    top: 0;
-    visibility: visible;
-  }
   /* Respect reduced motion preference */
   @media (prefers-reduced-motion: reduce) {
     .RiffScore.font-loading .score-editor-content {
       animation: none;
       opacity: 0.5;
-    }
-    .RiffScore.font-loading .ScoreTitleField::after {
-      content: 'Loading...';
-      animation: none;
     }
   }
 `;

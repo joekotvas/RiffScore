@@ -6,9 +6,9 @@
 import React from 'react';
 import { useTheme } from '@/context/ThemeContext';
 import { RESTS, NOTEHEADS, BRAVURA_FONT } from '@/constants/SMuFL';
+import { CONFIG } from '@/config';
 
-// Icon viewport size (scaled down from 24 to 20)
-const ICON_SIZE = 20;
+const ICON_SIZE = CONFIG.toolbar.iconSize;
 
 /**
  * Input mode for the toolbar - determines whether clicks/keyboard

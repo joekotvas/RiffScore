@@ -5,13 +5,62 @@ All notable changes to RiffScore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.0.0-alpha.10] - Unreleased
+## [Unreleased]
+
+## [1.0.0-alpha.10] - 2026-06-03
+
+### Added
+- **Page View & Print ([#174](https://github.com/joekotvas/riffscore/issues/174))**: Complete page view mode with professional document layout.
+  - **Multi-System Rendering**: Automatic system breaks with first system indent and justified measures.
+  - **Multi-Page Pagination**: True page breaks with 24px visual gap between pages.
+  - **Page Layout Options**: Letter/A4 page sizes, Narrow/Normal/Wide margins, 50-150% staff size, Compact/Normal/Relaxed system spacing.
+  - **Score Setup Dialog**: Metadata and layout configuration with live preview (`Cmd+,` / `Ctrl+,`).
+  - **Inline Metadata Editing**: Click-to-edit title, composer, lyricist, and copyright directly on the page.
+  - **Page Numbers**: Centered at bottom of each page; copyright on page 1 only.
+  - **Print Support**: Native browser print dialog via `Cmd+P` / `Ctrl+P` with clean PDF output.
+  - **View Toggle**: Toolbar button and keyboard shortcut (`Cmd+\` / `Ctrl+\`) to switch between scroll and page view.
+  - **Export Integration**: ABC and MusicXML exports include metadata fields.
+  - **New Services**: `PageLayoutService` for layout calculations, `MetadataService` for validation.
+  - **New Commands**: `SetViewModeCommand`, `SetLayoutConfigCommand`, `SetMetadataCommand`.
+  - **New API Methods**: `getViewMode()`, `setViewMode()`, `toggleViewMode()`, `getLayoutConfig()`, `setLayoutConfig()`, `getMetadata()`, `setMetadata()`, `getTitle()`, `setTitle()`, `getComposer()`, `setComposer()`, etc.
+- **Release Workflow Documentation**: New [RELEASE_WORKFLOW.md](docs/RELEASE_WORKFLOW.md) with step-by-step checklist for version releases, including verification, changelog updates, GitHub releases, and LinkedIn announcements.
+- **ADR-016: Measure-Relative X Positioning**: Design decision documenting the coordinate system migration for system breaks support. See [ADR-016](docs/adr/016-measure-relative-x.md).
+- **Measure Index Utilities ([#227](https://github.com/joekotvas/riffscore/issues/227))**: New `@/utils/measureIndex` module with conversion helpers:
+  - `toDisplayMeasureNumber()` - Convert 0-based index to 1-based display number
+  - `toInternalMeasureIndex()` - Convert 1-based display to 0-based index
+  - `isValidMeasureIndex()` - Validate measure index bounds
+  - `clampMeasureIndex()` - Clamp index to valid range
 
 ### Changed
 - **Chord Input UX ([#220](https://github.com/joekotvas/riffscore/issues/220))**:
   - Raised chord baseline height for better visual separation from staff.
   - Simplified placeholder text to "Cm7".
   - Tab/Shift+Tab now stays in edit mode when at the last/first chord position instead of closing the editor.
+
+### Breaking Changes
+- **API Measure Indices Now 0-Based ([#227](https://github.com/joekotvas/riffscore/issues/227))**: All API methods now use 0-based measure indices for consistency with standard programming conventions. This affects:
+  - `select(measureIndex, ...)` - was `select(measureNum, ...)` with 1-based input
+  - `selectAtQuant(measureIndex, quant, ...)` - was 1-based
+  - `addToSelection(measureIndex, ...)` - was 1-based
+  - `selectRangeTo(measureIndex, ...)` - was 1-based
+  - `selectEvent(measureIndex, ...)` - was 1-based
+
+  **Migration**: Change `select(1)` to `select(0)` for first measure, `select(2)` to `select(1)` for second measure, etc. For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureIndex`.
+
+### Refactoring
+- **Measure-Relative X Positioning ([#204](https://github.com/joekotvas/riffscore/issues/204))**: Complete migration to measure-relative coordinates to prepare for system breaks (multi-line rendering).
+  - **ScoreLayout API**: `getX({ measure, quant })` now returns measure-relative X; `getX.measureOrigin({ measure })` returns absolute origin.
+  - **ChordSymbol Data Model**: Chords now use `{ measure, quant }` instead of global quant. Old scores auto-migrate.
+  - **Layout Types**: `NoteLayout.x` and `EventLayout.x` renamed to `localX` (measure-relative).
+  - **Cursor & Hit Detection**: Updated `useCursorLayout`, `ScoreCanvas`, and `useDragToSelect` to use new coordinate system.
+  - **Deprecations**: `quantToX()` and `xToNearestQuant()` in `coordinateUtils.ts` deprecated in favor of measure-aware lookups.
+  - See [migration spec](docs/migration/measure-relative-x-spec.md) for full details.
+
+### Fixed
+- Resolved a TypeScript error in `measure.test.ts` and an ESLint error in `EditorFooter.tsx` that were blocking a clean `typecheck`/`lint`. The zoom control now derives its displayed value during render instead of synchronizing state in a `useEffect` (avoiding cascading renders), with no change in behavior.
+
+### Documentation
+- **Correctness Audit, Verification Strategy & QA ([docs/audit/](docs/audit/))**: Added a multi-dimensional music-theory/typesetting/edge-case audit (verified findings grouped into root-cause clusters with a phased remediation plan), a layered verification strategy (unit / property / golden-structural / reference-oracle / browser-geometry), and an independent QA of both. These establish the correctness remediation roadmap for subsequent releases; they document known gaps and do not change runtime behavior.
 
 ## [1.0.0-alpha.9] - 2026-02-13
 

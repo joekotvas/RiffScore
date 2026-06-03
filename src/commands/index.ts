@@ -26,3 +26,4 @@ export * from './UpdateTitleCommand';
 export * from './selection';
 export * from './SetBpmCommand';
 export * from './chord';
+export * from './layout';

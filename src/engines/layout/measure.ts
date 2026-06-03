@@ -19,10 +19,42 @@ import { getTupletGroup } from './tuplets';
 const HIT_RADIUS = LAYOUT.HIT_ZONE_RADIUS;
 
 /** Padding added before noteheads when accidentals are present */
-const ACCIDENTAL_PADDING = NOTE_SPACING_BASE_UNIT * 0.8;
+const ACCIDENTAL_PADDING = LAYOUT.ACCIDENTAL_PADDING;
 
 /** Minimum width factors for short-duration notes relative to NOTE_SPACING_BASE_UNIT */
 // const MIN_WIDTH_FACTORS = LAYOUT.MIN_WIDTH_FACTORS;
+
+// --- STRETCH FACTOR CALCULATION ---
+
+/**
+ * Calculates the stretch factor for justified systems.
+ *
+ * When a system is justified (justification === 1.0), measures are stretched
+ * to fill the available width. This function computes the multiplier to apply
+ * to all X coordinates and widths within the measure.
+ *
+ * @param naturalWidth - Sum of natural (unstretched) measure widths
+ * @param availableWidth - System content width to fill
+ * @param justification - 1.0 for fully justified, <1.0 for ragged (last system)
+ * @returns Stretch factor (1.0 = no stretch, >1.0 = expand to fill)
+ */
+export const calculateStretchFactor = (
+  naturalWidth: number,
+  availableWidth: number,
+  justification: number
+): number => {
+  // Ragged systems (last system <60% full) don't stretch
+  if (justification !== 1.0) {
+    return 1.0;
+  }
+
+  // Invalid input protection
+  if (naturalWidth <= 0 || availableWidth <= 0) {
+    return 1.0;
+  }
+
+  return availableWidth / naturalWidth;
+};
 
 // --- TYPES ---
 
@@ -384,13 +416,22 @@ const processTupletGroup = (
  * 2. Processes events (delegating to specialized handlers)
  * 3. Generates hit zones for interaction
  * 4. Calculates final measure width
+ * 5. Applies stretch factor for justified systems (page view)
+ *
+ * @param events - Events in this measure
+ * @param _totalQuants - Quants per measure (default: 64)
+ * @param clef - Clef for this staff
+ * @param isPickup - Whether this is a pickup measure
+ * @param forcedEventPositions - Pre-computed event positions (for sync)
+ * @param stretchFactor - Multiplier for justified systems (1.0 = no stretch)
  */
 export const calculateMeasureLayout = (
   events: ScoreEvent[],
   _totalQuants: number = CONFIG.quantsPerMeasure,
   clef: string = 'treble',
   isPickup: boolean = false,
-  forcedEventPositions?: Record<number, number>
+  forcedEventPositions?: Record<number, number>,
+  stretchFactor: number = 1.0
 ): MeasureLayout => {
   // 1. Handle Empty Measure
   if (events.length === 0) {
@@ -468,9 +509,39 @@ export const calculateMeasureLayout = (
   const minDuration = isPickup ? 'quarter' : 'whole';
   const minWidth =
     getNoteWidth(minDuration, false) + CONFIG.measurePaddingLeft + CONFIG.measurePaddingRight;
-  const finalWidth = Math.max(currentX + CONFIG.measurePaddingRight, minWidth);
+  const naturalWidth = Math.max(currentX + CONFIG.measurePaddingRight, minWidth);
 
-  return { hitZones, eventPositions, totalWidth: finalWidth, processedEvents };
+  // 6. Apply Stretch Factor for Justified Systems
+  // When stretchFactor > 1.0, expand all X positions to fill system width
+  if (stretchFactor === 1.0) {
+    return { hitZones, eventPositions, totalWidth: naturalWidth, processedEvents };
+  }
+
+  // Stretch event X positions
+  const stretchedEvents = processedEvents.map((event) => ({
+    ...event,
+    x: (event.x ?? 0) * stretchFactor,
+  }));
+
+  // Stretch event positions map
+  const stretchedEventPositions: Record<string, number> = {};
+  for (const [id, x] of Object.entries(eventPositions)) {
+    stretchedEventPositions[id] = x * stretchFactor;
+  }
+
+  // Stretch hit zones
+  const stretchedHitZones = hitZones.map((zone) => ({
+    ...zone,
+    startX: zone.startX * stretchFactor,
+    endX: zone.endX * stretchFactor,
+  }));
+
+  return {
+    hitZones: stretchedHitZones,
+    eventPositions: stretchedEventPositions,
+    totalWidth: naturalWidth * stretchFactor,
+    processedEvents: stretchedEvents,
+  };
 };
 
 /**

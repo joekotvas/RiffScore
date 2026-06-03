@@ -14,7 +14,7 @@ import { calculateChordLayout } from './positioning';
 // --- CONSTANTS ---
 
 /** Padding added before noteheads when accidentals are present */
-const ACCIDENTAL_PADDING = NOTE_SPACING_BASE_UNIT * 0.8;
+const ACCIDENTAL_PADDING = LAYOUT.ACCIDENTAL_PADDING;
 
 /** Minimum width factors for short-duration notes */
 const MIN_WIDTH_FACTORS = LAYOUT.MIN_WIDTH_FACTORS;

@@ -1,4 +1,5 @@
 import { ThemeName } from './themes';
+import { TIME_SIGNATURES } from './constants';
 
 /**
  * Type definitions for the Sheet Music Editor
@@ -58,13 +59,16 @@ export interface Staff {
 
 /**
  * Represents a chord symbol in the chord track.
- * Anchored to a global quant position.
+ * Anchored to a measure-local position for robust measure operations.
  */
 export interface ChordSymbol {
   /** Unique identifier (generated via chordId() from utils/id.ts) */
   id: string;
 
-  /** Global quant position (measureIndex * quantsPerMeasure + localQuant) */
+  /** Measure index (0-based) */
+  measure: number;
+
+  /** Local quant position within the measure (0 = start of measure) */
   quant: number;
 
   /** Canonical chord symbol (letter-name notation, e.g., 'Cmaj7', 'Am', 'G7') */
@@ -109,6 +113,264 @@ export const DEFAULT_CHORD_PLAYBACK: ChordPlaybackConfig = {
   velocity: 50,
 };
 
+// ========== SCORE METADATA ==========
+
+/**
+ * Score metadata for display and export.
+ */
+export interface ScoreMetadata {
+  /** Score title (required, pre-filled to "Untitled") */
+  title: string;
+  /** Composer name */
+  composer?: string;
+  /** Lyricist name */
+  lyricist?: string;
+  /** Copyright notice */
+  copyright?: string;
+}
+
+// ========== EDITOR CONFIG ==========
+
+/**
+ * Low-level editor configuration constants.
+ * Controls rendering dimensions, spacing, and debug settings.
+ */
+export interface EditorConfig {
+  lineHeight: number;
+  topMargin: number;
+  baseY: number;
+  quantsPerMeasure: number;
+  measurePaddingLeft: number;
+  measurePaddingRight: number;
+  scoreMarginLeft: number;
+  staffSpacing: number;
+
+  /** Chord track positioning */
+  chordTrack: {
+    /** Minimum distance above staff top line */
+    minDistanceFromStaff: number;
+    /** Gap between highest note and chord symbol */
+    paddingAboveNotes: number;
+    /** Absolute minimum Y position (top of canvas) */
+    minY: number;
+  };
+
+  /** Toolbar sizing */
+  toolbar: {
+    /** Icon size for toolbar buttons */
+    iconSize: number;
+  };
+
+  /** System preamble layout (clef, key sig, time sig at start of each system) */
+  preamble: {
+    /** Clef symbol width */
+    clefWidth: number;
+    /** X position where key signature starts */
+    keySigStartX: number;
+    /** Width per accidental in key signature */
+    keySigAccidentalWidth: number;
+    /** Padding after key signature */
+    keySigPadding: number;
+    /** Time signature width */
+    timeSigWidth: number;
+    /** Padding after time signature */
+    timeSigPadding: number;
+  };
+
+  /** Debug settings */
+  debug?: {
+    enabled: boolean;
+    logCommands: boolean;
+    logStateChanges: boolean;
+    logValidation: boolean;
+    showHitZones?: boolean;
+  };
+
+  /** Editor footer settings */
+  footer: {
+    /** Footer height in pixels */
+    height: number;
+    /** Padding inside footer */
+    paddingHorizontal: number;
+    /** Zoom control settings */
+    zoom: {
+      /** Minimum zoom level (percentage) */
+      min: number;
+      /** Maximum zoom level (percentage) */
+      max: number;
+      /** Step size for drag (percentage per pixel) */
+      dragStep: number;
+      /** Width of the drag handle hit area */
+      handleWidth: number;
+    };
+  };
+}
+
+// ========== LAYOUT CONFIG ==========
+
+/**
+ * Layout configuration for page view.
+ */
+export interface LayoutConfig {
+  /** Page size identifier */
+  pageSize: 'letter' | 'a4';
+  /** Page margins preset */
+  margins: 'narrow' | 'normal' | 'wide';
+  /** Staff size as percentage (100 = default), stepped by 10 */
+  staffSize: number;
+  /** Spacing between systems */
+  systemSpacing: 'compact' | 'normal' | 'relaxed';
+  /** Current view mode */
+  viewMode: 'scroll' | 'page';
+}
+
+/**
+ * Position of a single measure within a system.
+ */
+export interface MeasurePosition {
+  /** 0-based measure index */
+  measureIndex: number;
+  /** Absolute X position of measure start */
+  x: number;
+  /** Computed width (may be stretched for justification) */
+  width: number;
+}
+
+/**
+ * Computed layout for a single system (line of music).
+ *
+ * Coordinate reference:
+ * - All X values are in PAGE coordinates (pixels at final render size)
+ * - preambleWidth is in STAFF coordinates (unscaled, multiply by staffScale for page coords)
+ */
+export interface SystemLayout {
+  /** 0-based system index */
+  index: number;
+  /** Measure indices contained in this system (0-based) */
+  measures: number[];
+  /** Y position of system top (page coords) */
+  y: number;
+  /** Total height of system (page coords) */
+  height: number;
+  /** X position where measures start (page coords, includes preamble + indent) */
+  xOffset: number;
+  /** Available width for measures (page coords, preamble already excluded) */
+  contentWidth: number;
+  /** Preamble width in staff coords (narrower on subsequent systems - no time sig) */
+  preambleWidth: number;
+  /** First system flag (has time signature in preamble) */
+  isFirst: boolean;
+  /** Last system flag */
+  isLast: boolean;
+  /** Justification factor (1.0 = full, <1.0 = natural) */
+  justification: number;
+  /** Pre-computed measure positions within this system */
+  measurePositions: MeasurePosition[];
+}
+
+/**
+ * Content area within page margins (the drawable region).
+ */
+export interface ContentArea {
+  /** Absolute X of content start (after left margin) */
+  x: number;
+  /** Absolute Y of content start (after top margin) */
+  y: number;
+  /** Width of content area (page width - left - right margins) */
+  width: number;
+  /** Height of content area (page height - top - bottom margins) */
+  height: number;
+}
+
+/**
+ * Computed margins in pixels.
+ */
+export interface MarginsPx {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+/**
+ * Layout for metadata (title, composer, lyricist) at top of page.
+ */
+export interface MetadataLayout {
+  /** Title text and position (null if no title) */
+  title: { text: string; x: number; y: number } | null;
+  /** Composer text and position - right-aligned below title (null if no composer) */
+  composer: { text: string; x: number; y: number } | null;
+  /** Lyricist text and position - left-aligned below title (null if no lyricist) */
+  lyricist: { text: string; x: number; y: number } | null;
+  /** Y position where metadata ends (systems start below this) */
+  bottom: number;
+}
+
+/**
+ * Layout for page footer (page numbers, copyright).
+ */
+export interface FooterLayout {
+  /** Y position of footer top */
+  y: number;
+  /** Page number position and text */
+  pageNumber: { text: string; x: number; y: number };
+  /** Copyright position and text (page 1 only) */
+  copyright?: { text: string; x: number; y: number };
+}
+
+/**
+ * Layout for a single page in multi-page pagination.
+ */
+export interface Page {
+  /** 0-based page index */
+  index: number;
+  /** Systems on this page (Y coordinates are page-relative) */
+  systems: SystemLayout[];
+  /** Footer layout for this page */
+  footer: FooterLayout;
+  /** Y offset of this page within the canvas */
+  canvasY: number;
+  /** Whether this is the first page (shows metadata) */
+  isFirst: boolean;
+  /** Whether this is the last page */
+  isLast: boolean;
+}
+
+/**
+ * Complete page layout with all pages and systems.
+ */
+export interface PageLayout {
+  /** All pages in the score (for multi-page pagination) */
+  pages: Page[];
+  /** Total number of pages */
+  pageCount: number;
+  /** Visual gap between pages in pixels */
+  pageGap: number;
+  /** Total canvas height (all pages + gaps) */
+  totalHeight: number;
+  /** Systems on first page (backwards compatibility) */
+  systems: SystemLayout[];
+  /** Page dimensions */
+  pageSize: 'letter' | 'a4';
+  dimensions: { width: number; height: number };
+  /** Margins preset */
+  margins: LayoutConfig['margins'];
+  /** Computed content width */
+  contentWidth: number;
+  /** First system indent (0-1) */
+  firstSystemIndent: number;
+  /** Staff scale factor */
+  staffScale: number;
+  /** Content area (drawable region within margins) */
+  contentArea: ContentArea;
+  /** Computed pixel margins */
+  marginsPx: MarginsPx;
+  /** Metadata layout (title, composer positioning) */
+  metadata: MetadataLayout;
+  /** Footer layout for first page (backwards compatibility) */
+  footer: FooterLayout;
+}
+
 // ========== SCORE ==========
 
 export interface Score {
@@ -120,6 +382,12 @@ export interface Score {
 
   /** Chord symbols for harmonic annotation (sorted by quant ascending) */
   chordTrack?: ChordSymbol[];
+
+  /** Score metadata for display and export */
+  metadata?: ScoreMetadata;
+
+  /** Layout configuration */
+  layout?: LayoutConfig;
 }
 
 // ========== HELPER FUNCTIONS ==========
@@ -163,6 +431,38 @@ export const getActiveStaff = (score: Score, staffIndex: number = 0): Staff => {
 };
 
 /**
+ * Migrates chordTrack from global quant to measure-local { measure, quant } format.
+ * Old format: { id, quant, symbol } where quant is global
+ * New format: { id, measure, quant, symbol } where quant is local to measure
+ */
+const migrateChordTrack = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Accepts unknown chord formats during migration
+  chordTrack: any[] | undefined,
+  timeSignature: string
+): ChordSymbol[] | undefined => {
+  if (!chordTrack || chordTrack.length === 0) return chordTrack;
+
+  // Check if migration is needed (first chord without measure field = old format)
+  const needsMigration = chordTrack[0].measure === undefined;
+  if (!needsMigration) return chordTrack;
+
+  const quantsPerMeasure = TIME_SIGNATURES[timeSignature] || 64;
+
+  return chordTrack.map((chord) => {
+    const globalQuant = chord.quant;
+    const measure = Math.floor(globalQuant / quantsPerMeasure);
+    const localQuant = globalQuant % quantsPerMeasure;
+
+    return {
+      id: chord.id,
+      measure,
+      quant: localQuant,
+      symbol: chord.symbol,
+    };
+  });
+};
+
+/**
  * Migrates an old-format score to the new staves model
  * Also syncs top-level legacy fields (measures, keySignature, clef) back to staves[0]
  */
@@ -202,13 +502,20 @@ export const migrateScore = (oldScore: any): Score => {
 
       result.staves = [updatedStaff, ...result.staves.slice(1)];
     }
+
+    // Migrate chord track from global quant to measure-local format
+    if (result.chordTrack) {
+      result.chordTrack = migrateChordTrack(result.chordTrack, result.timeSignature || '4/4');
+    }
+
     return result as Score;
   }
 
   // Migrate legacy single-staff format (no staves array)
+  const timeSig = oldScore.timeSignature || '4/4';
   return {
     title: oldScore.title || 'Composition',
-    timeSignature: oldScore.timeSignature || '4/4',
+    timeSignature: timeSig,
     keySignature: oldScore.keySignature || 'C',
     bpm: oldScore.bpm || 120,
     staves: [
@@ -222,6 +529,8 @@ export const migrateScore = (oldScore: any): Score => {
         ],
       },
     ],
+    // Migrate chord track from global quant to measure-local format
+    chordTrack: migrateChordTrack(oldScore.chordTrack, timeSig),
   };
 };
 
@@ -236,12 +545,16 @@ export interface Melody {
 // ========== SELECTION ==========
 
 /**
- * Represents a note in the selection array
+ * Represents a note in the selection array.
  */
 export interface SelectedNote {
+  /** 0-based staff index */
   staffIndex: number;
+  /** 0-based measure index (array index into staff.measures) */
   measureIndex: number;
+  /** Event ID within the measure */
   eventId: string;
+  /** Note ID within the event, or null for single-note events */
   noteId: string | null;
 }
 
@@ -252,23 +565,31 @@ export interface SelectedNote {
 export interface VerticalAnchors {
   /** Direction of this vertical extension series */
   direction: 'up' | 'down';
-  /** Map of global time (measureIndex * 100000 + quant) to anchor note for that slice */
+  /** Map of global time (0-based measureIndex * 100000 + quant) to anchor note for that slice */
   sliceAnchors: Record<number, SelectedNote>;
   /** Snapshot of selection when vertical extension started */
   originSelection: SelectedNote[];
 }
 
 /**
- * Selection State for the editor
+ * Selection State for the editor.
+ * All indices are 0-based (array indices).
  */
 export interface Selection {
-  staffIndex: number; // Index of the selected staff (0 for single staff, 0 or 1 for Grand Staff)
-  measureIndex: number | null; // Index of the selected measure
-  eventId: string | null; // ID of the selected event
-  noteId: string | null; // ID of the selected note (for chords)
-  selectedNotes: SelectedNote[]; // List of all selected notes (including the primary one above)
-  anchor?: SelectedNote | null; // The static "anchor" point for range selection
-  verticalAnchors?: VerticalAnchors | null; // Per-slice anchors for vertical extension
+  /** 0-based staff index (0 for single staff, 0 or 1 for Grand Staff) */
+  staffIndex: number;
+  /** 0-based measure index (array index into staff.measures), or null if no selection */
+  measureIndex: number | null;
+  /** Event ID within the measure, or null if no selection */
+  eventId: string | null;
+  /** Note ID within the event (for chords), or null for single-note events */
+  noteId: string | null;
+  /** List of all selected notes (including the primary one above) */
+  selectedNotes: SelectedNote[];
+  /** The static "anchor" point for range selection */
+  anchor?: SelectedNote | null;
+  /** Per-slice anchors for vertical extension */
+  verticalAnchors?: VerticalAnchors | null;
 
   /** Selected chord symbol ID (when chord track is focused). Default: null */
   chordId?: string | null;
@@ -297,19 +618,31 @@ export const createDefaultSelection = (): Selection => ({
 /**
  * Represents the ghost cursor state for note preview.
  * Used when navigating to empty space where a note could be placed.
+ * All indices are 0-based (array indices).
  */
 export interface PreviewNote {
+  /** 0-based measure index (array index into staff.measures) */
   measureIndex: number;
+  /** 0-based staff index */
   staffIndex: number;
-  quant: number; // Position in quants within measure
-  visualQuant: number; // Visual position (may differ for display)
-  pitch: string; // Preview pitch (e.g., "C4")
-  duration: string; // Duration name ('quarter', 'half', etc.)
+  /** Position in quants within measure (0 = start of measure) */
+  quant: number;
+  /** Visual position (may differ from quant for display purposes) */
+  visualQuant: number;
+  /** Preview pitch (e.g., "C4") */
+  pitch: string;
+  /** Duration name ('quarter', 'half', etc.) */
+  duration: string;
+  /** Whether the preview note is dotted */
   dotted: boolean;
-  mode: 'APPEND' | 'INSERT' | 'CHORD'; // Append at end or insert at position
-  index: number; // Event index where this would be inserted
+  /** Insertion mode: append at end, insert at position, or add to chord */
+  mode: 'APPEND' | 'INSERT' | 'CHORD';
+  /** 0-based event index where this would be inserted */
+  index: number;
+  /** Whether the preview is for a rest */
   isRest: boolean;
-  source?: 'keyboard' | 'mouse' | 'hover'; // How the ghost cursor was triggered
+  /** How the ghost cursor was triggered */
+  source?: 'keyboard' | 'mouse' | 'hover';
 }
 
 // ========== NAVIGATION RESULT TYPES ==========
@@ -326,22 +659,37 @@ export interface AudioFeedback {
 /**
  * Partial selection used in navigation results.
  * Contains the core fields needed to update selection state.
+ * All indices are 0-based (array indices).
  */
 export interface NavigationSelection {
+  /** 0-based staff index */
   staffIndex: number;
+  /** 0-based measure index (array index), or null if not selecting a note */
   measureIndex: number | null;
+  /** Event ID within the measure, or null */
   eventId: string | null;
+  /** Note ID within the event, or null */
   noteId: string | null;
+  /** Additional selected notes */
   selectedNotes?: Array<{
+    /** 0-based staff index */
     staffIndex: number;
+    /** 0-based measure index */
     measureIndex: number;
+    /** Event ID within the measure */
     eventId: string;
+    /** Note ID within the event, or null */
     noteId: string | null;
   }>;
+  /** Anchor point for range selection */
   anchor?: {
+    /** 0-based staff index */
     staffIndex: number;
+    /** 0-based measure index */
     measureIndex: number;
+    /** Event ID within the measure */
     eventId: string;
+    /** Note ID within the event, or null */
     noteId: string | null;
   } | null;
 }

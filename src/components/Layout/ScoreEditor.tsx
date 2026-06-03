@@ -14,10 +14,10 @@ import { useChordTrack } from '@hooks/chord/useChordTrack';
 // Components
 import ScoreCanvas from '@components/Canvas/ScoreCanvas';
 import Toolbar, { ToolbarHandle } from '@components/Toolbar/Toolbar';
-import { ScoreTitleField } from '@components/Layout/ScoreTitleField';
 import ShortcutsOverlay from '@components/Layout/Overlays/ShortcutsOverlay';
 import ConfirmDialog from '@components/Layout/Overlays/ConfirmDialog';
 import Portal from '@components/Layout/Portal';
+import EditorFooter from '@components/Layout/EditorFooter';
 
 // Commands
 import { SetSingleStaffCommand } from '@commands/SetSingleStaffCommand';
@@ -32,6 +32,7 @@ import { findEventAtQuantPosition } from '@/utils/navigation/crossStaff';
 import { getNoteDuration, isRestEvent } from '@/utils/core';
 import { TIME_SIGNATURES } from '@/constants';
 import { getMidi } from '@/services/MusicService';
+import { DEFAULT_LAYOUT_CONFIG } from '@/config';
 
 import './styles/ScoreEditor.css';
 
@@ -44,7 +45,6 @@ interface ScoreEditorContentProps {
   label?: string;
   showToolbar?: boolean;
   showBackground?: boolean;
-  showScoreTitle?: boolean;
   enableKeyboard?: boolean;
   enablePlayback?: boolean;
 }
@@ -58,7 +58,6 @@ const ScoreEditorContent = ({
   label,
   showToolbar = true,
   showBackground = true,
-  showScoreTitle = true,
   enableKeyboard = true,
   enablePlayback = true,
 }: ScoreEditorContentProps) => {
@@ -67,7 +66,7 @@ const ScoreEditorContent = ({
   const scoreLogic = useScoreContext();
 
   // Grouped API destructuring
-  const { score, selection } = scoreLogic.state;
+  const { score, selection, previewNote } = scoreLogic.state;
   const { dispatch, scoreRef, selectionEngine } = scoreLogic.engines;
   const { activeDuration, isDotted, activeAccidental } = scoreLogic.tools;
   const { select: handleNoteSelection, focus: focusScore } = scoreLogic.navigation;
@@ -81,6 +80,8 @@ const ScoreEditorContent = ({
   const [showHelp, setShowHelp] = useState(false);
   const [isHoveringScore, setIsHoveringScore] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState<InstrumentType>('bright');
+  const [viewportZoom, setViewportZoom] = useState(100); // Viewport zoom in percentage
+  const [isFullscreen, setIsFullscreen] = useState(false);
   // Error state temporarily disabled/unused
   // const [errorMsg, setErrorMsg] = useState(null);
   const errorMsg = null;
@@ -146,30 +147,37 @@ const ScoreEditorContent = ({
       const selectedChordId = selection.chordId;
       if (!selectedChordId) return;
 
-      // Find current chord's quant
+      // Find current chord's position
       const currentChord = chordTrackHook.chords.find((c) => c.id === selectedChordId);
       if (!currentChord) return;
 
-      const currentQuant = currentChord.quant;
-
-      // Get sorted valid quants and find next/previous position
-      const sortedQuants = Array.from(chordTrackHook.validQuants).sort((a, b) => a - b);
-
-      let targetQuant: number | undefined;
-      if (direction === 'next') {
-        targetQuant = sortedQuants.find((q) => q > currentQuant);
-      } else {
-        const previousQuants = sortedQuants.filter((q) => q < currentQuant);
-        targetQuant = previousQuants[previousQuants.length - 1];
-      }
-
-      if (targetQuant !== undefined) {
-        const chordAtQuant = chordTrackHook.chords.find((c) => c.quant === targetQuant);
-        if (chordAtQuant) {
-          chordTrackHook.startEditing(chordAtQuant.id);
-        } else {
-          chordTrackHook.startCreating(targetQuant);
+      // Build sorted list of valid positions from Map<measure, Set<quant>>
+      const sortedPositions: Array<{ measure: number; quant: number }> = [];
+      for (const [measure, quants] of chordTrackHook.validPositions) {
+        for (const quant of quants) {
+          sortedPositions.push({ measure, quant });
         }
+      }
+      sortedPositions.sort((a, b) => a.measure - b.measure || a.quant - b.quant);
+
+      // Find current index
+      const currentIdx = sortedPositions.findIndex(
+        (p) => p.measure === currentChord.measure && p.quant === currentChord.quant
+      );
+      if (currentIdx === -1) return;
+
+      // Find target position
+      const targetIdx = direction === 'next' ? currentIdx + 1 : currentIdx - 1;
+      if (targetIdx < 0 || targetIdx >= sortedPositions.length) return;
+
+      const targetPosition = sortedPositions[targetIdx];
+      const chordAtPosition = chordTrackHook.chords.find(
+        (c) => c.measure === targetPosition.measure && c.quant === targetPosition.quant
+      );
+      if (chordAtPosition) {
+        chordTrackHook.startEditing(chordAtPosition.id);
+      } else {
+        chordTrackHook.startCreating(targetPosition);
       }
     },
     [selection.chordId, chordTrackHook]
@@ -183,9 +191,8 @@ const ScoreEditorContent = ({
     const chord = chordTrackHook.chords.find((c) => c.id === selectedChordId);
     if (!chord) return;
 
-    const quant = chord.quant;
-    const measureIndex = Math.floor(quant / quantsPerMeasure);
-    const localQuant = quant % quantsPerMeasure;
+    const measureIndex = chord.measure;
+    const localQuant = chord.quant;
 
     // Clear chord selection first
     selectionEngine.selectChord(null);
@@ -246,6 +253,10 @@ const ScoreEditorContent = ({
     handleNoteSelection,
   ]);
 
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen((prev) => !prev);
+  }, []);
+
   useKeyboardShortcuts(
     scoreLogic,
     playback,
@@ -257,7 +268,8 @@ const ScoreEditorContent = ({
       isDisabled: !enableKeyboard,
     },
     { handleTitleCommit: titleEditor.commit },
-    { navigateAndEdit: handleChordTabNavigate, escapeToNotes: handleChordEscapeToNotes }
+    { navigateAndEdit: handleChordTabNavigate, escapeToNotes: handleChordEscapeToNotes },
+    { toggleScoreSetup: () => toolbarRef.current?.toggleScoreSetup(), toggleFullscreen }
   );
 
   // --- Event Handlers ---
@@ -302,9 +314,11 @@ const ScoreEditorContent = ({
   }, [selection, exitPlaybackMode]);
 
   // --- Render ---
+  const editorClassName = `riff-ScoreEditor${isFullscreen ? ' riff-ScoreEditor--fullscreen' : ''}`;
+
   return (
     <div
-      className="riff-ScoreEditor"
+      className={editorClassName}
       data-testid="score-editor"
       style={{
         backgroundColor: showBackground ? theme.panelBackground : 'transparent',
@@ -333,6 +347,8 @@ const ScoreEditorContent = ({
           errorMsg={errorMsg}
           onToggleHelp={() => setShowHelp(true)}
           onEscape={handleEscape}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggleFullscreen}
         />
       )}
 
@@ -342,37 +358,40 @@ const ScoreEditorContent = ({
         </Portal>
       )}
 
-      <div className="riff-ScoreEditor__content" style={{ backgroundColor: theme.background }}>
-        {showScoreTitle && (
-          <div className="riff-ScoreEditor__title-wrapper">
-            <ScoreTitleField
-              title={score.title}
-              isEditing={titleEditor.isEditing}
-              setIsEditing={titleEditor.setIsEditing}
-              buffer={titleEditor.buffer}
-              setBuffer={titleEditor.setBuffer}
-              commit={titleEditor.commit}
-              inputRef={titleEditor.inputRef}
-              theme={theme}
-              scale={scale}
-            />
-          </div>
-        )}
-
-        <ScoreCanvas
-          scale={scale}
-          playbackPosition={playback.playbackPosition}
-          containerRef={scoreContainerRef}
-          onHoverChange={handleHoverChange}
-          onBackgroundClick={handleBackgroundClick}
-          onKeySigClick={() => toolbarRef.current?.openKeySigMenu()}
-          onTimeSigClick={() => toolbarRef.current?.openTimeSigMenu()}
-          onClefClick={() => toolbarRef.current?.openClefMenu()}
-          isPlaying={playback.isPlaying}
-          isPlaybackVisible={playback.isActive}
-          chordTrack={chordTrackHook}
-        />
+      <div className="riff-ScoreEditor__viewport" style={{ backgroundColor: theme.background }}>
+        <div
+          className="riff-ScoreEditor__content"
+          style={{
+            transform: `scale(${viewportZoom / 100})`,
+            transformOrigin:
+              (score.layout?.viewMode ?? DEFAULT_LAYOUT_CONFIG.viewMode) === 'scroll'
+                ? 'top left'
+                : 'top center',
+          }}
+        >
+          <ScoreCanvas
+            scale={scale}
+            playbackPosition={playback.playbackPosition}
+            containerRef={scoreContainerRef}
+            onHoverChange={handleHoverChange}
+            onBackgroundClick={handleBackgroundClick}
+            onKeySigClick={() => toolbarRef.current?.openKeySigMenu()}
+            onTimeSigClick={() => toolbarRef.current?.openTimeSigMenu()}
+            onClefClick={() => toolbarRef.current?.openClefMenu()}
+            isPlaying={playback.isPlaying}
+            isPlaybackVisible={playback.isActive}
+            chordTrack={chordTrackHook}
+          />
+        </div>
       </div>
+
+      <EditorFooter
+        selection={selection}
+        previewNote={previewNote}
+        score={score}
+        zoom={viewportZoom}
+        onZoomChange={setViewportZoom}
+      />
 
       {pendingClefChange && (
         <Portal>

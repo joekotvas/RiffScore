@@ -128,7 +128,7 @@ describe('Navigation - Horizontal Boundaries', () => {
     const api = getAPI('nav-left-boundary');
 
     // Select first event
-    api.select(1, 0, 0);
+    api.select(0, 0, 0);
     const initialSelection = api.getSelection();
     expect(initialSelection.eventId).toBe('e1');
 
@@ -145,7 +145,7 @@ describe('Navigation - Horizontal Boundaries', () => {
     const api = getAPI('nav-right-measure');
 
     // Select last event in first measure
-    api.select(1, 0, 1);
+    api.select(0, 0, 1);
     expect(api.getSelection().eventId).toBe('e2-t');
 
     // Move right - should enter ghost mode in current measure (because it's not full)
@@ -162,7 +162,7 @@ describe('Navigation - Horizontal Boundaries', () => {
     const api = getAPI('nav-right-boundary');
 
     // Select last event in last measure (measure 2, event 0)
-    api.select(2, 0, 0);
+    api.select(1, 0, 0);
     expect(api.getSelection().eventId).toBe('e3-t');
 
     // Move right - should move to append position
@@ -176,7 +176,7 @@ describe('Navigation - Horizontal Boundaries', () => {
     render(<RiffScore id="nav-chain" config={configWithStaves(createSingleStaffStaves())} />);
     const api = getAPI('nav-chain');
 
-    api.select(1, 0, 0);
+    api.select(0, 0, 0);
     const result = api.move('right');
     expect(result).toBe(api);
   });
@@ -195,7 +195,7 @@ describe('Navigation - Vertical (Cross-Staff)', () => {
     const api = getAPI('nav-down-staff');
 
     // Select first event in treble staff
-    api.select(1, 0, 0);
+    api.select(0, 0, 0);
     expect(api.getSelection().staffIndex).toBe(0);
     expect(api.getSelection().eventId).toBe('e1-t');
 
@@ -211,7 +211,7 @@ describe('Navigation - Vertical (Cross-Staff)', () => {
     const api = getAPI('nav-up-staff');
 
     // Select first event in bass staff
-    api.select(1, 1, 0);
+    api.select(0, 1, 0);
     expect(api.getSelection().staffIndex).toBe(1);
     expect(api.getSelection().eventId).toBe('e1-b');
 
@@ -227,7 +227,7 @@ describe('Navigation - Vertical (Cross-Staff)', () => {
     const api = getAPI('nav-down-cycle');
 
     // Select event in bass staff (bottom)
-    api.select(1, 1, 0);
+    api.select(0, 1, 0);
     expect(api.getSelection().staffIndex).toBe(1);
 
     // Move down - should cycle to treble (top)
@@ -241,7 +241,7 @@ describe('Navigation - Vertical (Cross-Staff)', () => {
     const api = getAPI('nav-up-cycle');
 
     // Select event in treble staff (top)
-    api.select(1, 0, 0);
+    api.select(0, 0, 0);
     expect(api.getSelection().staffIndex).toBe(0);
 
     // Move up - should cycle to bass (bottom)
@@ -257,7 +257,7 @@ describe('Navigation - Vertical (Cross-Staff)', () => {
     const api = getAPI('nav-single-staff');
 
     // Select first event
-    api.select(1, 0, 0);
+    api.select(0, 0, 0);
     const initialSelection = api.getSelection();
 
     // Move up - should be no-op
@@ -336,7 +336,7 @@ describe('Navigation - Vertical (Chord Traversal)', () => {
     const api = getAPI('nav-v-ghost-enter');
 
     // Select first event in treble staff
-    api.select(1, 0, 0);
+    api.select(0, 0, 0);
     expect(api.getSelection().eventId).toBe('e1-t');
 
     // Move down - should enter ghost cursor on bass staff
@@ -357,7 +357,7 @@ describe('Navigation - Vertical (Chord Traversal)', () => {
     const api = getAPI('nav-v-ghost-up');
 
     // Select first event in bass staff
-    api.select(1, 1, 0);
+    api.select(0, 1, 0);
     expect(api.getSelection().eventId).toBe('e1-b');
 
     // Move up - should enter ghost cursor on treble staff
@@ -437,7 +437,7 @@ describe('Navigation - jump() Edge Cases', () => {
     const api = getAPI('jump-start');
 
     // Start somewhere else
-    api.select(2, 0, 0);
+    api.select(1, 0, 0);
     expect(api.getSelection().measureIndex).toBe(1);
 
     // Jump to start
@@ -452,7 +452,7 @@ describe('Navigation - jump() Edge Cases', () => {
     const api = getAPI('jump-end');
 
     // Start at beginning
-    api.select(1, 0, 0);
+    api.select(0, 0, 0);
 
     // Jump to end
     api.jump('end-score');
@@ -468,7 +468,7 @@ describe('Navigation - jump() Edge Cases', () => {
     const api = getAPI('jump-measure-start');
 
     // Select second event in first measure
-    api.select(1, 0, 1);
+    api.select(0, 0, 1);
     expect(api.getSelection().eventId).toBe('e2-t');
 
     // Jump to start of measure
@@ -483,7 +483,7 @@ describe('Navigation - jump() Edge Cases', () => {
     const api = getAPI('jump-measure-end');
 
     // Select first event in first measure
-    api.select(1, 0, 0);
+    api.select(0, 0, 0);
 
     // Jump to end of measure
     api.jump('end-measure');

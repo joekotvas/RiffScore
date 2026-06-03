@@ -9,6 +9,12 @@
 
 import type { ChordSymbol } from '@/types';
 
+/** Position for chord lookup */
+export interface ChordPosition {
+  measure: number;
+  quant: number;
+}
+
 /**
  * Find a chord by ID in the chord track.
  *
@@ -25,18 +31,35 @@ export const findChordById = (
 };
 
 /**
- * Find a chord at a specific quant position.
+ * Find a chord at a specific position.
  *
  * @param chordTrack - The chord track to search
- * @param quant - Quant position to search at
+ * @param position - Measure-local position to search at
  * @returns The chord if found, null otherwise
  */
-export const findChordAtQuant = (
+export const findChordAt = (
   chordTrack: ChordSymbol[] | undefined,
-  quant: number
+  position: ChordPosition
 ): ChordSymbol | null => {
   if (!chordTrack) return null;
-  return chordTrack.find((c) => c.quant === quant) ?? null;
+  return (
+    chordTrack.find((c) => c.measure === position.measure && c.quant === position.quant) ?? null
+  );
+};
+
+/**
+ * Find all chords in a specific measure.
+ *
+ * @param chordTrack - The chord track to search
+ * @param measureIndex - Measure index to search
+ * @returns Array of chords in the measure (may be empty)
+ */
+export const findChordsInMeasure = (
+  chordTrack: ChordSymbol[] | undefined,
+  measureIndex: number
+): ChordSymbol[] => {
+  if (!chordTrack) return [];
+  return chordTrack.filter((c) => c.measure === measureIndex);
 };
 
 /**

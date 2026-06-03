@@ -8,3 +8,8 @@ export { useEditorMode } from './useEditorMode';
 export { useModifiers } from './useModifiers';
 export { useModifierKeys } from './useModifierKeys';
 export { useAccidentalContext } from './useAccidentalContext';
+export {
+  useSelectionStatus,
+  type SelectionStatus,
+  type SelectionStatusType,
+} from './useSelectionStatus';

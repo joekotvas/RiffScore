@@ -1,49 +1,59 @@
 import { MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT, KEY_SIGNATURES, LAYOUT, STEM } from '@/constants';
 import { CONFIG } from '@/config';
 import { getNoteDuration } from '@/utils/core';
-import { Note, ChordLayout, HeaderLayout } from './types';
+import { Note, ChordLayout, SystemPreamble } from './types';
 import { getStaffPitch, STAFF_LETTERS } from '@/services/MusicService';
 
-// ========== HEADER LAYOUT (SSOT) ==========
+// ========== SYSTEM PREAMBLE (SSOT) ==========
 
-// Layout constants - single source of truth
-const HEADER_LAYOUT_CONSTANTS = {
-  KEY_SIG_START_X: 45,
-  KEY_SIG_ACCIDENTAL_WIDTH: 10,
-  KEY_SIG_PADDING: 10,
-  TIME_SIG_WIDTH: 30,
-  TIME_SIG_PADDING: 20,
-};
+interface SystemPreambleOptions {
+  /** Whether this is the first system (shows time signature). Default: true */
+  isFirstSystem?: boolean;
+}
 
 /**
- * Calculates header layout positions based on key signature.
- * This is the SINGLE SOURCE OF TRUTH for header layout calculations.
+ * Calculates system preamble layout (clef, key signature, time signature).
+ * This is the SINGLE SOURCE OF TRUTH for preamble layout calculations.
+ *
  * @param keySignature - The key signature string (e.g., 'C', 'G', 'F')
- * @returns HeaderLayout object with all calculated positions
+ * @param options - Configuration options
+ * @param options.isFirstSystem - Whether to include time signature (default: true)
+ * @returns SystemPreamble object with all calculated positions
  */
-export const calculateHeaderLayout = (keySignature: string): HeaderLayout => {
-  const {
-    KEY_SIG_START_X,
-    KEY_SIG_ACCIDENTAL_WIDTH,
-    KEY_SIG_PADDING,
-    TIME_SIG_WIDTH,
-    TIME_SIG_PADDING,
-  } = HEADER_LAYOUT_CONSTANTS;
+export const calculateSystemPreamble = (
+  keySignature: string,
+  options: SystemPreambleOptions = {}
+): SystemPreamble => {
+  const { isFirstSystem = true } = options;
+  const { keySigStartX, keySigAccidentalWidth, keySigPadding, timeSigWidth, timeSigPadding } =
+    CONFIG.preamble;
 
   const keySigCount = KEY_SIGNATURES[keySignature]?.count || 0;
-  const keySigVisualWidth = keySigCount > 0 ? keySigCount * KEY_SIG_ACCIDENTAL_WIDTH + 10 : 0;
-  const timeSigStartX = KEY_SIG_START_X + keySigVisualWidth + KEY_SIG_PADDING;
-  const startOfMeasures = timeSigStartX + TIME_SIG_WIDTH + TIME_SIG_PADDING;
+  const keySigVisualWidth = keySigCount > 0 ? keySigCount * keySigAccidentalWidth + 10 : 0;
 
+  // Time signature only on first system
+  if (isFirstSystem) {
+    const timeSigStartXPos = keySigStartX + keySigVisualWidth + keySigPadding;
+    const measuresX = timeSigStartXPos + timeSigWidth + timeSigPadding;
+    return {
+      keySigStartX,
+      keySigVisualWidth,
+      timeSigStartX: timeSigStartXPos,
+      measuresX,
+      hasTimeSignature: true,
+    };
+  }
+
+  // Subsequent systems: no time signature, narrower preamble
+  const measuresX = keySigStartX + keySigVisualWidth + keySigPadding;
   return {
-    keySigStartX: KEY_SIG_START_X,
+    keySigStartX,
     keySigVisualWidth,
-    timeSigStartX,
-    startOfMeasures,
+    timeSigStartX: 0, // Not used for subsequent systems
+    measuresX,
+    hasTimeSignature: false,
   };
 };
-
-export const HEADER_CONSTANTS = HEADER_LAYOUT_CONSTANTS;
 
 // ========== TREBLE CLEF PITCHES (C3 to G6) ==========
 // Offset is relative to CONFIG.baseY

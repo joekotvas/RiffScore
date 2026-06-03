@@ -82,7 +82,11 @@ export interface MeasureProps {
   forcedEventPositions?: Record<number, number>;
   measureLayout?: MeasureLayoutV2;
 
-  // 3. Contexts (Grouped)
+  // 3. Justification (Page View)
+  /** Stretch factor for justified systems (default: 1.0 = no stretch) */
+  stretchFactor?: number;
+
+  // 4. Contexts (Grouped)
   layout: LayoutConfig;
   interaction: InteractionState;
 }

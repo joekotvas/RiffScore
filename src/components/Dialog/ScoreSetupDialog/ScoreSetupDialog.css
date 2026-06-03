@@ -1,0 +1,303 @@
+/**
+ * ScoreSetupDialog Styles
+ *
+ * Styles for the Score Setup dialog using BEM naming convention.
+ * Uses --riff-* CSS variables from theme.css.
+ *
+ * @module components/Dialog/ScoreSetupDialog
+ */
+
+/* ============================================================================
+   Backdrop
+   ============================================================================ */
+
+.riff-ScoreSetupDialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: var(--riff-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--riff-color-backdrop);
+}
+
+/* ============================================================================
+   Dialog Container
+   ============================================================================ */
+
+.riff-ScoreSetupDialog {
+  background-color: var(--riff-color-bg);
+  border-radius: var(--riff-border-radius-lg);
+  box-shadow: var(--riff-shadow-xl);
+  width: 480px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ============================================================================
+   Header
+   ============================================================================ */
+
+.riff-ScoreSetupDialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--riff-spacing-4) var(--riff-spacing-6);
+  border-bottom: var(--riff-border-width) solid var(--riff-color-border);
+}
+
+.riff-ScoreSetupDialog__title {
+  margin: 0;
+  font-size: var(--riff-font-size-lg);
+  font-weight: var(--riff-font-weight-semibold);
+  color: var(--riff-color-text);
+}
+
+.riff-ScoreSetupDialog__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--riff-color-text-secondary);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--riff-border-radius);
+  transition:
+    background-color var(--riff-transition-fast),
+    color var(--riff-transition-fast);
+}
+
+.riff-ScoreSetupDialog__close:hover {
+  background-color: var(--riff-color-hover-bg);
+  color: var(--riff-color-text);
+}
+
+.riff-ScoreSetupDialog__close:focus-visible {
+  outline: 2px solid var(--riff-color-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   Content (Scrollable)
+   ============================================================================ */
+
+.riff-ScoreSetupDialog__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--riff-spacing-6);
+}
+
+/* ============================================================================
+   Sections
+   ============================================================================ */
+
+.riff-ScoreSetupDialog__section {
+  margin-bottom: var(--riff-spacing-6);
+}
+
+.riff-ScoreSetupDialog__section:last-child {
+  margin-bottom: 0;
+}
+
+.riff-ScoreSetupDialog__section-header {
+  font-size: var(--riff-font-size-sm);
+  font-weight: var(--riff-font-weight-semibold);
+  color: var(--riff-color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: var(--riff-tracking-wider);
+  border-bottom: var(--riff-border-width) solid var(--riff-color-border);
+  padding-bottom: var(--riff-spacing-2);
+  margin-top: 0;
+  margin-bottom: var(--riff-spacing-4);
+}
+
+/* ============================================================================
+   Form Fields
+   ============================================================================ */
+
+.riff-ScoreSetupDialog__field {
+  margin-bottom: var(--riff-spacing-4);
+}
+
+.riff-ScoreSetupDialog__field:last-child {
+  margin-bottom: 0;
+}
+
+.riff-ScoreSetupDialog__label {
+  display: block;
+  margin-bottom: var(--riff-spacing-1);
+  font-size: var(--riff-font-size-sm);
+  font-weight: var(--riff-font-weight-medium);
+  color: var(--riff-color-text);
+}
+
+.riff-ScoreSetupDialog__required {
+  color: var(--riff-color-danger);
+  margin-left: 2px;
+}
+
+.riff-ScoreSetupDialog__input,
+.riff-ScoreSetupDialog__select {
+  width: 100%;
+  padding: var(--riff-spacing-2) var(--riff-spacing-3);
+  font-size: var(--riff-font-size-sm);
+  line-height: var(--riff-line-height-normal);
+  color: var(--riff-color-text);
+  background-color: var(--riff-color-bg);
+  border: var(--riff-border-width) solid var(--riff-color-border);
+  border-radius: var(--riff-border-radius-md);
+  transition:
+    border-color var(--riff-transition-fast),
+    box-shadow var(--riff-transition-fast);
+}
+
+.riff-ScoreSetupDialog__input:focus,
+.riff-ScoreSetupDialog__select:focus {
+  outline: none;
+  border-color: var(--riff-color-primary);
+  box-shadow: 0 0 0 3px rgba(29, 165, 156, 0.2);
+}
+
+.riff-ScoreSetupDialog__input::placeholder {
+  color: var(--riff-color-muted);
+}
+
+.riff-ScoreSetupDialog__input--error {
+  border-color: var(--riff-color-danger);
+}
+
+.riff-ScoreSetupDialog__input--error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+.riff-ScoreSetupDialog__error {
+  display: block;
+  margin-top: var(--riff-spacing-1);
+  font-size: var(--riff-font-size-xs);
+  color: var(--riff-color-danger);
+}
+
+/* ============================================================================
+   Slider
+   ============================================================================ */
+
+.riff-ScoreSetupDialog__slider-group {
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-3);
+}
+
+.riff-ScoreSetupDialog__slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--riff-color-border);
+  border-radius: var(--riff-border-radius-full);
+  cursor: pointer;
+}
+
+.riff-ScoreSetupDialog__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--riff-color-primary);
+  border-radius: var(--riff-border-radius-full);
+  cursor: pointer;
+  transition: transform var(--riff-transition-fast);
+}
+
+.riff-ScoreSetupDialog__slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.riff-ScoreSetupDialog__slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--riff-color-primary);
+  border: none;
+  border-radius: var(--riff-border-radius-full);
+  cursor: pointer;
+}
+
+.riff-ScoreSetupDialog__slider:focus-visible {
+  outline: 2px solid var(--riff-color-primary);
+  outline-offset: 2px;
+}
+
+.riff-ScoreSetupDialog__slider-value {
+  min-width: 45px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--riff-font-size-sm);
+  color: var(--riff-color-text-secondary);
+}
+
+.riff-ScoreSetupDialog__slider-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--riff-spacing-1);
+  font-size: var(--riff-font-size-xs);
+  color: var(--riff-color-text-secondary);
+}
+
+/* ============================================================================
+   Footer
+   ============================================================================ */
+
+.riff-ScoreSetupDialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--riff-spacing-3);
+  padding: var(--riff-spacing-4) var(--riff-spacing-6);
+  border-top: var(--riff-border-width) solid var(--riff-color-border);
+}
+
+.riff-ScoreSetupDialog__button {
+  padding: var(--riff-spacing-2) var(--riff-spacing-4);
+  font-size: var(--riff-font-size-sm);
+  font-weight: var(--riff-font-weight-medium);
+  border-radius: var(--riff-border-radius-md);
+  cursor: pointer;
+  transition:
+    background-color var(--riff-transition-fast),
+    opacity var(--riff-transition-fast);
+  border: none;
+}
+
+.riff-ScoreSetupDialog__button:hover {
+  opacity: 0.9;
+}
+
+.riff-ScoreSetupDialog__button:focus-visible {
+  outline: 2px solid var(--riff-color-primary);
+  outline-offset: 2px;
+}
+
+.riff-ScoreSetupDialog__button--primary {
+  background-color: var(--riff-color-primary);
+  color: var(--riff-color-active-text);
+}
+
+.riff-ScoreSetupDialog__button--secondary {
+  background-color: transparent;
+  color: var(--riff-color-text);
+  border: var(--riff-border-width) solid var(--riff-color-border);
+}
+
+.riff-ScoreSetupDialog__button--secondary:hover {
+  background-color: var(--riff-color-hover-bg);
+  opacity: 1;
+}

@@ -9,4 +9,15 @@ export { usePreviewRender } from './usePreviewRender';
 export { useAutoScroll } from './useAutoScroll';
 export { useFontLoaded, type FontLoadedResult } from './useFontLoaded';
 export { useFocusTrap } from './useFocusTrap';
+export { usePageLayout, type UsePageLayoutResult } from './usePageLayout';
+export { useScoreSetup } from './useScoreSetup';
 export * from './useScoreLayout';
+export {
+  useMetadataTrack,
+  FIELD_ORDER,
+  type MetadataFieldName,
+  type UseMetadataTrackProps,
+  type UseMetadataTrackReturn,
+  type MetadataTrackProps,
+  type MetadataTrackEditingState,
+} from './useMetadataTrack';

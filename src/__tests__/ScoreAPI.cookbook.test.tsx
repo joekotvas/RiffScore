@@ -107,7 +107,7 @@ describe('Cookbook: Entry Recipes', () => {
     // Measure 1: C4-F4
     act(() => {
       score
-        .select(1)
+        .select(0)
         .addNote('C4', 'quarter')
         .addNote('D4', 'quarter')
         .addNote('E4', 'quarter')
@@ -117,7 +117,7 @@ describe('Cookbook: Entry Recipes', () => {
     // Measure 2: G4-C5
     act(() => {
       score
-        .select(2)
+        .select(1)
         .addNote('G4', 'quarter')
         .addNote('A4', 'quarter')
         .addNote('B4', 'quarter')
@@ -148,7 +148,7 @@ describe('Cookbook: Entry Recipes', () => {
 
     act(() => {
       score
-        .select(1)
+        .select(0)
         .addNote('C4', 'eighth')
         .addNote('D4', 'eighth')
         .addNote('E4', 'eighth')
@@ -180,7 +180,7 @@ describe('Cookbook: Entry Recipes', () => {
 
     act(() => {
       // Measure 1: C major chord
-      score.select(1).addNote('C4', 'half').move('left').addTone('E4').addTone('G4').move('right');
+      score.select(0).addNote('C4', 'half').move('left').addTone('E4').addTone('G4').move('right');
 
       // Same measure: F major (cursor auto-advances after addNote)
       score.addNote('F4', 'half').move('left').addTone('A4').addTone('C5').move('right');
@@ -188,7 +188,7 @@ describe('Cookbook: Entry Recipes', () => {
 
     act(() => {
       // Measure 2: G major
-      score.select(2).addNote('G4', 'half').move('left').addTone('B4').addTone('D5').move('right');
+      score.select(1).addNote('G4', 'half').move('left').addTone('B4').addTone('D5').move('right');
 
       // Same measure: C major
       score.addNote('C4', 'half').move('left').addTone('E4').addTone('G4').move('right');
@@ -227,7 +227,7 @@ describe('Cookbook: Entry Recipes', () => {
 
     act(() => {
       score
-        .select(1)
+        .select(0)
         .addNote('C4', 'quarter')
         .addRest('quarter')
         .addNote('E4', 'quarter')
@@ -280,23 +280,28 @@ describe('Cookbook: Chord Symbol Recipes', () => {
     // First add notes so valid quant positions exist
     act(() => {
       score
-        .select(1)
+        .select(0)
         .addNote('C4', 'quarter')
         .addNote('D4', 'quarter')
         .addNote('E4', 'quarter')
         .addNote('F4', 'quarter');
     });
 
-    // Get valid positions (quantsPerBeat varies by environment)
-    const validQuants = score.getValidChordQuants();
-    expect(validQuants.length).toBeGreaterThanOrEqual(4);
+    // Get valid positions (returns Map<measure, Set<quant>>)
+    const validPositions = score.getValidChordPositions();
+    const measureQuants = validPositions.get(0);
+    expect(measureQuants).toBeDefined();
+    expect(measureQuants!.size).toBeGreaterThanOrEqual(4);
+
+    // Convert to sorted array for test assertions
+    const sortedQuants = Array.from(measureQuants!).sort((a, b) => a - b);
 
     // Add chords at beat 1 and beat 2
     act(() => {
-      score.addChord(validQuants[0], 'C');
+      score.addChord({ measure: 0, quant: sortedQuants[0] }, 'C');
     });
     act(() => {
-      score.addChord(validQuants[1], 'F');
+      score.addChord({ measure: 0, quant: sortedQuants[1] }, 'F');
     });
 
     expect(score.ok).toBe(true);
@@ -304,9 +309,9 @@ describe('Cookbook: Chord Symbol Recipes', () => {
     const chords = score.getChords();
     expect(chords.length).toBe(2);
     expect(chords[0].symbol).toBe('C');
-    expect(chords[0].quant).toBe(validQuants[0]);
+    expect(chords[0].quant).toBe(sortedQuants[0]);
     expect(chords[1].symbol).toBe('F');
-    expect(chords[1].quant).toBe(validQuants[1]);
+    expect(chords[1].quant).toBe(sortedQuants[1]);
   });
 
   /**
@@ -322,20 +327,21 @@ describe('Cookbook: Chord Symbol Recipes', () => {
     // Create notes and chords
     act(() => {
       score
-        .select(1)
+        .select(0)
         .addNote('C4', 'quarter')
         .addNote('D4', 'quarter')
         .addNote('E4', 'quarter')
         .addNote('F4', 'quarter');
     });
 
-    const validQuants = score.getValidChordQuants();
+    const validPositions = score.getValidChordPositions();
+    const measureQuants = Array.from(validPositions.get(0) || []).sort((a, b) => a - b);
 
     act(() => {
-      score.addChord(validQuants[0], 'C');
+      score.addChord({ measure: 0, quant: measureQuants[0] }, 'C');
     });
     act(() => {
-      score.addChord(validQuants[1], 'F');
+      score.addChord({ measure: 0, quant: measureQuants[1] }, 'F');
     });
 
     // Get all chords, select the second one
@@ -412,7 +418,7 @@ describe('Cookbook: Editing Recipes', () => {
 
     // Add a quarter note - this also selects it
     act(() => {
-      score.select(1).addNote('C4', 'quarter');
+      score.select(0).addNote('C4', 'quarter');
     });
 
     // Change duration of the selected event
@@ -435,7 +441,7 @@ describe('Cookbook: Editing Recipes', () => {
     const score = getAPI('cookbook-transpose');
 
     act(() => {
-      score.select(1).addNote('C4', 'quarter');
+      score.select(0).addNote('C4', 'quarter');
     });
 
     // Selection should still be on C4 (or we move back to it)
@@ -490,7 +496,7 @@ describe('Cookbook: Batch Operations', () => {
     const score = getAPI('cookbook-transaction');
 
     act(() => {
-      score.select(1);
+      score.select(0);
       score.beginTransaction();
 
       for (let i = 0; i < 16; i++) {
@@ -523,7 +529,7 @@ describe('Cookbook: Batch Operations', () => {
     // Add measures first (default score has 2 measures)
     act(() => {
       score.addMeasure().addMeasure();
-      score.select(3).addRest('whole');
+      score.select(2).addRest('whole');
     });
 
     const data = score.getScore();
@@ -565,7 +571,7 @@ describe('Cookbook: Observability', () => {
     const unsub = score.on('batch', callback);
 
     act(() => {
-      score.select(1);
+      score.select(0);
       score.beginTransaction();
       score.addNote('C4', 'quarter');
       score.commitTransaction('Test Batch');
@@ -645,7 +651,7 @@ describe('Cookbook: Validation & Errors', () => {
 
     act(() => {
       report = score.collect((api) => {
-        api.select(1).addNote('C4', 'quarter').addNote('InvalidPitch').addNote('E4', 'quarter');
+        api.select(0).addNote('C4', 'quarter').addNote('InvalidPitch').addNote('E4', 'quarter');
       });
     });
 
@@ -695,7 +701,7 @@ describe('Cookbook: Integration Recipes', () => {
     const unsub = score.on('score', callback);
 
     act(() => {
-      score.select(1).addNote('C4');
+      score.select(0).addNote('C4');
     });
 
     await waitFor(() => {
@@ -718,8 +724,8 @@ describe('Cookbook: Integration Recipes', () => {
     const score = getAPI('cookbook-sync-selection');
 
     act(() => {
-      score.select(1).addNote('C4').addNote('D4');
-      score.select(1, 0, 0); // Select first note
+      score.select(0).addNote('C4').addNote('D4');
+      score.select(0, 0, 0); // Select first note
     });
 
     const callback = jest.fn();
@@ -783,7 +789,7 @@ describe('Cookbook: Export Recipes', () => {
 
     // Add some content first
     act(() => {
-      score.select(1).addNote('C4', 'quarter');
+      score.select(0).addNote('C4', 'quarter');
     });
 
     const json = score.export('json');
@@ -821,7 +827,7 @@ describe('Cookbook: Export Recipes', () => {
 
     // Add content to current score
     act(() => {
-      score.select(1).addNote('C4', 'quarter');
+      score.select(0).addNote('C4', 'quarter');
     });
     expect(countEventsInStaff(score.getScore())).toBe(1);
 
@@ -897,7 +903,7 @@ describe('Cookbook: Query Recipes', () => {
 
     // Make a selection
     act(() => {
-      score.select(1).addNote('C4', 'quarter');
+      score.select(0).addNote('C4', 'quarter');
     });
 
     const sel = score.getSelection();
@@ -962,8 +968,8 @@ describe('Cookbook: Multiple Instances', () => {
 
     // Add different notes to each
     act(() => {
-      leftScore?.select(1).addNote('C3', 'quarter');
-      rightScore?.select(1).addNote('G4', 'quarter');
+      leftScore?.select(0).addNote('C3', 'quarter');
+      rightScore?.select(0).addNote('G4', 'quarter');
     });
 
     // Verify they're independent

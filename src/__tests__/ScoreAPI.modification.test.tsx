@@ -112,12 +112,12 @@ describe('ScoreAPI Modification & IO Methods', () => {
       const api = getAPI('del-sel-note');
 
       act(() => {
-        api.select(1).addNote('C4', 'quarter');
+        api.select(0).addNote('C4', 'quarter');
       });
 
       // Select the note
       act(() => {
-        api.select(1, 0, 0, 0);
+        api.select(0, 0, 0, 0);
       });
 
       act(() => {
@@ -135,12 +135,12 @@ describe('ScoreAPI Modification & IO Methods', () => {
 
       // Add two rests
       act(() => {
-        api.select(1).addRest('quarter').addRest('quarter');
+        api.select(0).addRest('quarter').addRest('quarter');
       });
 
       // Select first
       act(() => {
-        api.select(1, 0, 0);
+        api.select(0, 0, 0);
       });
 
       act(() => {
@@ -225,12 +225,12 @@ describe('ScoreAPI Modification & IO Methods', () => {
       const api = getAPI('transpose');
 
       act(() => {
-        api.select(1).addNote('C4', 'quarter');
+        api.select(0).addNote('C4', 'quarter');
       });
 
       // Select
       act(() => {
-        api.select(1, 0, 0, 0);
+        api.select(0, 0, 0, 0);
       });
 
       // Transpose +2 steps (C -> E)
@@ -257,11 +257,11 @@ describe('ScoreAPI Modification & IO Methods', () => {
       const api = getAPI('update-event');
 
       act(() => {
-        api.select(1).addRest('quarter');
+        api.select(0).addRest('quarter');
       });
 
       act(() => {
-        api.select(1, 0, 0);
+        api.select(0, 0, 0);
       }); // Select the rest
 
       // Update color (custom prop simulation) or verified prop
@@ -373,8 +373,8 @@ describe('ScoreAPI Modification & IO Methods', () => {
       const api = getAPI('edge-transpose');
 
       act(() => {
-        api.select(1).addNote('C4', 'quarter');
-        api.select(1, 0, 0, 0); // Select note
+        api.select(0).addNote('C4', 'quarter');
+        api.select(0, 0, 0, 0); // Select note
       });
 
       // Transpose +8 steps (Octave + 1) -> C4 + 7 steps = C5. +8 steps = D5.
@@ -391,7 +391,7 @@ describe('ScoreAPI Modification & IO Methods', () => {
       const api = getAPI('edge-clef-pitch');
 
       act(() => {
-        api.select(1).addNote('C4', 'quarter');
+        api.select(0).addNote('C4', 'quarter');
       });
 
       // Change to Bass clef
@@ -417,7 +417,7 @@ describe('ScoreAPI Modification & IO Methods', () => {
       // Need to select second staff.
       // api.select(measureNum, staffIndex, eventIndex, noteIndex)
       act(() => {
-        api.select(1, 1, 0, 0); // Measure 1, Staff 1
+        api.select(0, 1, 0, 0); // Measure 1, Staff 1
         api.addNote('C3', 'quarter');
       });
 

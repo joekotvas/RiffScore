@@ -1,0 +1,103 @@
+/**
+ * MetadataTrack.css
+ *
+ * Styles for the metadata track components.
+ * Uses BEM naming convention with .riff- namespace.
+ *
+ * @see ChordTrack.css for similar pattern
+ */
+
+/* ============================================================================
+   METADATA TRACK CONTAINER
+   ============================================================================ */
+
+.riff-MetadataTrack__hitArea {
+  /* Cursor set dynamically via state based on hover position */
+  cursor: default;
+}
+
+/* ============================================================================
+   METADATA FIELD
+   ============================================================================ */
+
+.riff-MetadataField {
+  font-family: var(--riff-font-sans);
+  fill: var(--riff-color-text);
+  user-select: none;
+  letter-spacing: 0;
+  word-spacing: 0;
+}
+
+.riff-MetadataField--hovered {
+  fill: var(--riff-color-primary);
+}
+
+.riff-MetadataField--selected {
+  fill: var(--riff-color-primary);
+}
+
+.riff-MetadataField--preview {
+  fill: var(--riff-color-muted);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ============================================================================
+   METADATA INPUT
+   ============================================================================ */
+
+.riff-MetadataInput__foreignObject {
+  overflow: visible;
+}
+
+.riff-MetadataInput__container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: center;
+}
+
+.riff-MetadataInput {
+  padding: 4px 8px;
+  font-family: var(--riff-font-sans);
+  line-height: 1.4;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  background-color: transparent;
+  color: var(--riff-color-text);
+}
+
+.riff-MetadataInput::placeholder {
+  color: var(--riff-color-muted);
+  opacity: 0.7;
+}
+
+.riff-MetadataInput::selection {
+  background-color: rgba(29, 165, 156, 0.3);
+}
+
+.riff-MetadataInput:focus {
+  outline: none;
+}
+
+/* ============================================================================
+   PRINT MEDIA QUERY
+   ============================================================================ */
+
+@media print {
+  /* Hide preview and input states when printing */
+  .riff-MetadataField--preview {
+    display: none;
+  }
+
+  .riff-MetadataInput__foreignObject {
+    display: none;
+  }
+
+  /* Ensure hit areas are invisible in print */
+  .riff-MetadataTrack__hitArea {
+    display: none;
+  }
+}

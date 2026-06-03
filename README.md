@@ -59,11 +59,13 @@ See [Interaction Configuration](./docs/CONFIGURATION.md#interaction-configuratio
 ```javascript
 const api = window.riffScore.get('my-editor');
 
-api.select(1)                      // Select measure 1
+api.select(0)                      // Select first measure (0-indexed)
    .addNote('C4', 'quarter')       // Add a quarter note
    .addNote('E4')                  // Add with current duration
    .play();                        // Play from selection
 ```
+
+> **Note**: All API indices are 0-based. Use `select(0)` for the first measure, `select(1)` for the second, etc.
 
 See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 
@@ -85,6 +87,14 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 *   **Multiple Notations**: Display in letter, Roman numeral, Nashville number, or solfège.
 *   **Playback**: Chord voicings play back alongside the score.
 *   **Full API**: CRUD, selection, and navigation via `addChord()`, `selectChord()`, etc.
+
+### Page View & Print
+*   **Multi-System Layout**: Automatic system breaks with first system indent and justified measures.
+*   **Multi-Page Pagination**: True page breaks with visual gaps between pages.
+*   **Layout Options**: Letter/A4 page sizes, margin presets, staff size (50-150%), system spacing.
+*   **Score Setup Dialog**: Configure metadata (title, composer, copyright) and layout via `Cmd+,`.
+*   **Inline Editing**: Click directly on title, composer, or copyright to edit in place.
+*   **Print Support**: Professional PDF output via native browser dialog (`Cmd+P`).
 
 ### Machine-Addressable API
 *   **Imperative Control**: Programmatically control the score via `window.riffScore` ([API Reference](./docs/API.md))
@@ -124,6 +134,10 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 | **History** |||
 | `Cmd+Z` | `Ctrl+Z` | Undo |
 | `Cmd+Shift+Z` | `Ctrl+Y` | Redo |
+| **Page View** |||
+| `Cmd+\` | `Ctrl+\` | Toggle scroll/page view |
+| `Cmd+,` | `Ctrl+,` | Open Score Setup dialog |
+| `Cmd+P` | `Ctrl+P` | Print |
 
 See the [Interaction Guide](./docs/INTERACTION.md) for the complete keyboard reference.
 
@@ -179,8 +193,8 @@ Control the editor programmatically from external scripts:
 ```javascript
 const api = window.riffScore.get('my-editor');
 
-// Build a chord
-api.select(1)              // Measure 1
+// Build a chord (indices are 0-based)
+api.select(0)              // First measure
    .addNote('C4', 'quarter')
    .addNote('E4')
    .addNote('G4')

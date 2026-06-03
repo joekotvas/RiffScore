@@ -154,24 +154,31 @@ export const createChordPlaybackEvents = (
     const notes = getChordVoicing(chord.symbol);
     if (notes.length === 0) continue;
 
-    // Calculate time in seconds
-    const startTime = chord.quant * secondsPerQuant;
+    // Convert measure-local position to global quant for timing
+    const globalQuant = chord.measure * quantsPerMeasure + chord.quant;
+    const startTime = globalQuant * secondsPerQuant;
 
-    // Calculate measure boundary
-    const measureIndex = Math.floor(chord.quant / quantsPerMeasure);
-    const measureEndQuant = (measureIndex + 1) * quantsPerMeasure;
+    // Calculate end position (until next chord, end of measure, or end of score)
+    let endGlobalQuant: number;
 
-    // Duration: until next chord, end of measure, or end of score (whichever comes first)
-    let endQuant: number;
-    if (nextChord && nextChord.quant <= measureEndQuant) {
-      // Next chord is in same measure or at measure boundary
-      endQuant = nextChord.quant;
+    if (nextChord) {
+      const nextGlobalQuant = nextChord.measure * quantsPerMeasure + nextChord.quant;
+      const measureEndQuant = (chord.measure + 1) * quantsPerMeasure;
+
+      if (nextGlobalQuant <= measureEndQuant) {
+        // Next chord is in same measure or at measure boundary
+        endGlobalQuant = nextGlobalQuant;
+      } else {
+        // Cap at end of current measure
+        endGlobalQuant = Math.min(measureEndQuant, totalQuants);
+      }
     } else {
-      // Cap at end of current measure
-      endQuant = Math.min(measureEndQuant, totalQuants);
+      // Last chord: cap at end of current measure or score
+      const measureEndQuant = (chord.measure + 1) * quantsPerMeasure;
+      endGlobalQuant = Math.min(measureEndQuant, totalQuants);
     }
 
-    const duration = (endQuant - chord.quant) * secondsPerQuant;
+    const duration = (endGlobalQuant - globalQuant) * secondsPerQuant;
     if (duration <= 0) continue;
 
     events.push({

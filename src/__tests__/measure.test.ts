@@ -12,6 +12,7 @@ import {
   calculateMeasureLayout,
   calculateMeasureWidth,
   analyzePlacement,
+  calculateStretchFactor,
 } from '@/engines/layout/measure';
 import { calculateSystemLayout } from '@/engines/layout/system';
 import { calculateChordLayout } from '@/engines/layout';
@@ -561,6 +562,196 @@ describe('measure.ts', () => {
         expect(result.mode).toBe('CHORD');
         expect(result.index).toBe(8);
       });
+    });
+  });
+
+  // ========================================
+  // calculateStretchFactor
+  // ========================================
+
+  describe('calculateStretchFactor', () => {
+    test('should return 1.0 when justification is not 1.0', () => {
+      const result = calculateStretchFactor(100, 200, 0.5);
+      expect(result).toBe(1.0);
+    });
+
+    test('should return 1.0 when naturalWidth is 0', () => {
+      const result = calculateStretchFactor(0, 200, 1.0);
+      expect(result).toBe(1.0);
+    });
+
+    test('should return 1.0 when availableWidth is 0', () => {
+      const result = calculateStretchFactor(100, 0, 1.0);
+      expect(result).toBe(1.0);
+    });
+
+    test('should return 1.0 when naturalWidth is negative', () => {
+      const result = calculateStretchFactor(-100, 200, 1.0);
+      expect(result).toBe(1.0);
+    });
+
+    test('should calculate correct stretch factor for justified systems', () => {
+      const result = calculateStretchFactor(100, 200, 1.0);
+      expect(result).toBe(2.0);
+    });
+
+    test('should handle fractional stretch factors', () => {
+      const result = calculateStretchFactor(80, 120, 1.0);
+      expect(result).toBe(1.5);
+    });
+
+    test('should handle compression (stretch < 1.0)', () => {
+      const result = calculateStretchFactor(200, 100, 1.0);
+      expect(result).toBe(0.5);
+    });
+  });
+
+  // ========================================
+  // calculateMeasureLayout with stretchFactor
+  // ========================================
+
+  describe('calculateMeasureLayout with stretchFactor', () => {
+    test('should not stretch when stretchFactor is 1.0', () => {
+      const events = [createEvent('e1', 'quarter', [createNote('n1', 'C4')])];
+      const layout1 = calculateMeasureLayout(events);
+      const layout2 = calculateMeasureLayout(events, undefined, 'treble', false, undefined, 1.0);
+
+      expect(layout1.totalWidth).toBe(layout2.totalWidth);
+      expect(layout1.eventPositions['e1']).toBe(layout2.eventPositions['e1']);
+    });
+
+    test('should stretch event positions by factor', () => {
+      const events = [createEvent('e1', 'quarter', [createNote('n1', 'C4')])];
+      const stretchFactor = 1.5;
+
+      const layoutNormal = calculateMeasureLayout(events);
+      const layoutStretched = calculateMeasureLayout(
+        events,
+        undefined,
+        'treble',
+        false,
+        undefined,
+        stretchFactor
+      );
+
+      expect(layoutStretched.eventPositions['e1']).toBeCloseTo(
+        layoutNormal.eventPositions['e1'] * stretchFactor,
+        5
+      );
+    });
+
+    test('should stretch totalWidth by factor', () => {
+      const events = [
+        createEvent('e1', 'quarter', [createNote('n1', 'C4')]),
+        createEvent('e2', 'quarter', [createNote('n2', 'D4')]),
+      ];
+      const stretchFactor = 2.0;
+
+      const layoutNormal = calculateMeasureLayout(events);
+      const layoutStretched = calculateMeasureLayout(
+        events,
+        undefined,
+        'treble',
+        false,
+        undefined,
+        stretchFactor
+      );
+
+      expect(layoutStretched.totalWidth).toBeCloseTo(
+        layoutNormal.totalWidth * stretchFactor,
+        5
+      );
+    });
+
+    test('should stretch hit zones correctly', () => {
+      const events = [createEvent('e1', 'quarter', [createNote('n1', 'C4')])];
+      const stretchFactor = 1.5;
+
+      const layoutNormal = calculateMeasureLayout(events);
+      const layoutStretched = calculateMeasureLayout(
+        events,
+        undefined,
+        'treble',
+        false,
+        undefined,
+        stretchFactor
+      );
+
+      // Find the EVENT hit zone
+      const normalEventZone = layoutNormal.hitZones.find((z) => z.type === 'EVENT');
+      const stretchedEventZone = layoutStretched.hitZones.find((z) => z.type === 'EVENT');
+
+      if (normalEventZone && stretchedEventZone) {
+        expect(stretchedEventZone.startX).toBeCloseTo(
+          normalEventZone.startX * stretchFactor,
+          5
+        );
+        expect(stretchedEventZone.endX).toBeCloseTo(
+          normalEventZone.endX * stretchFactor,
+          5
+        );
+      }
+    });
+
+    test('should stretch processedEvents x positions', () => {
+      const events = [
+        createEvent('e1', 'quarter', [createNote('n1', 'C4')]),
+        createEvent('e2', 'quarter', [createNote('n2', 'D4')]),
+      ];
+      const stretchFactor = 1.25;
+
+      const layoutNormal = calculateMeasureLayout(events);
+      const layoutStretched = calculateMeasureLayout(
+        events,
+        undefined,
+        'treble',
+        false,
+        undefined,
+        stretchFactor
+      );
+
+      for (let i = 0; i < events.length; i++) {
+        expect(layoutStretched.processedEvents[i]!.x!).toBeCloseTo(
+          layoutNormal.processedEvents[i]!.x! * stretchFactor,
+          5
+        );
+      }
+    });
+
+    test('should preserve relative spacing between events', () => {
+      const events = [
+        createEvent('e1', 'quarter', [createNote('n1', 'C4')]),
+        createEvent('e2', 'quarter', [createNote('n2', 'D4')]),
+        createEvent('e3', 'quarter', [createNote('n3', 'E4')]),
+      ];
+      const stretchFactor = 1.75;
+
+      const layoutNormal = calculateMeasureLayout(events);
+      const layoutStretched = calculateMeasureLayout(
+        events,
+        undefined,
+        'treble',
+        false,
+        undefined,
+        stretchFactor
+      );
+
+      // Calculate spacing ratios in normal layout
+      const normalSpacing1 =
+        layoutNormal.eventPositions['e2'] - layoutNormal.eventPositions['e1'];
+      const normalSpacing2 =
+        layoutNormal.eventPositions['e3'] - layoutNormal.eventPositions['e2'];
+      const normalRatio = normalSpacing1 / normalSpacing2;
+
+      // Calculate spacing ratios in stretched layout
+      const stretchedSpacing1 =
+        layoutStretched.eventPositions['e2'] - layoutStretched.eventPositions['e1'];
+      const stretchedSpacing2 =
+        layoutStretched.eventPositions['e3'] - layoutStretched.eventPositions['e2'];
+      const stretchedRatio = stretchedSpacing1 / stretchedSpacing2;
+
+      // Ratios should be preserved
+      expect(stretchedRatio).toBeCloseTo(normalRatio, 5);
     });
   });
 

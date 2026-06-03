@@ -22,18 +22,20 @@ import { BeamGroup } from '@/engines/layout/types';
  * @param isPickup - Whether this is a pickup measure
  * @param forcedEventPositions - Optional forced positions from Grand Staff sync
  * @param forcedWidth - Optional forced width from Grand Staff sync
+ * @param stretchFactor - Optional stretch factor for justified systems (default: 1.0)
  */
 export function useMeasureLayout(
   events: ScoreEvent[],
   clef: string,
   isPickup: boolean,
   forcedEventPositions?: Record<string, number>,
-  forcedWidth?: number
+  forcedWidth?: number,
+  stretchFactor: number = 1.0
 ) {
   // Core measure layout
   const measureLayout = useMemo(() => {
-    return calculateMeasureLayout(events, undefined, clef, isPickup, forcedEventPositions);
-  }, [events, clef, isPickup, forcedEventPositions]);
+    return calculateMeasureLayout(events, undefined, clef, isPickup, forcedEventPositions, stretchFactor);
+  }, [events, clef, isPickup, forcedEventPositions, stretchFactor]);
 
   const { hitZones, eventPositions, totalWidth, processedEvents } = measureLayout;
 

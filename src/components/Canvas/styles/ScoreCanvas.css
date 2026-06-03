@@ -35,3 +35,15 @@
 .chord-group--ghost {
   opacity: 0.5;
 }
+
+/* ========== Page View Mode ========== */
+.riff-ScoreCanvas--page-view {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-left: 0; /* Remove left padding in page view */
+  background: var(--riff-page-bg, #f5f5f5);
+}
+
+.riff-ScoreCanvas--page-view .riff-pages {
+  min-height: 100%;
+}

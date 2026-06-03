@@ -231,17 +231,15 @@ export const createNavigationMethods = (
       return this;
     },
 
-    select(measureNum, staffIndex = 0, eventIndex = 0, noteIndex = 0) {
-      // Convert 1-based measureNum to 0-based index
-      const measureIndex = measureNum - 1;
+    select(measureIndex, staffIndex = 0, eventIndex = 0, noteIndex = 0) {
       const staff = getScore().staves[staffIndex];
 
       if (!staff?.measures[measureIndex]) {
         setResult({
-          ok: false, // Error because invalid direct selection
+          ok: false,
           status: 'error',
           method: 'select',
-          message: `Measure ${measureNum} does not exist`,
+          message: `Measure index ${measureIndex} does not exist`,
           code: 'MEASURE_NOT_FOUND',
         });
         return this;
@@ -264,22 +262,21 @@ export const createNavigationMethods = (
         ok: true,
         status: 'info',
         method: 'select',
-        message: `Selected measure ${measureNum}`,
-        details: { measureNum, staffIndex, eventIndex, noteIndex },
+        message: `Selected measure ${measureIndex}`,
+        details: { measureIndex, staffIndex, eventIndex, noteIndex },
       });
 
       return this;
     },
 
-    selectAtQuant(measureNum, quant, staffIndex = 0) {
-      const measureIndex = measureNum - 1;
+    selectAtQuant(measureIndex, quant, staffIndex = 0) {
       const staff = getScore().staves[staffIndex];
       if (!staff?.measures[measureIndex]) {
         setResult({
           ok: false,
           status: 'error',
           method: 'selectAtQuant',
-          message: `Measure ${measureNum} does not exist`,
+          message: `Measure index ${measureIndex} does not exist`,
           code: 'MEASURE_NOT_FOUND',
         });
         return this;
@@ -323,7 +320,7 @@ export const createNavigationMethods = (
           ok: false,
           status: 'error',
           method: 'selectAtQuant',
-          message: `No event found at quant ${quant} in measure ${measureNum}`,
+          message: `No event found at quant ${quant} in measure ${measureIndex}`,
           code: 'NO_EVENT_AT_QUANT',
         });
       }

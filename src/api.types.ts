@@ -4,6 +4,18 @@
  * This file defines the public contract for external script control.
  * Kept separate from data model types for clarity and maintainability.
  *
+ * ## Indexing Convention
+ *
+ * All indices in the API are **0-based** (array indices):
+ * - measureIndex: 0 = first measure
+ * - staffIndex: 0 = first staff (treble in grand staff)
+ * - eventIndex: 0 = first event in measure
+ * - noteIndex: 0 = first note in chord
+ * - position.measure: 0 = first measure
+ * - quant: 0 = start of measure
+ *
+ * For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureIndex`.
+ *
  * @see docs/migration/api_reference_draft.md
  */
 
@@ -15,6 +27,8 @@ import type {
   ChordSymbol,
   ChordDisplayConfig,
   ChordPlaybackConfig,
+  LayoutConfig,
+  ScoreMetadata,
 } from './types';
 
 // ========== UTILITY TYPES ==========
@@ -110,15 +124,22 @@ export interface MusicEditorAPI {
    */
   jump(target: 'start-score' | 'end-score' | 'start-measure' | 'end-measure'): this;
   /**
-   * Select an event by measure number (1-based) and optional indices.
+   * Select an event by measure index and optional indices.
+   * @param measureIndex - 0-based measure index (array index)
+   * @param staffIndex - 0-based staff index (default: 0)
+   * @param eventIndex - 0-based event index within the measure (default: 0)
+   * @param noteIndex - 0-based note index within the event (default: 0)
    * @status implemented
    */
-  select(measureNum: number, staffIndex?: number, eventIndex?: number, noteIndex?: number): this;
+  select(measureIndex: number, staffIndex?: number, eventIndex?: number, noteIndex?: number): this;
   /**
    * Select by rhythmic position within a measure.
+   * @param measureIndex - 0-based measure index (array index)
+   * @param quant - Local quant position within the measure (0 = start of measure)
+   * @param staffIndex - 0-based staff index (default: 0)
    * @status implemented
    */
-  selectAtQuant(measureNum: number, quant: number, staffIndex?: number): this;
+  selectAtQuant(measureIndex: number, quant: number, staffIndex?: number): this;
   /**
    * Select by internal event/note IDs.
    * @status implemented
@@ -161,20 +182,28 @@ export interface MusicEditorAPI {
   // --- Selection (Multi-Select) ---
   /**
    * Add an event to the current selection (Cmd+Click toggle behavior).
+   * @param measureIndex - 0-based measure index (array index)
+   * @param staffIndex - 0-based staff index
+   * @param eventIndex - 0-based event index within the measure
+   * @param noteIndex - 0-based note index within the event (optional)
    * @status implemented
    */
   addToSelection(
-    measureNum: number,
+    measureIndex: number,
     staffIndex: number,
     eventIndex: number,
     noteIndex?: number
   ): this;
   /**
    * Extend selection from anchor to target (Shift+Click range behavior).
+   * @param measureIndex - 0-based measure index (array index)
+   * @param staffIndex - 0-based staff index
+   * @param eventIndex - 0-based event index within the measure
+   * @param noteIndex - 0-based note index within the event (optional)
    * @status implemented
    */
   selectRangeTo(
-    measureNum: number,
+    measureIndex: number,
     staffIndex: number,
     eventIndex: number,
     noteIndex?: number
@@ -186,9 +215,12 @@ export interface MusicEditorAPI {
   selectAll(scope?: 'score' | 'measure' | 'staff' | 'event'): this;
   /**
    * Select all notes in an event (chord).
+   * @param measureIndex - 0-based measure index (optional, uses current if not provided)
+   * @param staffIndex - 0-based staff index (optional)
+   * @param eventIndex - 0-based event index (optional)
    * @status implemented
    */
-  selectEvent(measureNum?: number, staffIndex?: number, eventIndex?: number): this;
+  selectEvent(measureIndex?: number, staffIndex?: number, eventIndex?: number): this;
   /**
    * Clear all selections.
    * @status implemented
@@ -367,6 +399,104 @@ export interface MusicEditorAPI {
    */
   setStaffLayout(type: 'grand' | 'single'): this;
 
+  // --- Layout API ---
+  /**
+   * Get the current view mode (scroll or page).
+   * @status implemented
+   */
+  getViewMode(): LayoutConfig['viewMode'];
+  /**
+   * Set the view mode.
+   * @status implemented
+   */
+  setViewMode(mode: LayoutConfig['viewMode']): this;
+  /**
+   * Toggle between scroll and page view modes.
+   * @status implemented
+   */
+  toggleViewMode(): this;
+  /**
+   * Get the current layout configuration.
+   * @status implemented
+   */
+  getLayoutConfig(): LayoutConfig;
+  /**
+   * Update layout configuration.
+   * @status implemented
+   */
+  setLayoutConfig(config: Partial<LayoutConfig>): this;
+  /**
+   * Reset layout configuration to defaults.
+   * @status implemented
+   */
+  resetLayoutConfig(): this;
+
+  // --- Metadata API ---
+  /**
+   * Get the score metadata.
+   * @status implemented
+   */
+  getMetadata(): ScoreMetadata;
+  /**
+   * Update score metadata.
+   * @status implemented
+   */
+  setMetadata(metadata: Partial<ScoreMetadata>): this;
+  /**
+   * Get the score title.
+   * @status implemented
+   */
+  getTitle(): string;
+  /**
+   * Set the score title.
+   * @status implemented
+   */
+  setTitle(title: string): this;
+  /**
+   * Get the composer name.
+   * @status implemented
+   */
+  getComposer(): string | undefined;
+  /**
+   * Set the composer name.
+   * @status implemented
+   */
+  setComposer(composer: string): this;
+  /**
+   * Get the lyricist name.
+   * @status implemented
+   */
+  getLyricist(): string | undefined;
+  /**
+   * Set the lyricist name.
+   * @status implemented
+   */
+  setLyricist(lyricist: string): this;
+  /**
+   * Get the copyright notice.
+   * @status implemented
+   */
+  getCopyright(): string | undefined;
+  /**
+   * Set the copyright notice.
+   * @status implemented
+   */
+  setCopyright(copyright: string): this;
+
+  // --- Navigation (from Metadata) ---
+  /**
+   * Select the first element in the score.
+   * Used for Tab navigation from metadata fields.
+   * @status implemented
+   */
+  selectFirstElement(): this;
+  /**
+   * Select the last element in the score.
+   * Used for Shift+Tab navigation from metadata fields.
+   * @status implemented
+   */
+  selectLastElement(): this;
+
   // --- Lifecycle & IO ---
   /**
    * Load or replace the current score.
@@ -490,12 +620,14 @@ export interface MusicEditorAPI {
 
   // --- Chord CRUD Operations ---
   /**
-   * Add a chord symbol at the specified quant position.
-   * @param quant - Global quant position for the chord
+   * Add a chord symbol at the specified position.
+   * @param position - Position object:
+   *   - measure: 0-based measure index (array index, not display number)
+   *   - quant: Local quant position within measure (0 = start of measure)
    * @param symbol - Chord symbol string (e.g., 'Cmaj7', 'Dm', 'G7')
    * @status implemented
    */
-  addChord(quant: number, symbol: string): this;
+  addChord(position: { measure: number; quant: number }, symbol: string): this;
   /**
    * Update an existing chord symbol.
    * @param chordId - ID of the chord to update
@@ -511,7 +643,7 @@ export interface MusicEditorAPI {
   removeChord(chordId: string): this;
   /**
    * Get all chord symbols in the score.
-   * @returns Array of chord symbols sorted by quant ascending
+   * @returns Array of chord symbols sorted by position ascending
    * @status implemented
    */
   getChords(): ChordSymbol[];
@@ -523,18 +655,20 @@ export interface MusicEditorAPI {
    */
   getChord(chordId: string): ChordSymbol | null;
   /**
-   * Get the chord at a specific quant position.
-   * @param quant - Global quant position
+   * Get the chord at a specific position.
+   * @param position - Position object:
+   *   - measure: 0-based measure index (array index, not display number)
+   *   - quant: Local quant position within measure (0 = start of measure)
    * @returns The chord at that position or null if none exists
    * @status implemented
    */
-  getChordAtQuant(quant: number): ChordSymbol | null;
+  getChordAt(position: { measure: number; quant: number }): ChordSymbol | null;
   /**
-   * Get all valid quant positions where chords can be placed.
-   * @returns Array of valid quant positions
+   * Get all valid positions where chords can be placed.
+   * @returns Map of 0-based measure index to set of valid local quants
    * @status implemented
    */
-  getValidChordQuants(): number[];
+  getValidChordPositions(): Map<number, Set<number>>;
 
   // --- Chord Selection ---
   /**
@@ -544,11 +678,13 @@ export interface MusicEditorAPI {
    */
   selectChord(chordId: string): this;
   /**
-   * Select the chord at a specific quant position.
-   * @param quant - Global quant position
+   * Select the chord at a specific position.
+   * @param position - Position object:
+   *   - measure: 0-based measure index (array index, not display number)
+   *   - quant: Local quant position within measure (0 = start of measure)
    * @status implemented
    */
-  selectChordAtQuant(quant: number): this;
+  selectChordAt(position: { measure: number; quant: number }): this;
   /**
    * Deselect the currently selected chord.
    * @status implemented

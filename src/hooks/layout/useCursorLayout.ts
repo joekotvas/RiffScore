@@ -16,16 +16,31 @@
 import { useMemo } from 'react';
 import { ScoreLayout } from '@/engines/layout/types';
 
+/**
+ * Playback position state from the playback system.
+ */
 interface PlaybackPosition {
+  /** 0-based measure index (array index), or null if not positioned */
   measureIndex: number | null;
+  /** Local quant position within the measure (0 = start), or null */
   quant: number | null;
+  /** Duration of the current note/rest in quants */
   duration: number;
 }
 
+/**
+ * Calculated cursor layout for playback visualization.
+ */
 interface CursorLayout {
+  /** 0-based measure index for cursor position, or null if not positioned */
+  measure: number | null;
+  /** X position within the measure (measure-relative), or null */
   x: number | null;
+  /** Width of the cursor in pixels */
   width: number;
+  /** Whether the score has multiple staves (grand staff) */
   isGrandStaff: boolean;
+  /** Number of staves in the score */
   numStaves: number;
 }
 
@@ -48,12 +63,12 @@ export const useCursorLayout = (
   const cursor = useMemo(() => {
     // No layout - no cursor
     if (layout.staves.length === 0) {
-      return { x: null, width: 0 };
+      return { measure: null, x: null, width: 0 };
     }
 
     const { measureIndex, quant } = playbackPosition;
     if (measureIndex === null || quant === null) {
-      return { x: null, width: 0 };
+      return { measure: null, x: null, width: 0 };
     }
 
     // Aggregate events from ALL staves to build unified system grid
@@ -63,11 +78,10 @@ export const useCursorLayout = (
       .filter(Boolean);
 
     if (relevantMeasures.length === 0) {
-      return { x: null, width: 0 };
+      return { measure: null, x: null, width: 0 };
     }
 
-    // Use first measure for base X (they are all aligned)
-    const baseMeasureX = relevantMeasures[0].x;
+    // Use first measure for base width (all measures at same quant are aligned)
     const baseMeasureWidth = relevantMeasures[0].width;
 
     // Build unified quant -> x map
@@ -99,12 +113,14 @@ export const useCursorLayout = (
     const quantPosition = getQuantPositionFromMap(quantToX, quant, baseMeasureWidth, isPlaying);
 
     return {
-      x: baseMeasureX + quantPosition.x,
+      measure: measureIndex,
+      x: quantPosition.x, // measure-relative X
       width: quantPosition.width,
     };
   }, [layout.staves, playbackPosition, isPlaying]);
 
   return {
+    measure: cursor.measure,
     x: cursor.x,
     width: cursor.width,
     isGrandStaff,

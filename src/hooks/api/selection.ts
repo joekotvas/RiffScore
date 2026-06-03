@@ -38,8 +38,7 @@ export const createSelectionMethods = (
   const { getScore, selectionRef, syncSelection, selectionEngine, setResult } = ctx;
 
   return {
-    addToSelection(measureNum, staffIndex, eventIndex, noteIndex = 0) {
-      const measureIndex = measureNum - 1;
+    addToSelection(measureIndex, staffIndex, eventIndex, noteIndex = 0) {
       const staff = getScore().staves[staffIndex];
       const event = staff?.measures[measureIndex]?.events[eventIndex];
       if (!event) {
@@ -74,8 +73,7 @@ export const createSelectionMethods = (
       return this;
     },
 
-    selectRangeTo(measureNum, staffIndex, eventIndex, noteIndex = 0) {
-      const measureIndex = measureNum - 1;
+    selectRangeTo(measureIndex, staffIndex, eventIndex, noteIndex = 0) {
       const staff = getScore().staves[staffIndex];
       const event = staff?.measures[measureIndex]?.events[eventIndex];
       if (!event) {
@@ -158,10 +156,10 @@ export const createSelectionMethods = (
     },
 
     /** Select all notes in the current event (chord) */
-    selectEvent(measureNum?: number, staffIndex?: number, eventIndex?: number) {
+    selectEvent(measureIndex?: number, staffIndex?: number, eventIndex?: number) {
       const sel = selectionRef.current;
       const sIdx = staffIndex ?? sel.staffIndex;
-      const mIdx = measureNum !== undefined ? measureNum - 1 : sel.measureIndex;
+      const mIdx = measureIndex ?? sel.measureIndex;
 
       if (mIdx === null) {
         setResult({

@@ -7,9 +7,6 @@ import { ThemeProvider } from '../context/ThemeContext';
 // Mock child components to isolate verification
 jest.mock('../components/Canvas/ScoreCanvas', () => () => <div data-testid="score-canvas" />);
 jest.mock('../components/Toolbar/Toolbar', () => () => <div data-testid="toolbar" />);
-jest.mock('../components/Layout/ScoreTitleField', () => ({
-  ScoreTitleField: () => <div data-testid="score-title-field" />,
-}));
 // Mock audio hooks to prevent async state updates during render tests
 jest.mock('../hooks/audio', () => ({
   usePlayback: () => ({
@@ -25,15 +22,6 @@ jest.mock('../hooks/audio', () => ({
   useSamplerStatus: () => true,
   useAudioFeedback: () => jest.fn(),
 }));
-
-// ResizeObserver mock for ScoreTitleField internal logic if needed
-window.ResizeObserver =
-  window.ResizeObserver ||
-  jest.fn().mockImplementation(() => ({
-    disconnect: jest.fn(),
-    observe: jest.fn(),
-    unobserve: jest.fn(),
-  }));
 
 const renderEditor = (props: React.ComponentProps<typeof ScoreEditorContent>) => {
   return render(
@@ -63,15 +51,5 @@ describe('ScoreEditor Configuration', () => {
       'style',
       expect.stringContaining('background-color: transparent')
     );
-  });
-
-  it('renders score title when showScoreTitle is true (default)', () => {
-    renderEditor({ showScoreTitle: true });
-    expect(screen.getByTestId('score-title-field')).toBeInTheDocument();
-  });
-
-  it('hides score title when showScoreTitle is false', () => {
-    renderEditor({ showScoreTitle: false });
-    expect(screen.queryByTestId('score-title-field')).not.toBeInTheDocument();
   });
 });

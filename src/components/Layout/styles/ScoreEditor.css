@@ -2,16 +2,42 @@
 
 .riff-ScoreEditor {
   padding: 0;
-  display: flex; /* Ensure toolbars/content stack correctly if needed */
+  display: flex;
   flex-direction: column;
+  height: 100%;
+}
+
+.riff-ScoreEditor__viewport {
+  flex: 1;
+  overflow: auto;
+  position: relative;
 }
 
 .riff-ScoreEditor__content {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
   box-sizing: border-box;
   /* Note: Decorative styles (border, padding, radius) removed per Issue #160 */
+}
+
+/* -----------------------------------------------------------------------------
+ * Fullscreen Mode
+ * -------------------------------------------------------------------------- */
+
+.riff-ScoreEditor--fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+}
+
+.riff-ScoreEditor--fullscreen .riff-ScoreEditor__viewport {
+  flex: 1;
+  overflow: auto;
 }

@@ -101,7 +101,7 @@ describe('Chainability', () => {
     expect(api).toBeDefined();
 
     // Test that select returns api for chaining
-    const result = api.select(1);
+    const result = api.select(0);
     expect(result).toBe(api);
 
     // Test method chaining
@@ -129,7 +129,7 @@ describe('Entry Methods', () => {
     };
 
     // Select first measure
-    api.select(1);
+    api.select(0);
 
     // Get initial event count (not used, but for context)
     // const initialEventCount = initialScore.staves[0].measures[0].events.length;
@@ -154,7 +154,7 @@ describe('Entry Methods', () => {
       getSelection(): { eventId: unknown };
     };
 
-    api.select(1);
+    api.select(0);
     const result = api.addRest('quarter');
 
     expect(result).toBe(api);
@@ -173,7 +173,7 @@ describe('Entry Methods', () => {
     };
 
     // Create a note first
-    api.select(1);
+    api.select(0);
     api.addNote('C4');
 
     // Add another pitch to make a chord
@@ -203,7 +203,7 @@ describe('Navigation Methods', () => {
     };
 
     // select() should return api for chaining
-    const result = api.select(1, 0, 0);
+    const result = api.select(0, 0, 0);
     expect(result).toBe(api);
   });
 
@@ -218,7 +218,7 @@ describe('Navigation Methods', () => {
     const api = window.riffScore.get('nav-move-test') as ChainableAPI;
 
     // Add two notes first
-    api.select(1).addNote('C4').addNote('D4');
+    api.select(0).addNote('C4').addNote('D4');
 
     // Move left should change selection
     const result = api.move('left');

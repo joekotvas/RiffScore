@@ -1,0 +1,125 @@
+/* src/components/Layout/styles/EditorFooter.css */
+
+.riff-EditorFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+  padding: 0 12px;
+  border-top: 1px solid;
+  font-size: 12px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* -----------------------------------------------------------------------------
+ * Selection Status (Left Side)
+ * -------------------------------------------------------------------------- */
+
+.riff-EditorFooter__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.riff-EditorFooter__status-text {
+  opacity: 0.8;
+}
+
+/* Status type variants */
+.riff-EditorFooter__status--inactive .riff-EditorFooter__status-text {
+  opacity: 0.5;
+}
+
+.riff-EditorFooter__status--ready .riff-EditorFooter__status-text {
+  opacity: 0.7;
+}
+
+.riff-EditorFooter__status--note .riff-EditorFooter__status-text,
+.riff-EditorFooter__status--notes .riff-EditorFooter__status-text,
+.riff-EditorFooter__status--chord .riff-EditorFooter__status-text,
+.riff-EditorFooter__status--rest .riff-EditorFooter__status-text,
+.riff-EditorFooter__status--chord-symbol .riff-EditorFooter__status-text {
+  opacity: 1;
+}
+
+/* -----------------------------------------------------------------------------
+ * Zoom Control (Right Side)
+ * -------------------------------------------------------------------------- */
+
+.riff-EditorFooter__zoom {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.riff-EditorFooter__zoom--dragging {
+  cursor: ew-resize;
+}
+
+/* Figma-style invisible drag handle */
+.riff-EditorFooter__zoom-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  cursor: ew-resize;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.riff-EditorFooter__zoom:hover .riff-EditorFooter__zoom-handle,
+.riff-EditorFooter__zoom--dragging .riff-EditorFooter__zoom-handle {
+  opacity: 0.5;
+}
+
+.riff-EditorFooter__zoom-handle:hover {
+  opacity: 0.8 !important;
+}
+
+/* Drag handle icon (two vertical lines like Figma) */
+.riff-EditorFooter__zoom-handle-icon {
+  width: 6px;
+  height: 10px;
+  background: linear-gradient(
+    to right,
+    currentColor 1px,
+    transparent 1px,
+    transparent 3px,
+    currentColor 3px,
+    currentColor 4px,
+    transparent 4px
+  );
+}
+
+/* Zoom input field */
+.riff-EditorFooter__zoom-input {
+  width: 36px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 12px;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.riff-EditorFooter__zoom-input:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.riff-EditorFooter__zoom-input:focus {
+  border-color: var(--riff-color-accent, currentColor);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Percentage sign */
+.riff-EditorFooter__zoom-unit {
+  opacity: 0.6;
+  margin-left: -2px;
+}

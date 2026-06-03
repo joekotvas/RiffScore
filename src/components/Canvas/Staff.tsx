@@ -5,7 +5,7 @@ import {
   calculateMeasureWidth,
   calculateMeasureLayout,
   getOffsetForPitch,
-  calculateHeaderLayout,
+  calculateSystemPreamble,
 } from '@/engines/layout';
 import { StaffLayout } from '@/engines/layout/types';
 import { isNoteSelected } from '@/utils/selection';
@@ -47,6 +47,18 @@ export interface StaffProps {
   staffLayout?: StaffLayout;
   scale: number;
 
+  // Page view props
+  /** Whether this is the start of a system (renders clef/key sig). Default: true */
+  isSystemStart?: boolean;
+  /** System index (0 = first system, shows time signature). Default: 0 */
+  systemIndex?: number;
+  /** Whether this is the last system (controls final barline). Default: true */
+  isLastSystem?: boolean;
+  /** Actual measure indices in the score (for page view). If not provided, uses array index. */
+  measureIndices?: number[];
+  /** Pre-computed stretch factor for justified systems (page view only) */
+  stretchFactor?: number;
+
   // Interaction (Grouped)
   interaction: InteractionState;
 
@@ -60,7 +72,7 @@ export interface StaffProps {
 
 /**
  * A self-contained Staff component that renders a single staff with:
- * - Header (clef, key signature, time signature)
+ * - System preamble (clef, key signature, time signature)
  * - Measures with notes
  * - Ties between notes
  *
@@ -75,6 +87,11 @@ const Staff: React.FC<StaffProps> = ({
   baseY = CONFIG.baseY,
   staffLayout,
   scale,
+  isSystemStart = true,
+  systemIndex = 0,
+  isLastSystem = true,
+  measureIndices,
+  stretchFactor = 1.0,
   interaction,
   mouseLimits,
   onClefClick,
@@ -87,15 +104,23 @@ const Staff: React.FC<StaffProps> = ({
   // This is used for the SVG transform and passed to children for hit detection
   const verticalOffset = baseY - CONFIG.baseY;
 
-  // Use centralized layout calculation (SSOT)
-  const { startOfMeasures } = calculateHeaderLayout(keySignature);
+  // Use centralized preamble layout calculation (SSOT)
+  // First system (systemIndex=0) has time signature, subsequent systems don't
+  const isFirstSystem = systemIndex === 0;
+  const { measuresX } = calculateSystemPreamble(keySignature, { isFirstSystem });
 
   // Calculate measure positions and render
-  let currentX = startOfMeasures;
+  // stretchFactor is passed from parent (ScoreCanvas) which computes it
+  // using max measure widths across all staves for grand staff alignment
+  let currentX = measuresX;
 
   const measureComponents = measures.map((measure, index: number) => {
+    // Use actual measure index if provided (page view), otherwise use array index
+    const actualMeasureIndex = measureIndices?.[index] ?? index;
+
     // Use centralized layout if available, otherwise calculate
-    const measureLayoutV2 = staffLayout?.measures[index];
+    // Use actual measure index for layout lookup (important for page view)
+    const measureLayoutV2 = staffLayout?.measures[actualMeasureIndex];
     const legacyLayout = measureLayoutV2?.legacyLayout;
 
     const width = measureLayoutV2?.width ?? calculateMeasureWidth(measure.events, measure.isPickup);
@@ -113,16 +138,20 @@ const Staff: React.FC<StaffProps> = ({
       previewNote: staffPreviewNote,
     };
 
+    // Apply stretch factor to measure width for justified systems
+    const stretchedWidth = width * stretchFactor;
+
     const component = (
       <Measure
         key={measure.id}
         startX={currentX}
-        measureIndex={index}
+        measureIndex={actualMeasureIndex}
         measureData={measure}
-        isLast={index === measures.length - 1}
-        forcedWidth={width}
+        isLast={index === measures.length - 1 && isLastSystem}
+        forcedWidth={stretchedWidth}
         forcedEventPositions={forcedPositions}
         measureLayout={measureLayoutV2}
+        stretchFactor={stretchFactor}
         layout={{
           scale,
           baseY: CONFIG.baseY,
@@ -135,7 +164,7 @@ const Staff: React.FC<StaffProps> = ({
         interaction={scopedInteraction}
       />
     );
-    currentX += width;
+    currentX += stretchedWidth;
     return component;
   });
 
@@ -145,7 +174,8 @@ const Staff: React.FC<StaffProps> = ({
   // Render ties between notes
   const renderTies = () => {
     const ties: React.ReactElement[] = [];
-    const { startOfMeasures: tieStartX } = calculateHeaderLayout(keySignature);
+    // Use same preamble calculation as main measure rendering
+    const { measuresX: tieStartX } = calculateSystemPreamble(keySignature, { isFirstSystem });
 
     let currentMeasureX = tieStartX;
 
@@ -246,25 +276,28 @@ const Staff: React.FC<StaffProps> = ({
 
   return (
     <g className="staff" transform={`translate(0, ${verticalOffset})`}>
-      {/* Staff Header (Clef, Key Sig, Time Sig) */}
-      <ScoreHeader
-        clef={clef}
-        keySignature={keySignature}
-        timeSignature={timeSignature}
-        baseY={CONFIG.baseY} // Use normalized baseY
-        onClefClick={(e) => {
-          e.stopPropagation();
-          if (onClefClick) onClefClick();
-        }}
-        onKeySigClick={(e) => {
-          e.stopPropagation();
-          if (onKeySigClick) onKeySigClick();
-        }}
-        onTimeSigClick={(e) => {
-          e.stopPropagation();
-          if (onTimeSigClick) onTimeSigClick();
-        }}
-      />
+      {/* Staff Header (Clef, Key Sig, Time Sig) - only at system start */}
+      {isSystemStart && (
+        <ScoreHeader
+          clef={clef}
+          keySignature={keySignature}
+          timeSignature={timeSignature}
+          baseY={CONFIG.baseY} // Use normalized baseY
+          showTimeSignature={systemIndex === 0}
+          onClefClick={(e) => {
+            e.stopPropagation();
+            if (onClefClick) onClefClick();
+          }}
+          onKeySigClick={(e) => {
+            e.stopPropagation();
+            if (onKeySigClick) onKeySigClick();
+          }}
+          onTimeSigClick={(e) => {
+            e.stopPropagation();
+            if (onTimeSigClick) onTimeSigClick();
+          }}
+        />
+      )}
 
       {/* Measures */}
       {measureComponents}
@@ -276,9 +309,13 @@ const Staff: React.FC<StaffProps> = ({
 };
 
 // Export totalWidth calculation for parent container sizing
-export const calculateStaffWidth = (measures: MeasureData[], keySignature: string): number => {
-  const { startOfMeasures } = calculateHeaderLayout(keySignature);
-  let width = startOfMeasures;
+export const calculateStaffWidth = (
+  measures: MeasureData[],
+  keySignature: string,
+  isFirstSystem: boolean = true
+): number => {
+  const { measuresX } = calculateSystemPreamble(keySignature, { isFirstSystem });
+  let width = measuresX;
   measures.forEach((measure) => {
     width += calculateMeasureWidth(measure.events, measure.isPickup);
   });

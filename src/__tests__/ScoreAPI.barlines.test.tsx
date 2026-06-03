@@ -136,7 +136,7 @@ describe('ScoreAPI Barline Behaviors', () => {
 
       // Select last event of m1 (Measure 1 is index 0)
       act(() => {
-        api.select(1, 0, 0, 0);
+        api.select(0, 0, 0, 0);
       });
 
       // Move right - should jump to m2, first event (m2 was auto-created or pre-existing)
@@ -188,7 +188,7 @@ describe('ScoreAPI Barline Behaviors', () => {
 
       // Select the first event in measure 1
       act(() => {
-        api.select(1, 0, 0, 0);
+        api.select(0, 0, 0, 0);
       });
 
       const selBefore = api.getSelection();

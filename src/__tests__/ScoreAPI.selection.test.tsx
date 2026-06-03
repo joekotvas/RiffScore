@@ -33,12 +33,12 @@ describe('ScoreAPI Selection Enhancements (Phase 7C)', () => {
 
       // Add two notes to have events at different quants
       act(() => {
-        api.select(1).addNote('C4', 'quarter').addNote('D4', 'quarter');
+        api.select(0).addNote('C4', 'quarter').addNote('D4', 'quarter');
       });
 
       // Select at quant 0 (first quarter note)
       act(() => {
-        api.selectAtQuant(1, 0, 0);
+        api.selectAtQuant(0, 0, 0);
       });
 
       const sel = api.getSelection();
@@ -54,12 +54,12 @@ describe('ScoreAPI Selection Enhancements (Phase 7C)', () => {
 
       // Add two quarter notes (16 quants each)
       act(() => {
-        api.select(1).addNote('C4', 'quarter').addNote('D4', 'quarter');
+        api.select(0).addNote('C4', 'quarter').addNote('D4', 'quarter');
       });
 
       // Select at quant 16 (second quarter note)
       act(() => {
-        api.selectAtQuant(1, 16, 0);
+        api.selectAtQuant(0, 16, 0);
       });
 
       const sel = api.getSelection();
@@ -73,7 +73,7 @@ describe('ScoreAPI Selection Enhancements (Phase 7C)', () => {
 
       let result: MusicEditorAPI | undefined;
       act(() => {
-        result = api.selectAtQuant(1, 0, 0);
+        result = api.selectAtQuant(0, 0, 0);
       });
 
       expect(result).toBe(api);
@@ -87,17 +87,17 @@ describe('ScoreAPI Selection Enhancements (Phase 7C)', () => {
 
       // Add two notes
       act(() => {
-        api.select(1).addNote('C4', 'quarter').addNote('D4', 'quarter');
+        api.select(0).addNote('C4', 'quarter').addNote('D4', 'quarter');
       });
 
       // Select first note
       act(() => {
-        api.select(1, 0, 0, 0);
+        api.select(0, 0, 0, 0);
       });
 
       // Add second note to selection
       act(() => {
-        api.addToSelection(1, 0, 1, 0);
+        api.addToSelection(0, 0, 1, 0);
       });
 
       const sel = api.getSelection();
@@ -110,17 +110,17 @@ describe('ScoreAPI Selection Enhancements (Phase 7C)', () => {
 
       // Add two notes
       act(() => {
-        api.select(1).addNote('C4', 'quarter').addNote('D4', 'quarter');
+        api.select(0).addNote('C4', 'quarter').addNote('D4', 'quarter');
       });
 
       // Select first note
       act(() => {
-        api.select(1, 0, 0, 0);
+        api.select(0, 0, 0, 0);
       });
 
       // Toggle same note (should remove it)
       act(() => {
-        api.addToSelection(1, 0, 0, 0);
+        api.addToSelection(0, 0, 0, 0);
       });
 
       const sel = api.getSelection();
@@ -133,12 +133,12 @@ describe('ScoreAPI Selection Enhancements (Phase 7C)', () => {
       const api = getAPI('add-chain');
 
       act(() => {
-        api.select(1).addNote('C4', 'quarter');
+        api.select(0).addNote('C4', 'quarter');
       });
 
       let result: MusicEditorAPI | undefined;
       act(() => {
-        result = api.addToSelection(1, 0, 0, 0);
+        result = api.addToSelection(0, 0, 0, 0);
       });
 
       expect(result).toBe(api);
@@ -152,17 +152,17 @@ describe('ScoreAPI Selection Enhancements (Phase 7C)', () => {
 
       // Add three notes
       act(() => {
-        api.select(1).addNote('C4', 'quarter').addNote('D4', 'quarter').addNote('E4', 'quarter');
+        api.select(0).addNote('C4', 'quarter').addNote('D4', 'quarter').addNote('E4', 'quarter');
       });
 
       // Select first note (sets anchor)
       act(() => {
-        api.select(1, 0, 0, 0);
+        api.select(0, 0, 0, 0);
       });
 
       // Range select to third note
       act(() => {
-        api.selectRangeTo(1, 0, 2, 0);
+        api.selectRangeTo(0, 0, 2, 0);
       });
 
       const sel = api.getSelection();
@@ -175,13 +175,13 @@ describe('ScoreAPI Selection Enhancements (Phase 7C)', () => {
       const api = getAPI('range-chain');
 
       act(() => {
-        api.select(1).addNote('C4', 'quarter').addNote('D4', 'quarter');
-        api.select(1, 0, 0, 0);
+        api.select(0).addNote('C4', 'quarter').addNote('D4', 'quarter');
+        api.select(0, 0, 0, 0);
       });
 
       let result: MusicEditorAPI | undefined;
       act(() => {
-        result = api.selectRangeTo(1, 0, 1, 0);
+        result = api.selectRangeTo(0, 0, 1, 0);
       });
 
       expect(result).toBe(api);

@@ -6,11 +6,11 @@
 import React from 'react';
 import ToolbarButton from './ToolbarButton';
 import { TUPLETS, BRAVURA_FONT } from '@/constants/SMuFL';
+import { CONFIG } from '@/config';
 
 import './styles/TupletControls.css';
 
-// SVG viewport size for compact toolbar icons
-const ICON_SIZE = 20;
+const ICON_SIZE = CONFIG.toolbar.iconSize;
 
 /**
  * SMuFL-based tuplet number icon with noteheads representing the group

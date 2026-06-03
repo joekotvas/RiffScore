@@ -8,7 +8,7 @@ import { Melody, getActiveStaff } from '@/types';
 import { InstrumentType } from '@/engines/toneEngine';
 
 // Hooks & Commands
-import { useFocusTrap } from '@/hooks/layout';
+import { useFocusTrap, useScoreSetup } from '@/hooks/layout';
 import { ToggleRestCommand } from '@/commands/ToggleRestCommand';
 import { LoadScoreCommand } from '@/commands/LoadScoreCommand';
 
@@ -25,9 +25,15 @@ import InputModeToggle from './InputModeToggle';
 import FileMenu from './FileMenu';
 import HistoryControls from './HistoryControls';
 import PlaybackControls from './PlaybackControls';
+import ViewToggle from './ViewToggle';
+import ScoreSetupButton from './ScoreSetupButton';
+import PrintButton from './PrintButton';
+import FullscreenButton from './FullscreenButton';
 // import MidiControls from './MidiControls';
 import Divider from './Divider';
 import { DropdownTrigger } from './Menus/DropdownOverlay';
+import { ScoreSetupDialog } from '@/components/Dialog/ScoreSetupDialog/ScoreSetupDialog';
+import Portal from '@/components/Layout/Portal';
 
 import './styles/Toolbar.css';
 
@@ -60,6 +66,10 @@ interface ToolbarProps {
 
   // Data
   melodies: Melody[];
+
+  // Fullscreen
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 export interface ToolbarHandle {
@@ -67,6 +77,7 @@ export interface ToolbarHandle {
   openTimeSigMenu: () => void;
   openClefMenu: () => void;
   isMenuOpen: () => boolean;
+  toggleScoreSetup: () => void;
 }
 
 const TOP_ROW_HEIGHT = 'h-9';
@@ -91,6 +102,8 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
       onInstrumentChange,
       samplerLoaded,
       onEscape,
+      isFullscreen = false,
+      onToggleFullscreen,
     },
     ref
   ) => {
@@ -102,6 +115,9 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
 
     const [showLibrary, setShowLibrary] = useState(false);
     const [isToolbarFocused, setIsToolbarFocused] = useState(false);
+
+    // -- Score Setup Dialog --
+    const scoreSetup = useScoreSetup();
 
     // -- Score Context (Grouped API) --
     const ctx = useScoreContext();
@@ -167,8 +183,10 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
 
     // -- Derived Logic --
 
-    // eslint-disable-next-line react-hooks/refs
-    const isAnyMenuOpen = showLibrary || (staffControlsRef.current?.isMenuOpen() ?? false);
+    /* eslint-disable react-hooks/refs -- isAnyMenuOpen is recalculated on each render to detect menu state */
+    const isAnyMenuOpen =
+      showLibrary || scoreSetup.isOpen || (staffControlsRef.current?.isMenuOpen() ?? false);
+    /* eslint-enable react-hooks/refs */
     const activeStaff = getActiveStaff(score);
 
     useImperativeHandle(
@@ -178,8 +196,9 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
         openKeySigMenu: () => staffControlsRef.current?.openKeySigMenu(),
         openClefMenu: () => staffControlsRef.current?.openClefMenu(),
         isMenuOpen: () => isAnyMenuOpen,
+        toggleScoreSetup: () => scoreSetup.toggle(),
       }),
-      [isAnyMenuOpen]
+      [isAnyMenuOpen, scoreSetup]
     );
 
     useFocusTrap({
@@ -273,6 +292,22 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
           {/* Spacer */}
           <div className="riff-Toolbar__spacer"></div>
 
+          {/* View Controls Group */}
+          <div className="riff-ControlGroup">
+            <ViewToggle variant="ghost" />
+            <ScoreSetupButton onClick={scoreSetup.open} variant="ghost" />
+            <PrintButton variant="ghost" />
+            {onToggleFullscreen && (
+              <FullscreenButton
+                isFullscreen={isFullscreen}
+                onToggle={onToggleFullscreen}
+                variant="ghost"
+              />
+            )}
+          </div>
+
+          <Divider />
+
           <ToolbarButton
             onClick={onToggleHelp}
             label="Keyboard Shortcuts"
@@ -361,7 +396,18 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
         </div>
 
         {/* Error Message */}
-        {errorMsg && <div className="riff-Toolbar__error">⚠️ {errorMsg}</div>}
+        {errorMsg && <div className="riff-Toolbar__error">{errorMsg}</div>}
+
+        {/* Score Setup Dialog */}
+        {scoreSetup.isOpen && (
+          <Portal>
+            <ScoreSetupDialog
+              isOpen={scoreSetup.isOpen}
+              onSave={scoreSetup.save}
+              onCancel={scoreSetup.cancel}
+            />
+          </Portal>
+        )}
       </div>
     );
   }

@@ -347,6 +347,9 @@ export const LAYOUT = {
     SPACING: HALF_SPACE + 2,
   },
 
+  /** Padding added before noteheads when accidentals are present */
+  ACCIDENTAL_PADDING: NOTE_SPACING_BASE_UNIT * 0.8,
+
   // Hit Detection
   HIT_AREA: {
     WIDTH: 20,
@@ -440,6 +443,24 @@ export const FLAG_RENDERING = {
 
 export const STAFF_LINES_COUNT = 5;
 export const STAFF_HEIGHT = (STAFF_LINES_COUNT - 1) * SPACE; // 48px
+
+/**
+ * Consolidated staff geometry constants.
+ * Single source of truth for all staff dimension calculations.
+ *
+ * Coordinate system: Staff coordinates (unscaled pixels at 100% scale).
+ * Multiply by staffScale to get page coordinates.
+ */
+export const STAFF_GEOMETRY = {
+  /** Distance between staff lines (pixels) */
+  lineHeight: CONFIG.lineHeight, // 12px
+  /** Number of staff lines */
+  lineCount: STAFF_LINES_COUNT, // 5
+  /** Total height of staff (4 spaces × 12px = 48px) */
+  height: STAFF_HEIGHT, // 48px
+  /** Spacing between staves in grand staff (pixels) */
+  spacing: CONFIG.staffSpacing, // 120px
+} as const;
 
 // Visual limits for interactions
 export const LEDGER_LINE_STEP = SPACE; // 12px step for full line

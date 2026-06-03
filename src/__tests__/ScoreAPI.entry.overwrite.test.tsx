@@ -75,14 +75,14 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
         api.select(0, 0, 1, 0); // measure 0, staff 0, eventIndex 1... wait, API select args?
         // select(measureIndex, eventIndex?, noteIndex?, staffIndex?) might vary or use object.
         // Looking at API.select implementation or usage in other tests:
-        // api.select(1) -> measureIndex
+        // api.select(0) -> measureIndex
         // api.select(measureIndex, eventId) -> need ID?
-        // Other test used: api.select(1, 0, 0, 0) for measure 1?
+        // Other test used: api.select(0, 0, 0, 0) for measure 1?
         // Let's rely on finding event ID or just index.
         // api.select(measureIndex, staffIndex, eventIndex, noteIndex?)...
         // Actually typical select is `select(string | number)` or object.
         // Let's check typical usage.
-        // In entry.test.tsx: `api.select(1, 0, 0, 0);`
+        // In entry.test.tsx: `api.select(0, 0, 0, 0);`
         // Assuming select(measureIndex, eventIndex, noteIndex, staffIndex).
         // Let's assume the overload supports indices.
       });
@@ -99,9 +99,9 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       // Let's assume we can navigate to it.
       // Or re-select using `select` which usually handles selection.
       // Checking `ScoreAPI.entry.test.tsx`:
-      // `api.select(1, 0, 0, 0)` -> Measure 1 (0-based?), Event 0...
-      // Wait, other test said `api.select(1).addNote...`
-      // `api.select(1)` usually selects Measure 1?
+      // `api.select(0, 0, 0, 0)` -> Measure 1 (0-based?), Event 0...
+      // Wait, other test said `api.select(0).addNote...`
+      // `api.select(0)` usually selects Measure 1?
       // Let's select Measure 0 (first arg).
       // If we want to target a specific time, we need to select the EVENT.
 
@@ -211,7 +211,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       // Note: Standard selection usually snaps to boundaries, but we can force it via selectAtQuant
       // or by jumping to end-measure if measure is larger.
       act(() => {
-        api.selectAtQuant(1, 2); // Should fail/error if no event, but here we want to test defensive filling
+        api.selectAtQuant(0, 2); // Should fail/error if no event, but here we want to test defensive filling
       });
 
       // If selectAtQuant fails because no event exists, we can use a ghost cursor state or loading a score with a gap.
@@ -353,7 +353,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
 
       // Select first event
       act(() => {
-        api.select(1, 0, 0);
+        api.select(0, 0, 0);
       });
 
       // Insert a quarter note with mode: 'insert'
@@ -389,7 +389,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
 
       // Select first event
       act(() => {
-        api.select(1, 0, 0);
+        api.select(0, 0, 0);
       });
 
       // Insert quarter note - should push F4 to next measure
@@ -442,7 +442,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
           .addNote('C4', 'quarter')
           .addNote('D4', 'quarter')
           .addNote('E4', 'quarter')
-          .select(1, 0, 0)
+          .select(0, 0, 0)
           .addNote('G4', 'quarter', false, { mode: 'insert' });
       });
 
@@ -459,7 +459,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
           .addNote('C4', 'quarter')
           .addNote('D4', 'quarter')
           .addNote('E4', 'quarter')
-          .select(1, 0, 1) // Select D4
+          .select(0, 0, 1) // Select D4
           .addNote('G4', 'quarter', false, { mode: 'insert' });
       });
 
@@ -476,7 +476,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
         api
           .addNote('C4', 'quarter')
           .addNote('D4', 'quarter')
-          .select(1, 0, 1) // Select D4 (last event)
+          .select(0, 0, 1) // Select D4 (last event)
           .addNote('G4', 'quarter', false, { mode: 'insert' });
       });
 
@@ -497,9 +497,9 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
         api
           .addNote('C4', 'quarter')
           .addNote('D4', 'quarter')
-          .select(1, 0, 0)
+          .select(0, 0, 0)
           .addNote('E4', 'quarter', false, { mode: 'insert' })
-          .select(1, 0, 0)
+          .select(0, 0, 0)
           .addNote('F4', 'quarter', false, { mode: 'insert' });
       });
 
@@ -518,7 +518,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
           .addNote('D4', 'quarter')
           .addNote('E4', 'quarter')
           .addNote('F4', 'quarter')
-          .select(1, 0, 1) // Select D4
+          .select(0, 0, 1) // Select D4
           .addNote('G4', 'half', false, { mode: 'overwrite' }); // Overwrites D4, E4
       });
 
@@ -527,7 +527,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
 
       act(() => {
         api
-          .select(1, 0, 0) // Select C4
+          .select(0, 0, 0) // Select C4
           .addNote('A4', 'quarter', false, { mode: 'insert' }); // Insert A4, shift right
       });
 
@@ -549,7 +549,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
         api
           .addNote('C4', 'half')
           .addNote('D4', 'half') // Full measure
-          .select(1, 0, 0)
+          .select(0, 0, 0)
           .addNote('E4', 'quarter', false, { mode: 'insert' }); // Insert quarter, overflows D4
       });
 
@@ -577,7 +577,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
 
       act(() => {
         api
-          .select(1) // Select empty measure 1
+          .select(0) // Select empty measure 1
           .addNote('C4', 'quarter', false, { mode: 'insert' });
       });
 
@@ -607,7 +607,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
 
       // Insert half note at beginning - should push 4 eighths to overflow
       act(() => {
-        api.select(1, 0, 0).addNote('D5', 'half', false, { mode: 'insert' });
+        api.select(0, 0, 0).addNote('D5', 'half', false, { mode: 'insert' });
       });
 
       const m1 = api.getScore().staves[0].measures[0];
@@ -629,7 +629,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
         api
           .addNote('C4', 'quarter')
           .addNote('D4', 'quarter')
-          .select(1, 0, 0)
+          .select(0, 0, 0)
           .addRest('quarter', false, { mode: 'insert' });
       });
 
@@ -651,7 +651,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       act(() => {
         api
           .addNote('C4', 'quarter')
-          .select(1, 0, 0)
+          .select(0, 0, 0)
           .addNote('InvalidPitch', 'quarter', false, { mode: 'insert' });
       });
 
@@ -737,7 +737,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       // After insert: quarter (16) + triplet (32) + half (32) = 80 quants (overflow of 16)
       act(() => {
         api
-          .select(1, 0, 0) // Select first triplet note
+          .select(0, 0, 0) // Select first triplet note
           .addNote('G4', 'quarter', false, { mode: 'insert' });
       });
 
@@ -775,7 +775,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
 
       // Insert - should push F4 only (no tuplets involved)
       act(() => {
-        api.select(1, 0, 0).addNote('G4', 'quarter', false, { mode: 'insert' });
+        api.select(0, 0, 0).addNote('G4', 'quarter', false, { mode: 'insert' });
       });
 
       const score = api.getScore();
@@ -849,7 +849,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
 
       // Select the whole note in the bass staff
       act(() => {
-        api.select(1, 1, 0);
+        api.select(0, 1, 0);
       });
       expect(api.getSelection().staffIndex).toBe(1);
       expect(api.getSelection().eventId).toBe('bass-whole');
@@ -921,7 +921,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
           .addNote('D4', 'half')
           .addNote('E4', 'half')
           .addNote('F4', 'half')
-          .select(1, 0, 1) // Select D4 (2nd event in measure 1)
+          .select(0, 0, 1) // Select D4 (2nd event in measure 1)
           .addNote('G4', 'whole'); // Overwrites D4, overflows and overwrites E4
       });
 
@@ -980,7 +980,7 @@ describe('ScoreAPI Entry Advanced (Overwrite/Overflow)', () => {
       const api = getAPI('chain-select-sync');
 
       act(() => {
-        api.addNote('C4', 'quarter').addNote('D4', 'quarter').select(1, 0, 1); // Select 2nd event immediately after addNote
+        api.addNote('C4', 'quarter').addNote('D4', 'quarter').select(0, 0, 1); // Select 2nd event immediately after addNote
       });
 
       const sel = api.getSelection();

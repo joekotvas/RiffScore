@@ -56,6 +56,7 @@ jest.mock('@/services/ChordService', () => ({
 
 const createTestChord = (overrides?: Partial<ChordSymbol>): ChordSymbol => ({
   id: 'chord-1',
+  measure: 0,
   quant: 0,
   symbol: 'Cmaj7',
   ...overrides,
@@ -140,10 +141,10 @@ describe('useChordTrack', () => {
         })
       );
 
-      expect(result.current.validQuants).toBeInstanceOf(Set);
+      expect(result.current.validPositions).toBeInstanceOf(Set);
       // With our mock, we expect beat positions (0, 24, 48, 72 per measure)
-      expect(result.current.validQuants.has(0)).toBe(true);
-      expect(result.current.validQuants.has(24)).toBe(true);
+      expect(result.current.validPositions.has(0)).toBe(true);
+      expect(result.current.validPositions.has(24)).toBe(true);
     });
 
     it('has null editing state initially', () => {
@@ -157,7 +158,7 @@ describe('useChordTrack', () => {
       );
 
       expect(result.current.editingChordId).toBeNull();
-      expect(result.current.creatingAtQuant).toBeNull();
+      expect(result.current.creatingAt).toBeNull();
       expect(result.current.initialValue).toBeNull();
     });
 
@@ -283,17 +284,17 @@ describe('useChordTrack', () => {
 
       // First start creating
       act(() => {
-        result.current.startCreating(48);
+        result.current.startCreating({ measure: 0, quant: 48 });
       });
 
-      expect(result.current.creatingAtQuant).toBe(48);
+      expect(result.current.creatingAt).toEqual({ measure: 0, quant: 48 });
 
       // Then start editing
       act(() => {
         result.current.startEditing('chord-1');
       });
 
-      expect(result.current.creatingAtQuant).toBeNull();
+      expect(result.current.creatingAt).toBeNull();
       expect(result.current.editingChordId).toBe('chord-1');
     });
 
@@ -322,7 +323,7 @@ describe('useChordTrack', () => {
   // --------------------------------------------------------------------------
 
   describe('startCreating', () => {
-    it('sets creatingAtQuant to the target position', () => {
+    it('sets creatingAt to the target position', () => {
       const { result } = renderHook(() =>
         useChordTrack({
           scoreRef,
@@ -333,10 +334,10 @@ describe('useChordTrack', () => {
       );
 
       act(() => {
-        result.current.startCreating(24);
+        result.current.startCreating({ measure: 0, quant: 24 });
       });
 
-      expect(result.current.creatingAtQuant).toBe(24);
+      expect(result.current.creatingAt).toEqual({ measure: 0, quant: 24 });
     });
 
     it('sets editingChordId to "new" for new chord creation', () => {
@@ -350,7 +351,7 @@ describe('useChordTrack', () => {
       );
 
       act(() => {
-        result.current.startCreating(0);
+        result.current.startCreating({ measure: 0, quant: 0 });
       });
 
       expect(result.current.editingChordId).toBe('new');
@@ -367,7 +368,7 @@ describe('useChordTrack', () => {
       );
 
       act(() => {
-        result.current.startCreating(72);
+        result.current.startCreating({ measure: 1, quant: 8 });
       });
 
       expect(result.current.initialValue).toBe('');
@@ -387,7 +388,7 @@ describe('useChordTrack', () => {
       );
 
       act(() => {
-        result.current.startCreating(48);
+        result.current.startCreating({ measure: 0, quant: 48 });
       });
 
       expect(selectionEngine.getState().chordId).toBeNull();
@@ -440,7 +441,7 @@ describe('useChordTrack', () => {
 
       // Start creating at quant 48
       act(() => {
-        result.current.startCreating(48);
+        result.current.startCreating({ measure: 0, quant: 48 });
       });
 
       // Complete with value (null chordId indicates new chord)
@@ -448,7 +449,7 @@ describe('useChordTrack', () => {
         result.current.completeEdit(null, 'Dm');
       });
 
-      expect(AddChordCommand).toHaveBeenCalledWith(48, 'Dm');
+      expect(AddChordCommand).toHaveBeenCalledWith({ measure: 0, quant: 48 }, 'Dm');
       expect(mockDispatch).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'AddChordCommand' })
       );
@@ -502,7 +503,7 @@ describe('useChordTrack', () => {
       });
 
       expect(result.current.editingChordId).toBeNull();
-      expect(result.current.creatingAtQuant).toBeNull();
+      expect(result.current.creatingAt).toBeNull();
       expect(result.current.initialValue).toBeNull();
     });
 
@@ -598,16 +599,16 @@ describe('useChordTrack', () => {
       );
 
       act(() => {
-        result.current.startCreating(24);
+        result.current.startCreating({ measure: 0, quant: 24 });
       });
 
-      expect(result.current.creatingAtQuant).toBe(24);
+      expect(result.current.creatingAt).toEqual({ measure: 0, quant: 24 });
 
       act(() => {
         result.current.cancelEdit();
       });
 
-      expect(result.current.creatingAtQuant).toBeNull();
+      expect(result.current.creatingAt).toBeNull();
     });
 
     it('clears initialValue', () => {
@@ -884,7 +885,7 @@ describe('useChordTrack', () => {
         { initialProps: { score: scoreRef.current } }
       );
 
-      const _initialValidQuants = result.current.validQuants;
+      const _initialValidQuants = result.current.validPositions;
 
       // Create a new score (triggers recomputation)
       const newScore = createTestScore([]);
@@ -893,7 +894,7 @@ describe('useChordTrack', () => {
       rerender({ score: newScore });
 
       // validQuants should be recomputed (may be same values but new Set instance)
-      expect(result.current.validQuants).toBeInstanceOf(Set);
+      expect(result.current.validPositions).toBeInstanceOf(Set);
     });
   });
 });

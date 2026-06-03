@@ -375,11 +375,10 @@ export const calculateVerticalNavigation = (
       sortedNotes[sortedNotes.length - 1]?.id === selection.noteId;
 
     if (isAtTopNote) {
-      // Calculate global quant for current position
-      const globalQuant = measureIndex * currentQuantsPerMeasure + currentQuantStart;
-
       // Check if there's a chord at this position
-      const chordAtQuant = score.chordTrack.find((c) => c.quant === globalQuant);
+      const chordAtQuant = score.chordTrack.find(
+        (c) => c.measure === measureIndex && c.quant === currentQuantStart
+      );
       if (chordAtQuant) {
         return {
           selection: {
@@ -475,11 +474,10 @@ export const calculateVerticalNavigation = (
       sortedNotes.length <= 1 || !selection.noteId || sortedNotes[0]?.id === selection.noteId;
 
     if (isAtBottomNote) {
-      // Calculate global quant for current position
-      const globalQuant = measureIndex * currentQuantsPerMeasure + currentQuantStart;
-
       // Check if there's a chord at this position
-      const chordAtQuant = score.chordTrack.find((c) => c.quant === globalQuant);
+      const chordAtQuant = score.chordTrack.find(
+        (c) => c.measure === measureIndex && c.quant === currentQuantStart
+      );
       if (chordAtQuant) {
         return {
           selection: {
