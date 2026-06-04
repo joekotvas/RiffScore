@@ -1,6 +1,7 @@
 import { Command } from './types';
 import { Score, Note } from '@/types';
 import { updateNote } from '@/utils/commandHelpers';
+import { foldAccidentalIntoPitch, deriveAccidental } from '@/services/MusicService';
 
 export class UpdateNoteCommand implements Command {
   public readonly type = 'UPDATE_NOTE';
@@ -15,6 +16,8 @@ export class UpdateNoteCommand implements Command {
   ) {}
 
   execute(score: Score): Score {
+    const staffKey = score.staves[this.staffIndex]?.keySignature || score.keySignature || 'C';
+
     return updateNote(
       score,
       this.staffIndex,
@@ -23,7 +26,28 @@ export class UpdateNoteCommand implements Command {
       this.noteId,
       (note) => {
         this.previousNote = { ...note };
-        Object.assign(note, this.updates);
+
+        // CONTRACT C1: pitch is the single source of truth for alteration.
+        // If a caller asks to change the `accidental` WITHOUT supplying a pitch,
+        // fold that accidental into the sounding pitch so it is never a no-op.
+        // This guards every dispatch path, not just the API.
+        const updates = { ...this.updates };
+        const accidentalChanged = 'accidental' in updates;
+        const pitchChanged = 'pitch' in updates;
+
+        if (accidentalChanged && !pitchChanged && note.pitch != null) {
+          const type = updates.accidental ?? null;
+          updates.pitch = foldAccidentalIntoPitch(note.pitch, type, staffKey);
+        }
+
+        Object.assign(note, updates);
+
+        // Keep the legacy `accidental` field as a strictly-DERIVED mirror of the
+        // (possibly newly-computed) pitch so readers never disagree with pitch.
+        if ('pitch' in updates && note.pitch != null) {
+          note.accidental = deriveAccidental(note.pitch);
+        }
+
         return true;
       }
     );

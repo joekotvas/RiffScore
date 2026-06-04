@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { requestMIDIAccess, setupMIDIListeners, midiNoteToPitch } from '@/engines/midiEngine';
 import { playNote } from '@/engines/toneEngine';
 import { Score, getActiveStaff } from '@/types';
+import { deriveAccidental } from '@/services/MusicService';
 
 export type Accidental = 'sharp' | 'flat' | 'natural' | null;
 
@@ -75,11 +76,15 @@ export const useMIDI = (
         if (addChordRef.current && scoreRef.current) {
           const currentScore = scoreRef.current;
           const targetMeasureIndex = getActiveStaff(currentScore).measures.length - 1;
+          // MIDI pitches from Tonal already carry their enharmonic spelling, so
+          // the `accidental` mirror is DERIVED from the pitch (contract C1) and
+          // never overridden by the toolbar's active accidental. The toolbar
+          // accidental is only a defensive fallback if a pitch is unspellable.
           addChordRef.current(
             targetMeasureIndex,
             notes.map((n) => ({
               pitch: n.pitch,
-              accidental: n.accidental || activeAccidentalRef.current,
+              accidental: deriveAccidental(n.pitch) ?? activeAccidentalRef.current,
             })),
             activeDurationRef.current,
             isDottedRef.current

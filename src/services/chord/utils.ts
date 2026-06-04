@@ -6,8 +6,8 @@
  * @tested src/__tests__/services/ChordService.test.ts
  */
 
-import { Key } from 'tonal';
 import { TIME_SIGNATURES } from '@/constants';
+import { parseKey, getEffectiveScale } from '@/utils/keyResolution';
 
 // ============================================================================
 // QUALITY DETECTION (DRY - used in 7+ places)
@@ -47,21 +47,24 @@ export const isAugmentedChord = (symbol: string): boolean => {
 
 /**
  * Parse a key signature to extract root and mode.
+ *
+ * Delegates to the shared mode-aware resolver (`@/utils/keyResolution`) so the
+ * chord module and the core theory path can never diverge. The previous
+ * `keySignature.replace('m', ...)` heuristic mis-handled keys whose tonic
+ * contains 'm'-like substrings; the shared parser only treats a TRAILING 'm'
+ * (not part of 'maj') as minor.
  */
 export const parseKeySignature = (keySignature: string): { keyRoot: string; isMinor: boolean } => {
-  const isMinor = keySignature.includes('m') && !keySignature.includes('maj');
-  const keyRoot = isMinor ? keySignature.replace('m', '') : keySignature;
-  return { keyRoot, isMinor };
+  const { tonic, mode } = parseKey(keySignature);
+  return { keyRoot: tonic, isMinor: mode === 'minor' };
 };
 
 /**
  * Get the scale for a key signature.
- * Uses natural minor for minor keys.
+ * Uses natural minor for minor keys (via the shared resolver).
  */
-export const getScaleForKey = (keySignature: string): readonly string[] => {
-  const { keyRoot, isMinor } = parseKeySignature(keySignature);
-  return isMinor ? Key.minorKey(keyRoot).natural.scale : Key.majorKey(keyRoot).scale;
-};
+export const getScaleForKey = (keySignature: string): readonly string[] =>
+  getEffectiveScale(keySignature);
 
 // ============================================================================
 // QUANTS PER MEASURE (DRY - duplicated in hooks/api/chords.ts)

@@ -1,6 +1,11 @@
 import { createNotePayload } from '@/utils/entry/notePayload';
+import { deriveAccidental } from '@/services/MusicService';
 
 describe('createNotePayload', () => {
+  // CONTRACT C1: `pitch` is the single source of truth for alteration. This
+  // builder is a dumb constructor — it stores whatever it is given. Callers are
+  // responsible for passing an already-folded pitch and a DERIVED accidental
+  // mirror (see the "contract C1 usage" block below).
   describe('basic note creation', () => {
     it('creates a note with default values', () => {
       const note = createNotePayload({ pitch: 'C4' });
@@ -78,6 +83,28 @@ describe('createNotePayload', () => {
     it('handles null accidental', () => {
       const note = createNotePayload({ pitch: 'C4', accidental: null });
       expect(note.accidental).toBeNull();
+    });
+  });
+
+  describe('contract C1 usage: pitch is the source of truth, accidental is a derived mirror', () => {
+    // The entry hooks fold the active accidental / key into the PITCH and then
+    // derive the mirror from that pitch. These tests assert that producing a
+    // payload the C1-correct way yields a pitch and mirror that AGREE.
+    it.each([
+      ['F#4', 'sharp'],
+      ['Bb3', 'flat'],
+      ['C4', 'natural'],
+      ['Fx5', 'sharp'],
+    ])('a resolved pitch %s yields a mirror that matches the pitch', (pitch, expectedMirror) => {
+      const note = createNotePayload({ pitch, accidental: deriveAccidental(pitch) });
+      expect(note.pitch).toBe(pitch);
+      expect(note.accidental).toBe(expectedMirror);
+    });
+
+    it('the mirror never contradicts the sounding pitch', () => {
+      const note = createNotePayload({ pitch: 'Gb4', accidental: deriveAccidental('Gb4') });
+      // Gb4 sounds as F#4 (chroma 6); the mirror says 'flat' to match the spelling.
+      expect(note.accidental).toBe('flat');
     });
   });
 });

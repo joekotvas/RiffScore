@@ -17,6 +17,7 @@ import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
 import { AddMeasureCommand } from '@/commands/MeasureCommands';
 import { createNotePayload, createPreviewNote, PreviewNote } from '@/utils/entry';
 import { eventId as createEventId } from '@/utils/id';
+import { deriveAccidental } from '@/services/MusicService';
 import { InputMode } from '../editor';
 
 /**
@@ -150,7 +151,6 @@ export function useNoteEntry({
   setPreviewNote,
   activeDuration,
   isDotted,
-  activeAccidental,
   activeTie,
   currentQuantsPerMeasure,
   dispatch,
@@ -231,9 +231,12 @@ export function useNoteEntry({
           // Cannot add rest as chord - rests are standalone events
           return;
         }
+        // The preview pitch (newNote.pitch) already encodes the active
+        // accidental and key snap via resolvePitch. Per contract C1, the
+        // `accidental` mirror is DERIVED from that pitch, never the raw tool.
         const noteToAdd = createNotePayload({
           pitch: newNote.pitch,
-          accidental: activeAccidental,
+          accidental: deriveAccidental(newNote.pitch),
           tied: activeTie,
         });
         dispatch(
@@ -248,12 +251,13 @@ export function useNoteEntry({
         const eventId = createEventId();
         const isRest = inputMode === 'REST';
 
-        // Build note payload using utility (null for rests)
+        // Build note payload using utility (null for rests).
+        // Mirror derived from the resolved pitch (contract C1).
         const notePayload = isRest
           ? null
           : createNotePayload({
               pitch: newNote.pitch,
-              accidental: activeAccidental,
+              accidental: deriveAccidental(newNote.pitch),
               tied: activeTie,
             });
 
@@ -336,7 +340,6 @@ export function useNoteEntry({
       currentQuantsPerMeasure,
       scoreRef,
       setPreviewNote,
-      activeAccidental,
       activeTie,
       dispatch,
       selection,
@@ -352,9 +355,11 @@ export function useNoteEntry({
       const eventId = createEventId();
       const firstNote = notes[0];
 
+      // Chord-note pitches already carry their spelling (MIDI/Tonal); the
+      // `accidental` mirror is DERIVED from the pitch per contract C1.
       const noteToAdd = createNotePayload({
         pitch: firstNote.pitch,
-        accidental: firstNote.accidental,
+        accidental: deriveAccidental(firstNote.pitch),
         tied: false,
       });
 
@@ -375,7 +380,7 @@ export function useNoteEntry({
         const note = notes[i];
         const chordNote = createNotePayload({
           pitch: note.pitch,
-          accidental: note.accidental,
+          accidental: deriveAccidental(note.pitch),
           tied: false,
         });
         dispatch(new AddNoteToEventCommand(measureIndex, eventId, chordNote, selection.staffIndex));
