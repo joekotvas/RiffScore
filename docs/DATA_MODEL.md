@@ -12,14 +12,22 @@
 
 ```typescript
 Score {
+  schemaVersion?: number      // Persisted schema version; stamped by migrateScore (current SCHEMA_VERSION = 2)
   title: string
   timeSignature: string       // "4/4", "3/4", "6/8"
   keySignature: string        // "C", "G", "F#", "Bb"
   bpm: number
   staves: Staff[]
-  chordTrack?: ChordSymbol[]  // Sorted by quant ascending
+  chordTrack?: ChordSymbol[]  // Sorted by position ascending
+  metadata?: ScoreMetadata    // Title/composer/lyricist/copyright for display & export
+  layout?: LayoutConfig       // Page/system layout configuration
 }
 ```
+
+> **Schema versioning:** `SCHEMA_VERSION` is currently **2**. `migrateScore` upgrades
+> older scores on load (e.g. key-signature canonicalization and `note.accidental`
+> reconciliation) and stamps the current version. Scores without `schemaVersion` are
+> treated as legacy (pre-versioning) and migrated.
 
 ---
 
@@ -27,7 +35,7 @@ Score {
 
 ```typescript
 Staff {
-  id: string | number
+  id: string
   clef: 'treble' | 'bass' | 'alto' | 'tenor' | 'grand'
   keySignature: string        // Can override score-level
   measures: Measure[]
@@ -44,7 +52,7 @@ A grand staff contains two staves (treble + bass) visually connected by a brace.
 
 ```typescript
 Measure {
-  id: string | number
+  id: string
   isPickup?: boolean          // Anacrusis/upbeat
   events: ScoreEvent[]
 }
@@ -62,12 +70,13 @@ The fundamental rhythmic unit:
 
 ```typescript
 ScoreEvent {
-  id: string | number
-  duration: DurationName      // "whole", "half", "quarter", etc.
+  id: string
+  duration: string            // "whole", "half", "quarter", etc.
   dotted: boolean             // Adds 50% duration
+  notes: Note[]               // Multiple notes = chord; one pitchless note for a rest
   isRest?: boolean            // Rest vs notes
-  tuplet?: TupletInfo         // Tuplet grouping
-  notes: Note[]               // Empty for rests
+  chord?: string | null       // Per-event chord symbol (distinct from Score.chordTrack)
+  tuplet?: { ratio, groupSize, position, baseDuration?, id? }  // Inline tuplet grouping (see §7)
 }
 ```
 
@@ -95,13 +104,21 @@ A dot adds 50% duration:
 
 ```typescript
 Note {
-  id: string | number
-  pitch: string | null        // "C4", "F#5", "Bb3", null for rests
-  accidental?: 'sharp' | 'flat' | 'natural'
+  id: string
+  pitch: string | null        // "C4", "F#5", "Bb3", null for rests — the source of truth
+  accidental?: 'sharp' | 'flat' | 'natural' | null  // Derived mirror of pitch (see below)
+  accidentalDisplay?: 'auto' | 'show' | 'hide' | 'courtesy'  // Display policy; omitted === 'auto'
   tied?: boolean              // Tied to next note
   isRest?: boolean            // Redundant with event for clarity
 }
 ```
+
+> **`pitch` is the single source of truth for alteration.** `accidental` is a *derived
+> mirror* of the pitch spelling (reconciled from `pitch` on load via
+> `reconcileNoteAccidentalMirror`) and is never authoritative for rendering or export —
+> the resolver derives the displayed glyph from `pitch` plus the key/measure context.
+> `accidentalDisplay` is a separate **display policy** (force / hide / courtesy) that
+> never changes the sounding pitch; it only affects whether and how the glyph is drawn.
 
 ### Pitch Format
 
@@ -126,12 +143,18 @@ Storing `F#4` instead of "scale degree 4" means:
 ```typescript
 ChordSymbol {
   id: string                    // Unique identifier
-  quant: number                 // Global quant position
+  measure: number               // 0-based measure index
+  quant: number                 // Local quant position within the measure (0 = start)
   symbol: string                // Canonical letter notation: 'Cmaj7', 'Dm', 'G7'
 }
 ```
 
-Chord symbols live in `Score.chordTrack[]`, anchored to **global quant positions** (computed as `measureIndex × quantsPerMeasure + localQuant`). They are independent of staves and render above the top staff.
+Chord symbols live in `Score.chordTrack[]`, anchored to a **measure-local position**
+(`{ measure, quant }`, with `quant` relative to the start of that measure — *not* a
+global offset). Measure-local anchoring keeps chords correctly attached when measures
+are inserted, deleted, or reflowed. They are independent of staves and render above the
+top staff. (An older v1 layout stored a single global `quant`; `migrateChordTrack`
+upgrades those scores on load.)
 
 ### Input Formats
 
@@ -191,11 +214,16 @@ function quantToDuration(quants: number): { duration: string, dotted: boolean } 
 
 ## 7. Tuplets
 
+Tuplets are described by an **inline object** on `ScoreEvent.tuplet` (there is no
+standalone `TupletInfo` type):
+
 ```typescript
-TupletInfo {
-  numNotes: number            // e.g., 3 for triplet
-  inSpaceOf: number           // e.g., 2 for triplet
-  index: number               // Position in tuplet group (0-based)
+tuplet?: {
+  ratio: [number, number]     // e.g., [3, 2] — 3 notes in the space of 2
+  groupSize: number           // Total notes in the tuplet group (e.g., 3 for a triplet)
+  position: number            // Position within the group (0-based)
+  baseDuration?: string       // Base duration of the tuplet (e.g., 'eighth')
+  id?: string                 // Unique ID shared by the group
 }
 ```
 
@@ -207,9 +235,9 @@ Three eighth notes in the space of two:
 
 ```typescript
 // Triplet eighths
-{ duration: 'eighth', tuplet: { numNotes: 3, inSpaceOf: 2, index: 0 } }
-{ duration: 'eighth', tuplet: { numNotes: 3, inSpaceOf: 2, index: 1 } }
-{ duration: 'eighth', tuplet: { numNotes: 3, inSpaceOf: 2, index: 2 } }
+{ duration: 'eighth', tuplet: { ratio: [3, 2], groupSize: 3, position: 0 } }
+{ duration: 'eighth', tuplet: { ratio: [3, 2], groupSize: 3, position: 1 } }
+{ duration: 'eighth', tuplet: { ratio: [3, 2], groupSize: 3, position: 2 } }
 ```
 
 ---
@@ -246,7 +274,7 @@ Selection {
   noteId: string | null
   selectedNotes: SelectedNote[]
   anchor?: SelectedNote | null
-  verticalAnchors?: VerticalAnchors
+  verticalAnchors?: VerticalAnchors | null
   chordId?: string | null       // Selected chord symbol ID
   chordTrackFocused?: boolean    // True when chord track has focus
 }
@@ -254,8 +282,8 @@ Selection {
 SelectedNote {
   staffIndex: number
   measureIndex: number
-  eventId: string | number
-  noteId: string | number | null
+  eventId: string
+  noteId: string | null         // null for single-note events
 }
 ```
 
