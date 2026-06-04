@@ -51,14 +51,24 @@ export const getBeamBeatQuants = (timeSignature = '4/4'): number => {
   // Quants in one denominator-unit note (e.g. /8 -> eighth-note quants).
   const denominatorUnitQuants = QUANTS_PER_WHOLE / denominator;
 
-  // Compound meters: numerator is a multiple of 3 and greater than 3
-  // (6/8, 9/8, 12/8, ...). The beat groups three denominator units (a dotted beat).
-  const isCompound = numerator > 3 && numerator % 3 === 0;
-  if (isCompound) {
+  // Compound meters (6/8, 9/8, 12/8, 6/4, ...) beam by the DOTTED beat = three
+  // denominator-units. (Compound = the beat divides into 3; top number is a
+  // multiple of 3 greater than 3.)
+  const isCompound = numerator % 3 === 0 && numerator > 3;
+
+  // 3/8 (and 3/16, ...) are SIMPLE triple — three eighth beats, exactly like 3/4,
+  // NOT compound. But the engraving convention beams the whole bar as one group
+  // rather than leaving three single flagged notes, so the beam span is the bar,
+  // which happens to also be three denominator-units (same number as a compound
+  // beat, different reason). The denominator >= 8 guard keeps 3/4 simple (it beams
+  // by the quarter beat, not the whole bar).
+  const beamsWholeBarAsTriple = numerator === 3 && denominator >= 8;
+
+  if (isCompound || beamsWholeBarAsTriple) {
     return denominatorUnitQuants * 3;
   }
 
-  // Simple meters: the beat is one denominator unit.
+  // Other simple meters: the beam beat is one denominator unit.
   return denominatorUnitQuants;
 };
 

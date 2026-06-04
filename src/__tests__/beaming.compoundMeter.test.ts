@@ -7,9 +7,11 @@
  *   - Simple meters group beams by the denominator beat. In 4/4, 3/4 and 2/4 the
  *     beat is the quarter note, so consecutive eighths beam in pairs (two eighths
  *     per quarter beat).
- *   - Compound meters (numerator divisible by 3 and > 3: 6/8, 9/8, 12/8) feel a
- *     dotted-quarter beat that groups THREE eighth notes. So eighths beam in
- *     groups of three.
+ *   - Compound meters (6/8, 9/8, 12/8) feel a dotted-quarter beat that groups
+ *     THREE eighth notes, so eighths beam in groups of three.
+ *   - 3/8 is SIMPLE triple (three eighth beats, like 3/4) — not compound — but the
+ *     engraving convention beams its whole bar as ONE group rather than three lone
+ *     flagged eighths. 3/4 stays simple too, beaming by the quarter beat.
  *
  * The quant grid (utils/core): whole = 64, quarter = 16, eighth = 8, sixteenth = 4.
  *
@@ -54,8 +56,6 @@ describe('getBeamBeatQuants (first-principles beat sizing)', () => {
     expect(getBeamBeatQuants('2/4')).toBe(16);
     // half = 32 quants
     expect(getBeamBeatQuants('2/2')).toBe(32);
-    // eighth = 8 quants (3/8 is simple, not compound: numerator is not > 3)
-    expect(getBeamBeatQuants('3/8')).toBe(8);
   });
 
   test('compound meters use a dotted beat of three denominator units', () => {
@@ -65,6 +65,14 @@ describe('getBeamBeatQuants (first-principles beat sizing)', () => {
     expect(getBeamBeatQuants('12/8')).toBe(24);
     // dotted eighth = three sixteenths = 12 quants
     expect(getBeamBeatQuants('6/16')).toBe(12);
+  });
+
+  test('3/8 is simple triple but beamed whole-bar (span = the bar, unlike 3/4)', () => {
+    // 3/8 and 3/4 are the SAME metric structure (simple triple). 3/8 beams the
+    // whole bar as one group, so its span is the bar = three eighths = 24 quants;
+    // 3/4 beams by the quarter beat (16).
+    expect(getBeamBeatQuants('3/8')).toBe(24);
+    expect(getBeamBeatQuants('3/4')).toBe(16);
   });
 
   test('unknown/garbage signatures fall back to the quarter beat (4/4)', () => {
@@ -133,6 +141,22 @@ describe('compound meter beaming', () => {
     const groups = groupIds(events, '6/8');
 
     expect(groups).toEqual([['e1', 'e2', 'e3']]);
+  });
+});
+
+describe('3/8 — simple triple, but beamed as a single bar group', () => {
+  // 3/8 is metrically SIMPLE (three eighth beats, like 3/4) — not compound. The
+  // engraving convention nonetheless beams its whole bar as ONE group rather than
+  // three lone flagged eighths. (The first fix mis-treated 3/8 as having an eighth
+  // beat, which broke the beam at every eighth and produced ZERO groups.)
+  test('three eighths beam as one group', () => {
+    expect(groupIds(makeEvents(3, 'eighth'), '3/8')).toEqual([['e1', 'e2', 'e3']]);
+  });
+
+  test('six sixteenths beam as one group', () => {
+    expect(groupIds(makeEvents(6, 'sixteenth'), '3/8')).toEqual([
+      ['e1', 'e2', 'e3', 'e4', 'e5', 'e6'],
+    ]);
   });
 });
 

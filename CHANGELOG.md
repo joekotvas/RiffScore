@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### For musicians
 - **Alto and tenor key signatures are correct now** — the sharps and flats sit on their proper lines and spaces (an alto F♯, for example, no longer lands on the C line). Treble and bass were already right. ([#233](https://github.com/joekotvas/riffscore/issues/233))
-- **Compound meters beam correctly** — 6/8, 9/8 and 12/8 group their eighth-notes by the dotted-quarter beat (6/8 as two groups of three, for example) instead of beaming as though every bar were 4/4. ([#241](https://github.com/joekotvas/riffscore/issues/241))
+- **Compound meters beam correctly** — 6/8, 9/8 and 12/8 group their eighth-notes in threes by the dotted-quarter beat (6/8 as two groups of three), and 3/8 beams its whole bar as a single group, instead of beaming as though every bar were 4/4. ([#241](https://github.com/joekotvas/riffscore/issues/241))
 - **Grand staff and pickup bars export cleanly to MusicXML** — a grand staff now exports as a single braced two-staff piano part (instead of two separate parts), and a pickup bar exports as a proper anacrusis, so other notation apps import your music correctly. ([#240](https://github.com/joekotvas/riffscore/issues/240))
 
 ### For developers
