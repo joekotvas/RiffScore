@@ -88,7 +88,13 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 *   **Playback**: Chord voicings play back alongside the score.
 *   **Full API**: CRUD, selection, and navigation via `addChord()`, `selectChord()`, etc.
 
-### Page View & Print
+### Page View & Print _(Experimental)_
+
+> ⚠️ **Experimental — not part of the stable feature set yet.** Page View is in active
+> development with known layout defects on multi-system grand-staff scores. It is being
+> hardened in a dedicated milestone (see the [roadmap](./docs/ROADMAP.md)). The scroll-based
+> editor is the supported default; the items below describe the in-progress capability.
+
 *   **Multi-System Layout**: Automatic system breaks with first system indent and justified measures.
 *   **Multi-Page Pagination**: True page breaks with visual gaps between pages.
 *   **Layout Options**: Letter/A4 page sizes, margin presets, staff size (50-150%), system spacing.
