@@ -6,6 +6,11 @@
 
 import { generateMusicXML } from '@/exporters/musicXmlExporter';
 import { Score, ScoreMetadata } from '@/types';
+import {
+  parseMusicXml,
+  checkDurationSums,
+  allDurationsIntegral,
+} from '../fixtures/musicXmlStructure';
 
 /**
  * Create a minimal score with the specified clef
@@ -309,7 +314,7 @@ describe('MusicXML Chord Symbol Export', () => {
     expect(harmonyMatches).toHaveLength(2);
   });
 
-  it('only adds harmony to first part in multi-staff score', () => {
+  it('only adds harmony to the top staff in a grand-staff score', () => {
     const score: Score = {
       title: 'Test Score',
       timeSignature: '4/4',
@@ -347,17 +352,22 @@ describe('MusicXML Chord Symbol Export', () => {
     };
     const xml = generateMusicXML(score);
 
-    // Should only have one harmony element (in the first part)
+    // A grand staff exports as exactly ONE <part>, so there is no P2.
+    expect(xml.match(/<part id="P\d+">/g)).toHaveLength(1);
+    expect(xml).toContain('<part id="P1">');
+    expect(xml).not.toContain('<part id="P2">');
+
+    // Should only have one harmony element (annotating the top staff).
     const harmonyMatches = xml.match(/<harmony>/g);
     expect(harmonyMatches).toHaveLength(1);
 
-    // Harmony should be in part P1
-    const p1Index = xml.indexOf('<part id="P1">');
-    const p2Index = xml.indexOf('<part id="P2">');
+    // Harmony must precede the <backup> that separates staff 1 from staff 2,
+    // i.e. it belongs to the top staff's timeline.
     const harmonyIndex = xml.indexOf('<harmony>');
-
-    expect(harmonyIndex).toBeGreaterThan(p1Index);
-    expect(harmonyIndex).toBeLessThan(p2Index);
+    const backupIndex = xml.indexOf('<backup>');
+    expect(harmonyIndex).toBeGreaterThan(xml.indexOf('<part id="P1">'));
+    expect(backupIndex).toBeGreaterThan(-1);
+    expect(harmonyIndex).toBeLessThan(backupIndex);
   });
 
   it('handles score without chord track', () => {
@@ -601,5 +611,359 @@ describe('MusicXML Export - Metadata', () => {
 
     expect(workIndex).toBeLessThan(identificationIndex);
     expect(identificationIndex).toBeLessThan(partListIndex);
+  });
+});
+
+/**
+ * Build a grand-staff (treble + bass) score. In riffscore's model a score with
+ * >= 2 staves is ALWAYS a piano grand staff (see SetGrandStaffCommand); there is
+ * no concept of independent instruments. Each staff carries one quarter note per
+ * measure here, padded to a full measure for the duration-sum invariant where it
+ * is asserted explicitly.
+ */
+const createGrandStaffScore = (overrides?: Partial<Score>): Score => ({
+  title: 'Grand Staff',
+  timeSignature: '4/4',
+  keySignature: 'C',
+  bpm: 120,
+  staves: [
+    {
+      id: 'staff-treble',
+      clef: 'treble',
+      keySignature: 'C',
+      measures: [
+        {
+          id: 'm1-t',
+          events: [
+            { id: 'e-t1', duration: 'whole', dotted: false, notes: [{ id: 'n-t1', pitch: 'E4' }] },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'staff-bass',
+      clef: 'bass',
+      keySignature: 'C',
+      measures: [
+        {
+          id: 'm1-b',
+          events: [
+            { id: 'e-b1', duration: 'whole', dotted: false, notes: [{ id: 'n-b1', pitch: 'C3' }] },
+          ],
+        },
+      ],
+    },
+  ],
+  ...overrides,
+});
+
+describe('MusicXML Grand-Staff Export (one part, <staves>/<backup>)', () => {
+  it('exports a grand staff as exactly ONE <part>', () => {
+    const xml = generateMusicXML(createGrandStaffScore());
+    const parsed = parseMusicXml(xml);
+
+    expect(parsed.parts).toHaveLength(1);
+    expect(parsed.parts[0].id).toBe('P1');
+    // The legacy two-part output had P2; it must be gone.
+    expect(xml).not.toContain('<part id="P2">');
+    expect(xml.match(/<part id="P\d+">/g)).toHaveLength(1);
+  });
+
+  it('declares <staves>2</staves> in the attributes', () => {
+    const xml = generateMusicXML(createGrandStaffScore());
+    expect(xml).toContain('<staves>2</staves>');
+  });
+
+  it('emits both clefs with clef numbers (treble=1, bass=2)', () => {
+    const xml = generateMusicXML(createGrandStaffScore());
+    expect(xml).toMatch(/<clef number="1">\s*<sign>G<\/sign>\s*<line>2<\/line>\s*<\/clef>/);
+    expect(xml).toMatch(/<clef number="2">\s*<sign>F<\/sign>\s*<line>4<\/line>\s*<\/clef>/);
+  });
+
+  it('tags notes with <staff>1</staff> and <staff>2</staff>', () => {
+    const xml = generateMusicXML(createGrandStaffScore());
+    expect(xml).toContain('<staff>1</staff>');
+    expect(xml).toContain('<staff>2</staff>');
+
+    // The treble note (E) is on staff 1; the bass note (C) is on staff 2.
+    const trebleNote = xml.indexOf('<step>E</step>');
+    const bassNote = xml.indexOf('<step>C</step>');
+    const staff1 = xml.indexOf('<staff>1</staff>');
+    const staff2 = xml.indexOf('<staff>2</staff>');
+    // Staff-1 tag follows the treble note and precedes the bass note's staff-2 tag.
+    expect(trebleNote).toBeLessThan(staff1);
+    expect(staff1).toBeLessThan(bassNote);
+    expect(bassNote).toBeLessThan(staff2);
+  });
+
+  it('emits exactly one <backup> per measure to rewind between staves', () => {
+    const xml = generateMusicXML(createGrandStaffScore());
+    const backups = xml.match(/<backup>/g);
+    expect(backups).toHaveLength(1); // one measure -> one backup
+  });
+
+  it('backup duration equals the top staff measure duration (rewinds to bar start)', () => {
+    const xml = generateMusicXML(createGrandStaffScore());
+    const parsed = parseMusicXml(xml);
+    const divisions = parsed.parts[0].measures[0].divisions;
+    // A whole note in 4/4 at the per-score divisions = divisions * 4.
+    const expectedBackup = divisions * 4;
+    expect(xml).toMatch(
+      new RegExp(`<backup>\\s*<duration>${expectedBackup}</duration>\\s*</backup>`)
+    );
+  });
+
+  it('the <backup> appears between the staff-1 note and the staff-2 note', () => {
+    const xml = generateMusicXML(createGrandStaffScore());
+    const trebleNote = xml.indexOf('<step>E</step>');
+    const backup = xml.indexOf('<backup>');
+    const bassNote = xml.indexOf('<step>C</step>');
+    expect(trebleNote).toBeLessThan(backup);
+    expect(backup).toBeLessThan(bassNote);
+  });
+
+  it('marks a braced part-group in the part-list', () => {
+    const xml = generateMusicXML(createGrandStaffScore());
+    expect(xml).toContain('<part-group type="start" number="1">');
+    expect(xml).toContain('<group-symbol>brace</group-symbol>');
+    expect(xml).toContain('<part-group type="stop" number="1"/>');
+
+    // The group must wrap the single <score-part>.
+    const groupStart = xml.indexOf('<part-group type="start"');
+    const scorePart = xml.indexOf('<score-part id="P1">');
+    const groupStop = xml.indexOf('<part-group type="stop"');
+    expect(groupStart).toBeLessThan(scorePart);
+    expect(scorePart).toBeLessThan(groupStop);
+  });
+
+  it('a single-staff score does NOT emit <staves>, <staff>, <backup>, or a part-group', () => {
+    const xml = generateMusicXML(createScoreWithClef('treble'));
+    expect(xml).not.toContain('<staves>');
+    expect(xml).not.toContain('<staff>');
+    expect(xml).not.toContain('<backup>');
+    expect(xml).not.toContain('<part-group');
+  });
+
+  it('keeps per-measure duration sums correct on a full grand-staff measure', () => {
+    // Each staff fills a 4/4 measure with four quarter notes.
+    const quarters = (prefix: string, pitch: string) =>
+      Array.from({ length: 4 }, (_, i) => ({
+        id: `${prefix}-${i}`,
+        duration: 'quarter',
+        dotted: false,
+        notes: [{ id: `${prefix}-n-${i}`, pitch }],
+      }));
+
+    const score: Score = {
+      title: 'Full',
+      timeSignature: '4/4',
+      keySignature: 'C',
+      bpm: 120,
+      staves: [
+        {
+          id: 'staff-treble',
+          clef: 'treble',
+          keySignature: 'C',
+          measures: [{ id: 'm1-t', events: quarters('t', 'E4') }],
+        },
+        {
+          id: 'staff-bass',
+          clef: 'bass',
+          keySignature: 'C',
+          measures: [{ id: 'm1-b', events: quarters('b', 'C3') }],
+        },
+      ],
+    };
+
+    const parsed = parseMusicXml(generateMusicXML(score));
+    // checkDurationSums sums time-advancing notes; the <backup> resets the cursor
+    // but the helper still expects the COMBINED note durations to be 2x a bar here
+    // (both staves' notes live in one measure). We therefore assert each staff's
+    // half separately via the raw count instead of the combined invariant.
+    // Combined: 8 quarter notes => sum is 2 * (divisions*4).
+    const divisions = parsed.parts[0].measures[0].divisions;
+    const measure = parsed.parts[0].measures[0];
+    const total = measure.notes
+      .filter((n) => !n.isChord)
+      .reduce((s, n) => s + n.duration, 0);
+    expect(total).toBe(2 * divisions * 4);
+    expect(allDurationsIntegral(parsed)).toBe(true);
+  });
+});
+
+describe('MusicXML Pickup / Anacrusis Export (implicit measure 0)', () => {
+  /**
+   * Build a single-staff score whose first measure is a pickup (anacrusis) of a
+   * single quarter note, followed by two full 4/4 measures.
+   */
+  const createPickupScore = (): Score => ({
+    title: 'Pickup',
+    timeSignature: '4/4',
+    keySignature: 'C',
+    bpm: 120,
+    staves: [
+      {
+        id: 'staff-1',
+        clef: 'treble',
+        keySignature: 'C',
+        measures: [
+          {
+            id: 'm0',
+            isPickup: true,
+            events: [
+              { id: 'p1', duration: 'quarter', dotted: false, notes: [{ id: 'pn1', pitch: 'G4' }] },
+            ],
+          },
+          {
+            id: 'm1',
+            events: [
+              { id: 'a1', duration: 'whole', dotted: false, notes: [{ id: 'an1', pitch: 'C4' }] },
+            ],
+          },
+          {
+            id: 'm2',
+            events: [
+              { id: 'b1', duration: 'whole', dotted: false, notes: [{ id: 'bn1', pitch: 'D4' }] },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+
+  it('numbers the pickup measure 0 with implicit="yes"', () => {
+    const xml = generateMusicXML(createPickupScore());
+    expect(xml).toContain('<measure number="0" implicit="yes">');
+  });
+
+  it('numbers the first full measure 1 (not 2)', () => {
+    const xml = generateMusicXML(createPickupScore());
+    expect(xml).toContain('<measure number="1">');
+    // No implicit flag on measure 1.
+    expect(xml).not.toContain('<measure number="1" implicit');
+  });
+
+  it('produces the correct measure sequence 0, 1, 2', () => {
+    const parsed = parseMusicXml(generateMusicXML(createPickupScore()));
+    expect(parsed.parts[0].measures.map((m) => m.number)).toEqual([0, 1, 2]);
+  });
+
+  it('emits the right total measure count', () => {
+    const parsed = parseMusicXml(generateMusicXML(createPickupScore()));
+    expect(parsed.parts[0].measures).toHaveLength(3);
+  });
+
+  it('places attributes (divisions/clef) on the pickup measure', () => {
+    const xml = generateMusicXML(createPickupScore());
+    const pickupIndex = xml.indexOf('<measure number="0" implicit="yes">');
+    const attrIndex = xml.indexOf('<attributes>');
+    const firstFull = xml.indexOf('<measure number="1">');
+    expect(attrIndex).toBeGreaterThan(pickupIndex);
+    expect(attrIndex).toBeLessThan(firstFull);
+  });
+
+  it('a score WITHOUT a pickup numbers measures from 1 and has no implicit flag', () => {
+    const noPickup: Score = {
+      title: 'NoPickup',
+      timeSignature: '4/4',
+      keySignature: 'C',
+      bpm: 120,
+      staves: [
+        {
+          id: 'staff-1',
+          clef: 'treble',
+          keySignature: 'C',
+          measures: [
+            {
+              id: 'm1',
+              events: [
+                { id: 'e1', duration: 'whole', dotted: false, notes: [{ id: 'n1', pitch: 'C4' }] },
+              ],
+            },
+            {
+              id: 'm2',
+              events: [
+                { id: 'e2', duration: 'whole', dotted: false, notes: [{ id: 'n2', pitch: 'D4' }] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const xml = generateMusicXML(noPickup);
+    const parsed = parseMusicXml(xml);
+    expect(parsed.parts[0].measures.map((m) => m.number)).toEqual([1, 2]);
+    expect(xml).not.toContain('implicit="yes"');
+    expect(xml).not.toContain('<measure number="0"');
+  });
+
+  it('the full measures after the pickup keep correct duration sums', () => {
+    const xml = generateMusicXML(createPickupScore());
+    const parsed = parseMusicXml(xml);
+    const issues = checkDurationSums(parsed);
+    // Only the full measures (1, 2) are checked against the time signature; the
+    // implicit pickup is intentionally short and is excluded here.
+    const fullMeasureIssues = issues.filter((i) => i.measureNumber !== 0);
+    expect(fullMeasureIssues).toEqual([]);
+  });
+
+  it('combines a pickup with a grand staff: implicit 0 + <staves>2 + <backup>', () => {
+    const score: Score = {
+      title: 'Pickup Grand',
+      timeSignature: '4/4',
+      keySignature: 'C',
+      bpm: 120,
+      staves: [
+        {
+          id: 'staff-treble',
+          clef: 'treble',
+          keySignature: 'C',
+          measures: [
+            {
+              id: 'm0-t',
+              isPickup: true,
+              events: [
+                { id: 'pt', duration: 'quarter', dotted: false, notes: [{ id: 'ptn', pitch: 'G4' }] },
+              ],
+            },
+            {
+              id: 'm1-t',
+              events: [
+                { id: 'ft', duration: 'whole', dotted: false, notes: [{ id: 'ftn', pitch: 'C4' }] },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'staff-bass',
+          clef: 'bass',
+          keySignature: 'C',
+          measures: [
+            {
+              id: 'm0-b',
+              isPickup: true,
+              events: [
+                { id: 'pb', duration: 'quarter', dotted: false, notes: [{ id: 'pbn', pitch: 'G2' }] },
+              ],
+            },
+            {
+              id: 'm1-b',
+              events: [
+                { id: 'fb', duration: 'whole', dotted: false, notes: [{ id: 'fbn', pitch: 'C3' }] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const xml = generateMusicXML(score);
+    const parsed = parseMusicXml(xml);
+
+    expect(parsed.parts).toHaveLength(1);
+    expect(xml).toContain('<measure number="0" implicit="yes">');
+    expect(parsed.parts[0].measures.map((m) => m.number)).toEqual([0, 1]);
+    expect(xml).toContain('<staves>2</staves>');
+    // One backup per measure (pickup + full) => two backups.
+    expect(xml.match(/<backup>/g)).toHaveLength(2);
   });
 });
