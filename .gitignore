@@ -35,3 +35,6 @@ next-env.d.ts
 demo/.next
 demo/node_modules
 dist
+
+# Claude Code local session data / agent worktrees
+.claude/

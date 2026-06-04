@@ -10,6 +10,104 @@ import {
   ScoreMetadata,
 } from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
+import { Note } from 'tonal';
+import { MeasureAccidentalState, keySignatureAltForLetter } from './measureAccidentals';
+
+/** Maps an alteration to its MusicXML <accidental> glyph name. 0 is natural. */
+const xmlAccidentalName = (alt: number): string => {
+  switch (alt) {
+    case 2:
+      return 'double-sharp';
+    case 1:
+      return 'sharp';
+    case -1:
+      return 'flat';
+    case -2:
+      return 'flat-flat';
+    case 0:
+    default:
+      return 'natural';
+  }
+};
+
+// ============================================================================
+// RHYTHM / DIVISIONS
+// ============================================================================
+
+/**
+ * The base number of MusicXML <divisions> per quarter note for non-tuplet
+ * content. NOTE_TYPES uses sixtyfourth=1 .. quarter=16, so a quarter note is
+ * 16 internal quants. Using 16 divisions-per-quarter makes every plain and
+ * dotted duration (down to a dotted 64th = 1.5 -> but see scaling below) an
+ * integer once multiplied by the tuplet-driven scale factor.
+ */
+const BASE_DIVISIONS_PER_QUARTER = NOTE_TYPES.quarter.duration; // 16
+
+/** Greatest common divisor. */
+const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+
+/** Least common multiple. */
+const lcm = (a: number, b: number): number => (a * b) / gcd(a, b);
+
+/**
+ * Collect the distinct "actual-notes" tuplet denominators present anywhere in
+ * the score. For a triplet ratio [3, 2] the divisor that introduces a fraction
+ * into getNoteDuration (base * normal / actual) is `actual` (= ratio[0] = 3).
+ */
+const collectTupletDivisors = (score: Score): number[] => {
+  const divisors = new Set<number>();
+  const staves = score.staves || [getActiveStaff(score)];
+  for (const staff of staves) {
+    for (const measure of staff.measures) {
+      for (const event of measure.events) {
+        if (event.tuplet) {
+          const actual = event.tuplet.ratio[0];
+          if (actual > 0) divisors.add(actual);
+        }
+      }
+    }
+  }
+  return [...divisors];
+};
+
+/**
+ * Compute a per-score <divisions> value (divisions per quarter note) such that
+ * EVERY event duration in the score — plain, dotted, and tuplet — is an exact
+ * positive integer number of divisions.
+ *
+ * divisions = BASE_DIVISIONS_PER_QUARTER * 2 * LCM(all tuplet actual-notes)
+ *
+ * - The factor 2 absorbs the 1.5 multiplier from dotted notes at the finest
+ *   grid (a dotted 64th = 1.5 base quants), so dotted durations stay integers.
+ * - The LCM of every tuplet's actual-notes count makes the division by
+ *   `actual` in getNoteDuration exact for every tuplet present.
+ */
+const computeDivisions = (score: Score): number => {
+  const divisors = collectTupletDivisors(score);
+  const tupletLcm = divisors.reduce((acc, d) => lcm(acc, d), 1);
+  // Factor of 2 guarantees dotted finest-grain (1.5 quant) durations are integers.
+  return BASE_DIVISIONS_PER_QUARTER * 2 * tupletLcm;
+};
+
+/**
+ * Convert an event's duration (in internal quants) to an integer number of
+ * MusicXML <duration> divisions, given the per-score divisions value.
+ *
+ * scale = divisions / BASE_DIVISIONS_PER_QUARTER, applied to the exact rational
+ * quant value (base * normal / actual * dotFactor). Because `divisions` is built
+ * from 2 * LCM(actual), the result is always an exact integer.
+ */
+const eventDivisions = (event: ScoreEvent, divisions: number): number => {
+  const scale = divisions / BASE_DIVISIONS_PER_QUARTER;
+  const base = NOTE_TYPES[event.duration]?.duration ?? 0;
+  // Use exact rational arithmetic, then scale — avoids float floor corruption.
+  let numerator = base * scale;
+  if (event.dotted) numerator *= 1.5;
+  if (event.tuplet) {
+    numerator = (numerator * event.tuplet.ratio[1]) / event.tuplet.ratio[0];
+  }
+  return Math.round(numerator);
+};
 
 // ============================================================================
 // XML UTILITIES
@@ -204,6 +302,10 @@ export const generateMusicXML = (score: Score): string => {
   const staves = score.staves || [getActiveStaff(score)];
   const timeSig = score.timeSignature || '4/4';
 
+  // Per-score <divisions>: derived from tuplet content so every duration is an
+  // exact integer number of divisions (no floor/truncation of tuplet rhythm).
+  const divisions = computeDivisions(score);
+
   // Use metadata with fallback to defaults, then fall back to legacy title field
   const metadata: ScoreMetadata = score.metadata ?? {
     ...DEFAULT_SCORE_METADATA,
@@ -295,7 +397,7 @@ export const generateMusicXML = (score: Score): string => {
       if (mIndex === 0) {
         xml += `
     <attributes>
-      <divisions>16</divisions>
+      <divisions>${divisions}</divisions>
       <key>
         <fifths>${fifths}</fifths>
       </key>
@@ -310,6 +412,14 @@ export const generateMusicXML = (score: Score): string => {
     </attributes>`;
       }
 
+      // Measure-local accidental memory: decides the visible <accidental> glyph
+      // using the SAME shared rules as the ABC exporter and the on-screen renderer
+      // (key-sig suppression, persistence to the barline, natural cancellation).
+      // Fresh per measure = reset at the barline. The key is the global score key
+      // (consistent with the emitted <fifths>).
+      const accidentalState = new MeasureAccidentalState();
+      const measureKey = score.keySignature || 'C';
+
       // Track local quant position within measure (for chord placement in first part)
       let localQuant = 0;
 
@@ -323,24 +433,37 @@ export const generateMusicXML = (score: Score): string => {
             xml += generateHarmonyElement(chord);
           }
         }
-        let duration = NOTE_TYPES[event.duration].duration;
-        if (event.dotted) duration = duration * 1.5;
-
-        // Tuplet Duration Scaling
-        if (event.tuplet) {
-          duration = Math.floor((duration * event.tuplet.ratio[1]) / event.tuplet.ratio[0]);
-        }
+        // Exact integer <duration> in per-score divisions (no float floor).
+        const duration = eventDivisions(event, divisions);
 
         const xmlType = NOTE_TYPES[event.duration].xmlType;
 
+        // <time-modification> is shared by every note in a tuplet event.
+        // actual-notes / normal-notes come from the tuplet ratio [actual, normal];
+        // normal-type is the note value the tuplet is "in the time of" (the base
+        // duration of the tuplet members).
+        let timeModTag = '';
+        if (event.tuplet) {
+          const [actual, normal] = event.tuplet.ratio;
+          const normalType =
+            NOTE_TYPES[event.tuplet.baseDuration ?? event.duration]?.xmlType ?? xmlType;
+          timeModTag = `
+      <time-modification>
+        <actual-notes>${actual}</actual-notes>
+        <normal-notes>${normal}</normal-notes>
+        <normal-type>${normalType}</normal-type>
+      </time-modification>`;
+        }
+
         if (isRestEvent(event)) {
-          // REST
+          // REST — DTD order: <rest/> <duration> <type> <dot> <time-modification>
           xml += `
     <note>
       <rest/>
       <duration>${duration}</duration>
       <type>${xmlType}</type>
       ${event.dotted ? '<dot/>' : ''}
+      ${timeModTag}
     </note>`;
         } else {
           // NOTES / CHORDS
@@ -351,21 +474,31 @@ export const generateMusicXML = (score: Score): string => {
             }
 
             const isChord = nIndex > 0;
-            const step = note.pitch.charAt(0);
-            const octave = note.pitch.slice(-1);
 
-            let accidentalTag = '';
-            if (note.accidental) {
-              const acc =
-                note.accidental === 'natural'
-                  ? 'natural'
-                  : note.accidental === 'sharp'
-                    ? 'sharp'
-                    : note.accidental === 'flat'
-                      ? 'flat'
-                      : '';
-              if (acc) accidentalTag = `<accidental>${acc}</accidental>`;
-            }
+            // PITCH is the single source of truth (contract C1).
+            // step / octave / alter are all derived from the SPN spelling via Tonal.
+            const parsed = Note.get(note.pitch);
+            const step = parsed.letter || note.pitch.charAt(0);
+            // oct may be undefined for malformed input; fall back to trailing
+            // digits, then to 4 (a sane default octave) if even that fails.
+            const fallbackOct = parseInt(note.pitch.replace(/[^0-9-]/g, ''), 10);
+            const octave = parsed.oct ?? (Number.isFinite(fallbackOct) ? fallbackOct : 4);
+            // <alter> is the SOUNDING alteration derived from pitch spelling
+            // (-1 flat, +1 sharp, +-2 double). Emitted ALWAYS when nonzero,
+            // independent of whether a visible accidental glyph is shown.
+            const alter = Number.isFinite(parsed.alt) ? parsed.alt : 0;
+            const alterTag = alter !== 0 ? `\n        <alter>${alter}</alter>` : '';
+
+            // <accidental> is the VISIBLE glyph and follows standard engraving
+            // context (NOT the legacy note.accidental field): suppress a glyph the
+            // key signature or an earlier accidental in this measure already
+            // implies, and emit a natural to cancel one. Derived from pitch via the
+            // shared resolver so MusicXML, ABC, and the renderer all agree. (<alter>
+            // above still carries the SOUNDING alteration unconditionally.)
+            const keyAlt = keySignatureAltForLetter(step, measureKey);
+            const showAlt = accidentalState.resolve(step, octave, alter, keyAlt);
+            const accidentalTag =
+              showAlt === null ? '' : `<accidental>${xmlAccidentalName(showAlt)}</accidental>`;
 
             // Tie Logic
             let tieTags = '';
@@ -391,16 +524,9 @@ export const generateMusicXML = (score: Score): string => {
               tiedNotations = `<notations>${tiedNotations}</notations>`;
             }
 
-            // Tuplet Logic
-            let timeModTag = '';
+            // Tuplet bracket notations (start/stop) — separate from time-modification.
             let tupletNotations = '';
             if (event.tuplet) {
-              timeModTag = `
-      <time-modification>
-        <actual-notes>${event.tuplet.groupSize}</actual-notes>
-        <normal-notes>${event.tuplet.ratio[1]}</normal-notes>
-      </time-modification>`;
-
               if (event.tuplet.position === 0) {
                 const tupTag = '<tuplet type="start" bracket="yes"/>';
                 if (tiedNotations) {
@@ -431,19 +557,21 @@ export const generateMusicXML = (score: Score): string => {
               }
             }
 
+            // DTD child order for <note>:
+            //   (chord?) pitch duration tie* type dot* accidental time-modification notations
             xml += `
     <note>
       ${isChord ? '<chord/>' : ''}
       <pitch>
-        <step>${step}</step>
+        <step>${step}</step>${alterTag}
         <octave>${octave}</octave>
       </pitch>
       <duration>${duration}</duration>
+      ${tieTags}
       <type>${xmlType}</type>
+      ${event.dotted ? '<dot/>' : ''}
       ${accidentalTag}
       ${timeModTag}
-      ${event.dotted ? '<dot/>' : ''}
-      ${tieTags}
       ${finalNotations}
     </note>`;
           });

@@ -6,7 +6,10 @@ module.exports = {
     '^.+\\.(ts|tsx)$': 'ts-jest',
   },
   testMatch: ['**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)'],
-  testPathIgnorePatterns: ['/node_modules/', '/__tests__/helpers/', '/__tests__/fixtures/', 'setupTests.ts'],
+  testPathIgnorePatterns: ['/node_modules/', '/.claude/', '/__tests__/helpers/', '/__tests__/fixtures/', 'setupTests.ts'],
+  // Never let git worktrees created under .claude/worktrees (e.g. by parallel agent
+  // runs) pollute test/module collection with duplicate copies of the suite.
+  modulePathIgnorePatterns: ['/.claude/'],
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setupTests.ts'],
   moduleNameMapper: {
     // Mock CSS imports for Jest

@@ -2,9 +2,18 @@ import { Command } from './types';
 import { Score, getActiveStaff, Selection, Staff, ScoreEvent, Note } from '@/types';
 import { movePitchVisual } from '@/services/MusicService';
 import { PIANO_RANGE } from '@/constants';
+import { NoteSnapshot, snapshotNotes, restoreNoteSnapshots } from './transposeSnapshot';
 
 export class TransposeSelectionCommand implements Command {
   public readonly type = 'TRANSPOSE_SELECTION';
+
+  /**
+   * Pre-image of every note this command is about to mutate, captured on the
+   * MOST RECENT execute(). undo() restores these verbatim, so spelling and all
+   * other note fields return exactly — and a no-op clamp at the piano-range
+   * boundary cannot corrupt the note (the old inverse-re-transpose undo did).
+   */
+  private preImage: NoteSnapshot[] = [];
 
   constructor(
     private selection: Selection,
@@ -12,7 +21,106 @@ export class TransposeSelectionCommand implements Command {
     private keySignature: string = 'C'
   ) {}
 
+  /**
+   * Enumerate the stable coordinates of every note this command would mutate
+   * for a given score, applying the SAME case logic as execute(). Used to
+   * capture the pre-image snapshot before mutation.
+   */
+  private collectTargets(score: Score): Array<{
+    staffIndex: number;
+    measureIndex: number;
+    eventId: string;
+    noteId: string;
+  }> {
+    const targets: Array<{
+      staffIndex: number;
+      measureIndex: number;
+      eventId: string;
+      noteId: string;
+    }> = [];
+
+    if (this.selection.measureIndex === null) return targets;
+
+    const idsMatch = (a: string | null, b: string | null) => String(a) === String(b);
+
+    const pushEventNotes = (
+      staffIndex: number,
+      measureIndex: number,
+      event: ScoreEvent
+    ) => {
+      event.notes.forEach((n) => {
+        if (n.pitch !== null) {
+          targets.push({ staffIndex, measureIndex, eventId: event.id, noteId: n.id });
+        }
+      });
+    };
+
+    // CASE 0: Multi-Note Selection
+    if (this.selection.selectedNotes && this.selection.selectedNotes.length > 0) {
+      this.selection.selectedNotes.forEach((sn) => {
+        const staff = score.staves[sn.staffIndex];
+        const measure = staff?.measures[sn.measureIndex];
+        if (!measure) return;
+        const event = measure.events.find((e) => idsMatch(e.id, sn.eventId));
+        if (!event) return;
+        const note = event.notes.find((n) => idsMatch(n.id, sn.noteId));
+        if (note && note.pitch !== null) {
+          targets.push({
+            staffIndex: sn.staffIndex,
+            measureIndex: sn.measureIndex,
+            eventId: event.id,
+            noteId: note.id,
+          });
+        }
+      });
+      return targets;
+    }
+
+    const staffIndex = this.selection.staffIndex ?? 0;
+    // execute() reads measures from getActiveStaff() but writes them back to
+    // newStaves[staffIndex]; mirror that write target so undo restores exactly
+    // the notes execute() changed.
+    const activeStaff = getActiveStaff(score, staffIndex);
+    const measure = activeStaff.measures[this.selection.measureIndex];
+    if (!measure) return targets;
+
+    // Case 1: specific note
+    if (this.selection.eventId && this.selection.noteId) {
+      const event = measure.events.find((e) => idsMatch(e.id, this.selection.eventId));
+      if (!event) return targets;
+      const note = event.notes.find((n) => idsMatch(n.id, this.selection.noteId));
+      if (note && note.pitch !== null) {
+        targets.push({
+          staffIndex,
+          measureIndex: this.selection.measureIndex,
+          eventId: event.id,
+          noteId: note.id,
+        });
+      }
+    }
+    // Case 2: entire event
+    else if (this.selection.eventId) {
+      const event = measure.events.find((e) => idsMatch(e.id, this.selection.eventId));
+      if (event) {
+        pushEventNotes(staffIndex, this.selection.measureIndex, event);
+      }
+    }
+    // Case 3: entire measure
+    else {
+      measure.events.forEach((event) => {
+        pushEventNotes(staffIndex, this.selection.measureIndex!, event);
+      });
+    }
+
+    return targets;
+  }
+
   execute(score: Score): Score {
+    // Capture the pre-image of every note we are about to mutate BEFORE we
+    // mutate anything. Refreshed on every execute() so redo (execute again
+    // after undo) snapshots the post-undo state and stays lossless.
+    this.preImage = snapshotNotes(score, this.collectTargets(score));
+
     if (this.selection.measureIndex === null) return score;
 
     const staffIndex = this.selection.staffIndex ?? 0;
@@ -245,12 +353,10 @@ export class TransposeSelectionCommand implements Command {
   }
 
   undo(score: Score): Score {
-    // Undo is just transposing in the opposite direction
-    const undoCommand = new TransposeSelectionCommand(
-      this.selection,
-      -this.semitones,
-      this.keySignature
-    );
-    return undoCommand.execute(score);
+    // Lossless undo: restore the captured pre-images verbatim. This is exact
+    // state restoration (pitch spelling AND all other note fields return
+    // exactly), NOT inverse re-transposition — so a no-op clamp at the
+    // piano-range boundary and enharmonic drift can never corrupt the note.
+    return restoreNoteSnapshots(score, this.preImage);
   }
 }

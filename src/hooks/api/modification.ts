@@ -20,6 +20,8 @@ import {
   SetBpmCommand,
 } from '@/commands';
 import { parseDuration, clampBpm } from '@/utils/validation';
+import { foldAccidentalIntoPitch, deriveAccidental } from '@/services/MusicService';
+import { Note, Score } from '@/types';
 
 /**
  * Modification method names provided by this factory
@@ -44,6 +46,41 @@ type ModificationMethodNames =
   | 'setTheme'
   | 'setScale'
   | 'setStaffLayout';
+
+/**
+ * Locate a note and the effective key signature for its staff.
+ */
+const findNoteContext = (
+  score: Score,
+  staffIndex: number,
+  measureIndex: number,
+  eventId: string,
+  noteId: string
+): { note: Note; keySignature: string } | null => {
+  const staff = score.staves[staffIndex];
+  const measure = staff?.measures[measureIndex];
+  const event = measure?.events.find((e) => e.id === eventId);
+  const note = event?.notes.find((n) => n.id === noteId);
+  if (!note) return null;
+  const keySignature = staff?.keySignature || score.keySignature || 'C';
+  return { note, keySignature };
+};
+
+/**
+ * Build the UpdateNoteCommand payload for an accidental change, folding the
+ * accidental into the SOUNDING pitch (contract C1) and keeping `accidental`
+ * populated as a strictly-derived mirror.
+ */
+const buildAccidentalUpdate = (
+  note: Note,
+  type: 'sharp' | 'flat' | 'natural' | null,
+  keySignature: string
+): Partial<Note> | null => {
+  // Rests (null pitch) have no accidental.
+  if (note.pitch === null) return null;
+  const newPitch = foldAccidentalIntoPitch(note.pitch, type, keySignature);
+  return { pitch: newPitch, accidental: deriveAccidental(newPitch) };
+};
 
 /**
  * Factory for creating Modification API methods.
@@ -385,22 +422,38 @@ export const createModificationMethods = (
     setAccidental(type) {
       const sel = selectionRef.current;
       const { selectedNotes } = sel;
+      const score = ctx.getScore();
 
       // Batch update for multiple selection
       if (selectedNotes.length > 0) {
         ctx.history.begin();
-        selectedNotes.forEach((note) => {
+        selectedNotes.forEach((noteRef) => {
           // Validate all required properties before dispatch
-          if (note.noteId && note.eventId && note.measureIndex != null && note.staffIndex != null) {
-            dispatch(
-              new UpdateNoteCommand(
-                note.measureIndex,
-                note.eventId,
-                note.noteId,
-                { accidental: type },
-                note.staffIndex
-              )
+          if (
+            noteRef.noteId &&
+            noteRef.eventId &&
+            noteRef.measureIndex != null &&
+            noteRef.staffIndex != null
+          ) {
+            const found = findNoteContext(
+              score,
+              noteRef.staffIndex,
+              noteRef.measureIndex,
+              noteRef.eventId,
+              noteRef.noteId
             );
+            const updates = found && buildAccidentalUpdate(found.note, type, found.keySignature);
+            if (updates) {
+              dispatch(
+                new UpdateNoteCommand(
+                  noteRef.measureIndex,
+                  noteRef.eventId,
+                  noteRef.noteId,
+                  updates,
+                  noteRef.staffIndex
+                )
+              );
+            }
           }
         });
         ctx.history.commit();
@@ -413,22 +466,34 @@ export const createModificationMethods = (
         });
       } else if (sel.eventId && sel.noteId && sel.measureIndex !== null) {
         // Single selection
-        dispatch(
-          new UpdateNoteCommand(
-            sel.measureIndex,
-            sel.eventId,
-            sel.noteId,
-            { accidental: type },
-            sel.staffIndex
-          )
+        const found = findNoteContext(
+          score,
+          sel.staffIndex,
+          sel.measureIndex,
+          sel.eventId,
+          sel.noteId
         );
-        setResult({
-          ok: true,
-          status: 'info',
-          method: 'setAccidental',
-          message: `Accidental set to ${type ?? 'natural'}`,
-          details: { type },
-        });
+        const updates = found && buildAccidentalUpdate(found.note, type, found.keySignature);
+        if (updates) {
+          dispatch(
+            new UpdateNoteCommand(sel.measureIndex, sel.eventId, sel.noteId, updates, sel.staffIndex)
+          );
+          setResult({
+            ok: true,
+            status: 'info',
+            method: 'setAccidental',
+            message: `Accidental set to ${type ?? 'natural'}`,
+            details: { type, pitch: updates.pitch },
+          });
+        } else {
+          setResult({
+            ok: false,
+            status: 'error',
+            method: 'setAccidental',
+            message: 'Selected element is not a pitched note',
+            code: 'NO_NOTE_SELECTED',
+          });
+        }
       } else {
         setResult({
           ok: false,
@@ -446,12 +511,20 @@ export const createModificationMethods = (
       const { selectedNotes } = sel;
       const score = ctx.getScore();
 
+      // The "current" accidental is DERIVED from the pitch (contract C1), never
+      // from the stored mirror, so the cycle reflects the true SOUNDING pitch.
+      //
+      // Because pitch is the source of truth, the cycle is a 3-state cycle over
+      // sounding alteration: natural -> sharp -> flat -> natural. (A 4th
+      // "no explicit accidental" display state is indistinguishable from natural
+      // at the level of sounding pitch and would require a separate display
+      // field, which contract C1 forbids in this phase.)
       const getNextAccidental = (
-        current: 'sharp' | 'flat' | 'natural' | null | undefined
-      ): 'sharp' | 'flat' | 'natural' | null => {
+        current: 'sharp' | 'flat' | 'natural' | null
+      ): 'sharp' | 'flat' | 'natural' => {
         if (current === 'sharp') return 'flat';
         if (current === 'flat') return 'natural';
-        if (current === 'natural') return null;
+        // natural (or anything unaltered) advances to sharp
         return 'sharp';
       };
 
@@ -464,21 +537,31 @@ export const createModificationMethods = (
             noteRef.measureIndex != null &&
             noteRef.staffIndex != null
           ) {
-            const staff = score.staves[noteRef.staffIndex];
-            const measure = staff?.measures[noteRef.measureIndex];
-            const event = measure?.events.find((e) => e.id === noteRef.eventId);
-            const note = event?.notes.find((n) => n.id === noteRef.noteId);
-
-            if (note) {
-              dispatch(
-                new UpdateNoteCommand(
-                  noteRef.measureIndex,
-                  noteRef.eventId,
-                  noteRef.noteId,
-                  { accidental: getNextAccidental(note.accidental) },
-                  noteRef.staffIndex
-                )
-              );
+            const found = findNoteContext(
+              score,
+              noteRef.staffIndex,
+              noteRef.measureIndex,
+              noteRef.eventId,
+              noteRef.noteId
+            );
+            if (found && found.note.pitch !== null) {
+              // Current alteration is read from the pitch; 'natural' alt=0 maps
+              // to the explicit natural step of the cycle only when the note
+              // diverges from the key — but for a deterministic, pitch-driven
+              // cycle we key off the pitch's own alteration.
+              const next = getNextAccidental(deriveAccidental(found.note.pitch));
+              const updates = buildAccidentalUpdate(found.note, next, found.keySignature);
+              if (updates) {
+                dispatch(
+                  new UpdateNoteCommand(
+                    noteRef.measureIndex,
+                    noteRef.eventId,
+                    noteRef.noteId,
+                    updates,
+                    noteRef.staffIndex
+                  )
+                );
+              }
             }
           }
         });
@@ -491,27 +574,42 @@ export const createModificationMethods = (
           details: { count: selectedNotes.length },
         });
       } else if (sel.eventId && sel.noteId && sel.measureIndex !== null) {
-        const staff = score.staves[sel.staffIndex];
-        const measure = staff?.measures[sel.measureIndex];
-        const event = measure?.events.find((e) => e.id === sel.eventId);
-        const note = event?.notes.find((n) => n.id === sel.noteId);
+        const found = findNoteContext(
+          score,
+          sel.staffIndex,
+          sel.measureIndex,
+          sel.eventId,
+          sel.noteId
+        );
 
-        if (note) {
-          dispatch(
-            new UpdateNoteCommand(
-              sel.measureIndex,
-              sel.eventId,
-              sel.noteId,
-              { accidental: getNextAccidental(note.accidental) },
-              sel.staffIndex
-            )
-          );
+        if (found && found.note.pitch !== null) {
+          const next = getNextAccidental(deriveAccidental(found.note.pitch));
+          const updates = buildAccidentalUpdate(found.note, next, found.keySignature);
+          if (updates) {
+            dispatch(
+              new UpdateNoteCommand(
+                sel.measureIndex,
+                sel.eventId,
+                sel.noteId,
+                updates,
+                sel.staffIndex
+              )
+            );
+            setResult({
+              ok: true,
+              status: 'info',
+              method: 'toggleAccidental',
+              message: 'Toggled accidental',
+              details: { noteId: sel.noteId, pitch: updates.pitch },
+            });
+          }
+        } else {
           setResult({
-            ok: true,
-            status: 'info',
+            ok: false,
+            status: 'error',
             method: 'toggleAccidental',
-            message: 'Toggled accidental',
-            details: { noteId: sel.noteId },
+            message: 'No pitched note selected',
+            code: 'NO_NOTE_SELECTED',
           });
         }
       } else {

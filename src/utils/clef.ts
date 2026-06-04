@@ -12,7 +12,7 @@
 // CLEF REFERENCE DATA
 // =============================================================================
 
-interface ClefReference {
+export interface ClefReference {
   /** Reference pitch (e.g., 'G4' for treble, 'F3' for bass, 'C4' for C-clefs) */
   referencePitch: string;
   /** Staff line where reference pitch sits (1-5, bottom to top) */
@@ -126,3 +126,13 @@ export const CLEF_CONFIG: Record<string, ClefConfig> = Object.fromEntries(
  * Get clef configuration, falling back to treble for unknown clefs.
  */
 export const getClefConfig = (clef: string): ClefConfig => CLEF_CONFIG[clef] || CLEF_CONFIG.treble;
+
+/**
+ * Get the authoritative reference (referencePitch + referenceLine) for a clef.
+ *
+ * This is the SINGLE SOURCE OF TRUTH for clef geometry (Contract C2 / Finding 1D):
+ * staff-offset math, clef-glyph placement, and hit-detection all derive from this.
+ * Unknown clefs (including 'grand') fall back to treble.
+ */
+export const getClefReference = (clef: string): ClefReference =>
+  CLEF_REFERENCES[clef] || CLEF_REFERENCES.treble;

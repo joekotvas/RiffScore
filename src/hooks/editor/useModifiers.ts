@@ -7,6 +7,7 @@ import { Command } from '@/commands/types';
 import { UpdateEventCommand } from '@/commands/UpdateEventCommand';
 import { UpdateNoteCommand } from '@/commands/UpdateNoteCommand';
 import { Note as TonalNote } from 'tonal';
+import { foldAccidentalIntoPitch } from '@/services/MusicService';
 
 interface UseModifiersProps {
   scoreRef: RefObject<Score>;
@@ -96,30 +97,19 @@ const getEventTargets = (
   return targets;
 };
 
-// State Setting Logic:
+// State Setting Logic (CONTRACT C1: recompute the SOUNDING pitch):
 // Sharp Button -> Set to X#
 // Flat Button -> Set to Xb
 // Natural Button -> Set to X (natural)
+// Delegates to the shared MusicService helper so the keyboard path and the
+// public API can never diverge.
 const calculateNewPitch = (
   currentPitch: string,
   targetType: 'flat' | 'natural' | 'sharp'
 ): string | null => {
   const note = TonalNote.get(currentPitch);
-  if (note.empty) return null;
-
-  const letter = note.letter; // e.g., "C"
-  const oct = note.oct; // e.g., 4
-  if (!letter || oct === undefined) return null;
-
-  if (targetType === 'sharp') {
-    return `${letter}#${oct}`;
-  } else if (targetType === 'flat') {
-    return `${letter}b${oct}`;
-  } else if (targetType === 'natural') {
-    return `${letter}${oct}`;
-  }
-
-  return currentPitch;
+  if (note.empty || !note.letter || note.oct === undefined) return null;
+  return foldAccidentalIntoPitch(currentPitch, targetType);
 };
 
 /**

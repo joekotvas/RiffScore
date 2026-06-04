@@ -207,9 +207,17 @@ const ChordGroup: React.FC<ChordGroupProps> = ({
 
       {/* LAYER 3: Notes */}
       {notesToRender.map((note) => {
-        const accidentalGlyph = note.pitch
-          ? getAccidentalGlyph(note.pitch, keySignature, accidentalOverrides?.[note.id])
-          : null;
+        // Accidental glyph priority:
+        // 1. The measure-aware resolver (`useAccidentalContext`) is the source of
+        //    truth when present — it has intra-measure memory and emits SMuFL
+        //    glyphs derived from pitch + key + history (contract C1).
+        // 2. Fall back to the stateless key-only derivation only when no measure
+        //    context was provided (e.g. isolated/preview rendering).
+        const accidentalGlyph = !note.pitch
+          ? null
+          : accidentalOverrides
+            ? (accidentalOverrides[note.id] ?? null)
+            : getAccidentalGlyph(note.pitch, keySignature);
 
         const isSelected = isNoteSelected(selection, {
           staffIndex,

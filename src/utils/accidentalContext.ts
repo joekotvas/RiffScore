@@ -1,34 +1,60 @@
-import { Note, Key } from 'tonal';
+import { Note } from 'tonal';
+import { getEffectiveScale } from '@/utils/keyResolution';
 
 /**
- * Returns the effective accidental of a pitch in a key.
- * e.g. F# in G Major -> 'sharp'
- * e.g. F in G Major -> 'natural' (even though it's an accidental relative to key)
- * e.g. Bb in F Major -> 'flat'
+ * The full chromatic accidental of a pitch, including double sharps/flats.
  */
-export const getEffectiveAccidental = (pitch: string): 'sharp' | 'flat' | 'natural' => {
+export type EffectiveAccidental =
+  | 'doubleSharp'
+  | 'sharp'
+  | 'natural'
+  | 'flat'
+  | 'doubleFlat';
+
+/**
+ * Returns the effective accidental of a pitch, derived SOLELY from the pitch
+ * string (the single source of truth per contract C1).
+ *
+ * Double sharps/flats are preserved (Fx -> 'doubleSharp', Bbb -> 'doubleFlat')
+ * so the measure-memory engine and exporters never silently downgrade ±2 to ±1.
+ *
+ * e.g. F# -> 'sharp', Bb -> 'flat', C -> 'natural', Fx -> 'doubleSharp'
+ */
+export const getEffectiveAccidental = (pitch: string): EffectiveAccidental => {
   const note = Note.get(pitch);
   if (note.empty) return 'natural';
 
-  // If the note has an explicit accidental in its name (e.g. C#), that is its effective accidental.
-  if (note.alt > 0) return 'sharp';
-  if (note.alt < 0) return 'flat';
-
-  // If note is Natural (alt=0, e.g. "C").
-  return 'natural';
+  switch (note.alt) {
+    case 2:
+      return 'doubleSharp';
+    case 1:
+      return 'sharp';
+    case -1:
+      return 'flat';
+    case -2:
+      return 'doubleFlat';
+    case 0:
+      return 'natural';
+    default:
+      return note.alt > 0 ? 'doubleSharp' : 'doubleFlat';
+  }
 };
 
 /**
  * Returns the accidental implied by the Key Signature for a given letter.
+ * Mode-aware: minor keys resolve through the shared resolver, so e.g. the F
+ * letter in E minor correctly reports 'sharp'.
  */
 export const getKeyAccidental = (
   letter: string,
   keySignature: string
 ): 'sharp' | 'flat' | 'natural' => {
-  const scale = Key.majorKey(keySignature).scale;
+  const scale = getEffectiveScale(keySignature);
   // Find the note in the scale with this letter
   const match = scale.find((n) => n.startsWith(letter));
   if (match) {
+    if (match.includes('##') || /x/i.test(match)) return 'sharp';
+    if (match.includes('bb')) return 'flat';
     if (match.includes('#')) return 'sharp';
     if (match.includes('b')) return 'flat';
   }

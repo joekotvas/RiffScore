@@ -8,6 +8,20 @@ import { TIME_SIGNATURES } from './constants';
  * The model supports multiple staves for Grand Staff rendering.
  */
 
+// ========== SCHEMA VERSION ==========
+
+/**
+ * Current persisted-score schema version.
+ *
+ * Bump this whenever a migration step is added to {@link migrateScore} so that
+ * loaded scores can be deterministically upgraded and `migrateScore` can short
+ * out (idempotency) on an already-current score.
+ *
+ * History:
+ * - 1: staves model + measure-local chordTrack (accumulated, not modulo).
+ */
+export const SCHEMA_VERSION = 1 as const;
+
 // ========== NOTE ==========
 
 export interface Note {
@@ -374,6 +388,13 @@ export interface PageLayout {
 // ========== SCORE ==========
 
 export interface Score {
+  /**
+   * Persisted schema version. Stamped by {@link migrateScore} to the current
+   * {@link SCHEMA_VERSION}. Absent on legacy (pre-versioning) scores, which are
+   * migrated and stamped on load.
+   */
+  schemaVersion?: number;
+
   title: string;
   timeSignature: string; // Shared across staves (e.g., '4/4', '3/4')
   keySignature: string; // Shared across staves (e.g., 'C', 'G')
@@ -431,9 +452,44 @@ export const getActiveStaff = (score: Score, staffIndex: number = 0): Staff => {
 };
 
 /**
- * Migrates chordTrack from global quant to measure-local { measure, quant } format.
+ * Maps a legacy absolute (global) quant position to a measure-local
+ * { measure, quant } pair using the engine's nominal convention:
+ * `measure = floor(global / nominal)`, `quant = global % nominal`.
+ *
+ * This is the exact inverse of how chord time is encoded everywhere else (e.g.
+ * playback in toneEngine: `global = measure * quantsPerMeasure + quant`), so a
+ * migrated chord round-trips to the same global position it had. We deliberately
+ * do NOT reconstruct ragged/pickup legacy layouts from actual measure spans:
+ * there is no legacy data in the wild to preserve, and accumulating real spans
+ * would desync from the nominal convention the rest of the engine relies on.
+ *
+ * @param globalQuant - Absolute quant position from the legacy format
+ * @param nominal - Quants per (nominal) measure
+ */
+const globalQuantToLocal = (
+  globalQuant: number,
+  nominal: number
+): { measure: number; quant: number } => {
+  if (nominal <= 0) return { measure: 0, quant: globalQuant };
+  return {
+    measure: Math.floor(globalQuant / nominal),
+    quant: globalQuant % nominal,
+  };
+};
+
+/**
+ * Migrates chordTrack from the legacy global-quant format to the measure-local
+ * { measure, quant } format.
  * Old format: { id, quant, symbol } where quant is global
  * New format: { id, measure, quant, symbol } where quant is local to measure
+ *
+ * Decoding uses the nominal convention (see globalQuantToLocal) so positions
+ * match the rest of the engine and round-trip through playback. Already-migrated
+ * chord tracks (every chord carries a `measure`) are returned unchanged
+ * (idempotent).
+ *
+ * @param chordTrack - Chord symbols in either old or new format
+ * @param timeSignature - Time signature for nominal measure width
  */
 const migrateChordTrack = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Accepts unknown chord formats during migration
@@ -442,21 +498,26 @@ const migrateChordTrack = (
 ): ChordSymbol[] | undefined => {
   if (!chordTrack || chordTrack.length === 0) return chordTrack;
 
-  // Check if migration is needed (first chord without measure field = old format)
-  const needsMigration = chordTrack[0].measure === undefined;
+  // Already in new format if every chord carries a measure field. Checking every
+  // chord (not just the first) makes a mixed/partial track migrate fully and
+  // keeps repeated migration idempotent.
+  const needsMigration = chordTrack.some((chord) => chord.measure === undefined);
   if (!needsMigration) return chordTrack;
 
-  const quantsPerMeasure = TIME_SIGNATURES[timeSignature] || 64;
+  const nominal = TIME_SIGNATURES[timeSignature] || 64;
 
   return chordTrack.map((chord) => {
-    const globalQuant = chord.quant;
-    const measure = Math.floor(globalQuant / quantsPerMeasure);
-    const localQuant = globalQuant % quantsPerMeasure;
+    // A chord that already has a measure is left as-is (mixed-format safety).
+    if (chord.measure !== undefined) {
+      return { id: chord.id, measure: chord.measure, quant: chord.quant, symbol: chord.symbol };
+    }
+
+    const { measure, quant } = globalQuantToLocal(chord.quant, nominal);
 
     return {
       id: chord.id,
       measure,
-      quant: localQuant,
+      quant,
       symbol: chord.symbol,
     };
   });
@@ -468,11 +529,25 @@ const migrateChordTrack = (
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Accepts unknown legacy score formats
 export const migrateScore = (oldScore: any): Score => {
+  // Idempotency fast-path: a score already stamped at the current schema version
+  // (and already in the staves model) is fully migrated. Returning it verbatim
+  // guarantees migrate(migrate(x)) deep-equals migrate(x).
+  if (
+    oldScore.schemaVersion === SCHEMA_VERSION &&
+    oldScore.staves &&
+    Array.isArray(oldScore.staves)
+  ) {
+    return oldScore as Score;
+  }
+
   // If already in new format with staves
   if (oldScore.staves && Array.isArray(oldScore.staves)) {
     // Sync any top-level legacy fields back to staves[0]
     // This handles the case where code does: setScore({ ...score, measures: newMeasures })
     const result = { ...oldScore };
+
+    // Stamp the current schema version (idempotent on re-migration).
+    result.schemaVersion = SCHEMA_VERSION;
 
     // Ensure Score has keySignature
     if (!result.keySignature) {
@@ -503,7 +578,8 @@ export const migrateScore = (oldScore: any): Score => {
       result.staves = [updatedStaff, ...result.staves.slice(1)];
     }
 
-    // Migrate chord track from global quant to measure-local format
+    // Migrate chord track from global quant to measure-local format. Accumulate
+    // against the migrated staves so positions tile real measure boundaries.
     if (result.chordTrack) {
       result.chordTrack = migrateChordTrack(result.chordTrack, result.timeSignature || '4/4');
     }
@@ -513,23 +589,25 @@ export const migrateScore = (oldScore: any): Score => {
 
   // Migrate legacy single-staff format (no staves array)
   const timeSig = oldScore.timeSignature || '4/4';
+  const legacyStaves = [
+    {
+      id: 'staff-1',
+      clef: oldScore.clef || 'treble',
+      keySignature: oldScore.keySignature || 'C',
+      measures: oldScore.measures || [
+        { id: 'm1', events: [] },
+        { id: 'm2', events: [] },
+      ],
+    },
+  ];
   return {
+    schemaVersion: SCHEMA_VERSION,
     title: oldScore.title || 'Composition',
     timeSignature: timeSig,
     keySignature: oldScore.keySignature || 'C',
     bpm: oldScore.bpm || 120,
-    staves: [
-      {
-        id: 'staff-1',
-        clef: oldScore.clef || 'treble',
-        keySignature: oldScore.keySignature || 'C',
-        measures: oldScore.measures || [
-          { id: 'm1', events: [] },
-          { id: 'm2', events: [] },
-        ],
-      },
-    ],
-    // Migrate chord track from global quant to measure-local format
+    staves: legacyStaves,
+    // Migrate chord track from legacy global quant to measure-local format.
     chordTrack: migrateChordTrack(oldScore.chordTrack, timeSig),
   };
 };
