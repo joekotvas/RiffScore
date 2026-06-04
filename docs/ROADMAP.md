@@ -1,6 +1,6 @@
 # RiffScore Roadmap
 
-> **Generated:** 2026-06-04 · **Living document.**
+> **Generated:** 2026-06-04 · **Living document** · reflects state through **v1.0.0-alpha.12** ([PR #248](https://github.com/joekotvas/RiffScore/pull/248)).
 > Grounded in the 2026-06 correctness audit ([CORRECTNESS_AUDIT_2026-06.md](audit/CORRECTNESS_AUDIT_2026-06.md),
 > [AUDIT_QA_2026-06.md](audit/AUDIT_QA_2026-06.md)) and re-sequenced per the audit's
 > own second-pass QA. Every load-bearing claim below was independently fact-checked
@@ -23,7 +23,8 @@ solid* than the last. Correctness and truth-in-advertising come before new featu
 
 ## Where we are — already banked
 
-The model substrate is started. Shipped (alpha.11 + current `dev`):
+The model substrate is solid. Shipped through **v1.0.0-alpha.12** (alpha.11 + the
+release now on `dev` / [PR #248](https://github.com/joekotvas/RiffScore/pull/248)):
 
 - **Accidental model** — pitch (SPN) is the single source of truth; `note.accidental`
   is a derived mirror, reconciled at load (#234). A policy-only `accidentalDisplay`
@@ -45,6 +46,10 @@ The model substrate is started. Shipped (alpha.11 + current `dev`):
   measure-local accidental cancellation (#240, #238, #234).
 - **Transpose lossless undo** — both transpose commands snapshot the pre-image and
   restore verbatim (contract C3).
+- **Migration versioning** — `SCHEMA_VERSION` bumped to **2** so scores saved at v1
+  re-run the new `migrateScore` steps (key canonicalization + `note.accidental`
+  reconciliation) instead of being fast-pathed; the "bump when a migration step is
+  added" contract is now honored (#234/#238).
 
 ---
 
@@ -121,6 +126,9 @@ With a trustworthy model, make what gets shared and printed match it exactly.
 - **Beaming sub-grouping #245 (the no-dependency half)** — dotted-rhythm grouping and
   secondary/partial beams (16th-within-8th). *The tuplet-beaming half of #245 depends on
   #237 and is deferred with it.*
+- **Tie layout key (#249)** — cross-measure tie endpoint X is computed with the default
+  key `'C'` (`Staff.tsx`), so tie ends can diverge slightly from noteheads in non-C keys.
+  One-line fix (thread the score key); parallels the #245 `useMeasureLayout` gap.
 
 **Done when:** a representative export validates against the MusicXML 4.0 XSD in CI;
 round-trips are pinned; ABC/MusicXML are musically identical to the render.
@@ -144,6 +152,9 @@ stays clearly labeled experimental and outside the promise set.
 ### M5 — Chord theory & remaining advertised config · *medium*
 
 - **#207** — implement `setChordDisplay`/`setChordPlayback` (if not de-advertised in M1).
+- **#247** — accidental display-policy toolbar control. The `accidentalDisplay` policy
+  shipped **API-only** in alpha.12 (`setAccidentalDisplay`); this adds the UI affordance
+  the changelog already scopes as "a toolbar button is coming."
 - **Chord-symbol parsing completeness** (audit Phase 7) — extensions/alterations, slash
   voicings, secondary dominants, Roman half-diminished, minor-key diatonic quality;
   derive from structured Tonal output, not substring heuristics.
@@ -185,7 +196,7 @@ theory) are largely independent of each other once M2 lands and can run in paral
 | Item | Depends on | Note |
 |---|---|---|
 | #242 (invariants) | #237 *guard* (not full migration) | Tuplet capacity/anchoring math needs the integrality guard; ship it inside #242. |
-| #237 (full ×LCM migration) | — (schemaVersion ✅ shipped) | Deferred until tuplet-heavy editing demonstrates a concrete bug. Use base ≥ 210, not 105. |
+| #237 (full ×LCM migration) | — (`SCHEMA_VERSION` now at **2**) | Deferred until tuplet-heavy editing demonstrates a concrete bug. Use base ≥ 210, not 105; its migration bumps `SCHEMA_VERSION` to 3. |
 | #245 dotted/secondary beams | — | No #237 dependency; lands in M3. |
 | #245 tuplet beaming | #237 | Beat-boundary `% beatQuants` is unreliable with non-integer tuplet quants; deferred with #237. |
 | M4 cross-system ties | M2 (#242 tie model) | Page-view tie rendering needs the corrected tie model. |
@@ -212,8 +223,9 @@ and folds in the promise-gaps:
 ## Verification
 
 This roadmap's load-bearing claims were independently fact-checked against the code
-(2026-06-04). Confirmed: `schemaVersion` is shipped and stamped by `migrateScore`
-(#237 unblocked); the export wins above are all present (`<fifths>` is score-level, which
+(2026-06-04, updated post-alpha.12). Confirmed: `SCHEMA_VERSION` is stamped by
+`migrateScore` and was bumped to **2** in alpha.12 so v1 scores re-run the new
+migration steps (#237 unblocked); the export wins above are all present (`<fifths>` is score-level, which
 is correct for the single-key model); `api.play()` is melody-only and the fix is a
 localized scheduler swap; alto/tenor note geometry is correct and regression-tested (only
 the `StaffTemplate` gap remains); `setChordDisplay`/`setChordPlayback` are stubs; transpose
