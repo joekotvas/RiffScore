@@ -12,6 +12,7 @@ import {
 } from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
 import { Note as TonalNote } from 'tonal';
+import { MeasureAccidentalState, keySignatureAltForLetter } from './measureAccidentals';
 
 /**
  * Convert an internal key string ('C', 'G', 'Bb', 'F#', 'Em', 'Dm') to a valid
@@ -23,71 +24,23 @@ const abcKeySignature = (keySig: string): string => {
 };
 
 /**
- * The alteration the key signature applies to a given diatonic letter.
- * +1 for a sharp-key letter, -1 for a flat-key letter, 0 otherwise.
+ * Maps an alteration to its ABC accidental token. 0 is a cancelling natural.
  */
-const keySignatureAltForLetter = (letter: string, keySig: string): number => {
-  const sig = KEY_SIGNATURES[keySig];
-  if (!sig) return 0;
-  if (!sig.accidentals.includes(letter)) return 0;
-  return sig.type === 'sharp' ? 1 : -1;
+const abcAccidentalToken = (alt: number): string => {
+  switch (alt) {
+    case 2:
+      return '^^';
+    case 1:
+      return '^';
+    case -1:
+      return '_';
+    case -2:
+      return '__';
+    case 0:
+    default:
+      return '='; // natural cancels a prior sharp/flat (key sig or earlier note)
+  }
 };
-
-/**
- * Tracks, per measure, the active chromatic alteration (`alt`) for each
- * diatonic letter at each octave. ABC accidentals persist to the end of the
- * measure and are cancelled with a natural ('='); the tracker is reset at every
- * barline. Returns the ABC accidental prefix to emit for a pitch given what is
- * already active, and records the new active state.
- */
-class MeasureAccidentalState {
-  // key: `${letter}${octave}` -> active chromatic alt (-2..+2)
-  private active = new Map<string, number>();
-
-  /** Reset at a barline: all alterations revert to the key signature. */
-  reset(): void {
-    this.active.clear();
-  }
-
-  /**
-   * Returns the ABC accidental token ('', '=', '^', '_', '^^', '__') that must
-   * be written before this pitch so that a reader produces exactly `alt`,
-   * accounting for the key signature and any earlier accidental in the measure.
-   *
-   * @param letter    Diatonic letter A-G.
-   * @param octave    Octave number.
-   * @param alt       Sounding chromatic alteration of the pitch (-2..+2).
-   * @param keyAlt    Alteration that the key signature already applies to this
-   *                  letter (e.g. +1 for F in G major).
-   */
-  accidentalFor(letter: string, octave: number, alt: number, keyAlt: number): string {
-    const slot = `${letter}${octave}`;
-    const currentlyActive = this.active.has(slot) ? this.active.get(slot)! : keyAlt;
-
-    // No glyph needed if the desired alteration already holds in this measure.
-    if (alt === currentlyActive) {
-      return '';
-    }
-
-    // We must emit a glyph. Record the new active alteration for this slot.
-    this.active.set(slot, alt);
-
-    switch (alt) {
-      case 2:
-        return '^^';
-      case 1:
-        return '^';
-      case -1:
-        return '_';
-      case -2:
-        return '__';
-      case 0:
-      default:
-        // Natural cancels a prior sharp/flat (from key sig or earlier note).
-        return '=';
-    }
-  }
-}
 
 /**
  * Export score metadata to ABC header fields.
@@ -137,12 +90,14 @@ const buildChordLookup = (
 
 // ABC notation pitch mapping - Algorithmic
 const toAbcPitch = (pitch: string, _clef: string = 'treble'): string => {
-  // Extract letter and octave
-  const match = pitch.match(/^([A-G])(#{1,2}|b{1,2})?(\d+)$/);
-  if (!match) return 'C'; // Fallback
+  // Parse via Tonal (the same parser formatNote uses) rather than a hand-rolled
+  // regex, so every spelling Tonal accepts — including 'x' double-sharps (Fx4) and
+  // double-flats — yields the correct letter+octave instead of falling back to 'C'.
+  const n = TonalNote.get(pitch);
+  if (n.empty || !n.letter || n.oct == null) return 'C'; // Fallback
 
-  const letter = match[1];
-  const octave = parseInt(match[3], 10);
+  const letter = n.letter;
+  const octave = n.oct;
 
   // ABC Logic:
   // C4 (Middle C) -> C
@@ -305,7 +260,8 @@ export const generateABC = (score: Score, bpm: number): string => {
             const alt = Number.isFinite(parsed.alt) ? parsed.alt : 0;
 
             const keyAlt = keySignatureAltForLetter(letter, keySig);
-            const acc = accidentalState.accidentalFor(letter, octave, alt, keyAlt);
+            const showAlt = accidentalState.resolve(letter, octave, alt, keyAlt);
+            const acc = showAlt === null ? '' : abcAccidentalToken(showAlt);
 
             const pitch = toAbcPitch(n.pitch, clef);
             return `${acc}${pitch}`;

@@ -11,6 +11,24 @@ import {
 } from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
 import { Note } from 'tonal';
+import { MeasureAccidentalState, keySignatureAltForLetter } from './measureAccidentals';
+
+/** Maps an alteration to its MusicXML <accidental> glyph name. 0 is natural. */
+const xmlAccidentalName = (alt: number): string => {
+  switch (alt) {
+    case 2:
+      return 'double-sharp';
+    case 1:
+      return 'sharp';
+    case -1:
+      return 'flat';
+    case -2:
+      return 'flat-flat';
+    case 0:
+    default:
+      return 'natural';
+  }
+};
 
 // ============================================================================
 // RHYTHM / DIVISIONS
@@ -394,6 +412,14 @@ export const generateMusicXML = (score: Score): string => {
     </attributes>`;
       }
 
+      // Measure-local accidental memory: decides the visible <accidental> glyph
+      // using the SAME shared rules as the ABC exporter and the on-screen renderer
+      // (key-sig suppression, persistence to the barline, natural cancellation).
+      // Fresh per measure = reset at the barline. The key is the global score key
+      // (consistent with the emitted <fifths>).
+      const accidentalState = new MeasureAccidentalState();
+      const measureKey = score.keySignature || 'C';
+
       // Track local quant position within measure (for chord placement in first part)
       let localQuant = 0;
 
@@ -463,29 +489,16 @@ export const generateMusicXML = (score: Score): string => {
             const alter = Number.isFinite(parsed.alt) ? parsed.alt : 0;
             const alterTag = alter !== 0 ? `\n        <alter>${alter}</alter>` : '';
 
-            // <accidental> is the VISIBLE glyph. It is derived from the same
-            // pitch spelling (never the legacy note.accidental field, which is a
-            // derived mirror). A double sharp/flat maps to the MusicXML token.
-            const accidentalName =
-              alter === 2
-                ? 'double-sharp'
-                : alter === 1
-                  ? 'sharp'
-                  : alter === -1
-                    ? 'flat'
-                    : alter === -2
-                      ? 'flat-flat'
-                      : '';
-            // Show the glyph only when the note carries an explicit accidental
-            // request (legacy field) OR when the pitch is altered. We always
-            // include it for altered pitches so the visible spelling matches the
-            // sounding pitch; naturals are emitted only on explicit request.
-            let accidentalTag = '';
-            if (accidentalName) {
-              accidentalTag = `<accidental>${accidentalName}</accidental>`;
-            } else if (note.accidental === 'natural') {
-              accidentalTag = `<accidental>natural</accidental>`;
-            }
+            // <accidental> is the VISIBLE glyph and follows standard engraving
+            // context (NOT the legacy note.accidental field): suppress a glyph the
+            // key signature or an earlier accidental in this measure already
+            // implies, and emit a natural to cancel one. Derived from pitch via the
+            // shared resolver so MusicXML, ABC, and the renderer all agree. (<alter>
+            // above still carries the SOUNDING alteration unconditionally.)
+            const keyAlt = keySignatureAltForLetter(step, measureKey);
+            const showAlt = accidentalState.resolve(step, octave, alter, keyAlt);
+            const accidentalTag =
+              showAlt === null ? '' : `<accidental>${xmlAccidentalName(showAlt)}</accidental>`;
 
             // Tie Logic
             let tieTags = '';
