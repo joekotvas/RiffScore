@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0-alpha.11] - 2026-06-03
+
+A foundational correctness pass focused on music theory, engraving, and export —
+the parts that have to be *right*, not just present. Built as seven parallel
+workstreams and woven together with a cross-lane QA review, backed by 2,433 tests.
+
+### For musicians
+
+- **Sharps, flats, and naturals now actually work.** Adding an accidental changes the note you see *and* hear — before, the button didn't affect the pitch at all.
+- **Every minor key is correct now** — the key signature displays properly and new notes snap to the key.
+- **Accidentals behave like real notation within a bar** — they carry to the end of the measure, aren't repeated needlessly, show a natural to cancel, and reset at each barline.
+- **Alto and tenor clefs put notes on the right lines** (and the clef symbol lines up) — they were previously reading from treble-clef positions.
+- **Entering notes in a key works right after you click an existing note** — the key signature is no longer ignored.
+- **Spacing around accidentals is consistent**, including on loaded melodies and across a grand staff.
+- **Exporting to MusicXML keeps your sharps and flats** (the actual pitch was being lost) and writes clean, non-redundant accidentals.
+- **Triplets and other tuplets export with the correct rhythm** — their durations were being rounded off.
+- **Exporting to ABC** handles double-sharps/flats, cancels accidentals properly, and orders the headers correctly.
+- **Undo after transposing restores your music exactly** — no corruption at the top or bottom of the keyboard, and no spelling drift.
+- **Chord symbols land in the right place** when you open a saved score or switch demo melodies.
+
+### For developers
+
+- **Pitch (absolute SPN) is now the single source of truth** for alteration; `note.accidental` is a derived mirror, computed at read time rather than trusted as stored. *(One consequence: the accidental toggle is a 3-state cycle — natural→sharp→flat. The explicit-natural/courtesy distinction moves to a future display-policy field, [#236](https://github.com/joekotvas/riffscore/issues/236).)*
+- **Single-source clef geometry** — one `getClefReference`-derived pitch↔offset formula replaces the dual lookup tables; the forward and inverse mappings are true inverses across all clefs (tenor reference corrected).
+- **Shared `measureAccidentals` resolver** unifies measure-local accidental logic across the MusicXML and ABC exporters (the renderer is proven equivalent), removing duplicate implementations.
+- **MusicXML** emits `<alter>` from `Note.get(pitch).alt`, context-aware `<accidental>`, per-score `<divisions>` = LCM of tuplet denominators, and `<time-modification>`/`<normal-type>`.
+- **Synchronous layout/metadata API getters read the live engine**, fixing stale reads right after their setters ([#230](https://github.com/joekotvas/riffscore/issues/230)).
+- **Mode-aware key resolution** (`keyResolution.ts`) via Tonal `Key.minorKey`/`Key.majorKey`, routed through the music service, accidental context, and chord utilities.
+- **Lossless command undo** for the transpose commands via a full pre-image snapshot (replaces corrupting inverse re-transposition).
+- **Migration runs at the load boundary** (`LoadScoreCommand`): stamps `schemaVersion` and re-anchors chord tracks losslessly (accumulation, not modulo).
+- **Correct SMuFL glyphs** (E26x) for accidentals, replacing legacy Unicode.
+- **Verification scaffolding** — fast-check property harness, SVG geometry oracle, SMuFL codepoint registry, MusicXML duration-sum oracle (wired to real output), `fast-xml-parser`/`abcjs`/XSD fixtures, and a CI workflow. New suites are oracle-backed and mutation-verified.
+
+### Known limitations
+
+- Alto/tenor **key-signature** glyphs still render on the wrong lines ([#233](https://github.com/joekotvas/riffscore/issues/233)) — note positions are fixed, key-signature positions are not yet. Other deferred follow-ups are tracked in [#234](https://github.com/joekotvas/riffscore/issues/234)–[#242](https://github.com/joekotvas/riffscore/issues/242).
+
 ## [1.0.0-alpha.10] - 2026-06-03
 
 ### Added
