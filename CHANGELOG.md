@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### For musicians
 - **Alto and tenor key signatures are correct now** — the sharps and flats sit on their proper lines and spaces (an alto F♯, for example, no longer lands on the C line). Treble and bass were already right. ([#233](https://github.com/joekotvas/riffscore/issues/233))
+- **Compound meters beam correctly** — 6/8, 9/8 and 12/8 group their eighth-notes by the dotted-quarter beat (6/8 as two groups of three, for example) instead of beaming as though every bar were 4/4. ([#241](https://github.com/joekotvas/riffscore/issues/241))
+- **Grand staff and pickup bars export cleanly to MusicXML** — a grand staff now exports as a single braced two-staff piano part (instead of two separate parts), and a pickup bar exports as a proper anacrusis, so other notation apps import your music correctly. ([#240](https://github.com/joekotvas/riffscore/issues/240))
 
 ### For developers
 - `KEY_SIGNATURE_OFFSETS` is now **derived** from each accidental's conventional engraving pitch via the shared clef geometry (`getClefReference`), instead of a hand-authored offset table — so key-signature glyphs and notes share one source and can't drift apart (the root cause of the alto/tenor bug). Verified by a geometry-oracle test that renders `ScoreHeader` and checks each glyph sits on its letter's line via the production `getPitchForOffset`. ([#233](https://github.com/joekotvas/riffscore/issues/233), [#235](https://github.com/joekotvas/riffscore/issues/235))
+- **Meter-aware beaming**: the beam-group beat boundary is derived from the time signature (`getBeamBeatQuants`) and threaded through the layout SSOT (`scoreLayout`), replacing the hard-coded `quantsPerMeasure / 4`; 4/4 output is provably unchanged. ([#241](https://github.com/joekotvas/riffscore/issues/241))
+- **MusicXML structure**: a multi-staff (grand-staff) score exports as one `<part>` with `<staves>`, per-staff `<clef number>`, `<staff>` note tagging, a per-measure `<backup>`, and a braced `<part-group>`; `Measure.isPickup` emits `<measure number="0" implicit="yes">`. ([#240](https://github.com/joekotvas/riffscore/issues/240))
 
 ## [1.0.0-alpha.11] - 2026-06-03
 
