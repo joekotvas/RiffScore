@@ -1,6 +1,5 @@
 import { ThemeName } from './themes';
 import { TIME_SIGNATURES } from './constants';
-import { getNoteDuration } from './utils/core';
 
 /**
  * Type definitions for the Sheet Music Editor
@@ -453,119 +452,49 @@ export const getActiveStaff = (score: Score, staffIndex: number = 0): Staff => {
 };
 
 /**
- * Computes the quant capacity of each measure of a score from its actual content.
+ * Maps a legacy absolute (global) quant position to a measure-local
+ * { measure, quant } pair using the engine's nominal convention:
+ * `measure = floor(global / nominal)`, `quant = global % nominal`.
  *
- * A measure's capacity is the maximum, across all staves, of the summed event
- * durations at that measure index. This is the SAME accumulation
- * `getValidChordQuants` performs, so the legacy global quant (built by summing
- * real measure spans) inverts exactly.
- *
- * Crucially the capacity is the measure's *actual* span, not a fixed nominal
- * width: a pickup bar (deliberately short) or a partially-filled bar consumes
- * only its real span, which is what makes the migration lossless where modulo is
- * not. The nominal time-signature width is used only as a fallback for a measure
- * that is empty across every staff (span 0 would otherwise trap accumulation and
- * collapse every later chord onto it).
- *
- * @param staves - The score's staves (may be undefined for very old formats)
- * @param timeSignature - Time signature string, used as the empty-measure fallback
- * @returns Array of measure capacities in quants, indexed by measure
- */
-const computeMeasureCapacities = (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Accepts unknown legacy staff formats during migration
-  staves: any[] | undefined,
-  timeSignature: string
-): number[] => {
-  const nominal = TIME_SIGNATURES[timeSignature] || 64;
-
-  if (!staves || staves.length === 0) return [];
-
-  // Per measure index, the largest actual content span seen across staves.
-  const spans: number[] = [];
-
-  for (const staff of staves) {
-    const measures = staff?.measures;
-    if (!Array.isArray(measures)) continue;
-
-    for (let i = 0; i < measures.length; i++) {
-      const events = measures[i]?.events;
-      let sum = 0;
-      if (Array.isArray(events)) {
-        for (const event of events) {
-          sum += getNoteDuration(event.duration, event.dotted, event.tuplet);
-        }
-      }
-      spans[i] = Math.max(spans[i] ?? 0, sum);
-    }
-  }
-
-  // Replace any empty (span 0) measure with the nominal width so accumulation
-  // still advances past it.
-  return spans.map((span) => (span > 0 ? span : nominal));
-};
-
-/**
- * Maps an absolute (global) quant position to a measure-local { measure, quant }
- * pair by accumulating real measure capacities, never by modulo.
- *
- * The legacy global-quant convention was `measureIndex * quantsPerMeasure +
- * localQuant` under the assumption that every measure was exactly the nominal
- * width. Modulo (`global % nominal`) reproduces that assumption and therefore
- * silently mis-places any chord once a measure is not the nominal width (pickup
- * bars, ragged trailing bars). Accumulating the actual capacities tiles the
- * timeline exactly, so the local position is recovered losslessly.
+ * This is the exact inverse of how chord time is encoded everywhere else (e.g.
+ * playback in toneEngine: `global = measure * quantsPerMeasure + quant`), so a
+ * migrated chord round-trips to the same global position it had. We deliberately
+ * do NOT reconstruct ragged/pickup legacy layouts from actual measure spans:
+ * there is no legacy data in the wild to preserve, and accumulating real spans
+ * would desync from the nominal convention the rest of the engine relies on.
  *
  * @param globalQuant - Absolute quant position from the legacy format
- * @param capacities - Per-measure capacities (see computeMeasureCapacities)
- * @param nominal - Nominal measure capacity, used past the end of `capacities`
+ * @param nominal - Quants per (nominal) measure
  */
 const globalQuantToLocal = (
   globalQuant: number,
-  capacities: number[],
   nominal: number
 ): { measure: number; quant: number } => {
-  let remaining = globalQuant;
-  let measure = 0;
-
-  // Walk known measures, subtracting each real capacity until the position lands
-  // inside the current measure.
-  while (measure < capacities.length) {
-    const cap = capacities[measure];
-    if (remaining < cap) break;
-    remaining -= cap;
-    measure++;
-  }
-
-  // Past the last known measure, fall back to the nominal width so positions
-  // beyond the authored content still map deterministically.
-  if (measure >= capacities.length && nominal > 0) {
-    measure += Math.floor(remaining / nominal);
-    remaining = remaining % nominal;
-  }
-
-  return { measure, quant: remaining };
+  if (nominal <= 0) return { measure: 0, quant: globalQuant };
+  return {
+    measure: Math.floor(globalQuant / nominal),
+    quant: globalQuant % nominal,
+  };
 };
 
 /**
- * Migrates chordTrack from global quant to measure-local { measure, quant } format.
+ * Migrates chordTrack from the legacy global-quant format to the measure-local
+ * { measure, quant } format.
  * Old format: { id, quant, symbol } where quant is global
  * New format: { id, measure, quant, symbol } where quant is local to measure
  *
- * Migration accumulates real per-measure capacities (lossless) rather than
- * applying a fixed modulo, so chord positions survive pickup bars and any score
- * whose measures are not all the nominal width. Already-migrated chord tracks
- * (every chord carries a `measure`) are returned unchanged (idempotent).
+ * Decoding uses the nominal convention (see globalQuantToLocal) so positions
+ * match the rest of the engine and round-trip through playback. Already-migrated
+ * chord tracks (every chord carries a `measure`) are returned unchanged
+ * (idempotent).
  *
  * @param chordTrack - Chord symbols in either old or new format
  * @param timeSignature - Time signature for nominal measure width
- * @param staves - The score's staves, used to derive real measure capacities
  */
 const migrateChordTrack = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Accepts unknown chord formats during migration
   chordTrack: any[] | undefined,
-  timeSignature: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Accepts unknown legacy staff formats during migration
-  staves?: any[]
+  timeSignature: string
 ): ChordSymbol[] | undefined => {
   if (!chordTrack || chordTrack.length === 0) return chordTrack;
 
@@ -576,7 +505,6 @@ const migrateChordTrack = (
   if (!needsMigration) return chordTrack;
 
   const nominal = TIME_SIGNATURES[timeSignature] || 64;
-  const capacities = computeMeasureCapacities(staves, timeSignature);
 
   return chordTrack.map((chord) => {
     // A chord that already has a measure is left as-is (mixed-format safety).
@@ -584,7 +512,7 @@ const migrateChordTrack = (
       return { id: chord.id, measure: chord.measure, quant: chord.quant, symbol: chord.symbol };
     }
 
-    const { measure, quant } = globalQuantToLocal(chord.quant, capacities, nominal);
+    const { measure, quant } = globalQuantToLocal(chord.quant, nominal);
 
     return {
       id: chord.id,
@@ -653,11 +581,7 @@ export const migrateScore = (oldScore: any): Score => {
     // Migrate chord track from global quant to measure-local format. Accumulate
     // against the migrated staves so positions tile real measure boundaries.
     if (result.chordTrack) {
-      result.chordTrack = migrateChordTrack(
-        result.chordTrack,
-        result.timeSignature || '4/4',
-        result.staves
-      );
+      result.chordTrack = migrateChordTrack(result.chordTrack, result.timeSignature || '4/4');
     }
 
     return result as Score;
@@ -683,9 +607,8 @@ export const migrateScore = (oldScore: any): Score => {
     keySignature: oldScore.keySignature || 'C',
     bpm: oldScore.bpm || 120,
     staves: legacyStaves,
-    // Migrate chord track from global quant to measure-local format, accumulating
-    // against the reconstructed single-staff measures.
-    chordTrack: migrateChordTrack(oldScore.chordTrack, timeSig, legacyStaves),
+    // Migrate chord track from legacy global quant to measure-local format.
+    chordTrack: migrateChordTrack(oldScore.chordTrack, timeSig),
   };
 };
 

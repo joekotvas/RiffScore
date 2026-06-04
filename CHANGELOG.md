@@ -36,7 +36,7 @@ workstreams and woven together with a cross-lane QA review, backed by 2,433 test
 - **Synchronous layout/metadata API getters read the live engine**, fixing stale reads right after their setters ([#230](https://github.com/joekotvas/riffscore/issues/230)).
 - **Mode-aware key resolution** (`keyResolution.ts`) via Tonal `Key.minorKey`/`Key.majorKey`, routed through the music service, accidental context, and chord utilities.
 - **Lossless command undo** for the transpose commands via a full pre-image snapshot (replaces corrupting inverse re-transposition).
-- **Migration runs at the load boundary** (`LoadScoreCommand`): stamps `schemaVersion` and re-anchors chord tracks losslessly (accumulation, not modulo).
+- **Migration runs at the load boundary** (`LoadScoreCommand`): stamps `schemaVersion` and decodes any legacy global-quant chord positions with the engine's nominal convention (`measure*quantsPerMeasure + quant`), so they round-trip through playback.
 - **Correct SMuFL glyphs** (E26x) for accidentals, replacing legacy Unicode.
 - **Verification scaffolding** — fast-check property harness, SVG geometry oracle, SMuFL codepoint registry, MusicXML duration-sum oracle (wired to real output), `fast-xml-parser`/`abcjs`/XSD fixtures, and a CI workflow. New suites are oracle-backed and mutation-verified.
 

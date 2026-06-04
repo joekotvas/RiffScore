@@ -1,20 +1,19 @@
 /**
- * Score migration tests (schemaVersion + lossless chord-track accumulation).
+ * Score migration tests (schemaVersion + nominal chord-track decode).
  *
  * These assert structural/rhythmic correctness from first principles, not the
  * implementation's own arithmetic:
  *  - Idempotency: migrate(migrate(x)) deep-equals migrate(x); the result is
  *    stamped with SCHEMA_VERSION.
- *  - Accumulation (not modulo): a legacy global-quant chord track migrates to
- *    monotonically-increasing, correct measure-local positions, including cases
- *    the old `global % quantsPerMeasure` logic provably mis-placed (pickup bars
- *    and ragged measure widths).
+ *  - Nominal decode: a legacy global-quant chord track decodes via the engine's
+ *    nominal convention (measure = floor(g/nominal), quant = g % nominal) — the
+ *    exact inverse of how toneEngine re-encodes chord time for playback, so
+ *    positions round-trip. (No legacy ragged-bar data exists to preserve.)
  *
  * @tested src/types.ts (migrateScore / migrateChordTrack / SCHEMA_VERSION)
  */
 
 import { migrateScore, SCHEMA_VERSION, type Score, type ChordSymbol } from '@/types';
-import { getNoteDuration } from '@/utils/core';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -45,15 +44,6 @@ const legacyChord = (id: string, globalQuant: number, symbol: string) => ({
   quant: globalQuant,
   symbol,
 });
-
-/**
- * Independent oracle: the legacy global quant of a chord that sits at the START
- * of measure index `m` equals the SUM of the actual spans of measures 0..m-1.
- * (The chord subsystem builds anchors by accumulating real measure spans, so the
- * global quant was the running prefix sum — NOT m * nominalWidth.)
- */
-const spanOf = (events: EventSpec[]): number =>
-  events.reduce((acc, e) => acc + getNoteDuration(e.duration, e.dotted ?? false), 0);
 
 // ---------------------------------------------------------------------------
 // IDEMPOTENCY
@@ -121,10 +111,10 @@ describe('migrateScore — idempotency & versioning', () => {
 // ACCUMULATION (not modulo)
 // ---------------------------------------------------------------------------
 
-describe('migrateChordTrack — lossless accumulation (not modulo)', () => {
+describe('migrateChordTrack — nominal global->local decode (round-trips playback)', () => {
   const chords = (s: Score): ChordSymbol[] => s.chordTrack ?? [];
 
-  it('full 4/4 bars: chords map to the bars accumulation predicts', () => {
+  it('full 4/4 bars: global quant decodes to measure = floor(g/64), quant = g % 64', () => {
     // Three full 4/4 bars (64 quants each).
     const bars = [
       [{ id: 'a', duration: 'whole' }],
@@ -147,22 +137,21 @@ describe('migrateChordTrack — lossless accumulation (not modulo)', () => {
       chordTrack: [
         legacyChord('c0', 0, 'C'), // start of bar 0
         legacyChord('c1', 64, 'F'), // start of bar 1
-        legacyChord('c2', 64 + 16, 'G'), // bar 2 would be wrong... see below
+        legacyChord('c2', 80, 'G'), // bar 1, local 16
       ],
     };
-    // c2 global = 80 = 64 (bar0) + 16 -> bar 1, local 16.
+    // Nominal decode: c2 global 80 -> floor(80/64)=1, 80%64=16 -> measure 1, quant 16.
     const out = chords(migrateScore(legacy));
     expect(out.find((c) => c.id === 'c0')).toMatchObject({ measure: 0, quant: 0 });
     expect(out.find((c) => c.id === 'c1')).toMatchObject({ measure: 1, quant: 0 });
     expect(out.find((c) => c.id === 'c2')).toMatchObject({ measure: 1, quant: 16 });
   });
 
-  it('PICKUP bar: a chord at the start of bar 1 is NOT mis-placed into the pickup', () => {
-    // Pickup bar 0 holds a single quarter (16 quants); bars 1+ are full (64).
-    // Legacy global quant for "start of bar 1" = span(pickup) = 16 (accumulated).
-    const pickupSpan = spanOf([{ id: 'p', duration: 'quarter' }]); // 16
-    expect(pickupSpan).toBe(16);
-
+  it("decode ignores a pickup/ragged bar's actual content (nominal, not accumulated)", () => {
+    // Codex P1 case: a pickup bar holds only a quarter (16 quants), but a legacy
+    // chord at global 64 still means "start of bar 1" under the nominal convention
+    // the engine uses everywhere (toneEngine re-encodes as measure * 64 + quant).
+    // The pickup's real span must NOT shift it (the accumulation bug gave quant 48).
     const legacy = {
       title: 'Pickup',
       timeSignature: '4/4',
@@ -174,7 +163,7 @@ describe('migrateChordTrack — lossless accumulation (not modulo)', () => {
           clef: 'treble',
           keySignature: 'C',
           measures: [
-            measure('m0', [{ id: 'p', duration: 'quarter' }], true), // pickup
+            measure('m0', [{ id: 'p', duration: 'quarter' }], true), // pickup (16 quants)
             measure('m1', [{ id: 'a', duration: 'whole' }]),
             measure('m2', [{ id: 'b', duration: 'whole' }]),
           ],
@@ -182,30 +171,28 @@ describe('migrateChordTrack — lossless accumulation (not modulo)', () => {
       ],
       chordTrack: [
         legacyChord('c0', 0, 'C'), // pickup, quant 0
-        legacyChord('c1', pickupSpan, 'F'), // start of bar 1
-        legacyChord('c2', pickupSpan + 64, 'G'), // start of bar 2
+        legacyChord('c1', 64, 'F'), // start of bar 1 (nominal)
+        legacyChord('c2', 128, 'G'), // start of bar 2 (nominal)
       ],
     };
 
     const out = chords(migrateScore(legacy));
 
-    // First-principles expectation (accumulation): c1 sits at the START of bar 1.
+    expect(out.find((c) => c.id === 'c0')).toMatchObject({ measure: 0, quant: 0 });
     const c1 = out.find((c) => c.id === 'c1')!;
     expect(c1).toMatchObject({ measure: 1, quant: 0 });
-
-    // The OLD modulo logic (global % 64) would have produced measure 0, quant 16
-    // (inside the 16-quant pickup, past its end) — assert we are NOT that.
-    expect(c1).not.toMatchObject({ measure: 0, quant: 16 });
-
-    expect(out.find((c) => c.id === 'c0')).toMatchObject({ measure: 0, quant: 0 });
+    // NOT shifted by the pickup's real span (the accumulation regression gave quant 48).
+    expect(c1).not.toMatchObject({ measure: 1, quant: 48 });
     expect(out.find((c) => c.id === 'c2')).toMatchObject({ measure: 2, quant: 0 });
   });
 
-  it('RAGGED widths: chords accumulate over an underfilled middle bar', () => {
-    // Bar 0 full (64). Bar 1 deliberately half-full (32). Bar 2 full (64).
-    // Global quant for start of bar 2 = 64 + 32 = 96 (accumulated real spans).
+  it('round-trips the global position exactly (measure * nominal + quant === global)', () => {
+    // The invariant that keeps migration consistent with toneEngine, which
+    // re-encodes a chord as `measure * quantsPerMeasure + quant` for playback.
+    const NOMINAL = 64; // 4/4
+    const globals = [0, 16, 48, 64, 80, 127, 128, 200];
     const legacy = {
-      title: 'Ragged',
+      title: 'RT',
       timeSignature: '4/4',
       keySignature: 'C',
       bpm: 120,
@@ -214,27 +201,18 @@ describe('migrateChordTrack — lossless accumulation (not modulo)', () => {
           id: 's1',
           clef: 'treble',
           keySignature: 'C',
-          measures: [
-            measure('m0', [{ id: 'a', duration: 'whole' }]), // 64
-            measure('m1', [{ id: 'b', duration: 'half' }]), // 32
-            measure('m2', [{ id: 'c', duration: 'whole' }]), // 64
-          ],
+          measures: [measure('m0', [{ id: 'a', duration: 'whole' }])],
         },
       ],
-      chordTrack: [
-        legacyChord('c0', 0, 'C'),
-        legacyChord('c1', 64, 'F'), // start of bar 1
-        legacyChord('c2', 64 + 32, 'G'), // start of bar 2 (accumulation: 96)
-      ],
+      chordTrack: globals.map((g, i) => legacyChord(`c${i}`, g, 'C')),
     };
 
     const out = chords(migrateScore(legacy));
-    expect(out.find((c) => c.id === 'c1')).toMatchObject({ measure: 1, quant: 0 });
-
-    const c2 = out.find((c) => c.id === 'c2')!;
-    expect(c2).toMatchObject({ measure: 2, quant: 0 });
-    // Modulo(96, 64) = measure 1, quant 32 — i.e. END of the half-bar, wrong bar.
-    expect(c2).not.toMatchObject({ measure: 1, quant: 32 });
+    out.forEach((c, i) => {
+      expect(c.measure * NOMINAL + c.quant).toBe(globals[i]);
+      expect(c.quant).toBeGreaterThanOrEqual(0);
+      expect(c.quant).toBeLessThan(NOMINAL);
+    });
   });
 
   it('produces monotonically non-decreasing absolute positions for an ascending track', () => {
