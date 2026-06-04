@@ -209,20 +209,20 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `addChord` | `addChord(quant, symbol)` | ✅ | Add chord symbol at global quant position. |
+| `addChord` | `addChord(position, symbol)` | ✅ | Add chord symbol at `{ measure, quant }`. |
 | `updateChord` | `updateChord(chordId, symbol)` | ✅ | Update an existing chord symbol. |
 | `removeChord` | `removeChord(chordId)` | ✅ | Remove a chord symbol. |
-| `getChords` | `getChords()` | ✅ | Get all chords sorted by quant ascending. |
+| `getChords` | `getChords()` | ✅ | Get all chords sorted by position ascending. |
 | `getChord` | `getChord(chordId)` | ✅ | Get a specific chord by ID. |
-| `getChordAtQuant` | `getChordAtQuant(quant)` | ✅ | Get the chord at a specific quant position. |
-| `getValidChordQuants` | `getValidChordQuants()` | ✅ | Get all valid quant positions for chords. |
+| `getChordAt` | `getChordAt(position)` | ✅ | Get the chord at `{ measure, quant }` (or `null`). |
+| `getValidChordPositions` | `getValidChordPositions()` | ✅ | `Map<measure, Set<quant>>` of valid chord positions. |
 
 ### Selection
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
 | `selectChord` | `selectChord(chordId)` | ✅ | Select a chord by ID. |
-| `selectChordAtQuant` | `selectChordAtQuant(quant)` | ✅ | Select the chord at a quant position. |
+| `selectChordAt` | `selectChordAt(position)` | ✅ | Select the chord at `{ measure, quant }`. |
 | `deselectChord` | `deselectChord()` | ✅ | Deselect the currently selected chord. |
 | `getSelectedChord` | `getSelectedChord()` | ✅ | Get the currently selected chord. |
 | `hasChordSelection` | `hasChordSelection()` | ✅ | Check if a chord is selected. |
@@ -384,7 +384,7 @@ api.clearStatus();
 | :--- | :--- |
 | Invalid `measureNum` | Clamped to valid range. |
 | Invalid `pitch` format | `ok: false`, `code: 'INVALID_PITCH'`. |
-| `export` unknown format | Throws `Error` (Critical). |
+| `export` unknown format | `ok: false`, `code: 'NOT_IMPLEMENTED'`; returns `''`. |
 
 ---
 
