@@ -81,6 +81,49 @@ describe('migrateScore — idempotency & versioning', () => {
     expect(twice).toEqual(once);
   });
 
+  it('re-migrates a score stamped at an OLDER schema version (does not fast-path it)', () => {
+    // A score saved by a previous release: already stamped + staves-shaped, but
+    // carrying a theoretical flat-minor key and a stale accidental mirror. Bumping
+    // SCHEMA_VERSION must force the new migration steps to run instead of the
+    // idempotency fast-path returning it verbatim — so the #238 key canonicalization
+    // and #234 mirror reconciliation actually reach previously-saved scores.
+    const prevRelease = {
+      schemaVersion: SCHEMA_VERSION - 1,
+      title: 'Prev release',
+      timeSignature: '4/4',
+      keySignature: 'Dbm', // theoretical (8 flats) -> should canonicalize to C#m
+      bpm: 120,
+      staves: [
+        {
+          id: 's1',
+          clef: 'treble',
+          keySignature: 'Dbm',
+          measures: [
+            {
+              id: 'm0',
+              events: [
+                {
+                  id: 'e0',
+                  duration: 'quarter',
+                  dotted: false,
+                  notes: [{ id: 'n0', pitch: 'C#4', accidental: 'flat' }], // stale mirror
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const migrated = migrateScore(prevRelease as unknown as Score);
+
+    expect(migrated.schemaVersion).toBe(SCHEMA_VERSION); // re-stamped to current
+    expect(migrated.keySignature).toBe('C#m'); // #238 canonicalization applied
+    expect(migrated.staves[0].keySignature).toBe('C#m');
+    // #234 mirror reconciled from pitch (C#4 -> 'sharp'), not the stale 'flat'
+    expect(migrated.staves[0].measures[0].events[0].notes[0].accidental).toBe('sharp');
+  });
+
   it('is idempotent for a legacy single-staff (no staves) score', () => {
     const legacy = {
       title: 'Old',

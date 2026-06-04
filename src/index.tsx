@@ -16,7 +16,16 @@ export { ScoreProvider, useScoreContext } from './context/ScoreContext';
 export { default as ConfigMenu } from '../demo/app/ConfigMenu';
 
 // Types
-export type { Score, Selection, ScoreEvent, Note, Measure, Staff, RiffScoreConfig } from './types';
+export type {
+  Score,
+  Selection,
+  ScoreEvent,
+  Note,
+  Measure,
+  Staff,
+  RiffScoreConfig,
+  AccidentalDisplay,
+} from './types';
 
 // API Types (Machine-Addressable Interface)
 export type { MusicEditorAPI, RiffScoreRegistry, APIEventType, Unsubscribe } from './api.types';

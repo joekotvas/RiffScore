@@ -1,5 +1,7 @@
 import { ThemeName } from './themes';
 import { TIME_SIGNATURES } from './constants';
+import { canonicalizeKeySignature } from './utils/keyResolution';
+import { Note as TonalNote } from 'tonal';
 
 /**
  * Type definitions for the Sheet Music Editor
@@ -19,15 +21,36 @@ import { TIME_SIGNATURES } from './constants';
  *
  * History:
  * - 1: staves model + measure-local chordTrack (accumulated, not modulo).
+ * - 2: enharmonic key-signature canonicalization (#238) + `note.accidental`
+ *      derived-mirror reconciliation (#234), both applied in `migrateScore`.
+ *      Bumped so scores stamped at v1 re-run those steps instead of taking the
+ *      idempotency fast-path (which returns a current-version score verbatim).
  */
-export const SCHEMA_VERSION = 1 as const;
+export const SCHEMA_VERSION = 2 as const;
 
 // ========== NOTE ==========
+
+/**
+ * Accidental DISPLAY policy — orthogonal to sounding pitch (#236, contract C1).
+ * Policy only, never a glyph name (the glyph is always derived from `pitch`):
+ *   - 'auto'     standard engraving rules decide (the default when omitted).
+ *   - 'show'     force the accidental glyph even when the rules would omit it.
+ *   - 'hide'     suppress the glyph even when the rules would show it.
+ *   - 'courtesy' force the glyph as a parenthesized cautionary accidental.
+ * Never affects the sounding pitch; only whether/how the glyph is drawn.
+ */
+export type AccidentalDisplay = 'auto' | 'show' | 'hide' | 'courtesy';
 
 export interface Note {
   id: string;
   pitch: string | null; // e.g., 'C4', 'D#5', 'Bb3', or null for rests
   accidental?: 'sharp' | 'flat' | 'natural' | null;
+  /**
+   * Display policy for this note's accidental (#236). Omitted === 'auto'.
+   * Orthogonal to `pitch`/`accidental`: it changes only whether/how the glyph is
+   * drawn, never the sounding pitch.
+   */
+  accidentalDisplay?: AccidentalDisplay;
   tied?: boolean; // Tied to next note
   isRest?: boolean; // True for rest notes (pitchless)
 }
@@ -524,6 +547,41 @@ const migrateChordTrack = (
 };
 
 /**
+ * The legacy `note.accidental` field is a DERIVED mirror of the pitch (contract
+ * C1): never authoritative for rendering/export, which all derive from `pitch`.
+ * Reconcile it from the pitch at the load boundary so a hand-authored or legacy
+ * score can never carry — and `jsonExporter` re-emit — a mirror that disagrees
+ * with its pitch. Mirrors the tri-state collapse of `deriveAccidental` (inlined
+ * to keep `types.ts` free of a service dependency). Returns the same note object
+ * when the mirror already matches, so an already-consistent score is unchanged.
+ */
+const reconcileNoteAccidentalMirror = (note: Note): Note => {
+  if (note.pitch == null) return note;
+  const n = TonalNote.get(note.pitch);
+  const mirror: Note['accidental'] =
+    n.empty || n.pc === '' ? null : n.alt > 0 ? 'sharp' : n.alt < 0 ? 'flat' : 'natural';
+  return note.accidental === mirror ? note : { ...note, accidental: mirror };
+};
+
+/** Reconcile every note's accidental mirror within a staff (see above). */
+const reconcileStaffAccidentalMirrors = (staff: Staff): Staff => {
+  if (!staff?.measures) return staff;
+  return {
+    ...staff,
+    measures: staff.measures.map((m) =>
+      m?.events
+        ? {
+            ...m,
+            events: m.events.map((e) =>
+              e?.notes ? { ...e, notes: e.notes.map(reconcileNoteAccidentalMirror) } : e
+            ),
+          }
+        : m
+    ),
+  };
+};
+
+/**
  * Migrates an old-format score to the new staves model
  * Also syncs top-level legacy fields (measures, keySignature, clef) back to staves[0]
  */
@@ -584,27 +642,43 @@ export const migrateScore = (oldScore: any): Score => {
       result.chordTrack = migrateChordTrack(result.chordTrack, result.timeSignature || '4/4');
     }
 
+    // Normalize the key signature to a representable enharmonic spelling so the
+    // header glyphs, the inline accidental resolver, and both exporters all see a
+    // first-class key. Theoretical flat-minor spellings (Db/Gb/Cb minor = 8-10
+    // flats) become their canonical twins (C#m/F#m/Bm); the sounding pitches are
+    // unchanged. Idempotent: a key already canonical passes through verbatim.
+    result.keySignature = canonicalizeKeySignature(result.keySignature || 'C');
+    result.staves = result.staves.map((s: Staff) => {
+      const keyed = s?.keySignature
+        ? { ...s, keySignature: canonicalizeKeySignature(s.keySignature) }
+        : s;
+      return reconcileStaffAccidentalMirrors(keyed);
+    });
+
     return result as Score;
   }
 
   // Migrate legacy single-staff format (no staves array)
   const timeSig = oldScore.timeSignature || '4/4';
+  // Normalize once: theoretical flat-minor spellings -> canonical twins (see the
+  // staves branch above).
+  const keySignature = canonicalizeKeySignature(oldScore.keySignature || 'C');
   const legacyStaves = [
-    {
+    reconcileStaffAccidentalMirrors({
       id: 'staff-1',
       clef: oldScore.clef || 'treble',
-      keySignature: oldScore.keySignature || 'C',
+      keySignature,
       measures: oldScore.measures || [
         { id: 'm1', events: [] },
         { id: 'm2', events: [] },
       ],
-    },
+    }),
   ];
   return {
     schemaVersion: SCHEMA_VERSION,
     title: oldScore.title || 'Composition',
     timeSignature: timeSig,
-    keySignature: oldScore.keySignature || 'C',
+    keySignature,
     bpm: oldScore.bpm || 120,
     staves: legacyStaves,
     // Migrate chord track from legacy global quant to measure-local format.

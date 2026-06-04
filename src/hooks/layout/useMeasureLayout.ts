@@ -23,6 +23,10 @@ import { BeamGroup } from '@/engines/layout/types';
  * @param forcedEventPositions - Optional forced positions from Grand Staff sync
  * @param forcedWidth - Optional forced width from Grand Staff sync
  * @param stretchFactor - Optional stretch factor for justified systems (default: 1.0)
+ * @param keySignature - Key signature so accidental spacing matches the rendered
+ *   glyph (cancelling naturals included); default 'C'. This is the page-view
+ *   (justified) layout path, so it must thread the key like scoreLayout does (#234).
+ * @param timeSignature - Optional time signature for meter-aware beam grouping (default: '4/4')
  */
 export function useMeasureLayout(
   events: ScoreEvent[],
@@ -30,12 +34,22 @@ export function useMeasureLayout(
   isPickup: boolean,
   forcedEventPositions?: Record<string, number>,
   forcedWidth?: number,
-  stretchFactor: number = 1.0
+  stretchFactor: number = 1.0,
+  keySignature: string = 'C',
+  timeSignature: string = '4/4'
 ) {
   // Core measure layout
   const measureLayout = useMemo(() => {
-    return calculateMeasureLayout(events, undefined, clef, isPickup, forcedEventPositions, stretchFactor);
-  }, [events, clef, isPickup, forcedEventPositions, stretchFactor]);
+    return calculateMeasureLayout(
+      events,
+      undefined,
+      clef,
+      isPickup,
+      forcedEventPositions,
+      stretchFactor,
+      keySignature
+    );
+  }, [events, clef, isPickup, forcedEventPositions, stretchFactor, keySignature]);
 
   const { hitZones, eventPositions, totalWidth, processedEvents } = measureLayout;
 
@@ -54,10 +68,10 @@ export function useMeasureLayout(
     return processedEvents;
   }, [processedEvents, forcedWidth, effectiveWidth]);
 
-  // Beam grouping for 8th/16th notes
+  // Beam grouping for 8th/16th notes (meter-aware via timeSignature)
   const beamGroups = useMemo(() => {
-    return calculateBeamingGroups(events, eventPositions, clef);
-  }, [events, eventPositions, clef]) as BeamGroup[];
+    return calculateBeamingGroups(events, eventPositions, clef, timeSignature);
+  }, [events, eventPositions, clef, timeSignature]) as BeamGroup[];
 
   // Tuplet bracket positioning
   const tupletGroups = useMemo(() => {

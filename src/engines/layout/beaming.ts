@@ -8,17 +8,85 @@ import { MIDDLE_LINE_Y, BEAMING } from '@/constants';
 // Removed temporary interfaces
 
 /**
+ * Quants per whole note. The quant grid is defined so that a whole note spans
+ * `CONFIG.quantsPerMeasure` quants in 4/4 (a whole-note-long measure). This makes
+ * one quant = 1/64 of a whole note (with the default config of 64), so:
+ *   quarter = 16 quants, eighth = 8 quants, sixteenth = 4 quants.
+ * This matches DURATION_QUANTS in utils/core.
+ */
+const QUANTS_PER_WHOLE = CONFIG.quantsPerMeasure;
+
+/**
+ * Derives the beaming "beat" size (in quants) for a given time signature, from
+ * first principles based on meter theory.
+ *
+ * - Simple meters (denominator beat): beat = one denominator note value.
+ *   e.g. 4/4 -> quarter, 3/4 -> quarter, 2/4 -> quarter, 2/2 -> half, 3/8 -> eighth.
+ * - Compound meters (numerator divisible by 3 and > 3, i.e. 6/8, 9/8, 12/8): the
+ *   felt beat is a dotted note grouping three of the denominator value.
+ *   e.g. 6/8 -> dotted quarter (3 eighths), 9/8 -> dotted quarter, 12/8 -> dotted quarter.
+ *
+ * Beams group within a single beat: notes never beam across a beat boundary.
+ *
+ * @param timeSignature - e.g. '4/4', '6/8', '3/4'. Defaults to 4/4 behavior on
+ *   any unparseable or unknown value (regression-safe).
+ * @returns The number of quants in one beaming beat.
+ */
+export const getBeamBeatQuants = (timeSignature = '4/4'): number => {
+  const match = /^(\d+)\s*\/\s*(\d+)$/.exec(timeSignature.trim());
+
+  // Fallback: preserve historical 4/4 behavior (quarter-note beats) for any
+  // value we cannot parse.
+  if (!match) {
+    return QUANTS_PER_WHOLE / 4;
+  }
+
+  const numerator = parseInt(match[1], 10);
+  const denominator = parseInt(match[2], 10);
+
+  if (numerator <= 0 || denominator <= 0) {
+    return QUANTS_PER_WHOLE / 4;
+  }
+
+  // Quants in one denominator-unit note (e.g. /8 -> eighth-note quants).
+  const denominatorUnitQuants = QUANTS_PER_WHOLE / denominator;
+
+  // Compound meters (6/8, 9/8, 12/8, 6/4, ...) beam by the DOTTED beat = three
+  // denominator-units. (Compound = the beat divides into 3; top number is a
+  // multiple of 3 greater than 3.)
+  const isCompound = numerator % 3 === 0 && numerator > 3;
+
+  // 3/8 (and 3/16, ...) are SIMPLE triple — three eighth beats, exactly like 3/4,
+  // NOT compound. But the engraving convention beams the whole bar as one group
+  // rather than leaving three single flagged notes, so the beam span is the bar,
+  // which happens to also be three denominator-units (same number as a compound
+  // beat, different reason). The denominator >= 8 guard keeps 3/4 simple (it beams
+  // by the quarter beat, not the whole bar).
+  const beamsWholeBarAsTriple = numerator === 3 && denominator >= 8;
+
+  if (isCompound || beamsWholeBarAsTriple) {
+    return denominatorUnitQuants * 3;
+  }
+
+  // Other simple meters: the beam beat is one denominator unit.
+  return denominatorUnitQuants;
+};
+
+/**
  * Groups events into beaming groups based on musical rules (beats, syncopation).
  * All calculations use CONFIG.baseY - staff positioning is handled by SVG transforms.
  * @param events - List of events in the measure
  * @param eventPositions - Map of event IDs to their x-positions
  * @param clef - The clef for pitch offset lookup
+ * @param timeSignature - The score's time signature (e.g. '6/8'). Determines beat
+ *   grouping. Defaults to '4/4' for backward compatibility.
  * @returns Array of beam group specifications
  */
 export const calculateBeamingGroups = (
   events: ScoreEvent[],
   eventPositions: Record<string, number>,
-  clef = 'treble'
+  clef = 'treble',
+  timeSignature = '4/4'
 ): BeamGroup[] => {
   const groups: BeamGroup[] = [];
   let currentGroup: ScoreEvent[] = [];
@@ -34,6 +102,11 @@ export const calculateBeamingGroups = (
   };
 
   let currentQuant = 0;
+
+  // Meter-aware beaming beat: notes beam within a single beat and break at beat
+  // boundaries. Compound meters (6/8, 9/8, 12/8) use a dotted beat (three eighths);
+  // simple meters use one denominator unit (e.g. quarter in 4/4, 3/4, 2/4).
+  const beatQuants = getBeamBeatQuants(timeSignature);
 
   events.forEach((event: ScoreEvent) => {
     const type = event.duration;
@@ -56,15 +129,11 @@ export const calculateBeamingGroups = (
       finalizeGroup();
     }
 
-    // Check beat boundaries (simple 4/4 assumption: beat every 1024 quants)
-    // If currentQuant is a multiple of beat size, we might break?
-    // Actually, we break if we CROSS a beat boundary.
-    // But for Quarter beats (1024), we usually beam 8ths together within the beat.
-    // We shouldn't beam across beat 2-3 in 4/4 usually.
-    // Let's implement a simple rule: Break beam if on a beat boundary?
-    // No, we start a new beam at the boundary.
-    const BEAT_QUANTS = CONFIG.quantsPerMeasure / 4; // Assuming 4/4
-    if (currentQuant % BEAT_QUANTS === 0 && currentGroup.length > 0) {
+    // Break the beam at every beat boundary so beams never span across beats.
+    // `beatQuants` is derived from the meter (see getBeamBeatQuants): in 4/4 this
+    // is a quarter (16 quants) reproducing the original behavior; in 6/8 it is a
+    // dotted quarter (24 quants) so six eighths form two groups of three.
+    if (currentQuant % beatQuants === 0 && currentGroup.length > 0) {
       finalizeGroup();
     }
 

@@ -12,7 +12,8 @@ import {
 } from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
 import { Note as TonalNote } from 'tonal';
-import { MeasureAccidentalState, keySignatureAltForLetter } from './measureAccidentals';
+import { canonicalizeKeySignature } from '@/utils/keyResolution';
+import { MeasureAccidentalState, keySignatureAltForLetter } from '@/utils/accidentalContext';
 
 /**
  * Convert an internal key string ('C', 'G', 'Bb', 'F#', 'Em', 'Dm') to a valid
@@ -126,7 +127,11 @@ export const generateABC = (score: Score, bpm: number): string => {
   // Phase 2: Iterate over all staves
   const staves = score.staves || [getActiveStaff(score)]; // Fallback for safety
   const timeSig = score.timeSignature || '4/4';
-  const keySig = score.keySignature || 'C';
+  // Canonicalize so a theoretical flat-minor spelling (Db/Gb/Cb minor) emits its
+  // representable enharmonic K: field (C#m/F#m/Bm) and drives measure-local
+  // accidentals correctly, instead of falling back to C. Feeds both the K: field
+  // and keySignatureAltForLetter below so they can never disagree.
+  const keySig = canonicalizeKeySignature(score.keySignature || 'C');
 
   // Build chord lookup map for O(1) access by (measure, quant)
   const chordLookup = buildChordLookup(score.chordTrack);
@@ -259,9 +264,17 @@ export const generateABC = (score: Score, bpm: number): string => {
             const octave = parsed.oct ?? (Number.isFinite(fallbackOct) ? fallbackOct : 4);
             const alt = Number.isFinite(parsed.alt) ? parsed.alt : 0;
 
+            // The note's display policy (#236) can force or hide the glyph.
+            // In ABC the accidental token IS what conveys the pitch (there is no
+            // structural <alter>), so 'hide' cannot suppress it without silently
+            // turning e.g. C#4 into C-natural — we therefore fall back to 'auto'
+            // for 'hide' (best-effort: the policy is not honored, but the sounding
+            // pitch is never lost). 'courtesy' has no standard ABC parenthesized
+            // form, so it degrades to a plain forced accidental.
+            const abcDisplay = n.accidentalDisplay === 'hide' ? 'auto' : n.accidentalDisplay;
             const keyAlt = keySignatureAltForLetter(letter, keySig);
-            const showAlt = accidentalState.resolve(letter, octave, alt, keyAlt);
-            const acc = showAlt === null ? '' : abcAccidentalToken(showAlt);
+            const decision = accidentalState.resolve(letter, octave, alt, keyAlt, abcDisplay);
+            const acc = decision === null ? '' : abcAccidentalToken(decision.alt);
 
             const pitch = toAbcPitch(n.pitch, clef);
             return `${acc}${pitch}`;

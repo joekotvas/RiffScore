@@ -109,7 +109,8 @@ const Measure: React.FC<MeasureProps> = ({
     measureData.isPickup ?? false,
     forcedEventPositions,
     forcedWidth,
-    stretchFactor
+    stretchFactor,
+    keySignature
   );
 
   // Extract layout data

@@ -11,7 +11,8 @@ import {
 } from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
 import { Note } from 'tonal';
-import { MeasureAccidentalState, keySignatureAltForLetter } from './measureAccidentals';
+import { canonicalizeKeySignature } from '@/utils/keyResolution';
+import { MeasureAccidentalState, keySignatureAltForLetter } from '@/utils/accidentalContext';
 
 /** Maps an alteration to its MusicXML <accidental> glyph name. 0 is natural. */
 const xmlAccidentalName = (alt: number): string => {
@@ -297,8 +298,219 @@ const generateHarmonyElement = (chord: ChordSymbol): string => {
   return xml;
 };
 
+// ============================================================================
+// CLEF GEOMETRY
+// ============================================================================
+
+/** MusicXML <sign> for a riffscore clef. C-clef for alto/tenor, F for bass. */
+const getClefSign = (c: string): string => {
+  switch (c) {
+    case 'bass':
+      return 'F';
+    case 'alto':
+    case 'tenor':
+      return 'C';
+    default:
+      return 'G';
+  }
+};
+
+/** MusicXML clef <line> for a riffscore clef. */
+const getClefLine = (c: string): string => {
+  switch (c) {
+    case 'bass':
+      return '4';
+    case 'alto':
+      return '3';
+    case 'tenor':
+      return '4';
+    default:
+      return '2';
+  }
+};
+
+// ============================================================================
+// NOTE / EVENT RENDERING
+// ============================================================================
+
+/**
+ * Render the <note> element(s) for a single event (rest, note, or chord) into
+ * MusicXML. Shared by every staff so the rhythm/accidental/tie/tuplet behavior
+ * is identical regardless of which staff a note lives on.
+ *
+ * `staffNumber`, when provided, tags every emitted note with <staff>N</staff>
+ * (required when a single <part> carries multiple staves, e.g. a grand staff).
+ * It is omitted entirely for a single-staff part.
+ */
+const renderEvent = (
+  event: ScoreEvent,
+  divisions: number,
+  accidentalState: MeasureAccidentalState,
+  measureKey: string,
+  activeTies: Set<string>,
+  staffNumber?: number
+): string => {
+  let xml = '';
+
+  // Exact integer <duration> in per-score divisions (no float floor).
+  const duration = eventDivisions(event, divisions);
+  const xmlType = NOTE_TYPES[event.duration].xmlType;
+  const staffTag = staffNumber === undefined ? '' : `\n      <staff>${staffNumber}</staff>`;
+
+  // <time-modification> is shared by every note in a tuplet event.
+  // actual-notes / normal-notes come from the tuplet ratio [actual, normal];
+  // normal-type is the note value the tuplet is "in the time of" (the base
+  // duration of the tuplet members).
+  let timeModTag = '';
+  if (event.tuplet) {
+    const [actual, normal] = event.tuplet.ratio;
+    const normalType =
+      NOTE_TYPES[event.tuplet.baseDuration ?? event.duration]?.xmlType ?? xmlType;
+    timeModTag = `
+      <time-modification>
+        <actual-notes>${actual}</actual-notes>
+        <normal-notes>${normal}</normal-notes>
+        <normal-type>${normalType}</normal-type>
+      </time-modification>`;
+  }
+
+  if (isRestEvent(event)) {
+    // REST — DTD order: <rest/> <duration> <type> <dot> <time-modification> <staff>
+    xml += `
+    <note>
+      <rest/>
+      <duration>${duration}</duration>
+      <type>${xmlType}</type>
+      ${event.dotted ? '<dot/>' : ''}
+      ${timeModTag}${staffTag}
+    </note>`;
+    return xml;
+  }
+
+  // NOTES / CHORDS
+  event.notes.forEach((note: ScoreEvent['notes'][number], nIndex: number) => {
+    // Skip notes without a valid pitch (e.g., unpitched percussion)
+    if (!note.pitch) {
+      return;
+    }
+
+    const isChord = nIndex > 0;
+
+    // PITCH is the single source of truth (contract C1).
+    // step / octave / alter are all derived from the SPN spelling via Tonal.
+    const parsed = Note.get(note.pitch);
+    const step = parsed.letter || note.pitch.charAt(0);
+    // oct may be undefined for malformed input; fall back to trailing
+    // digits, then to 4 (a sane default octave) if even that fails.
+    const fallbackOct = parseInt(note.pitch.replace(/[^0-9-]/g, ''), 10);
+    const octave = parsed.oct ?? (Number.isFinite(fallbackOct) ? fallbackOct : 4);
+    // <alter> is the SOUNDING alteration derived from pitch spelling
+    // (-1 flat, +1 sharp, +-2 double). Emitted ALWAYS when nonzero,
+    // independent of whether a visible accidental glyph is shown.
+    const alter = Number.isFinite(parsed.alt) ? parsed.alt : 0;
+    const alterTag = alter !== 0 ? `\n        <alter>${alter}</alter>` : '';
+
+    // <accidental> is the VISIBLE glyph and follows standard engraving
+    // context (NOT the legacy note.accidental field): suppress a glyph the
+    // key signature or an earlier accidental in this measure already
+    // implies, and emit a natural to cancel one. Derived from pitch via the
+    // shared resolver so MusicXML, ABC, and the renderer all agree. (<alter>
+    // above still carries the SOUNDING alteration unconditionally.)
+    // The note's display policy (#236) can force, hide, or parenthesize the glyph
+    // — orthogonal to <alter> (the sounding alteration) above.
+    const keyAlt = keySignatureAltForLetter(step, measureKey);
+    const decision = accidentalState.resolve(step, octave, alter, keyAlt, note.accidentalDisplay);
+    const accidentalTag =
+      decision === null
+        ? ''
+        : `<accidental${decision.parenthesized ? ' parentheses="yes"' : ''}>${xmlAccidentalName(decision.alt)}</accidental>`;
+
+    // Tie Logic
+    let tieTags = '';
+    let tiedNotations = '';
+    const pitchKey = note.pitch;
+
+    if (activeTies.has(pitchKey)) {
+      tieTags += '<tie type="stop"/>';
+      tiedNotations += '<tied type="stop"/>';
+    }
+
+    if (note.tied) {
+      tieTags += '<tie type="start"/>';
+      tiedNotations += '<tied type="start"/>';
+      activeTies.add(pitchKey);
+    } else {
+      if (activeTies.has(pitchKey)) {
+        activeTies.delete(pitchKey);
+      }
+    }
+
+    if (tiedNotations) {
+      tiedNotations = `<notations>${tiedNotations}</notations>`;
+    }
+
+    // Tuplet bracket notations (start/stop) — separate from time-modification.
+    let tupletNotations = '';
+    if (event.tuplet) {
+      if (event.tuplet.position === 0) {
+        const tupTag = '<tuplet type="start" bracket="yes"/>';
+        if (tiedNotations) {
+          tupletNotations = tupTag;
+        } else {
+          tupletNotations = `<notations>${tupTag}</notations>`;
+        }
+      } else if (event.tuplet.position === event.tuplet.groupSize - 1) {
+        const tupTag = '<tuplet type="stop"/>';
+        if (tiedNotations) {
+          tupletNotations = tupTag;
+        } else {
+          tupletNotations = `<notations>${tupTag}</notations>`;
+        }
+      }
+    }
+
+    // Merge notations
+    let finalNotations = tiedNotations;
+    if (tupletNotations) {
+      if (finalNotations) {
+        const content = tupletNotations.replace('<notations>', '').replace('</notations>', '');
+        finalNotations = finalNotations.replace('</notations>', `${content}</notations>`);
+      } else {
+        finalNotations = tupletNotations;
+      }
+    }
+
+    // DTD child order for <note>:
+    //   (chord?) pitch duration tie* type dot* accidental time-modification staff notations
+    xml += `
+    <note>
+      ${isChord ? '<chord/>' : ''}
+      <pitch>
+        <step>${step}</step>${alterTag}
+        <octave>${octave}</octave>
+      </pitch>
+      <duration>${duration}</duration>
+      ${tieTags}
+      <type>${xmlType}</type>
+      ${event.dotted ? '<dot/>' : ''}
+      ${accidentalTag}
+      ${timeModTag}${staffTag}
+      ${finalNotations}
+    </note>`;
+  });
+
+  return xml;
+};
+
+/**
+ * Sum of an event list's durations in MusicXML divisions. Used to rewind the
+ * cursor with a <backup> between staves of a grand-staff part so staff 2 starts
+ * at the same time position as staff 1.
+ */
+const measureDivisionSum = (events: ScoreEvent[], divisions: number): number =>
+  events.reduce((sum, event) => sum + eventDivisions(event, divisions), 0);
+
 export const generateMusicXML = (score: Score): string => {
-  // Phase 2: Iterate over all staves
   const staves = score.staves || [getActiveStaff(score)];
   const timeSig = score.timeSignature || '4/4';
 
@@ -306,13 +518,34 @@ export const generateMusicXML = (score: Score): string => {
   // exact integer number of divisions (no floor/truncation of tuplet rhythm).
   const divisions = computeDivisions(score);
 
+  // GRAND-STAFF MODEL FINDING: riffscore has no notion of independent instruments.
+  // A score with >= 2 staves is ALWAYS a piano grand staff (treble at index 0,
+  // bass at index 1) — see SetGrandStaffCommand, useCursorLayout (isGrandStaff =
+  // numStaves > 1) and ScoreCanvas. So a multi-staff score exports as ONE <part>
+  // with <staves>N</staves>, per-staff <staff> tags, and a <backup> between staves;
+  // the part-list wraps it in a braced <part-group>.
+  const isGrandStaff = staves.length >= 2;
+
+  // The number of measures is taken from staff 0 (all staves share the same
+  // measure timeline in the grand-staff model).
+  const measureCount = staves[0]?.measures.length ?? 0;
+
+  // PICKUP / ANACRUSIS: a leading isPickup measure is emitted as
+  // <measure number="0" implicit="yes"> and the following measures are numbered
+  // from 1 (standard MusicXML anacrusis convention). Without a pickup, numbering
+  // starts at 1 as usual.
+  const hasPickup = staves[0]?.measures[0]?.isPickup === true;
+  const measureNumberFor = (mIndex: number): number => (hasPickup ? mIndex : mIndex + 1);
+  const isImplicit = (mIndex: number): boolean => hasPickup && mIndex === 0;
+
   // Use metadata with fallback to defaults, then fall back to legacy title field
   const metadata: ScoreMetadata = score.metadata ?? {
     ...DEFAULT_SCORE_METADATA,
     title: score.title,
   };
 
-  // Build chord map indexed by (measure, quant) position (only for first part)
+  // Build chord map indexed by (measure, quant) position (chords annotate the
+  // single part, attached to the top staff's timeline).
   const chordMap = new Map<number, Map<number, ChordSymbol>>();
   if (score.chordTrack) {
     for (const chord of score.chordTrack) {
@@ -323,8 +556,11 @@ export const generateMusicXML = (score: Score): string => {
     }
   }
 
-  // Calculate Key Signature Fifths (Global)
-  const keySigData = KEY_SIGNATURES[score.keySignature || 'C'];
+  // Calculate Key Signature Fifths (Global). Canonicalize first so a theoretical
+  // flat-minor spelling (Db/Gb/Cb minor) exports its representable enharmonic
+  // signature (C#m/F#m/Bm -> fifths 4/3/2) instead of silently falling back to 0.
+  const measureKey = canonicalizeKeySignature(score.keySignature || 'C');
+  const keySigData = KEY_SIGNATURES[measureKey];
   let fifths = 0;
   if (keySigData) {
     fifths = keySigData.type === 'sharp' ? keySigData.count : -keySigData.count;
@@ -338,64 +574,44 @@ export const generateMusicXML = (score: Score): string => {
   // Metadata
   xml += exportMetadataToXML(metadata);
 
+  // ---- PART LIST ----
+  // One logical instrument => one <score-part id="P1">. For a grand staff we
+  // wrap it in a braced <part-group> so importers render the connecting brace.
   xml += `  <part-list>`;
-
-  // Generate Part List
-  staves.forEach((_, index) => {
-    const id = index + 1;
+  if (isGrandStaff) {
     xml += `
-    <score-part id="P${id}">
-      <part-name>Staff ${id}</part-name>
+    <part-group type="start" number="1">
+      <group-symbol>brace</group-symbol>
+      <group-barline>yes</group-barline>
+    </part-group>`;
+  }
+  xml += `
+    <score-part id="P1">
+      <part-name>${isGrandStaff ? 'Piano' : 'Staff 1'}</part-name>
     </score-part>`;
-  });
-
+  if (isGrandStaff) {
+    xml += `
+    <part-group type="stop" number="1"/>`;
+  }
   xml += `
   </part-list>`;
 
-  // Generate Parts
-  staves.forEach((staff: Staff, staffIndex: number) => {
-    const partId = `P${staffIndex + 1}`;
-    const clef = staff.clef || 'treble';
+  // ---- PART ----
+  // Ties persist across measures within the part; track per staff so a tie on
+  // staff 1 cannot accidentally close a like-pitched note on staff 2.
+  const activeTiesByStaff = staves.map(() => new Set<string>());
 
-    // Clef logic - C-clef for alto/tenor
-    const getClefSign = (c: string) => {
-      switch (c) {
-        case 'bass':
-          return 'F';
-        case 'alto':
-        case 'tenor':
-          return 'C';
-        default:
-          return 'G';
-      }
-    };
-    const getClefLine = (c: string) => {
-      switch (c) {
-        case 'bass':
-          return '4';
-        case 'alto':
-          return '3';
-        case 'tenor':
-          return '4';
-        default:
-          return '2';
-      }
-    };
-    const clefSign = getClefSign(clef);
-    const clefLine = getClefLine(clef);
+  xml += `
+  <part id="P1">`;
 
-    // Track active ties specific to this part
-    const activeTies = new Set<string>();
+  for (let mIndex = 0; mIndex < measureCount; mIndex++) {
+    const number = measureNumberFor(mIndex);
+    const implicitAttr = isImplicit(mIndex) ? ' implicit="yes"' : '';
+    xml += `\n    <measure number="${number}"${implicitAttr}>`;
 
-    xml += `
-  <part id="${partId}">`;
-
-    staff.measures.forEach((measure: Measure, mIndex: number) => {
-      xml += `\n    <measure number="${mIndex + 1}">`;
-
-      // Attributes appear on first measure
-      if (mIndex === 0) {
-        xml += `
+    // Attributes appear on the first measure (pickup or first full measure).
+    if (mIndex === 0) {
+      xml += `
     <attributes>
       <divisions>${divisions}</divisions>
       <key>
@@ -404,187 +620,76 @@ export const generateMusicXML = (score: Score): string => {
       <time>
         <beats>${timeSig.split('/')[0]}</beats>
         <beat-type>${timeSig.split('/')[1]}</beat-type>
-      </time>
-      <clef>
-        <sign>${clefSign}</sign>
-        <line>${clefLine}</line>
-      </clef>
+      </time>`;
+      if (isGrandStaff) {
+        xml += `
+      <staves>${staves.length}</staves>`;
+      }
+      staves.forEach((staff: Staff, staffIndex: number) => {
+        const clef = staff.clef || 'treble';
+        const clefNumberAttr = isGrandStaff ? ` number="${staffIndex + 1}"` : '';
+        xml += `
+      <clef${clefNumberAttr}>
+        <sign>${getClefSign(clef)}</sign>
+        <line>${getClefLine(clef)}</line>
+      </clef>`;
+      });
+      xml += `
     </attributes>`;
+    }
+
+    // Each staff renders its events in sequence; between staves we rewind the
+    // cursor with <backup> equal to the previous staff's measure duration so the
+    // next staff starts at the same time position (proper grand-staff layout).
+    staves.forEach((staff: Staff, staffIndex: number) => {
+      const measure: Measure | undefined = staff.measures[mIndex];
+      const events = measure?.events ?? [];
+
+      if (staffIndex > 0) {
+        // Rewind to the start of the measure for the next staff.
+        const prevEvents = staves[staffIndex - 1].measures[mIndex]?.events ?? [];
+        const backup = measureDivisionSum(prevEvents, divisions);
+        if (backup > 0) {
+          xml += `
+    <backup>
+      <duration>${backup}</duration>
+    </backup>`;
+        }
       }
 
       // Measure-local accidental memory: decides the visible <accidental> glyph
       // using the SAME shared rules as the ABC exporter and the on-screen renderer
       // (key-sig suppression, persistence to the barline, natural cancellation).
-      // Fresh per measure = reset at the barline. The key is the global score key
-      // (consistent with the emitted <fifths>).
+      // Fresh per measure AND per staff = reset at the barline and independent
+      // between staves. The key is the global score key (consistent with <fifths>).
       const accidentalState = new MeasureAccidentalState();
-      const measureKey = score.keySignature || 'C';
+      const activeTies = activeTiesByStaff[staffIndex];
+      const staffNumber = isGrandStaff ? staffIndex + 1 : undefined;
 
-      // Track local quant position within measure (for chord placement in first part)
+      // Track local quant position within measure (for chord placement, top staff only).
       let localQuant = 0;
 
-      // Render Events sequentially
-      measure.events.forEach((event: ScoreEvent) => {
-        // Insert harmony element before note if chord exists at this position (first part only)
+      events.forEach((event: ScoreEvent) => {
+        // Insert harmony element before note if chord exists at this position
+        // (chords annotate the top staff's timeline only).
         if (staffIndex === 0) {
-          const measureChords = chordMap.get(mIndex);
-          const chord = measureChords?.get(localQuant);
+          const chord = chordMap.get(mIndex)?.get(localQuant);
           if (chord) {
             xml += generateHarmonyElement(chord);
           }
         }
-        // Exact integer <duration> in per-score divisions (no float floor).
-        const duration = eventDivisions(event, divisions);
 
-        const xmlType = NOTE_TYPES[event.duration].xmlType;
-
-        // <time-modification> is shared by every note in a tuplet event.
-        // actual-notes / normal-notes come from the tuplet ratio [actual, normal];
-        // normal-type is the note value the tuplet is "in the time of" (the base
-        // duration of the tuplet members).
-        let timeModTag = '';
-        if (event.tuplet) {
-          const [actual, normal] = event.tuplet.ratio;
-          const normalType =
-            NOTE_TYPES[event.tuplet.baseDuration ?? event.duration]?.xmlType ?? xmlType;
-          timeModTag = `
-      <time-modification>
-        <actual-notes>${actual}</actual-notes>
-        <normal-notes>${normal}</normal-notes>
-        <normal-type>${normalType}</normal-type>
-      </time-modification>`;
-        }
-
-        if (isRestEvent(event)) {
-          // REST — DTD order: <rest/> <duration> <type> <dot> <time-modification>
-          xml += `
-    <note>
-      <rest/>
-      <duration>${duration}</duration>
-      <type>${xmlType}</type>
-      ${event.dotted ? '<dot/>' : ''}
-      ${timeModTag}
-    </note>`;
-        } else {
-          // NOTES / CHORDS
-          event.notes.forEach((note: ScoreEvent['notes'][number], nIndex: number) => {
-            // Skip notes without a valid pitch (e.g., unpitched percussion)
-            if (!note.pitch) {
-              return;
-            }
-
-            const isChord = nIndex > 0;
-
-            // PITCH is the single source of truth (contract C1).
-            // step / octave / alter are all derived from the SPN spelling via Tonal.
-            const parsed = Note.get(note.pitch);
-            const step = parsed.letter || note.pitch.charAt(0);
-            // oct may be undefined for malformed input; fall back to trailing
-            // digits, then to 4 (a sane default octave) if even that fails.
-            const fallbackOct = parseInt(note.pitch.replace(/[^0-9-]/g, ''), 10);
-            const octave = parsed.oct ?? (Number.isFinite(fallbackOct) ? fallbackOct : 4);
-            // <alter> is the SOUNDING alteration derived from pitch spelling
-            // (-1 flat, +1 sharp, +-2 double). Emitted ALWAYS when nonzero,
-            // independent of whether a visible accidental glyph is shown.
-            const alter = Number.isFinite(parsed.alt) ? parsed.alt : 0;
-            const alterTag = alter !== 0 ? `\n        <alter>${alter}</alter>` : '';
-
-            // <accidental> is the VISIBLE glyph and follows standard engraving
-            // context (NOT the legacy note.accidental field): suppress a glyph the
-            // key signature or an earlier accidental in this measure already
-            // implies, and emit a natural to cancel one. Derived from pitch via the
-            // shared resolver so MusicXML, ABC, and the renderer all agree. (<alter>
-            // above still carries the SOUNDING alteration unconditionally.)
-            const keyAlt = keySignatureAltForLetter(step, measureKey);
-            const showAlt = accidentalState.resolve(step, octave, alter, keyAlt);
-            const accidentalTag =
-              showAlt === null ? '' : `<accidental>${xmlAccidentalName(showAlt)}</accidental>`;
-
-            // Tie Logic
-            let tieTags = '';
-            let tiedNotations = '';
-            const pitchKey = note.pitch;
-
-            if (activeTies.has(pitchKey)) {
-              tieTags += '<tie type="stop"/>';
-              tiedNotations += '<tied type="stop"/>';
-            }
-
-            if (note.tied) {
-              tieTags += '<tie type="start"/>';
-              tiedNotations += '<tied type="start"/>';
-              activeTies.add(pitchKey);
-            } else {
-              if (activeTies.has(pitchKey)) {
-                activeTies.delete(pitchKey);
-              }
-            }
-
-            if (tiedNotations) {
-              tiedNotations = `<notations>${tiedNotations}</notations>`;
-            }
-
-            // Tuplet bracket notations (start/stop) — separate from time-modification.
-            let tupletNotations = '';
-            if (event.tuplet) {
-              if (event.tuplet.position === 0) {
-                const tupTag = '<tuplet type="start" bracket="yes"/>';
-                if (tiedNotations) {
-                  tupletNotations = tupTag;
-                } else {
-                  tupletNotations = `<notations>${tupTag}</notations>`;
-                }
-              } else if (event.tuplet.position === event.tuplet.groupSize - 1) {
-                const tupTag = '<tuplet type="stop"/>';
-                if (tiedNotations) {
-                  tupletNotations = tupTag;
-                } else {
-                  tupletNotations = `<notations>${tupTag}</notations>`;
-                }
-              }
-            }
-
-            // Merge notations
-            let finalNotations = tiedNotations;
-            if (tupletNotations) {
-              if (finalNotations) {
-                const content = tupletNotations
-                  .replace('<notations>', '')
-                  .replace('</notations>', '');
-                finalNotations = finalNotations.replace('</notations>', `${content}</notations>`);
-              } else {
-                finalNotations = tupletNotations;
-              }
-            }
-
-            // DTD child order for <note>:
-            //   (chord?) pitch duration tie* type dot* accidental time-modification notations
-            xml += `
-    <note>
-      ${isChord ? '<chord/>' : ''}
-      <pitch>
-        <step>${step}</step>${alterTag}
-        <octave>${octave}</octave>
-      </pitch>
-      <duration>${duration}</duration>
-      ${tieTags}
-      <type>${xmlType}</type>
-      ${event.dotted ? '<dot/>' : ''}
-      ${accidentalTag}
-      ${timeModTag}
-      ${finalNotations}
-    </note>`;
-          });
-        }
+        xml += renderEvent(event, divisions, accidentalState, measureKey, activeTies, staffNumber);
 
         // Advance quant position for chord placement tracking
         localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
       });
-      xml += `\n    </measure>`;
     });
-    xml += `\n  </part>`;
-  });
 
+    xml += `\n    </measure>`;
+  }
+
+  xml += `\n  </part>`;
   xml += `\n</score-partwise>`;
   return xml;
 };

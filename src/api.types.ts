@@ -29,6 +29,7 @@ import type {
   ChordPlaybackConfig,
   LayoutConfig,
   ScoreMetadata,
+  AccidentalDisplay,
 } from './types';
 
 // ========== UTILITY TYPES ==========
@@ -319,6 +320,13 @@ export interface MusicEditorAPI {
    * @status implemented
    */
   toggleAccidental(): this;
+  /**
+   * Set the accidental DISPLAY policy on selected note(s) — orthogonal to the
+   * sounding pitch (#236). 'auto' lets engraving rules decide, 'show' forces the
+   * glyph, 'hide' suppresses it, 'courtesy' shows it parenthesized.
+   * @status implemented
+   */
+  setAccidentalDisplay(policy: AccidentalDisplay): this;
   /**
    * Transpose selected notes by semitones (chromatic).
    * @status implemented
