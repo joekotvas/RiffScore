@@ -1,4 +1,4 @@
-import { NOTE_TYPES } from '@/constants';
+import { NOTE_TYPES, KEY_SIGNATURES } from '@/constants';
 import { DEFAULT_SCORE_METADATA } from '@/config';
 import {
   getActiveStaff,
@@ -11,6 +11,83 @@ import {
   ScoreMetadata,
 } from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
+import { Note as TonalNote } from 'tonal';
+
+/**
+ * Convert an internal key string ('C', 'G', 'Bb', 'F#', 'Em', 'Dm') to a valid
+ * ABC K: field value. Internal minor keys carry an 'm' suffix; ABC accepts the
+ * bare letter form (e.g. 'Em', 'Dm') directly. Unknown keys fall back to 'C'.
+ */
+const abcKeySignature = (keySig: string): string => {
+  return KEY_SIGNATURES[keySig] ? keySig : 'C';
+};
+
+/**
+ * The alteration the key signature applies to a given diatonic letter.
+ * +1 for a sharp-key letter, -1 for a flat-key letter, 0 otherwise.
+ */
+const keySignatureAltForLetter = (letter: string, keySig: string): number => {
+  const sig = KEY_SIGNATURES[keySig];
+  if (!sig) return 0;
+  if (!sig.accidentals.includes(letter)) return 0;
+  return sig.type === 'sharp' ? 1 : -1;
+};
+
+/**
+ * Tracks, per measure, the active chromatic alteration (`alt`) for each
+ * diatonic letter at each octave. ABC accidentals persist to the end of the
+ * measure and are cancelled with a natural ('='); the tracker is reset at every
+ * barline. Returns the ABC accidental prefix to emit for a pitch given what is
+ * already active, and records the new active state.
+ */
+class MeasureAccidentalState {
+  // key: `${letter}${octave}` -> active chromatic alt (-2..+2)
+  private active = new Map<string, number>();
+
+  /** Reset at a barline: all alterations revert to the key signature. */
+  reset(): void {
+    this.active.clear();
+  }
+
+  /**
+   * Returns the ABC accidental token ('', '=', '^', '_', '^^', '__') that must
+   * be written before this pitch so that a reader produces exactly `alt`,
+   * accounting for the key signature and any earlier accidental in the measure.
+   *
+   * @param letter    Diatonic letter A-G.
+   * @param octave    Octave number.
+   * @param alt       Sounding chromatic alteration of the pitch (-2..+2).
+   * @param keyAlt    Alteration that the key signature already applies to this
+   *                  letter (e.g. +1 for F in G major).
+   */
+  accidentalFor(letter: string, octave: number, alt: number, keyAlt: number): string {
+    const slot = `${letter}${octave}`;
+    const currentlyActive = this.active.has(slot) ? this.active.get(slot)! : keyAlt;
+
+    // No glyph needed if the desired alteration already holds in this measure.
+    if (alt === currentlyActive) {
+      return '';
+    }
+
+    // We must emit a glyph. Record the new active alteration for this slot.
+    this.active.set(slot, alt);
+
+    switch (alt) {
+      case 2:
+        return '^^';
+      case 1:
+        return '^';
+      case -1:
+        return '_';
+      case -2:
+        return '__';
+      case 0:
+      default:
+        // Natural cancels a prior sharp/flat (from key sig or earlier note).
+        return '=';
+    }
+  }
+}
 
 /**
  * Export score metadata to ABC header fields.
@@ -106,13 +183,16 @@ export const generateABC = (score: Score, bpm: number): string => {
   };
 
   // Header
+  // Per the ABC standard the K: (key) field is the LAST field of the tune
+  // header and signals the start of the tune body. Tempo (Q:) must therefore
+  // precede it. Field order: X, T, C/Z/N, M, L, Q, then K last.
   const lines: string[] = [];
   lines.push('X:1');
   lines.push(...exportMetadata(metadata));
   lines.push(`M:${timeSig}`);
   lines.push('L:1/4');
-  lines.push(`K:${keySig}`);
   lines.push(`Q:1/4=${bpm}`);
+  lines.push(`K:${abcKeySignature(keySig)}`);
   let abc = lines.join('\n') + '\n';
 
   // Staves definition if multiple
@@ -147,6 +227,10 @@ export const generateABC = (score: Score, bpm: number): string => {
     staff.measures.forEach((measure: Measure, measureIndex: number) => {
       // Track local quant position within the measure
       let localQuant = 0;
+
+      // Measure-local accidental ledger: accidentals persist to the barline and
+      // are cancelled with '='; reset for every new measure.
+      const accidentalState = new MeasureAccidentalState();
 
       measure.events.forEach((event: ScoreEvent) => {
         // Calculate Duration
@@ -195,55 +279,59 @@ export const generateABC = (score: Score, bpm: number): string => {
           }
         }
 
-        // Handle Tuplets
+        // Handle Tuplets. Use the explicit (p:q:r form so non-triplet ratios
+        // export correctly: (5:4:5 = 5 notes in the time of 4, for 5 notes.
+        // The bare (5 shorthand would mean "5 in the time of 2", which is wrong.
         if (event.tuplet && event.tuplet.position === 0) {
-          prefix += `(${event.tuplet.ratio[0]}`;
+          const [actual, normal] = event.tuplet.ratio;
+          prefix += `(${actual}:${normal}:${event.tuplet.groupSize}`;
         }
 
         if (isRestEvent(event)) {
           // Rest
           abc += `${prefix}z${durationString} `;
         } else {
-          // Notes/Chords
+          // Notes/Chords.
+          // The accidental prefix is derived from the PITCH spelling (contract
+          // C1) together with the key signature and the measure-local ledger.
           const formatNote = (n: Note) => {
             if (!n.pitch) return '';
 
-            let acc = '';
-            // 1. Check explicit property
-            if (n.accidental === 'sharp') acc = '^';
-            else if (n.accidental === 'flat') acc = '_';
-            else if (n.accidental === 'natural') acc = '=';
-            // Note: double-sharp and double-flat are not standard Note.accidental values
-            // They would need to be parsed from the pitch string if needed
+            // Derive sounding alteration + letter/octave from the SPN spelling.
+            const parsed = TonalNote.get(n.pitch);
+            const letter = parsed.letter || n.pitch.charAt(0);
+            const fallbackOct = parseInt(n.pitch.replace(/[^0-9-]/g, ''), 10);
+            const octave = parsed.oct ?? (Number.isFinite(fallbackOct) ? fallbackOct : 4);
+            const alt = Number.isFinite(parsed.alt) ? parsed.alt : 0;
 
-            // 2. Fallback: Check Pitch String
-            // If no explicit accidental property, parse from "F#4", "Bb4", etc.
-            if (!acc) {
-              // Match accidentals: #, ##, b, bb anywhere in string
-              if (n.pitch.includes('##')) acc = '^^';
-              else if (n.pitch.includes('#')) acc = '^';
-              else if (n.pitch.includes('bb')) acc = '__';
-              else if (n.pitch.includes('b')) acc = '_'; // Note: Be careful with 'b' vs flat symbol if stored as unicode, but usually it's 'b'. Tonal uses 'b'.
-            }
+            const keyAlt = keySignatureAltForLetter(letter, keySig);
+            const acc = accidentalState.accidentalFor(letter, octave, alt, keyAlt);
 
             const pitch = toAbcPitch(n.pitch, clef);
-            const tie = n.tied ? '-' : '';
-            return `${acc}${pitch}${tie}`;
+            return `${acc}${pitch}`;
           };
 
+          // Ties: in ABC the hyphen follows the complete note token (pitch +
+          // duration), e.g. C2- or [CEG]2-. A single-note event is tied when its
+          // note is tied; a chord event is tied when any of its notes is tied.
           if (event.notes.length > 1) {
             const chordContent = event.notes.map(formatNote).join('');
-            abc += `${prefix}[${chordContent}]${durationString} `;
+            const tie = event.notes.some((n) => n.tied) ? '-' : '';
+            abc += `${prefix}[${chordContent}]${durationString}${tie} `;
           } else {
-            const noteContent = formatNote(event.notes[0]);
-            abc += `${prefix}${noteContent}${durationString} `;
+            const note = event.notes[0];
+            const noteContent = formatNote(note);
+            const tie = note?.tied ? '-' : '';
+            abc += `${prefix}${noteContent}${durationString}${tie} `;
           }
         }
 
         // Advance local quant position for next event
         localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
       });
-      abc += '| ';
+      // Barline. The final measure of the voice gets a final barline '|]'.
+      const isLastMeasure = measureIndex === staff.measures.length - 1;
+      abc += isLastMeasure ? '|]' : '| ';
       if ((measureIndex + 1) % 4 === 0) abc += '\n';
     });
     abc += '\n'; // Newline after each voice/staff block
