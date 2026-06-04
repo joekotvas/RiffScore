@@ -11,6 +11,7 @@ import { NOTE_SPACING_BASE_UNIT, LAYOUT } from '@/constants';
 import { ScoreEvent, Note } from './types';
 import { calculateChordLayout } from './positioning';
 import { pitchHasAlteration } from '@/services/MusicService';
+import { resolveMeasureAccidentals } from '@/utils/accidentalContext';
 
 // --- CONSTANTS ---
 
@@ -69,12 +70,18 @@ const findEventAtQuant = (events: ScoreEvent[], targetQuant: number): ScoreEvent
  * @param event - The score event to analyze
  * @returns Additional padding in pixels needed before the next event
  */
-const calculateEventPadding = (event: ScoreEvent): number => {
+const calculateEventPadding = (
+  event: ScoreEvent,
+  accidentalGlyphs?: Record<string, string | null>
+): number => {
   let padding = 0;
 
-  // Derive from pitch (the source of truth), matching measure.ts exactly so the
-  // two layout engines reserve accidental width identically (no cross-staff drift).
-  const hasAccidental = event.notes.some((n: Note) => pitchHasAlteration(n.pitch));
+  // Reserve for the glyph the renderer will DRAW (matching measure.ts exactly so
+  // the two layout engines never drift). When the resolved glyph map is present,
+  // a cancelling natural reserves space too; otherwise fall back to the pitch rule.
+  const hasAccidental = accidentalGlyphs
+    ? event.notes.some((n: Note) => accidentalGlyphs[n.id] != null)
+    : event.notes.some((n: Note) => pitchHasAlteration(n.pitch));
   if (hasAccidental) {
     padding = Math.max(padding, ACCIDENTAL_PADDING);
   }
@@ -108,13 +115,14 @@ const calculateEventPadding = (event: ScoreEvent): number => {
 const getSegmentWidthRequirement = (
   startQuant: number,
   endQuant: number,
-  measures: { events: ScoreEvent[] }[]
+  measures: { events: ScoreEvent[] }[],
+  accidentalGlyphsByMeasure?: Record<string, string | null>[]
 ): number => {
   const segmentDuration = endQuant - startQuant;
   let maxSegmentWidth = NOTE_SPACING_BASE_UNIT * Math.sqrt(segmentDuration);
   let maxExtraPadding = 0;
 
-  measures.forEach((measure) => {
+  measures.forEach((measure, idx) => {
     const event = findEventAtQuant(measure.events, startQuant);
     if (!event) return;
 
@@ -125,7 +133,7 @@ const getSegmentWidthRequirement = (
     }
 
     // Calculate padding requirements
-    const padding = calculateEventPadding(event);
+    const padding = calculateEventPadding(event, accidentalGlyphsByMeasure?.[idx]);
     maxExtraPadding = Math.max(maxExtraPadding, padding);
   });
 
@@ -146,10 +154,18 @@ const getSegmentWidthRequirement = (
  * @returns Map of Quant -> X Position for synchronized positioning
  */
 export const calculateSystemLayout = (
-  measures: { events: ScoreEvent[] }[]
+  measures: { events: ScoreEvent[] }[],
+  keySignature: string = 'C'
 ): Record<number, number> => {
   const timePoints = getSystemTimePoints(measures);
   const quantToX: Record<number, number> = { [timePoints[0]]: CONFIG.measurePaddingLeft };
+
+  // Resolve each measure's rendered accidental glyphs once (full measure memory),
+  // so segment-width reservation matches the drawn glyph including cancelling
+  // naturals — same engine as the renderer and exporters (#234).
+  const accidentalGlyphsByMeasure = measures.map((m) =>
+    resolveMeasureAccidentals(m.events, keySignature)
+  );
 
   let currentX = CONFIG.measurePaddingLeft;
 
@@ -157,7 +173,12 @@ export const calculateSystemLayout = (
     const startQuant = timePoints[i];
     const endQuant = timePoints[i + 1];
 
-    const segmentWidth = getSegmentWidthRequirement(startQuant, endQuant, measures);
+    const segmentWidth = getSegmentWidthRequirement(
+      startQuant,
+      endQuant,
+      measures,
+      accidentalGlyphsByMeasure
+    );
 
     currentX += segmentWidth;
     quantToX[endQuant] = currentX;

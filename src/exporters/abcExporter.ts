@@ -13,7 +13,7 @@ import {
 import { isRestEvent, getNoteDuration } from '@/utils/core';
 import { Note as TonalNote } from 'tonal';
 import { canonicalizeKeySignature } from '@/utils/keyResolution';
-import { MeasureAccidentalState, keySignatureAltForLetter } from './measureAccidentals';
+import { MeasureAccidentalState, keySignatureAltForLetter } from '@/utils/accidentalContext';
 
 /**
  * Convert an internal key string ('C', 'G', 'Bb', 'F#', 'Em', 'Dm') to a valid

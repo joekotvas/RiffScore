@@ -12,7 +12,7 @@ import {
 import { isRestEvent, getNoteDuration } from '@/utils/core';
 import { Note } from 'tonal';
 import { canonicalizeKeySignature } from '@/utils/keyResolution';
-import { MeasureAccidentalState, keySignatureAltForLetter } from './measureAccidentals';
+import { MeasureAccidentalState, keySignatureAltForLetter } from '@/utils/accidentalContext';
 
 /** Maps an alteration to its MusicXML <accidental> glyph name. 0 is natural. */
 const xmlAccidentalName = (alt: number): string => {

@@ -13,6 +13,7 @@ import { ScoreEvent, MeasureLayout, HitZone, Note, ChordLayout } from './types';
 import { getNoteWidth, calculateChordLayout, getOffsetForPitch } from './positioning';
 import { getTupletGroup } from './tuplets';
 import { pitchHasAlteration } from '@/services/MusicService';
+import { resolveMeasureAccidentals } from '@/utils/accidentalContext';
 
 /**
  * Whether a note carries a chromatic alteration in its pitch (the single source
@@ -86,6 +87,13 @@ interface ProcessingContext {
   currentQuant: number;
   clef: string;
   forcedEventPositions?: Record<number, number>;
+  /**
+   * Per-note SMuFL accidental glyph (or null) as resolved with full measure
+   * memory — the SAME decision the renderer draws (#234). Present when the key
+   * signature was threaded in; lets spacing reserve width for the RENDERED glyph,
+   * including a cancelling natural whose pitch carries no alteration.
+   */
+  accidentalGlyphs?: Record<string, string | null>;
 }
 
 // --- HELPER: Hit Zone Management ---
@@ -164,12 +172,21 @@ const createEventHitZones = (
  * @param clef - Current clef ('treble' or 'bass')
  * @returns Object containing chordLayout, totalWidth, accidentalSpace, offsets, and baseWidth
  */
-const getEventMetrics = (event: ScoreEvent, clef: string) => {
+const getEventMetrics = (
+  event: ScoreEvent,
+  clef: string,
+  accidentalGlyphs?: Record<string, string | null>
+) => {
   const chordLayout = calculateChordLayout(event.notes, clef);
-  // Reserve accidental width from the PITCH (the single source of truth,
-  // contract C1) rather than the mutable `note.accidental` mirror, so a
-  // normally-entered 'F#4' (whose mirror may be null) still reserves space.
-  const hasAccidental = event.notes.some((n: Note) => noteHasAlteration(n));
+  // Reserve accidental width for the glyph the renderer will actually DRAW.
+  // When the resolved glyph map is available (key threaded in), reserve iff a
+  // glyph shows — this catches a cancelling natural (pitch carries no alteration
+  // yet a ♮ is drawn) that the pitch-only rule misses. Otherwise fall back to the
+  // pitch-derived rule (single source of truth, contract C1), which a width-only
+  // caller without key context uses and which safely over-reserves.
+  const hasAccidental = accidentalGlyphs
+    ? event.notes.some((n: Note) => accidentalGlyphs[n.id] != null)
+    : event.notes.some((n: Note) => noteHasAlteration(n));
   const accidentalSpace = hasAccidental ? ACCIDENTAL_PADDING : 0;
 
   const baseWidth = getNoteWidth(event.duration, event.dotted);
@@ -265,7 +282,7 @@ const processRegularEvent = (
   eventIndex: number,
   ctx: ProcessingContext
 ): EventProcessResult => {
-  const metrics = getEventMetrics(event, ctx.clef);
+  const metrics = getEventMetrics(event, ctx.clef, ctx.accidentalGlyphs);
 
   // Apply sync override if provided
   let baseX = ctx.currentX;
@@ -447,12 +464,18 @@ export const calculateMeasureLayout = (
   clef: string = 'treble',
   isPickup: boolean = false,
   forcedEventPositions?: Record<number, number>,
-  stretchFactor: number = 1.0
+  stretchFactor: number = 1.0,
+  keySignature: string = 'C'
 ): MeasureLayout => {
   // 1. Handle Empty Measure
   if (events.length === 0) {
     return createEmptyMeasureLayout();
   }
+
+  // Resolve, once per measure, which accidental glyph the renderer will draw for
+  // each note (with full measure memory) — the SAME engine the exporters use — so
+  // width reservation matches the rendered glyph, cancelling naturals included.
+  const accidentalGlyphs = resolveMeasureAccidentals(events, keySignature);
 
   // 2. Initialize State
   const hitZones: HitZone[] = [];
@@ -475,6 +498,7 @@ export const calculateMeasureLayout = (
       currentQuant,
       clef,
       forcedEventPositions,
+      accidentalGlyphs,
     };
 
     const isTupletStart = event.tuplet && event.tuplet.position === 0;
@@ -506,9 +530,11 @@ export const calculateMeasureLayout = (
     currentX += result.widthConsumed;
     currentQuant += result.quantsConsumed;
 
-    // Lookahead Padding for Next Accidentals (derived from pitch, not the mirror)
+    // Lookahead Padding for the next event's RENDERED accidental glyph (the same
+    // resolved decision used for width above), so a cancelling natural reserves
+    // lookahead space too.
     const nextEvent = events[index + 1];
-    if (nextEvent && nextEvent.notes.some((n: Note) => noteHasAlteration(n))) {
+    if (nextEvent && nextEvent.notes.some((n: Note) => accidentalGlyphs[n.id] != null)) {
       currentX += NOTE_SPACING_BASE_UNIT * LAYOUT.LOOKAHEAD_PADDING_FACTOR;
     }
   });

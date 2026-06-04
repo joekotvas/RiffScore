@@ -35,7 +35,7 @@ import {
  * Calculates the synchronized widths for every measure column across the system.
  * Returns an array of widths and an array of forced positioning maps.
  */
-const calculateSystemMetrics = (staves: Staff[]) => {
+const calculateSystemMetrics = (staves: Staff[], keySignature: string = 'C') => {
   const maxMeasures = Math.max(...staves.map((s) => s.measures.length));
   const widths: number[] = [];
   const forcedPositions: Record<number, number>[] = [];
@@ -50,7 +50,7 @@ const calculateSystemMetrics = (staves: Staff[]) => {
       continue;
     }
 
-    const currentForcedPositions = calculateSystemLayout(measuresAtIndices);
+    const currentForcedPositions = calculateSystemLayout(measuresAtIndices, keySignature);
     const maxX = Math.max(...Object.values(currentForcedPositions));
 
     // Determine minimum width based on content (pickup vs regular)
@@ -198,7 +198,12 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
   const layout: Omit<ScoreLayout, 'getX' | 'getY'> = { staves: [], notes: {}, events: {} };
 
   const activeStaff = score.staves[0];
-  const preamble = calculateSystemPreamble(score.keySignature || activeStaff.keySignature || 'C');
+  // Single key-signature source for the whole layout pass — the score-level key
+  // (canonicalized at load), falling back to staff[0] then C. The preamble, the
+  // measure accidental spacing, and the renderer all read this same value so the
+  // canvas can never disagree with the exporters about the key (#234).
+  const scoreKeySignature = score.keySignature || activeStaff.keySignature || 'C';
+  const preamble = calculateSystemPreamble(scoreKeySignature);
 
   // Resolve the time signature once so beam grouping is meter-aware (e.g. 6/8
   // beams in dotted-quarter beats rather than assuming 4/4).
@@ -206,7 +211,7 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
 
   // 1. Calculate System Metrics (Grand Staff Logic)
   const { widths: synchronizedWidths, forcedPositions: synchronizedForcedPositions } =
-    calculateSystemMetrics(score.staves);
+    calculateSystemMetrics(score.staves, scoreKeySignature);
 
   // 2. Build Tree
   score.staves.forEach((staff, staffIdx) => {
@@ -231,7 +236,9 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
         undefined,
         staffClef,
         measure.isPickup || false,
-        forcedPos
+        forcedPos,
+        1.0,
+        scoreKeySignature
       );
 
       const measureLayout: MeasureLayoutV2 = {

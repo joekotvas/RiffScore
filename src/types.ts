@@ -1,6 +1,7 @@
 import { ThemeName } from './themes';
 import { TIME_SIGNATURES } from './constants';
 import { canonicalizeKeySignature } from './utils/keyResolution';
+import { Note as TonalNote } from 'tonal';
 
 /**
  * Type definitions for the Sheet Music Editor
@@ -525,6 +526,41 @@ const migrateChordTrack = (
 };
 
 /**
+ * The legacy `note.accidental` field is a DERIVED mirror of the pitch (contract
+ * C1): never authoritative for rendering/export, which all derive from `pitch`.
+ * Reconcile it from the pitch at the load boundary so a hand-authored or legacy
+ * score can never carry — and `jsonExporter` re-emit — a mirror that disagrees
+ * with its pitch. Mirrors the tri-state collapse of `deriveAccidental` (inlined
+ * to keep `types.ts` free of a service dependency). Returns the same note object
+ * when the mirror already matches, so an already-consistent score is unchanged.
+ */
+const reconcileNoteAccidentalMirror = (note: Note): Note => {
+  if (note.pitch == null) return note;
+  const n = TonalNote.get(note.pitch);
+  const mirror: Note['accidental'] =
+    n.empty || n.pc === '' ? null : n.alt > 0 ? 'sharp' : n.alt < 0 ? 'flat' : 'natural';
+  return note.accidental === mirror ? note : { ...note, accidental: mirror };
+};
+
+/** Reconcile every note's accidental mirror within a staff (see above). */
+const reconcileStaffAccidentalMirrors = (staff: Staff): Staff => {
+  if (!staff?.measures) return staff;
+  return {
+    ...staff,
+    measures: staff.measures.map((m) =>
+      m?.events
+        ? {
+            ...m,
+            events: m.events.map((e) =>
+              e?.notes ? { ...e, notes: e.notes.map(reconcileNoteAccidentalMirror) } : e
+            ),
+          }
+        : m
+    ),
+  };
+};
+
+/**
  * Migrates an old-format score to the new staves model
  * Also syncs top-level legacy fields (measures, keySignature, clef) back to staves[0]
  */
@@ -591,9 +627,12 @@ export const migrateScore = (oldScore: any): Score => {
     // flats) become their canonical twins (C#m/F#m/Bm); the sounding pitches are
     // unchanged. Idempotent: a key already canonical passes through verbatim.
     result.keySignature = canonicalizeKeySignature(result.keySignature || 'C');
-    result.staves = result.staves.map((s: Staff) =>
-      s?.keySignature ? { ...s, keySignature: canonicalizeKeySignature(s.keySignature) } : s
-    );
+    result.staves = result.staves.map((s: Staff) => {
+      const keyed = s?.keySignature
+        ? { ...s, keySignature: canonicalizeKeySignature(s.keySignature) }
+        : s;
+      return reconcileStaffAccidentalMirrors(keyed);
+    });
 
     return result as Score;
   }
@@ -604,7 +643,7 @@ export const migrateScore = (oldScore: any): Score => {
   // staves branch above).
   const keySignature = canonicalizeKeySignature(oldScore.keySignature || 'C');
   const legacyStaves = [
-    {
+    reconcileStaffAccidentalMirrors({
       id: 'staff-1',
       clef: oldScore.clef || 'treble',
       keySignature,
@@ -612,7 +651,7 @@ export const migrateScore = (oldScore: any): Score => {
         { id: 'm1', events: [] },
         { id: 'm2', events: [] },
       ],
-    },
+    }),
   ];
   return {
     schemaVersion: SCHEMA_VERSION,

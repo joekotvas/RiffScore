@@ -645,7 +645,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 <Staff
                   staffIndex={staffIndex}
                   clef={staff.clef || (staffIndex === 0 ? 'treble' : 'bass')}
-                  keySignature={staff.keySignature || keySignature}
+                  keySignature={keySignature}
                   timeSignature={timeSignature}
                   measures={systemMeasures}
                   measureIndices={system.measures}
@@ -1000,7 +1000,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                   key={staff.id || staffIndex}
                   staffIndex={staffIndex}
                   clef={staff.clef || (staffIndex === 0 ? 'treble' : 'bass')}
-                  keySignature={staff.keySignature || keySignature}
+                  keySignature={keySignature}
                   timeSignature={timeSignature}
                   measures={staff.measures}
                   staffLayout={layout.staves[staffIndex]}
