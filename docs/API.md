@@ -60,7 +60,7 @@ Each factory receives an `APIContext` containing refs and dispatch functions, th
 All methods in `src/api.types.ts` are annotated with `@status` JSDoc tags:
 - `@status implemented` — Ready to use
 - `@status stub` — Returns `this` (no-op), tracked in [Issue #119](https://github.com/joekotvas/RiffScore/issues/119)
-- `@status partial` — Partially implemented (e.g., `export('json')` works, others throw)
+- `@status partial` — Partially implemented (some arguments or code paths work, others are no-ops or throw)
 
 ---
 

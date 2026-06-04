@@ -3,9 +3,11 @@ import { Score, Staff } from '@/types';
 
 /**
  * Command to reduce a Grand Staff to a single staff.
- * Supports three modes:
- * - 'keep': Keep only the target clef's staff, discard the other
- * - 'merge': Merge events from both staves into the target clef
+ *
+ * Keeps the target clef's staff and discards the other (a "keep" reduction).
+ * Merging events from both staves into the target clef is NOT implemented — there
+ * is no merge mode and no mode parameter; the constructor takes only the clef to
+ * keep. (A real merge would need pitch/voice reconciliation; tracked for later.)
  */
 export class SetSingleStaffCommand implements Command {
   type = 'SET_SINGLE_STAFF';
