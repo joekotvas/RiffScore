@@ -31,11 +31,16 @@ type LayoutMethodNames =
 export const createLayoutMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, LayoutMethodNames> & ThisType<MusicEditorAPI> => {
-  const { dispatch, scoreRef, setResult } = ctx;
+  // Read LIVE engine state (getScore) rather than the React-state mirror
+  // (scoreRef), which lags one tick because it is synced inside a useEffect.
+  // Dispatch is synchronous (ADR-006), so getScore() reflects mutations
+  // immediately, enabling synchronous chaining like
+  // `api.setViewMode('page').getViewMode()`.
+  const { dispatch, getScore, setResult } = ctx;
 
   return {
     getViewMode(): LayoutConfig['viewMode'] {
-      return scoreRef.current.layout?.viewMode ?? DEFAULT_LAYOUT_CONFIG.viewMode;
+      return getScore().layout?.viewMode ?? DEFAULT_LAYOUT_CONFIG.viewMode;
     },
 
     setViewMode(mode) {
@@ -57,7 +62,7 @@ export const createLayoutMethods = (
     },
 
     getLayoutConfig(): LayoutConfig {
-      return scoreRef.current.layout ?? { ...DEFAULT_LAYOUT_CONFIG };
+      return getScore().layout ?? { ...DEFAULT_LAYOUT_CONFIG };
     },
 
     setLayoutConfig(config) {
