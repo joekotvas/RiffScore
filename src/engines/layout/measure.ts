@@ -12,6 +12,18 @@ import { MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT, WHOLE_REST_WIDTH, LAYOUT } from 
 import { ScoreEvent, MeasureLayout, HitZone, Note, ChordLayout } from './types';
 import { getNoteWidth, calculateChordLayout, getOffsetForPitch } from './positioning';
 import { getTupletGroup } from './tuplets';
+import { deriveAccidental } from '@/services/MusicService';
+
+/**
+ * Whether a note carries a chromatic alteration in its pitch (the single source
+ * of truth). Used to reserve accidental width regardless of the legacy
+ * `note.accidental` mirror, which a normally-entered sharp/flat may leave null.
+ * Note: this intentionally over-reserves for key-signature-implied accidentals
+ * (the key is not threaded into the layout engine), which is safe — better a
+ * little extra space than a glyph colliding with a notehead.
+ */
+const noteHasAlteration = (n: Note): boolean =>
+  n.pitch != null && deriveAccidental(n.pitch) !== 'natural' && deriveAccidental(n.pitch) !== null;
 
 // --- CONSTANTS (from centralized LAYOUT) ---
 
@@ -153,7 +165,10 @@ const createEventHitZones = (
  */
 const getEventMetrics = (event: ScoreEvent, clef: string) => {
   const chordLayout = calculateChordLayout(event.notes, clef);
-  const hasAccidental = event.notes.some((n: Note) => n.accidental);
+  // Reserve accidental width from the PITCH (the single source of truth,
+  // contract C1) rather than the mutable `note.accidental` mirror, so a
+  // normally-entered 'F#4' (whose mirror may be null) still reserves space.
+  const hasAccidental = event.notes.some((n: Note) => noteHasAlteration(n));
   const accidentalSpace = hasAccidental ? ACCIDENTAL_PADDING : 0;
 
   const baseWidth = getNoteWidth(event.duration, event.dotted);
@@ -490,9 +505,9 @@ export const calculateMeasureLayout = (
     currentX += result.widthConsumed;
     currentQuant += result.quantsConsumed;
 
-    // Lookahead Padding for Next Accidentals
+    // Lookahead Padding for Next Accidentals (derived from pitch, not the mirror)
     const nextEvent = events[index + 1];
-    if (nextEvent && nextEvent.notes.some((n: Note) => n.accidental)) {
+    if (nextEvent && nextEvent.notes.some((n: Note) => noteHasAlteration(n))) {
       currentX += NOTE_SPACING_BASE_UNIT * LAYOUT.LOOKAHEAD_PADDING_FACTOR;
     }
   });

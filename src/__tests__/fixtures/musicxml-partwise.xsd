@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Minimal MusicXML 4.0 (partwise) structural schema FIXTURE.
+
+  This is NOT the full official MusicXML 4.0 XSD (which spans several thousand lines
+  across musicxml.xsd, score.xsd, note.xsd, etc.). It is a focused, self-contained
+  schema capturing the structural skeleton that RiffScore's exporter emits and that
+  the Phase-1 structural-check helper (musicXmlStructure.ts) reasons about:
+
+      score-partwise > part-list > score-part
+      score-partwise > part[@id] > measure[@number]
+        measure > attributes > (divisions, key/fifths, time/beats+beat-type, clef)
+        measure > note > (pitch | rest | chord) + duration + type [+ dot]
+
+  Phase-2 wiring (see musicXmlValidation.README.md) may either:
+    (a) swap in the full official MusicXML 4.0 XSD, or
+    (b) validate against this fixture with libxmljs2 / xmllint as a fast smoke check.
+
+  Until then the helper performs PARSE-BASED structural + duration-sum invariants,
+  which is the cheaper oracle that already catches the live tuplet-truncation bug.
+
+  Source of element/attribute names: https://www.musicxml.com/ and the MusicXML 4.0
+  reference (https://www.w3.org/2021/06/musicxml40/).
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+  <!-- ===================== Root ===================== -->
+  <xs:element name="score-partwise">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="work" type="work" minOccurs="0"/>
+        <xs:element name="identification" type="identification" minOccurs="0"/>
+        <xs:element name="part-list" type="part-list"/>
+        <xs:element name="part" type="part" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:string" use="optional"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ===================== Header ===================== -->
+  <xs:complexType name="work">
+    <xs:sequence>
+      <xs:element name="work-title" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="identification">
+    <xs:sequence>
+      <xs:element name="creator" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="type" type="xs:string"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="encoding" type="xs:anyType" minOccurs="0"/>
+      <xs:element name="rights" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="part-list">
+    <xs:sequence>
+      <xs:element name="score-part" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="part-name" type="xs:string" minOccurs="0"/>
+          </xs:sequence>
+          <xs:attribute name="id" type="xs:ID" use="required"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ===================== Part / Measure ===================== -->
+  <xs:complexType name="part">
+    <xs:sequence>
+      <xs:element name="measure" type="measure" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:IDREF" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="measure">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="attributes" type="attributes"/>
+      <xs:element name="note" type="note"/>
+      <xs:element name="harmony" type="xs:anyType"/>
+      <xs:element name="barline" type="xs:anyType"/>
+      <xs:element name="backup" type="xs:anyType"/>
+      <xs:element name="forward" type="xs:anyType"/>
+    </xs:choice>
+    <xs:attribute name="number" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- ===================== Attributes ===================== -->
+  <xs:complexType name="attributes">
+    <xs:sequence>
+      <xs:element name="divisions" type="xs:positiveInteger" minOccurs="0"/>
+      <xs:element name="key" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="fifths" type="xs:integer"/>
+            <xs:element name="mode" type="xs:string" minOccurs="0"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="time" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="beats" type="xs:string"/>
+            <xs:element name="beat-type" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="clef" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="sign" type="xs:string"/>
+            <xs:element name="line" type="xs:integer" minOccurs="0"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ===================== Note ===================== -->
+  <xs:complexType name="note">
+    <xs:sequence>
+      <!-- A note is either a rest or a (possibly chord) pitched note. -->
+      <xs:element name="chord" minOccurs="0">
+        <xs:complexType/>
+      </xs:element>
+      <xs:choice>
+        <xs:element name="pitch" type="pitch"/>
+        <xs:element name="rest">
+          <xs:complexType/>
+        </xs:element>
+        <xs:element name="unpitched" type="xs:anyType"/>
+      </xs:choice>
+      <xs:element name="duration" type="xs:positiveInteger"/>
+      <xs:element name="tie" minOccurs="0" maxOccurs="2">
+        <xs:complexType>
+          <xs:attribute name="type" type="xs:string"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="type" type="xs:string" minOccurs="0"/>
+      <xs:element name="dot" minOccurs="0" maxOccurs="2">
+        <xs:complexType/>
+      </xs:element>
+      <xs:element name="accidental" type="xs:string" minOccurs="0"/>
+      <xs:element name="time-modification" type="time-modification" minOccurs="0"/>
+      <xs:element name="stem" type="xs:string" minOccurs="0"/>
+      <xs:element name="notations" type="xs:anyType" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="pitch">
+    <xs:sequence>
+      <xs:element name="step" type="step"/>
+      <xs:element name="alter" type="xs:decimal" minOccurs="0"/>
+      <xs:element name="octave" type="octave"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="step">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="A"/>
+      <xs:enumeration value="B"/>
+      <xs:enumeration value="C"/>
+      <xs:enumeration value="D"/>
+      <xs:enumeration value="E"/>
+      <xs:enumeration value="F"/>
+      <xs:enumeration value="G"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- MusicXML octave is a single digit 0-9. This intentionally rejects multi-digit
+       octaves, which is why the exporter's `pitch.slice(-1)` octave bug produces
+       schema-valid-but-wrong output for octaves <= 9 and would need a content check
+       to detect; included here so the fixture documents the real constraint. -->
+  <xs:simpleType name="octave">
+    <xs:restriction base="xs:integer">
+      <xs:minInclusive value="0"/>
+      <xs:maxInclusive value="9"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="time-modification">
+    <xs:sequence>
+      <xs:element name="actual-notes" type="xs:positiveInteger"/>
+      <xs:element name="normal-notes" type="xs:positiveInteger"/>
+      <xs:element name="normal-type" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+</xs:schema>

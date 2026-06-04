@@ -92,11 +92,16 @@ function findLastEvent(
 export const createMetadataMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, MetadataMethodNames> & ThisType<MusicEditorAPI> => {
-  const { dispatch, scoreRef, setResult } = ctx;
+  // Read LIVE engine state (getScore) rather than the React-state mirror
+  // (scoreRef), which lags one tick because it is synced inside a useEffect.
+  // Dispatch is synchronous (ADR-006), so getScore() reflects mutations
+  // immediately, enabling synchronous chaining like
+  // `api.setMetadata({ title: 'X' }); api.getTitle() === 'X'`.
+  const { dispatch, getScore, setResult } = ctx;
 
   return {
     getMetadata(): ScoreMetadata {
-      return scoreRef.current.metadata ?? { ...DEFAULT_SCORE_METADATA };
+      return getScore().metadata ?? { ...DEFAULT_SCORE_METADATA };
     },
 
     setMetadata(metadata) {
@@ -155,11 +160,14 @@ export const createMetadataMethods = (
 export const createMetadataNavigationMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, NavigationMethodNames> & ThisType<MusicEditorAPI> => {
-  const { scoreRef, selectionEngine, setResult } = ctx;
+  // Read LIVE engine state (getScore) so navigation reflects structural
+  // mutations (added/removed events) made in the same synchronous tick,
+  // rather than the lagging scoreRef mirror.
+  const { getScore, selectionEngine, setResult } = ctx;
 
   return {
     selectFirstElement() {
-      const score = scoreRef.current;
+      const score = getScore();
       const firstEvent = findFirstEvent(score);
 
       if (firstEvent) {
@@ -198,7 +206,7 @@ export const createMetadataNavigationMethods = (
     },
 
     selectLastElement() {
-      const score = scoreRef.current;
+      const score = getScore();
       const lastEvent = findLastEvent(score);
 
       if (lastEvent) {

@@ -7,8 +7,45 @@
  * @tested src/__tests__/services/ChordService.test.ts
  */
 
-import type { Score } from '@/types';
+import type { Measure, Score } from '@/types';
 import { getNoteDuration } from '@/utils/core';
+import { TIME_SIGNATURES } from '@/constants';
+
+// ============================================================================
+// MEASURE CAPACITY (TILING)
+// ============================================================================
+
+/**
+ * Computes the total quant span occupied by a measure's events.
+ *
+ * This is the sum of every event's duration in quants. Chord-anchor positions
+ * within a measure are the running prefix-sums of these same durations, so a
+ * measure's anchor grid tiles exactly `[0, getMeasureSpan)` with no gaps and no
+ * overlap — provided each event duration is itself an exact quant value.
+ *
+ * @param measure - The measure to measure
+ * @returns Total event span in quants (0 for an empty measure)
+ */
+export const getMeasureSpan = (measure: Measure): number => {
+  let span = 0;
+  for (const event of measure.events) {
+    span += getNoteDuration(event.duration, event.dotted, event.tuplet);
+  }
+  return span;
+};
+
+/**
+ * Computes the nominal quant capacity of a measure for a given time signature.
+ *
+ * Capacity is the time signature's measure width (e.g. 64 for 4/4, 48 for 3/4
+ * and 6/8). A correctly-filled (non-pickup) measure's events must tile this
+ * capacity exactly: `getMeasureSpan(measure) === getMeasureQuantCapacity(ts)`.
+ *
+ * @param timeSignature - Time signature string (e.g. '4/4')
+ * @returns Measure capacity in quants
+ */
+export const getMeasureQuantCapacity = (timeSignature: string): number =>
+  TIME_SIGNATURES[timeSignature] ?? 64;
 
 // ============================================================================
 // VALID POSITION CALCULATION

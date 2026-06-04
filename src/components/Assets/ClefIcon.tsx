@@ -6,6 +6,15 @@
  */
 import React from 'react';
 import { CLEFS, BRAVURA_FONT } from '@/constants/SMuFL';
+import { getClefReference } from '@/utils/clef';
+
+// Icon staff geometry (60x60 viewBox): 5 lines at y = ICON_TOP_LINE_Y + i*ICON_LINE_GAP
+// for i = 0..4, where i=0 is the TOP line (line 5) and i=4 is the BOTTOM line (line 1).
+const ICON_TOP_LINE_Y = 10;
+const ICON_LINE_GAP = 10;
+
+/** Y baseline (icon coords) of the 1-indexed staff line N (1=bottom .. 5=top). */
+const iconLineY = (line: number): number => ICON_TOP_LINE_Y + (5 - line) * ICON_LINE_GAP;
 
 interface ClefIconProps extends React.SVGProps<SVGSVGElement> {
   /** The clef type to display (treble, bass, alto, tenor, grand) */
@@ -46,21 +55,20 @@ const ClefIcon: React.FC<ClefIconProps> = ({
     }
   };
 
-  // Font size and positioning vary by clef type
+  // Font size and horizontal placement vary by clef glyph; the vertical
+  // baseline (y) is DERIVED from the authoritative clef-reference model
+  // (src/utils/clef.ts) so the icon's glyph sits on the same staff line the
+  // engraver positions notes against (e.g. tenor C-clef on line 4, not line 1).
   const getClefConfig = () => {
+    const y = iconLineY(getClefReference(key).referenceLine);
     switch (key) {
-      case 'treble':
-        return { fontSize: 42, x: 30, y: 40 };
       case 'bass':
-        return { fontSize: 42, x: 28, y: 20 };
+        return { fontSize: 42, x: 28, y };
+      case 'treble':
       case 'alto':
-        // C-clef centered on Line 3 (middle line)
-        return { fontSize: 42, x: 30, y: 30 };
       case 'tenor':
-        // C-clef centered on Line 4 (lower than alto)
-        return { fontSize: 42, x: 30, y: 40 };
       default:
-        return { fontSize: 42, x: 30, y: 40 };
+        return { fontSize: 42, x: 30, y };
     }
   };
 

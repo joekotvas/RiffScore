@@ -3,6 +3,7 @@ import { CONFIG } from '@/config';
 import { getNoteDuration } from '@/utils/core';
 import { Note, ChordLayout, SystemPreamble } from './types';
 import { getStaffPitch, STAFF_LETTERS } from '@/services/MusicService';
+import { getClefReference } from '@/utils/clef';
 
 // ========== SYSTEM PREAMBLE (SSOT) ==========
 
@@ -55,113 +56,84 @@ export const calculateSystemPreamble = (
   };
 };
 
-// ========== TREBLE CLEF PITCHES (C3 to G6) ==========
-// Offset is relative to CONFIG.baseY
-export const PITCH_TO_OFFSET: Record<string, number> = {
-  C3: 102,
-  D3: 96,
-  E3: 90,
-  F3: 84,
-  G3: 78,
-  A3: 72,
-  B3: 66,
-  C4: 60,
-  D4: 54,
-  E4: 48,
-  F4: 42,
-  G4: 36,
-  A4: 30,
-  B4: 24,
-  C5: 18,
-  D5: 12,
-  E5: 6,
-  F5: 0,
-  G5: -6,
-  A5: -12,
-  B5: -18,
-  C6: -24,
-  D6: -30,
-  E6: -36,
-  F6: -42,
-  G6: -48,
+// ========== SINGLE-SOURCE CLEF GEOMETRY (Finding 1D / Contract C2) ==========
+//
+// One algorithm maps any pitch to a staff offset (forward) and any offset to a
+// pitch (inverse), derived ENTIRELY from the authoritative clef reference model
+// in src/utils/clef.ts (`referencePitch` + `referenceLine`). There is NO
+// per-clef lookup-table fast-path: treble, bass, alto, and tenor all flow
+// through the same math, so alto/tenor render at their correct positions and
+// the inverse (click-to-place / hit detection) is guaranteed consistent with
+// the forward render for every clef.
+//
+// COORDINATE SYSTEM (offset is relative to CONFIG.baseY):
+//   - Higher pitch => SMALLER offset (the staff grows upward).
+//   - One line-to-line gap = 12px (LINE_STEP).
+//   - One diatonic step (line<->adjacent space) = 6px (HALF_STEP).
+//   - Staff line N (1=bottom .. 5=top) sits at offset (5 - N) * LINE_STEP, so
+//     the top line (5) = 0 and the middle line (3) = 24 in every clef.
+//
+// Forward:  offset = lineOffset(referenceLine) - diatonicSteps(pitch, ref) * HALF_STEP
+// Inverse:  diatonicSteps = (lineOffset(referenceLine) - offset) / HALF_STEP
+//
+// Landmarks produced by this one formula: treble C4=60, alto C4=24,
+// tenor C4=12, bass E2=60; middle-line pitch = offset 24 for every clef.
+
+/** Pixels between adjacent staff lines (a full step on the staff grid). */
+const LINE_STEP = 12;
+/** Pixels per diatonic step (line to adjacent space). */
+const HALF_STEP = LINE_STEP / 2;
+/** Highest staff line index (top line). */
+const TOP_LINE = 5;
+
+/** Vertical offset (relative to baseY) of a 1-indexed staff line. */
+const lineOffset = (line: number): number => (TOP_LINE - line) * LINE_STEP;
+
+/** Parse SPN like "C4" / "F#-1" into { letterIdx, octave }; null if malformed. */
+const parseStaffPitch = (pitch: string): { letterIdx: number; octave: number } | null => {
+  const match = pitch.match(/^([A-G])(-?\d+)$/);
+  if (!match) return null;
+  const letterIdx = STAFF_LETTERS.indexOf(match[1]);
+  if (letterIdx === -1) return null;
+  return { letterIdx, octave: parseInt(match[2], 10) };
 };
 
-// Inverse mapping: Y offset to pitch (for hit detection - treble)
-export const Y_TO_PITCH: Record<number, string> = Object.fromEntries(
-  Object.entries(PITCH_TO_OFFSET).map(([pitch, offset]) => [offset, pitch])
-);
-
-// ========== BASS CLEF PITCHES (E1 to B4) ==========
-// Same visual positions, different pitches (approximately 2 octaves lower)
-export const BASS_PITCH_TO_OFFSET: Record<string, number> = {
-  E1: 102,
-  F1: 96,
-  G1: 90,
-  A1: 84,
-  B1: 78,
-  C2: 72,
-  D2: 66,
-  E2: 60,
-  F2: 54,
-  G2: 48,
-  A2: 42,
-  B2: 36,
-  C3: 30,
-  D3: 24,
-  E3: 18,
-  F3: 12,
-  G3: 6,
-  A3: 0,
-  B3: -6,
-  C4: -12,
-  D4: -18,
-  E4: -24,
-  F4: -30,
-  G4: -36,
-  A4: -42,
-  B4: -48,
-};
-
-// Inverse mapping: Y offset to pitch (for hit detection - bass)
-export const BASS_Y_TO_PITCH: Record<number, string> = Object.fromEntries(
-  Object.entries(BASS_PITCH_TO_OFFSET).map(([pitch, offset]) => [offset, pitch])
-);
-
-// ========== CLEF-AWARE HELPERS ==========
 /**
- * Gets the pitch-to-offset mapping for a given clef.
+ * Signed number of diatonic (letter-name) steps from `ref` to `pitch`.
+ * Positive = `pitch` is higher than `ref`. Accidentals are ignored (they do not
+ * change the staff line/space a note occupies).
  */
-export const getPitchToOffset = (clef: string = 'treble'): Record<string, number> => {
-  return clef === 'bass' ? BASS_PITCH_TO_OFFSET : PITCH_TO_OFFSET;
+const diatonicStepsBetween = (
+  pitch: { letterIdx: number; octave: number },
+  ref: { letterIdx: number; octave: number }
+): number => (pitch.octave - ref.octave) * STAFF_LETTERS.length + (pitch.letterIdx - ref.letterIdx);
+
+/** Diatonic (natural) pitch that lies `steps` diatonic steps above `ref`. */
+const pitchAtDiatonicSteps = (ref: { letterIdx: number; octave: number }, steps: number): string => {
+  const total = ref.letterIdx + steps;
+  const len = STAFF_LETTERS.length;
+  // Floored division handles negative steps so the octave rolls correctly.
+  const octave = ref.octave + Math.floor(total / len);
+  const letterIdx = ((total % len) + len) % len;
+  return `${STAFF_LETTERS[letterIdx]}${octave}`;
+};
+
+/** Resolve a clef name to its authoritative { referencePitch, referenceLine }. */
+const resolveReference = (clef: string): { letterIdx: number; octave: number; line: number } => {
+  const ref = getClefReference(clef);
+  const parsed = parseStaffPitch(ref.referencePitch) ?? { letterIdx: 0, octave: 4 };
+  return { ...parsed, line: ref.referenceLine };
 };
 
 /**
- * Gets the Y-to-pitch mapping for a given clef.
- */
-export const getYToPitch = (clef: string = 'treble'): Record<number, string> => {
-  return clef === 'bass' ? BASS_Y_TO_PITCH : Y_TO_PITCH;
-};
-
-/**
- * Reference points for each clef
- */
-const CLEF_REFERENCE: Record<string, { pitch: string; offset: number }> = {
-  treble: { pitch: 'C4', offset: 60 }, // Middle C on treble (1 line below)
-  bass: { pitch: 'E2', offset: 60 }, // E2 on bass (1 line below)
-  alto: { pitch: 'C4', offset: 24 }, // Middle C on alto (Line 3 / Middle Line)
-  tenor: { pitch: 'C4', offset: 18 }, // Middle C on tenor (Line 4)
-};
-
-/**
- * Calculates the offset for ANY pitch in a given clef.
- * Uses dynamic calculation based on staff line math, not lookup tables.
+ * Calculates the Y offset (relative to CONFIG.baseY) for ANY pitch in a clef.
  *
- * Each staff step (line/space) = 6px
- * Higher pitch = lower offset (goes up on staff)
+ * Derived from the single clef-reference model — no lookup tables. Accidentals
+ * are ignored for positioning (a note sits on the line/space of its letter).
  *
- * @param pitch - Pitch to calculate offset for (e.g., "F#4", "C2", "G7")
- * @param clef - Clef context ('treble' or 'bass')
- * @returns Y offset in pixels relative to CONFIG.baseY
+ * @param pitch - Pitch to position (e.g., "F#4", "C2", "G7"); null/undefined => 0 (rests)
+ * @param clef - Clef context ('treble' | 'bass' | 'alto' | 'tenor'; 'grand' => treble)
+ * @returns Y offset in pixels relative to CONFIG.baseY (higher pitch = smaller offset)
  */
 export const getOffsetForPitch = (
   pitch: string | null | undefined,
@@ -170,48 +142,33 @@ export const getOffsetForPitch = (
   // Handle null/undefined pitch (e.g., rest notes)
   if (!pitch) return 0;
 
-  const normalizedPitch = getStaffPitch(pitch);
+  const parsed = parseStaffPitch(getStaffPitch(pitch));
+  if (!parsed) return 0;
 
-  // Try lookup first for common pitches (faster)
-  const mapping = getPitchToOffset(clef);
-  if (mapping[normalizedPitch] !== undefined) {
-    return mapping[normalizedPitch];
-  }
-
-  // Dynamic calculation for any pitch
-  const ref = CLEF_REFERENCE[clef] || CLEF_REFERENCE.treble;
-
-  // Parse pitch letter and octave
-  const match = normalizedPitch.match(/^([A-G])(\d+)$/);
-  if (!match) return 0;
-
-  const [, letter, octStr] = match;
-  const octave = parseInt(octStr, 10);
-
-  // Parse reference pitch
-  const refMatch = ref.pitch.match(/^([A-G])(\d+)$/);
-  if (!refMatch) return ref.offset;
-
-  const [, refLetter, refOctStr] = refMatch;
-  const refOctave = parseInt(refOctStr, 10);
-
-  // Calculate steps from reference
-  const letterIdx = STAFF_LETTERS.indexOf(letter);
-  const refLetterIdx = STAFF_LETTERS.indexOf(refLetter);
-
-  // Steps = (octave difference * 7) + letter difference
-  const stepsFromRef = (octave - refOctave) * 7 + (letterIdx - refLetterIdx);
-
-  // Each step up = 6px lower offset (going up on staff)
-  return ref.offset - stepsFromRef * 6;
+  const ref = resolveReference(clef);
+  const steps = diatonicStepsBetween(parsed, ref);
+  return lineOffset(ref.line) - steps * HALF_STEP;
 };
 
 /**
- * Gets the pitch for a Y offset in a given clef.
+ * Gets the diatonic (natural) pitch occupying a given Y offset in a clef.
+ *
+ * This is the exact inverse of getOffsetForPitch, derived from the SAME
+ * clef-reference model, so click-to-place / hit detection always agrees with
+ * the rendered note position (critical for alto/tenor/grand). Offsets that do
+ * not land on a line or space (i.e. not a multiple of HALF_STEP) return
+ * undefined.
+ *
+ * @param offset - Y offset relative to CONFIG.baseY
+ * @param clef - Clef context ('treble' | 'bass' | 'alto' | 'tenor'; 'grand' => treble)
+ * @returns Natural-spelling pitch (e.g. 'C4'), or undefined if off-grid
  */
 export const getPitchForOffset = (offset: number, clef: string = 'treble'): string | undefined => {
-  const mapping = getYToPitch(clef);
-  return mapping[offset];
+  const ref = resolveReference(clef);
+  const stepsTimesHalf = lineOffset(ref.line) - offset;
+  if (stepsTimesHalf % HALF_STEP !== 0) return undefined;
+  const steps = stepsTimesHalf / HALF_STEP;
+  return pitchAtDiatonicSteps(ref, steps);
 };
 
 /**
