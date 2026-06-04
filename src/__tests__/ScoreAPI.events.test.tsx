@@ -222,5 +222,31 @@ describe('ScoreAPI Events', () => {
     // That's a lot of commands.
     expect(payload.commands.length).toBeGreaterThan(0);
     expect(payload.timestamp).toBeDefined();
+    // The label passed to commitTransaction must reach the batch payload — the
+    // README/COOKBOOK examples read payload.label, and it was previously dropped
+    // by ScoreEngine.commitBatch (always undefined).
+    expect(payload.label).toBe('Add Chord');
+  });
+
+  test('on("batch") payload.label defaults when commitTransaction is given no label', () => {
+    const { result } = renderHook(() => useScoreAPI({ instanceId, config: defaultConfig }), {
+      wrapper,
+    });
+
+    const batchListener = jest.fn();
+    act(() => {
+      result.current.on('batch', batchListener);
+    });
+
+    act(() => {
+      result.current.beginTransaction();
+      result.current.select(0).addNote('C4');
+      result.current.commitTransaction(); // no label
+    });
+
+    expect(batchListener).toHaveBeenCalledTimes(1);
+    const payload = batchListener.mock.calls[0][0];
+    // BatchCommand defaults the label to 'Batch Action' when none is supplied.
+    expect(payload.label).toBe('Batch Action');
   });
 });

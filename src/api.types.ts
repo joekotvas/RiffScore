@@ -267,6 +267,7 @@ export interface MusicEditorAPI {
    * @param duration - Duration of the rest (default: 'quarter')
    * @param dotted - Whether the rest is dotted (default: false)
    * @param options - Entry options
+   * @status implemented
    */
   addRest(duration?: string, dotted?: boolean, options?: { mode?: 'overwrite' | 'insert' }): this;
   /**
@@ -600,7 +601,8 @@ export interface MusicEditorAPI {
   beginTransaction(): this;
   /**
    * Commit the transaction with optional label.
-   * Note: label parameter is not yet used by the history system.
+   * The label is delivered on the `'batch'` event payload (`payload.label`) and
+   * defaults to `'Batch Action'` when omitted.
    * @status implemented
    */
   commitTransaction(label?: string): this;
