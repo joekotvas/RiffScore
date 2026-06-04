@@ -105,11 +105,13 @@ score.select(0)
 ```javascript
 const score = window.riffScore.active;
 
-// I-IV-V-I in C major (one chord per measure in 4/4)
-score.addChord(0, 'C')         // Beat 1 of measure 1 (quant 0)
-     .addChord(64, 'F')        // Beat 1 of measure 2 (quant 64)
-     .addChord(128, 'G7')      // Beat 1 of measure 3 (quant 128)
-     .addChord(192, 'C');      // Beat 1 of measure 4 (quant 192)
+// I-IV-V-I in C major (one chord per measure in 4/4).
+// addChord takes a measure-local position { measure, quant } — quant is relative
+// to the start of that measure (0 = beat 1), NOT a global offset.
+score.addChord({ measure: 0, quant: 0 }, 'C')   // Beat 1 of measure 1
+     .addChord({ measure: 1, quant: 0 }, 'F')   // Beat 1 of measure 2
+     .addChord({ measure: 2, quant: 0 }, 'G7')  // Beat 1 of measure 3
+     .addChord({ measure: 3, quant: 0 }, 'C');  // Beat 1 of measure 4
 ```
 
 ### Navigate and Edit Chords
