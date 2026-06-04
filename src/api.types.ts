@@ -525,6 +525,8 @@ export interface MusicEditorAPI {
   // --- Playback ---
   /**
    * Start playback from specified position (or current/beginning).
+   * Plays the melody together with the score's chord track (same transport as
+   * the UI's Play button), so accompaniment is included automatically.
    * @param startMeasure - Optional measure index to start from
    * @param startQuant - Optional quant position within measure
    * @status implemented
