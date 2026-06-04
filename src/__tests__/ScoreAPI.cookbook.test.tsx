@@ -315,6 +315,45 @@ describe('Cookbook: Chord Symbol Recipes', () => {
   });
 
   /**
+   * Recipe: Add a Chord Progression (one chord per measure) — verbatim from
+   * docs/COOKBOOK.md §1a "Add a Chord Progression".
+   *
+   * Regression guard: an earlier version of the recipe called addChord at quant 0
+   * on a FRESH score, where every measure is empty — so all four calls hit
+   * INVALID_POSITION and added nothing, silently. The recipe must add a note at
+   * beat 1 of each measure first; this test runs the exact published recipe.
+   */
+  test('Add a Chord Progression - one chord per measure (docs recipe runs)', () => {
+    render(<RiffScore id="cookbook-chord-prog-multi" />);
+    const score = getAPI('cookbook-chord-prog-multi');
+
+    act(() => {
+      score
+        .select(0)
+        .addNote('C4', 'whole')
+        .select(1)
+        .addNote('A3', 'whole')
+        .select(2)
+        .addNote('G3', 'whole')
+        .select(3)
+        .addNote('C4', 'whole');
+    });
+
+    act(() => {
+      score
+        .addChord({ measure: 0, quant: 0 }, 'C')
+        .addChord({ measure: 1, quant: 0 }, 'F')
+        .addChord({ measure: 2, quant: 0 }, 'G7')
+        .addChord({ measure: 3, quant: 0 }, 'C');
+    });
+
+    const chords = score.getChords();
+    expect(chords.map((c) => c.symbol)).toEqual(['C', 'F', 'G7', 'C']);
+    expect(chords.map((c) => c.measure)).toEqual([0, 1, 2, 3]);
+    expect(chords.every((c) => c.quant === 0)).toBe(true);
+  });
+
+  /**
    * Recipe: Navigate and Edit Chords
    * docs/COOKBOOK.md §1a - selectChord, updateChord, getChord
    *
