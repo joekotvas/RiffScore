@@ -4,6 +4,7 @@ import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
 import { calculateSystemPreamble } from '@/engines/layout';
 import { ACCIDENTALS, CLEFS, TIME_SIG_DIGITS, BRAVURA_FONT, getFontSize } from '@/constants/SMuFL';
+import { getClefReference } from '@/utils/clef';
 
 interface ScoreHeaderProps {
   clef: string;
@@ -35,26 +36,20 @@ const getClefGlyph = (clef: string): string => {
 };
 
 /**
- * Get the Y position for the clef symbol
- * Each clef has a reference line where the symbol "sits"
+ * Get the Y baseline for the clef glyph, derived from the SAME authoritative
+ * clef-reference model that positions the notes (src/utils/clef.ts).
+ *
+ * Each Bravura clef glyph is designed so its baseline sits on the clef's
+ * reference staff line (G clef curl on G4, F clef dots on F3, C clef center on
+ * its line). Staff lines are drawn at baseY + i*lineHeight for i=0..4, where
+ * i=0 is the TOP line (line 5) and i=4 is the BOTTOM line (line 1); so the
+ * 1-indexed line N is at baseY + (5 - N) * lineHeight. Deriving from the
+ * reference guarantees the glyph and the engraved notes agree (e.g. tenor C4
+ * lands on line 4 for both).
  */
 const getClefY = (clef: string, baseY: number): number => {
-  switch (clef) {
-    case 'treble':
-      // G clef sits on Line 2 (G4), rendered lower for visual position
-      return baseY + CONFIG.lineHeight * 3;
-    case 'bass':
-      // F clef has dots around Line 4 (F3), rendered at top
-      return baseY + CONFIG.lineHeight;
-    case 'alto':
-      // C clef centered on Line 3 (Middle C)
-      return baseY + CONFIG.lineHeight * 2;
-    case 'tenor':
-      // C clef centered on Line 4 (Middle C)
-      return baseY + CONFIG.lineHeight * 3;
-    default:
-      return baseY + CONFIG.lineHeight * 3;
-  }
+  const { referenceLine } = getClefReference(clef);
+  return baseY + (5 - referenceLine) * CONFIG.lineHeight;
 };
 
 const ScoreHeader: React.FC<ScoreHeaderProps> = ({
