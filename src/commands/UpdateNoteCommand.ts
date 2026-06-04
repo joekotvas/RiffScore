@@ -63,16 +63,20 @@ export class UpdateNoteCommand implements Command {
       this.eventId,
       this.noteId,
       (note) => {
-        // Restore all properties from previousNote
-        // Note: Object.assign implies we overwrite keys, but if 'updates' added keys that were undefined,
-        // previousNote might not have them. A strict 'replace' logic is safer if we want full undo.
-        // updateNote gives us a clone of the current note.
-        // The safest way is to replace the properties we changed.
-
-        // Since 'updates' is Partial<Note>, we can just re-apply previousNote properties?
-        // Actually, updateNote expects modification of the passed 'note' object.
-        // We can just Object.assign(note, this.previousNote).
-        Object.assign(note, this.previousNote);
+        // Fully restore the note to its pre-update state. Object.assign alone
+        // CANNOT remove a key the update ADDED to a note that lacked it (e.g.
+        // setAccidentalDisplay adding `accidentalDisplay` to a previously-'auto'
+        // note) — so first delete any key absent from the snapshot, then re-apply
+        // the snapshot's values. `updateNote` hands us a clone it writes back, so
+        // mutating it here is safe.
+        const snapshot = this.previousNote!;
+        const mutable = note as unknown as Record<string, unknown>;
+        for (const key of Object.keys(note)) {
+          if (!(key in snapshot)) {
+            delete mutable[key];
+          }
+        }
+        Object.assign(note, snapshot);
         return true;
       }
     );

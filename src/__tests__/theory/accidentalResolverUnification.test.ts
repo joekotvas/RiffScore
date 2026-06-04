@@ -13,8 +13,10 @@
  * pitch at the load boundary.
  */
 
+import { renderHook } from '@testing-library/react';
 import { resolveMeasureAccidentals } from '@/utils/accidentalContext';
 import { calculateMeasureLayout } from '@/engines/layout/measure';
+import { useMeasureLayout } from '@/hooks/layout/useMeasureLayout';
 import { ACCIDENTALS } from '@/constants/SMuFL';
 import { migrateScore } from '@/types';
 
@@ -81,6 +83,23 @@ describe('#234 layout reserves width for the RENDERED glyph, not just an altered
     const cancelling = width([ev('e1', 'F#4'), ev('e2', 'F4')]);
     const repeated = width([ev('e1', 'F#4'), ev('e2', 'F#4')]);
     expect(cancelling).toBeGreaterThan(repeated);
+  });
+});
+
+describe('#234 page-view (justified) layout threads the key into useMeasureLayout', () => {
+  // useMeasureLayout backs the stretched page-view path. It must thread the key
+  // like scoreLayout does, or the rendered glyph and reserved width disagree.
+  // Proof that the KEY is actually threaded (not defaulted to 'C'): the SAME
+  // events reserve less in G (F# is diatonic -> no glyph) than in C (F# deviates
+  // -> glyph). If the key were dropped, both would compute as 'C' and be equal.
+  const stretchedWidth = (events: ReturnType<typeof ev>[], key: string): number =>
+    renderHook(() => useMeasureLayout(events, 'treble', false, undefined, undefined, 1.5, key))
+      .result.current.totalWidth;
+
+  it('the same notes reserve less width in a key where they are diatonic', () => {
+    const inG = stretchedWidth([ev('e1', 'F#4'), ev('e2', 'F#4')], 'G');
+    const inC = stretchedWidth([ev('e1', 'F#4'), ev('e2', 'F#4')], 'C');
+    expect(inG).toBeLessThan(inC);
   });
 });
 

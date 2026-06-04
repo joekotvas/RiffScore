@@ -238,6 +238,30 @@ describe('ScoreAPI Modification & IO Methods', () => {
       expect(note.accidentalDisplay).toBe('courtesy'); // policy applied
       expect(note.pitch).toBe('C4'); // pitch untouched (orthogonal to display)
     });
+
+    test('undo removes the policy from a previously-auto note (not just overwrites)', () => {
+      render(<RiffScore id="acc-display-undo" />);
+      const api = getAPI('acc-display-undo');
+
+      act(() => {
+        api.select(0).addNote('C4', 'quarter');
+      });
+      act(() => {
+        api.select(0, 0, 0, 0);
+      });
+      act(() => {
+        api.setAccidentalDisplay('show'); // adds a brand-new key to the note
+      });
+      act(() => {
+        api.undo();
+      });
+
+      // Object.assign-based undo cannot delete an added key; the note must come
+      // back to its original shape (no accidentalDisplay), not keep a stale 'show'.
+      const note = api.getScore().staves[0].measures[0].events[0].notes[0];
+      expect(note.accidentalDisplay).toBeUndefined();
+      expect(note.pitch).toBe('C4');
+    });
   });
 
   describe('Modification: transposeDiatonic', () => {
