@@ -887,9 +887,14 @@ export type DeepPartial<T> = {
 };
 
 /**
- * Staff template options for score generation
+ * Staff template options for score generation.
+ *
+ * 'grand' produces a two-staff treble+bass system; the rest produce a single
+ * staff in the named clef. Alto/tenor are included so programmatic config
+ * (`RiffScoreConfig.score.staff`) and `reset()` can target the same single-clef
+ * staves that `setClef` and the clef menu already support.
  */
-export type StaffTemplate = 'grand' | 'treble' | 'bass';
+export type StaffTemplate = 'grand' | 'treble' | 'bass' | 'alto' | 'tenor';
 
 /**
  * Configuration interface for RiffScore component.

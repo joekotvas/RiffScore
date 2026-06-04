@@ -96,6 +96,34 @@ describe('ScoreAPI Configuration & State', () => {
       // reset() now fully resets all score properties including BPM to defaults
       expect(score.bpm).toBe(120);
     });
+
+    test('resets to a single alto staff (StaffTemplate parity with setClef)', () => {
+      render(<RiffScore id="reset-alto" />);
+      const api = getAPI('reset-alto');
+
+      act(() => {
+        api.reset('alto', 3);
+      });
+
+      const score = api.getScore();
+      expect(score.staves).toHaveLength(1);
+      expect(score.staves[0].clef).toBe('alto');
+      expect(score.staves[0].measures).toHaveLength(3);
+    });
+
+    test('resets to a single tenor staff (StaffTemplate parity with setClef)', () => {
+      render(<RiffScore id="reset-tenor" />);
+      const api = getAPI('reset-tenor');
+
+      act(() => {
+        api.reset('tenor');
+      });
+
+      const score = api.getScore();
+      expect(score.staves).toHaveLength(1);
+      expect(score.staves[0].clef).toBe('tenor');
+      expect(score.staves[0].measures).toHaveLength(4); // default measure count
+    });
   });
 
   // UI State setters (setTheme, setScale, setInputMode) affect internal context state,

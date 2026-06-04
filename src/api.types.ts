@@ -30,6 +30,7 @@ import type {
   LayoutConfig,
   ScoreMetadata,
   AccidentalDisplay,
+  StaffTemplate,
 } from './types';
 
 // ========== UTILITY TYPES ==========
@@ -513,9 +514,12 @@ export interface MusicEditorAPI {
   loadScore(score: Score): this;
   /**
    * Reset to a blank score.
+   * @param template - Staff layout: 'grand' (treble+bass) or a single-clef staff
+   *   ('treble' | 'bass' | 'alto' | 'tenor'). Defaults to 'grand'.
+   * @param measures - Number of measures to generate. Defaults to 4.
    * @status implemented
    */
-  reset(template?: 'grand' | 'treble' | 'bass', measures?: number): this;
+  reset(template?: StaffTemplate, measures?: number): this;
   /**
    * Export the score in the specified format.
    * @status implemented
