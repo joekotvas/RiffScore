@@ -12,6 +12,7 @@ import {
 } from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
 import { Note as TonalNote } from 'tonal';
+import { canonicalizeKeySignature } from '@/utils/keyResolution';
 import { MeasureAccidentalState, keySignatureAltForLetter } from './measureAccidentals';
 
 /**
@@ -126,7 +127,11 @@ export const generateABC = (score: Score, bpm: number): string => {
   // Phase 2: Iterate over all staves
   const staves = score.staves || [getActiveStaff(score)]; // Fallback for safety
   const timeSig = score.timeSignature || '4/4';
-  const keySig = score.keySignature || 'C';
+  // Canonicalize so a theoretical flat-minor spelling (Db/Gb/Cb minor) emits its
+  // representable enharmonic K: field (C#m/F#m/Bm) and drives measure-local
+  // accidentals correctly, instead of falling back to C. Feeds both the K: field
+  // and keySignatureAltForLetter below so they can never disagree.
+  const keySig = canonicalizeKeySignature(score.keySignature || 'C');
 
   // Build chord lookup map for O(1) access by (measure, quant)
   const chordLookup = buildChordLookup(score.chordTrack);

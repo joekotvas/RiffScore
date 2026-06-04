@@ -19,7 +19,7 @@
  * @tested src/__tests__/theory/minorKeys.test.ts
  */
 
-import { Key } from 'tonal';
+import { Key, Note } from 'tonal';
 
 export type KeyMode = 'major' | 'minor';
 
@@ -112,3 +112,46 @@ export const getEffectiveScale = (key: string): string[] => resolveKey(key).scal
  * Signed accidental count for a key (negative flats, positive sharps).
  */
 export const getEffectiveAlteration = (key: string): number => resolveKey(key).alteration;
+
+/**
+ * The largest accidental count any standard key signature can carry: 7 sharps
+ * (C# major) or 7 flats (Cb major). Beyond this a key is "theoretical" — it
+ * cannot be drawn on a 5-line staff, expressed as MusicXML `<fifths>` (±7), or
+ * written as an ABC `K:` field, and is only ever notated by its enharmonic twin.
+ */
+const MAX_SIGNATURE_ACCIDENTALS = 7;
+
+/**
+ * Canonicalize a key descriptor to a representable, first-class spelling.
+ *
+ * The 15 canonical keys cover every pitch class within ±7 accidentals. The
+ * theoretical flat-minor spellings carry far more — Db minor is 8 flats, Gb
+ * minor 9, Cb minor 10 — so they have no drawable signature and no valid
+ * `<fifths>`/`K:`. Their only real notation is the enharmonic equivalent inside
+ * the canonical set (Db minor → C# minor, Gb minor → F# minor, Cb minor →
+ * B minor). This respells the tonic enharmonically when — and ONLY when — the
+ * key is out of representable range, so canonical keys pass through verbatim
+ * (e.g. 'F#' stays 'F#', never flips to the equally-valid 'Gb').
+ *
+ * Normalizing the stored key at the load boundary keeps every downstream
+ * consumer consistent: the header glyphs ({@link KEY_SIGNATURES}), the inline
+ * accidental resolver ({@link resolveKey}), and both exporters all then operate
+ * on the same first-class key. The sounding pitches are untouched — only the key
+ * label/signature is respelled.
+ *
+ * @returns A descriptor that resolves within ±7 accidentals; falls back to 'C'
+ *   only if even the enharmonic respelling is unrepresentable (no real key is).
+ */
+export const canonicalizeKeySignature = (key: string): string => {
+  // In-range keys are already canonical — return verbatim so a valid flat/sharp
+  // spelling is never gratuitously flipped.
+  if (Math.abs(resolveKey(key).alteration) <= MAX_SIGNATURE_ACCIDENTALS) return key;
+
+  // Out of range: respell the tonic enharmonically (Db → C#, Gb → F#, Cb → B)
+  // and re-form the descriptor, preserving the mode suffix.
+  const { tonic, mode } = parseKey(key);
+  const respelled = `${Note.enharmonic(tonic)}${mode === 'minor' ? 'm' : ''}`;
+  if (Math.abs(resolveKey(respelled).alteration) <= MAX_SIGNATURE_ACCIDENTALS) return respelled;
+
+  return 'C';
+};

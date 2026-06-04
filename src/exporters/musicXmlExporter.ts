@@ -11,6 +11,7 @@ import {
 } from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
 import { Note } from 'tonal';
+import { canonicalizeKeySignature } from '@/utils/keyResolution';
 import { MeasureAccidentalState, keySignatureAltForLetter } from './measureAccidentals';
 
 /** Maps an alteration to its MusicXML <accidental> glyph name. 0 is natural. */
@@ -551,13 +552,15 @@ export const generateMusicXML = (score: Score): string => {
     }
   }
 
-  // Calculate Key Signature Fifths (Global)
-  const keySigData = KEY_SIGNATURES[score.keySignature || 'C'];
+  // Calculate Key Signature Fifths (Global). Canonicalize first so a theoretical
+  // flat-minor spelling (Db/Gb/Cb minor) exports its representable enharmonic
+  // signature (C#m/F#m/Bm -> fifths 4/3/2) instead of silently falling back to 0.
+  const measureKey = canonicalizeKeySignature(score.keySignature || 'C');
+  const keySigData = KEY_SIGNATURES[measureKey];
   let fifths = 0;
   if (keySigData) {
     fifths = keySigData.type === 'sharp' ? keySigData.count : -keySigData.count;
   }
-  const measureKey = score.keySignature || 'C';
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">

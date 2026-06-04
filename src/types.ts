@@ -1,5 +1,6 @@
 import { ThemeName } from './themes';
 import { TIME_SIGNATURES } from './constants';
+import { canonicalizeKeySignature } from './utils/keyResolution';
 
 /**
  * Type definitions for the Sheet Music Editor
@@ -584,16 +585,29 @@ export const migrateScore = (oldScore: any): Score => {
       result.chordTrack = migrateChordTrack(result.chordTrack, result.timeSignature || '4/4');
     }
 
+    // Normalize the key signature to a representable enharmonic spelling so the
+    // header glyphs, the inline accidental resolver, and both exporters all see a
+    // first-class key. Theoretical flat-minor spellings (Db/Gb/Cb minor = 8-10
+    // flats) become their canonical twins (C#m/F#m/Bm); the sounding pitches are
+    // unchanged. Idempotent: a key already canonical passes through verbatim.
+    result.keySignature = canonicalizeKeySignature(result.keySignature || 'C');
+    result.staves = result.staves.map((s: Staff) =>
+      s?.keySignature ? { ...s, keySignature: canonicalizeKeySignature(s.keySignature) } : s
+    );
+
     return result as Score;
   }
 
   // Migrate legacy single-staff format (no staves array)
   const timeSig = oldScore.timeSignature || '4/4';
+  // Normalize once: theoretical flat-minor spellings -> canonical twins (see the
+  // staves branch above).
+  const keySignature = canonicalizeKeySignature(oldScore.keySignature || 'C');
   const legacyStaves = [
     {
       id: 'staff-1',
       clef: oldScore.clef || 'treble',
-      keySignature: oldScore.keySignature || 'C',
+      keySignature,
       measures: oldScore.measures || [
         { id: 'm1', events: [] },
         { id: 'm2', events: [] },
@@ -604,7 +618,7 @@ export const migrateScore = (oldScore: any): Score => {
     schemaVersion: SCHEMA_VERSION,
     title: oldScore.title || 'Composition',
     timeSignature: timeSig,
-    keySignature: oldScore.keySignature || 'C',
+    keySignature,
     bpm: oldScore.bpm || 120,
     staves: legacyStaves,
     // Migrate chord track from legacy global quant to measure-local format.
