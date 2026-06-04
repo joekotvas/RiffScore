@@ -26,37 +26,46 @@ const ev = (id: string, pitch: string) => ({
   notes: [{ id: `${id}n`, pitch }],
 });
 
+/** Collapse the resolver's { glyph, parenthesized } decisions to glyph-or-null. */
+const glyphs = (events: ReturnType<typeof ev>[], key: string): Record<string, string | null> => {
+  const out: Record<string, string | null> = {};
+  for (const [id, d] of Object.entries(resolveMeasureAccidentals(events, key))) {
+    out[id] = d ? d.glyph : null;
+  }
+  return out;
+};
+
 describe('#234 resolveMeasureAccidentals — the single shared engine', () => {
   it('draws nothing for a diatonic note, a glyph for one that deviates', () => {
-    expect(resolveMeasureAccidentals([ev('e1', 'C4')], 'C').e1n).toBeNull();
-    expect(resolveMeasureAccidentals([ev('e1', 'F#4')], 'C').e1n).toBe(ACCIDENTALS.sharp);
+    expect(glyphs([ev('e1', 'C4')], 'C').e1n).toBeNull();
+    expect(glyphs([ev('e1', 'F#4')], 'C').e1n).toBe(ACCIDENTALS.sharp);
   });
 
   it('does not re-mark a repeated identical accidental on the same line', () => {
-    const r = resolveMeasureAccidentals([ev('e1', 'F#4'), ev('e2', 'F#4')], 'C');
+    const r = glyphs([ev('e1', 'F#4'), ev('e2', 'F#4')], 'C');
     expect(r.e1n).toBe(ACCIDENTALS.sharp);
     expect(r.e2n).toBeNull();
   });
 
   it('draws a cancelling natural after a prior accidental on the line', () => {
-    const r = resolveMeasureAccidentals([ev('e1', 'F#4'), ev('e2', 'F4')], 'C');
+    const r = glyphs([ev('e1', 'F#4'), ev('e2', 'F4')], 'C');
     expect(r.e1n).toBe(ACCIDENTALS.sharp);
     expect(r.e2n).toBe(ACCIDENTALS.natural);
   });
 
   it('tracks accidentals per (letter, octave) — a different octave is independent', () => {
-    const r = resolveMeasureAccidentals([ev('e1', 'F#4'), ev('e2', 'F#5')], 'C');
+    const r = glyphs([ev('e1', 'F#4'), ev('e2', 'F#5')], 'C');
     expect(r.e1n).toBe(ACCIDENTALS.sharp);
     expect(r.e2n).toBe(ACCIDENTALS.sharp); // F5 line untouched -> still deviates from the key
   });
 
   it('is mode-aware via the key signature: F is diatonic in G, a natural cancels it', () => {
-    expect(resolveMeasureAccidentals([ev('e1', 'F#4')], 'G').e1n).toBeNull();
-    expect(resolveMeasureAccidentals([ev('e1', 'F4')], 'G').e1n).toBe(ACCIDENTALS.natural);
+    expect(glyphs([ev('e1', 'F#4')], 'G').e1n).toBeNull();
+    expect(glyphs([ev('e1', 'F4')], 'G').e1n).toBe(ACCIDENTALS.natural);
   });
 
   it('preserves double accidentals (does not downgrade to single)', () => {
-    expect(resolveMeasureAccidentals([ev('e1', 'F##4')], 'C').e1n).toBe(ACCIDENTALS.doubleSharp);
+    expect(glyphs([ev('e1', 'F##4')], 'C').e1n).toBe(ACCIDENTALS.doubleSharp);
   });
 });
 

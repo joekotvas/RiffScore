@@ -31,6 +31,7 @@ type ModificationMethodNames =
   | 'setDuration'
   | 'setAccidental'
   | 'toggleAccidental'
+  | 'setAccidentalDisplay'
   | 'transpose'
   | 'transposeDiatonic'
   | 'updateEvent'
@@ -617,6 +618,87 @@ export const createModificationMethods = (
           ok: false,
           status: 'error',
           method: 'toggleAccidental',
+          message: 'No note selected',
+          code: 'NO_NOTE_SELECTED',
+        });
+      }
+      return this;
+    },
+
+    setAccidentalDisplay(policy) {
+      const sel = selectionRef.current;
+      const { selectedNotes } = sel;
+      const score = ctx.getScore();
+
+      // Set the display policy WITHOUT touching the pitch — accidentalDisplay is
+      // orthogonal to the sounding pitch (#236). UpdateNoteCommand assigns the
+      // field directly (no accidental-fold / pitch re-derive happens unless a
+      // pitch/accidental key is present).
+      const apply = (
+        staffIndex: number,
+        measureIndex: number,
+        eventId: string,
+        noteId: string
+      ): boolean => {
+        const found = findNoteContext(score, staffIndex, measureIndex, eventId, noteId);
+        if (!found || found.note.pitch == null) return false;
+        dispatch(
+          new UpdateNoteCommand(
+            measureIndex,
+            eventId,
+            noteId,
+            { accidentalDisplay: policy },
+            staffIndex
+          )
+        );
+        return true;
+      };
+
+      if (selectedNotes.length > 0) {
+        ctx.history.begin();
+        let count = 0;
+        selectedNotes.forEach((noteRef) => {
+          if (
+            noteRef.noteId &&
+            noteRef.eventId &&
+            noteRef.measureIndex != null &&
+            noteRef.staffIndex != null &&
+            apply(noteRef.staffIndex, noteRef.measureIndex, noteRef.eventId, noteRef.noteId)
+          ) {
+            count++;
+          }
+        });
+        ctx.history.commit();
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'setAccidentalDisplay',
+          message: `Accidental display set to ${policy} for ${count} notes`,
+          details: { policy, count },
+        });
+      } else if (sel.eventId && sel.noteId && sel.measureIndex !== null) {
+        if (apply(sel.staffIndex, sel.measureIndex, sel.eventId, sel.noteId)) {
+          setResult({
+            ok: true,
+            status: 'info',
+            method: 'setAccidentalDisplay',
+            message: `Accidental display set to ${policy}`,
+            details: { policy },
+          });
+        } else {
+          setResult({
+            ok: false,
+            status: 'error',
+            method: 'setAccidentalDisplay',
+            message: 'Selected element is not a pitched note',
+            code: 'NO_NOTE_SELECTED',
+          });
+        }
+      } else {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'setAccidentalDisplay',
           message: 'No note selected',
           code: 'NO_NOTE_SELECTED',
         });

@@ -2,6 +2,7 @@ import { Note } from 'tonal';
 import { getEffectiveScale } from '@/utils/keyResolution';
 import { KEY_SIGNATURES } from '@/constants';
 import { ACCIDENTALS } from '@/constants/SMuFL';
+import type { AccidentalDisplay } from '@/types';
 
 /**
  * The full chromatic accidental of a pitch, including double sharps/flats.
@@ -113,26 +114,50 @@ export class MeasureAccidentalState {
   }
 
   /**
-   * Decide whether `alt` must be written as a glyph for this pitch, given the key
-   * signature and any earlier accidental in the measure. Returns the alteration to
-   * SHOW (-2..+2, where 0 means a cancelling natural) or null if no glyph is
-   * needed. Records the new active alteration when a glyph is shown.
+   * Decide whether to write an accidental glyph for this pitch, given the key
+   * signature, the measure history, AND the note's display policy (#236). Returns
+   * the alteration to SHOW (-2..+2, where 0 is a cancelling natural) plus whether
+   * it is a parenthesized courtesy, or null if no glyph is drawn.
    *
-   * @param letter Diatonic letter A-G.
-   * @param octave Octave number.
-   * @param alt    Sounding chromatic alteration of the pitch (-2..+2).
-   * @param keyAlt Alteration the key signature applies to this letter.
+   * The display policy is orthogonal to the sounding pitch:
+   *   - 'auto'     draw iff the alteration deviates from what is in effect.
+   *   - 'show'     always draw (forced/explicit accidental).
+   *   - 'hide'     never draw (the pitch still sounds).
+   *   - 'courtesy' always draw, parenthesized (cautionary).
+   *
+   * The measure memory for this (letter, octave) is updated to the SOUNDING
+   * alteration regardless of whether a glyph is drawn — a hidden accidental still
+   * sounds, so later notes on the line must decide against it.
+   *
+   * @param letter  Diatonic letter A-G.
+   * @param octave  Octave number.
+   * @param alt     Sounding chromatic alteration of the pitch (-2..+2).
+   * @param keyAlt  Alteration the key signature applies to this letter.
+   * @param display Display policy for this note (default 'auto').
    */
-  resolve(letter: string, octave: number, alt: number, keyAlt: number): number | null {
+  resolve(
+    letter: string,
+    octave: number,
+    alt: number,
+    keyAlt: number,
+    display: AccidentalDisplay = 'auto'
+  ): { alt: number; parenthesized: boolean } | null {
     const slot = `${letter}${octave}`;
     const currentlyActive = this.active.has(slot) ? this.active.get(slot)! : keyAlt;
+    const deviates = alt !== currentlyActive;
 
-    // No glyph needed if the desired alteration already holds in this measure.
-    if (alt === currentlyActive) return null;
-
-    // A glyph will be written: record the new active alteration for this slot.
     this.active.set(slot, alt);
-    return alt;
+
+    switch (display) {
+      case 'hide':
+        return null;
+      case 'show':
+        return { alt, parenthesized: false };
+      case 'courtesy':
+        return { alt, parenthesized: true };
+      default: // 'auto'
+        return deviates ? { alt, parenthesized: false } : null;
+    }
   }
 }
 
@@ -156,16 +181,25 @@ const ACCIDENTAL_GLYPH_BY_ALT: Record<number, string> = {
  * Source of truth: each note's `pitch` string (contract C1). `note.accidental`
  * is never consulted.
  *
- * Typed structurally (only `notes[].id` + `notes[].pitch` are read) so both the
- * `@/types` and layout-local `ScoreEvent` shapes can call it without conversion.
+ * Typed structurally (only `notes[].id`, `notes[].pitch`, and the optional
+ * `notes[].accidentalDisplay` are read) so both the `@/types` and layout-local
+ * `ScoreEvent` shapes can call it without conversion.
  *
  * @param events - The events in the measure, already in temporal order.
  * @param keySignature - The current key signature (e.g. 'G', 'Bb', 'Em').
- * @returns A map of noteId -> SMuFL accidental glyph, or null to draw nothing.
+ * @returns A map of noteId -> glyph decision, or null to draw nothing.
  */
+export interface AccidentalGlyphDecision {
+  /** SMuFL (Bravura) glyph to draw. */
+  glyph: string;
+  /** Draw as a parenthesized cautionary accidental (courtesy policy). */
+  parenthesized: boolean;
+}
+
 interface ResolvableNote {
   id: string;
   pitch: string | null;
+  accidentalDisplay?: AccidentalDisplay;
 }
 interface ResolvableEvent {
   notes?: ResolvableNote[];
@@ -174,9 +208,9 @@ interface ResolvableEvent {
 export const resolveMeasureAccidentals = (
   events: ResolvableEvent[],
   keySignature: string
-): Record<string, string | null> => {
+): Record<string, AccidentalGlyphDecision | null> => {
   const state = new MeasureAccidentalState();
-  const overrides: Record<string, string | null> = {};
+  const overrides: Record<string, AccidentalGlyphDecision | null> = {};
 
   for (const event of events) {
     if (!event.notes) continue;
@@ -197,8 +231,11 @@ export const resolveMeasureAccidentals = (
       const alt = Number.isFinite(parsed.alt) ? parsed.alt : 0;
       const keyAlt = keySignatureAltForLetter(letter, keySignature);
 
-      const showAlt = state.resolve(letter, octave, alt, keyAlt);
-      overrides[note.id] = showAlt === null ? null : ACCIDENTAL_GLYPH_BY_ALT[showAlt];
+      const decision = state.resolve(letter, octave, alt, keyAlt, note.accidentalDisplay ?? 'auto');
+      overrides[note.id] =
+        decision === null
+          ? null
+          : { glyph: ACCIDENTAL_GLYPH_BY_ALT[decision.alt], parenthesized: decision.parenthesized };
     }
   }
 

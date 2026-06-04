@@ -416,10 +416,14 @@ const renderEvent = (
     // implies, and emit a natural to cancel one. Derived from pitch via the
     // shared resolver so MusicXML, ABC, and the renderer all agree. (<alter>
     // above still carries the SOUNDING alteration unconditionally.)
+    // The note's display policy (#236) can force, hide, or parenthesize the glyph
+    // — orthogonal to <alter> (the sounding alteration) above.
     const keyAlt = keySignatureAltForLetter(step, measureKey);
-    const showAlt = accidentalState.resolve(step, octave, alter, keyAlt);
+    const decision = accidentalState.resolve(step, octave, alter, keyAlt, note.accidentalDisplay);
     const accidentalTag =
-      showAlt === null ? '' : `<accidental>${xmlAccidentalName(showAlt)}</accidental>`;
+      decision === null
+        ? ''
+        : `<accidental${decision.parenthesized ? ' parentheses="yes"' : ''}>${xmlAccidentalName(decision.alt)}</accidental>`;
 
     // Tie Logic
     let tieTags = '';

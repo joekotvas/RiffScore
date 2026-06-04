@@ -209,15 +209,21 @@ const ChordGroup: React.FC<ChordGroupProps> = ({
       {notesToRender.map((note) => {
         // Accidental glyph priority:
         // 1. The measure-aware resolver (`useAccidentalContext`) is the source of
-        //    truth when present — it has intra-measure memory and emits SMuFL
-        //    glyphs derived from pitch + key + history (contract C1).
+        //    truth when present — it has intra-measure memory and the display
+        //    policy, emitting a { glyph, parenthesized } decision (contract C1).
         // 2. Fall back to the stateless key-only derivation only when no measure
         //    context was provided (e.g. isolated/preview rendering).
-        const accidentalGlyph = !note.pitch
-          ? null
-          : accidentalOverrides
-            ? (accidentalOverrides[note.id] ?? null)
-            : getAccidentalGlyph(note.pitch, keySignature);
+        let accidentalGlyph: string | null = null;
+        let accidentalParenthesized = false;
+        if (note.pitch) {
+          if (accidentalOverrides) {
+            const decision = accidentalOverrides[note.id] ?? null;
+            accidentalGlyph = decision?.glyph ?? null;
+            accidentalParenthesized = decision?.parenthesized ?? false;
+          } else {
+            accidentalGlyph = getAccidentalGlyph(note.pitch, keySignature);
+          }
+        }
 
         const isSelected = isNoteSelected(selection, {
           staffIndex,
@@ -257,6 +263,7 @@ const ChordGroup: React.FC<ChordGroupProps> = ({
             isPreview={isInLassoPreview}
             isGhost={isGhost}
             accidentalGlyph={accidentalGlyph}
+            accidentalParenthesized={accidentalParenthesized}
             handlers={handlers}
             color={isCursor && CONFIG.debug?.showHitZones ? '#FF0000' : null}
           />

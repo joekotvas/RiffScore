@@ -264,9 +264,17 @@ export const generateABC = (score: Score, bpm: number): string => {
             const octave = parsed.oct ?? (Number.isFinite(fallbackOct) ? fallbackOct : 4);
             const alt = Number.isFinite(parsed.alt) ? parsed.alt : 0;
 
+            // The note's display policy (#236) can force or hide the glyph.
+            // In ABC the accidental token IS what conveys the pitch (there is no
+            // structural <alter>), so 'hide' cannot suppress it without silently
+            // turning e.g. C#4 into C-natural — we therefore fall back to 'auto'
+            // for 'hide' (best-effort: the policy is not honored, but the sounding
+            // pitch is never lost). 'courtesy' has no standard ABC parenthesized
+            // form, so it degrades to a plain forced accidental.
+            const abcDisplay = n.accidentalDisplay === 'hide' ? 'auto' : n.accidentalDisplay;
             const keyAlt = keySignatureAltForLetter(letter, keySig);
-            const showAlt = accidentalState.resolve(letter, octave, alt, keyAlt);
-            const acc = showAlt === null ? '' : abcAccidentalToken(showAlt);
+            const decision = accidentalState.resolve(letter, octave, alt, keyAlt, abcDisplay);
+            const acc = decision === null ? '' : abcAccidentalToken(decision.alt);
 
             const pitch = toAbcPitch(n.pitch, clef);
             return `${acc}${pitch}`;

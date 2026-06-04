@@ -11,7 +11,7 @@ import { NOTE_SPACING_BASE_UNIT, LAYOUT } from '@/constants';
 import { ScoreEvent, Note } from './types';
 import { calculateChordLayout } from './positioning';
 import { pitchHasAlteration } from '@/services/MusicService';
-import { resolveMeasureAccidentals } from '@/utils/accidentalContext';
+import { resolveMeasureAccidentals, type AccidentalGlyphDecision } from '@/utils/accidentalContext';
 
 // --- CONSTANTS ---
 
@@ -72,7 +72,7 @@ const findEventAtQuant = (events: ScoreEvent[], targetQuant: number): ScoreEvent
  */
 const calculateEventPadding = (
   event: ScoreEvent,
-  accidentalGlyphs?: Record<string, string | null>
+  accidentalGlyphs?: Record<string, AccidentalGlyphDecision | null>
 ): number => {
   let padding = 0;
 
@@ -116,7 +116,7 @@ const getSegmentWidthRequirement = (
   startQuant: number,
   endQuant: number,
   measures: { events: ScoreEvent[] }[],
-  accidentalGlyphsByMeasure?: Record<string, string | null>[]
+  accidentalGlyphsByMeasure?: Record<string, AccidentalGlyphDecision | null>[]
 ): number => {
   const segmentDuration = endQuant - startQuant;
   let maxSegmentWidth = NOTE_SPACING_BASE_UNIT * Math.sqrt(segmentDuration);

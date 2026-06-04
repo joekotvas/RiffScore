@@ -13,7 +13,7 @@ import { ScoreEvent, MeasureLayout, HitZone, Note, ChordLayout } from './types';
 import { getNoteWidth, calculateChordLayout, getOffsetForPitch } from './positioning';
 import { getTupletGroup } from './tuplets';
 import { pitchHasAlteration } from '@/services/MusicService';
-import { resolveMeasureAccidentals } from '@/utils/accidentalContext';
+import { resolveMeasureAccidentals, type AccidentalGlyphDecision } from '@/utils/accidentalContext';
 
 /**
  * Whether a note carries a chromatic alteration in its pitch (the single source
@@ -93,7 +93,7 @@ interface ProcessingContext {
    * signature was threaded in; lets spacing reserve width for the RENDERED glyph,
    * including a cancelling natural whose pitch carries no alteration.
    */
-  accidentalGlyphs?: Record<string, string | null>;
+  accidentalGlyphs?: Record<string, AccidentalGlyphDecision | null>;
 }
 
 // --- HELPER: Hit Zone Management ---
@@ -175,7 +175,7 @@ const createEventHitZones = (
 const getEventMetrics = (
   event: ScoreEvent,
   clef: string,
-  accidentalGlyphs?: Record<string, string | null>
+  accidentalGlyphs?: Record<string, AccidentalGlyphDecision | null>
 ) => {
   const chordLayout = calculateChordLayout(event.notes, clef);
   // Reserve accidental width for the glyph the renderer will actually DRAW.

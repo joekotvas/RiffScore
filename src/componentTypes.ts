@@ -1,6 +1,7 @@
 import { Selection, Measure, PreviewNote } from './types';
 import { HitZone, MeasureLayoutV2, EventLayout, ChordLayout } from './engines/layout/types';
 import { NoteInput, PlacementOverride } from './hooks/note/useNoteEntry';
+import type { AccidentalGlyphDecision } from './utils/accidentalContext';
 
 /**
  * Encapsulates all layout configuration required for a measure to render.
@@ -126,7 +127,7 @@ export interface ChordGroupProps {
   renderStem?: boolean;
   x?: number;
   filterNote?: ((note: { id: string; pitch: string | null }) => boolean) | null;
-  accidentalOverrides?: Record<string, string | null> | null;
+  accidentalOverrides?: Record<string, AccidentalGlyphDecision | null> | null;
 
   // Contexts
   layout: LayoutConfig;
@@ -167,6 +168,8 @@ export interface NoteProps {
   isPreview?: boolean; // Lasso preview state
   isGhost?: boolean;
   accidentalGlyph?: string | null;
+  /** Render the accidental glyph in parentheses (#236 courtesy policy). */
+  accidentalParenthesized?: boolean;
   color?: string | null;
 
   // Interaction handlers (optional for interactive notes)

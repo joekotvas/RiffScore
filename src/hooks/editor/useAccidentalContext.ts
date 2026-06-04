@@ -1,6 +1,9 @@
 import { useMemo } from 'react';
 import { ScoreEvent } from '@/types';
-import { resolveMeasureAccidentals } from '@/utils/accidentalContext';
+import {
+  resolveMeasureAccidentals,
+  type AccidentalGlyphDecision,
+} from '@/utils/accidentalContext';
 
 /**
  * Hook: which accidental glyph (if any) each note in a measure should display,
@@ -14,13 +17,13 @@ import { resolveMeasureAccidentals } from '@/utils/accidentalContext';
  *
  * @param events - The events in the measure (already in temporal order)
  * @param keySignature - The current key signature (e.g. 'G', 'Bb', 'Em')
- * @returns A map of noteId -> SMuFL accidental glyph, or null to hide.
+ * @returns A map of noteId -> glyph decision ({ glyph, parenthesized }), or null.
  *
  * @tested src/__tests__/theory/accidentalContext.test.ts
  */
 export function useAccidentalContext(
   events: ScoreEvent[],
   keySignature: string
-): Record<string, string | null> {
+): Record<string, AccidentalGlyphDecision | null> {
   return useMemo(() => resolveMeasureAccidentals(events, keySignature), [events, keySignature]);
 }

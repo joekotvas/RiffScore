@@ -35,8 +35,14 @@ const ev = (...pitches: (string | null)[]): ScoreEvent => {
   };
 };
 
-const run = (events: ScoreEvent[], key: string) =>
-  renderHook(() => useAccidentalContext(events, key)).result.current;
+const run = (events: ScoreEvent[], key: string): Record<string, string | null> => {
+  const raw = renderHook(() => useAccidentalContext(events, key)).result.current;
+  // This suite predates the display-policy field (#236); collapse each decision to
+  // its glyph (there are no courtesy notes here) so the glyph/null assertions hold.
+  const out: Record<string, string | null> = {};
+  for (const [id, decision] of Object.entries(raw)) out[id] = decision ? decision.glyph : null;
+  return out;
+};
 
 describe('measure accidental memory', () => {
   it('does NOT repeat an accidental on a repeated altered pitch in the same measure', () => {

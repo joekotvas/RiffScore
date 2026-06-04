@@ -3,7 +3,7 @@ import { LAYOUT } from '@/constants';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
 import { getOffsetForPitch } from '@/engines/layout';
-import { NOTEHEADS, BRAVURA_FONT, getFontSize, DOTS } from '@/constants/SMuFL';
+import { NOTEHEADS, BRAVURA_FONT, getFontSize, DOTS, ACCIDENTALS } from '@/constants/SMuFL';
 import { NoteProps } from '@/componentTypes';
 
 // =============================================================================
@@ -56,15 +56,22 @@ const Accidental = ({
   y,
   symbol,
   color,
+  parenthesized = false,
 }: {
   x: number;
   y: number;
   symbol: string;
   color: string;
+  /** Draw as a parenthesized cautionary accidental (#236 courtesy policy). */
+  parenthesized?: boolean;
 }) => {
   if (!symbol) return null;
 
   const fontSize = getFontSize(CONFIG.lineHeight);
+  // Wrap a courtesy accidental in the SMuFL accidental-parenthesis glyphs.
+  const glyph = parenthesized
+    ? `${ACCIDENTALS.parenthesisLeft}${symbol}${ACCIDENTALS.parenthesisRight}`
+    : symbol;
 
   return (
     <text
@@ -76,7 +83,7 @@ const Accidental = ({
       textAnchor="middle"
       style={{ userSelect: 'none' }}
     >
-      {symbol}
+      {glyph}
     </text>
   );
 };
@@ -232,6 +239,7 @@ const Note: React.FC<NoteProps> = React.memo(
     isPreview = false, // Lasso preview state (shows semi-transparent accent)
     isGhost = false,
     accidentalGlyph = null,
+    accidentalParenthesized = false,
     color: overrideColor = null,
 
     // Interaction handlers (optional for interactive notes)
@@ -286,7 +294,13 @@ const Note: React.FC<NoteProps> = React.memo(
 
         {/* 2. Accidental */}
         {accidentalGlyph && (
-          <Accidental x={accidentalX} y={accidentalY} symbol={accidentalGlyph} color={color} />
+          <Accidental
+            x={accidentalX}
+            y={accidentalY}
+            symbol={accidentalGlyph}
+            color={color}
+            parenthesized={accidentalParenthesized}
+          />
         )}
 
         {/* 3. Note Head */}

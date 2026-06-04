@@ -26,10 +26,27 @@ export const SCHEMA_VERSION = 1 as const;
 
 // ========== NOTE ==========
 
+/**
+ * Accidental DISPLAY policy — orthogonal to sounding pitch (#236, contract C1).
+ * Policy only, never a glyph name (the glyph is always derived from `pitch`):
+ *   - 'auto'     standard engraving rules decide (the default when omitted).
+ *   - 'show'     force the accidental glyph even when the rules would omit it.
+ *   - 'hide'     suppress the glyph even when the rules would show it.
+ *   - 'courtesy' force the glyph as a parenthesized cautionary accidental.
+ * Never affects the sounding pitch; only whether/how the glyph is drawn.
+ */
+export type AccidentalDisplay = 'auto' | 'show' | 'hide' | 'courtesy';
+
 export interface Note {
   id: string;
   pitch: string | null; // e.g., 'C4', 'D#5', 'Bb3', or null for rests
   accidental?: 'sharp' | 'flat' | 'natural' | null;
+  /**
+   * Display policy for this note's accidental (#236). Omitted === 'auto'.
+   * Orthogonal to `pitch`/`accidental`: it changes only whether/how the glyph is
+   * drawn, never the sounding pitch.
+   */
+  accidentalDisplay?: AccidentalDisplay;
   tied?: boolean; // Tied to next note
   isRest?: boolean; // True for rest notes (pitchless)
 }
