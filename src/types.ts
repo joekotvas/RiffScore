@@ -21,8 +21,12 @@ import { Note as TonalNote } from 'tonal';
  *
  * History:
  * - 1: staves model + measure-local chordTrack (accumulated, not modulo).
+ * - 2: enharmonic key-signature canonicalization (#238) + `note.accidental`
+ *      derived-mirror reconciliation (#234), both applied in `migrateScore`.
+ *      Bumped so scores stamped at v1 re-run those steps instead of taking the
+ *      idempotency fast-path (which returns a current-version score verbatim).
  */
-export const SCHEMA_VERSION = 1 as const;
+export const SCHEMA_VERSION = 2 as const;
 
 // ========== NOTE ==========
 
