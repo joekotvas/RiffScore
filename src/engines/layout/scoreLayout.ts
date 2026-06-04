@@ -200,6 +200,10 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
   const activeStaff = score.staves[0];
   const preamble = calculateSystemPreamble(score.keySignature || activeStaff.keySignature || 'C');
 
+  // Resolve the time signature once so beam grouping is meter-aware (e.g. 6/8
+  // beams in dotted-quarter beats rather than assuming 4/4).
+  const scoreTimeSignature = score.timeSignature || '4/4';
+
   // 1. Calculate System Metrics (Grand Staff Logic)
   const { widths: synchronizedWidths, forcedPositions: synchronizedForcedPositions } =
     calculateSystemMetrics(score.staves);
@@ -238,7 +242,8 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
         beamGroups: calculateBeamingGroups(
           measure.events,
           relativeLayout.eventPositions,
-          staffClef
+          staffClef,
+          scoreTimeSignature
         ),
         tupletGroups: calculateTupletBrackets(
           relativeLayout.processedEvents,
@@ -267,7 +272,7 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
   });
 
   // --- Build getX function (measure-relative) ---
-  const timeSignature = score.timeSignature || '4/4';
+  const timeSignature = scoreTimeSignature;
   const quantsPerMeasure = TIME_SIGNATURES[timeSignature] || TIME_SIGNATURES['4/4'];
 
   // Build per-measure quant→X map (measure-relative coordinates)

@@ -23,6 +23,7 @@ import { BeamGroup } from '@/engines/layout/types';
  * @param forcedEventPositions - Optional forced positions from Grand Staff sync
  * @param forcedWidth - Optional forced width from Grand Staff sync
  * @param stretchFactor - Optional stretch factor for justified systems (default: 1.0)
+ * @param timeSignature - Optional time signature for meter-aware beam grouping (default: '4/4')
  */
 export function useMeasureLayout(
   events: ScoreEvent[],
@@ -30,7 +31,8 @@ export function useMeasureLayout(
   isPickup: boolean,
   forcedEventPositions?: Record<string, number>,
   forcedWidth?: number,
-  stretchFactor: number = 1.0
+  stretchFactor: number = 1.0,
+  timeSignature: string = '4/4'
 ) {
   // Core measure layout
   const measureLayout = useMemo(() => {
@@ -54,10 +56,10 @@ export function useMeasureLayout(
     return processedEvents;
   }, [processedEvents, forcedWidth, effectiveWidth]);
 
-  // Beam grouping for 8th/16th notes
+  // Beam grouping for 8th/16th notes (meter-aware via timeSignature)
   const beamGroups = useMemo(() => {
-    return calculateBeamingGroups(events, eventPositions, clef);
-  }, [events, eventPositions, clef]) as BeamGroup[];
+    return calculateBeamingGroups(events, eventPositions, clef, timeSignature);
+  }, [events, eventPositions, clef, timeSignature]) as BeamGroup[];
 
   // Tuplet bracket positioning
   const tupletGroups = useMemo(() => {
