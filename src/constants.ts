@@ -9,6 +9,7 @@
 
 import { CONFIG } from './config';
 import { Key } from 'tonal';
+import { getClefReference } from './utils/clef';
 
 // =============================================================================
 // DERIVED LAYOUT VALUES (from CONFIG.lineHeight)
@@ -16,21 +17,6 @@ import { Key } from 'tonal';
 
 const SPACE = CONFIG.lineHeight; // 12px - distance between staff lines
 const HALF_SPACE = 0.5 * SPACE; // 6px
-
-// Staff positions (Y offset from baseY/top line of staff)
-const STAFF_POSITION = {
-  aboveStaff: -0.5 * SPACE,
-  line5: 0,
-  space4: 0.5 * SPACE,
-  line4: 1 * SPACE,
-  space3: 1.5 * SPACE,
-  line3: 2 * SPACE,
-  space2: 2.5 * SPACE,
-  line2: 3 * SPACE,
-  space1: 3.5 * SPACE,
-  line1: 4 * SPACE,
-  belowStaff: 4.5 * SPACE,
-};
 
 export const MIDDLE_LINE_Y = CONFIG.baseY + 24;
 
@@ -123,88 +109,87 @@ export interface KeySignatureOffsets {
   tenor: { sharp: Record<string, number>; flat: Record<string, number> };
 }
 
-export const KEY_SIGNATURE_OFFSETS: KeySignatureOffsets = {
+/**
+ * Conventional ENGRAVING OCTAVE of each key-signature accidental, per clef
+ * (sharps in order F C G D A E B; flats in order B E A D G C F). The octave is
+ * the only hand-authored datum — the staff offset is DERIVED below from the same
+ * clef-reference geometry that positions notes, so a key-signature glyph always
+ * sits on the exact line/space of a note of that pitch (no drift; see #233).
+ *
+ * Treble, bass and alto follow the standard down-a-4th / up-a-5th pattern; tenor
+ * SHARPS use the traditional lower-octave (ascending) exception so they fit on
+ * the staff. (Verified against the rule and against getOffsetForPitch in
+ * clefKeySignature.test.)
+ */
+const KEY_SIG_PITCHES: Record<
+  keyof KeySignatureOffsets,
+  { sharp: Record<string, string>; flat: Record<string, string> }
+> = {
   treble: {
-    sharp: {
-      F: STAFF_POSITION.line5,
-      C: STAFF_POSITION.space3,
-      G: STAFF_POSITION.aboveStaff,
-      D: STAFF_POSITION.line4,
-      A: STAFF_POSITION.space2,
-      E: STAFF_POSITION.space4,
-      B: STAFF_POSITION.line3,
-    },
-    flat: {
-      B: STAFF_POSITION.line3,
-      E: STAFF_POSITION.space4,
-      A: STAFF_POSITION.space2,
-      D: STAFF_POSITION.line4,
-      G: STAFF_POSITION.line2,
-      C: STAFF_POSITION.space3,
-      F: STAFF_POSITION.space1,
-    },
-  },
-  alto: {
-    sharp: {
-      F: STAFF_POSITION.line3, // C-clef center is Line 3 (Middle C)
-      C: STAFF_POSITION.space1,
-      G: STAFF_POSITION.aboveStaff, // or space 5
-      D: STAFF_POSITION.line2,
-      A: STAFF_POSITION.space4,
-      E: STAFF_POSITION.space2,
-      B: STAFF_POSITION.line4,
-    },
-    flat: {
-      B: STAFF_POSITION.line4,
-      E: STAFF_POSITION.space2,
-      A: STAFF_POSITION.space4,
-      D: STAFF_POSITION.line2,
-      G: STAFF_POSITION.aboveStaff,
-      C: STAFF_POSITION.space2,
-      F: STAFF_POSITION.line1,
-    },
-  },
-  // Tenor Clef: Line 4 = C4 (Middle C)
-  // Line 1=D3, Space1=E3, Line2=F3, Space2=G3, Line3=A3, Space3=B3, Line4=C4, Space4=D4, Line5=E4
-  tenor: {
-    sharp: {
-      F: STAFF_POSITION.space4, // F4
-      C: STAFF_POSITION.line4, // C4 is Line 4, so C#4 is on Line 4
-      G: STAFF_POSITION.aboveStaff, // G4 is above staff
-      D: STAFF_POSITION.space4, // D4
-      A: STAFF_POSITION.line3, // A3
-      E: STAFF_POSITION.line5, // E4
-      B: STAFF_POSITION.space3, // B3
-    },
-    flat: {
-      B: STAFF_POSITION.space3, // B3
-      E: STAFF_POSITION.line5, // E4
-      A: STAFF_POSITION.line3, // A3
-      D: STAFF_POSITION.space4, // D4
-      G: STAFF_POSITION.aboveStaff, // G4
-      C: STAFF_POSITION.line4, // C4
-      F: STAFF_POSITION.space2, // F3
-    },
+    sharp: { F: 'F5', C: 'C5', G: 'G5', D: 'D5', A: 'A4', E: 'E5', B: 'B4' },
+    flat: { B: 'B4', E: 'E5', A: 'A4', D: 'D5', G: 'G4', C: 'C5', F: 'F4' },
   },
   bass: {
-    sharp: {
-      F: STAFF_POSITION.line4,
-      C: STAFF_POSITION.space2,
-      G: STAFF_POSITION.space4,
-      D: STAFF_POSITION.line3,
-      A: STAFF_POSITION.line5,
-      E: STAFF_POSITION.space3,
-      B: STAFF_POSITION.aboveStaff,
-    },
-    flat: {
-      B: STAFF_POSITION.line2,
-      E: STAFF_POSITION.space3,
-      A: STAFF_POSITION.space1,
-      D: STAFF_POSITION.line3,
-      G: STAFF_POSITION.line1,
-      C: STAFF_POSITION.space2,
-      F: STAFF_POSITION.belowStaff,
-    },
+    sharp: { F: 'F3', C: 'C3', G: 'G3', D: 'D3', A: 'A3', E: 'E3', B: 'B3' },
+    flat: { B: 'B2', E: 'E3', A: 'A2', D: 'D3', G: 'G2', C: 'C3', F: 'F2' },
+  },
+  alto: {
+    sharp: { F: 'F4', C: 'C4', G: 'G4', D: 'D4', A: 'A3', E: 'E4', B: 'B3' },
+    flat: { B: 'B3', E: 'E4', A: 'A3', D: 'D4', G: 'G3', C: 'C4', F: 'F3' },
+  },
+  tenor: {
+    sharp: { F: 'F3', C: 'C4', G: 'G3', D: 'D4', A: 'A3', E: 'E4', B: 'B3' },
+    flat: { B: 'B3', E: 'E4', A: 'A3', D: 'D4', G: 'G3', C: 'C4', F: 'F3' },
+  },
+};
+
+// Diatonic index of a natural pitch (e.g. 'C4' -> 28), for staff-step arithmetic.
+const DIATONIC_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const diatonicIndex = (pitch: string): number => {
+  const m = pitch.match(/^([A-G])(-?\d+)$/);
+  return m ? parseInt(m[2], 10) * 7 + DIATONIC_LETTERS.indexOf(m[1]) : 0;
+};
+
+/**
+ * Staff Y offset (relative to baseY) of a natural pitch in a clef. MUST match
+ * engines/layout getOffsetForPitch: `(5 - referenceLine)*SPACE - steps*HALF_SPACE`.
+ * Implemented here against the leaf module clef.ts to avoid a constants <->
+ * positioning import cycle; the equivalence is asserted in clefKeySignature.test.
+ */
+const staffOffsetForPitch = (pitch: string, clef: keyof KeySignatureOffsets): number => {
+  const { referencePitch, referenceLine } = getClefReference(clef);
+  const steps = diatonicIndex(pitch) - diatonicIndex(referencePitch);
+  return (5 - referenceLine) * SPACE - steps * HALF_SPACE;
+};
+
+const deriveOffsets = (
+  pitches: Record<string, string>,
+  clef: keyof KeySignatureOffsets
+): Record<string, number> =>
+  Object.fromEntries(
+    Object.entries(pitches).map(([letter, pitch]) => [letter, staffOffsetForPitch(pitch, clef)])
+  );
+
+/**
+ * Key-signature accidental Y offsets, DERIVED from the conventional pitches above
+ * and the shared clef geometry — so they always agree with note positioning.
+ */
+export const KEY_SIGNATURE_OFFSETS: KeySignatureOffsets = {
+  treble: {
+    sharp: deriveOffsets(KEY_SIG_PITCHES.treble.sharp, 'treble'),
+    flat: deriveOffsets(KEY_SIG_PITCHES.treble.flat, 'treble'),
+  },
+  bass: {
+    sharp: deriveOffsets(KEY_SIG_PITCHES.bass.sharp, 'bass'),
+    flat: deriveOffsets(KEY_SIG_PITCHES.bass.flat, 'bass'),
+  },
+  alto: {
+    sharp: deriveOffsets(KEY_SIG_PITCHES.alto.sharp, 'alto'),
+    flat: deriveOffsets(KEY_SIG_PITCHES.alto.flat, 'alto'),
+  },
+  tenor: {
+    sharp: deriveOffsets(KEY_SIG_PITCHES.tenor.sharp, 'tenor'),
+    flat: deriveOffsets(KEY_SIG_PITCHES.tenor.flat, 'tenor'),
   },
 };
 
