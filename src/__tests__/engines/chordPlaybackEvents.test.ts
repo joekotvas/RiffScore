@@ -63,6 +63,23 @@ describe('createChordPlaybackEvents', () => {
     expect(second.time).toBeCloseTo(first.time + first.duration);
   });
 
+  it('caps a chord at its own measure end when the next chord is in a later measure', () => {
+    // Chord A in measure 0; the next chord is not until measure 1. A must NOT bleed
+    // across the barline to reach it — it ends at its own measure end, leaving the
+    // gap before B silent. (Exercises the "next chord in a later measure" branch.)
+    const score = scoreWithChords([chord('c1', 0, 0, 'C'), chord('c2', 1, 32, 'G')]);
+    const events = createChordPlaybackEvents(score, 120, 50);
+
+    expect(events).toHaveLength(2);
+    const [first, second] = events;
+    // A: t=0, capped at end of measure 0 (64 quants = 2.0s), not extended to B at 3.0s.
+    expect(first.time).toBeCloseTo(0);
+    expect(first.duration).toBeCloseTo(64 * SECONDS_PER_QUANT); // 2.0s
+    // B: starts at m1 q32 (global quant 96 = 3.0s), runs to the end of the 2-measure score.
+    expect(second.time).toBeCloseTo(96 * SECONDS_PER_QUANT); // 3.0s
+    expect(second.duration).toBeCloseTo(32 * SECONDS_PER_QUANT); // 1.0s
+  });
+
   it('places chords in later measures at the correct global time offset', () => {
     const score = scoreWithChords([chord('c1', 1, 0, 'Am')]);
     const events = createChordPlaybackEvents(score, 120, 50);
