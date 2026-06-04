@@ -126,24 +126,30 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 | `.` | `.` | Toggle dotted |
 | `R` | `R` | Toggle note/rest mode |
 | `T` | `T` | Toggle tie |
+| `-` / `=` / `0` | `-` / `=` / `0` | Flat / Sharp / Natural |
 | `Enter` | `Enter` | Insert note/rest at cursor |
 | `↑` / `↓` | `↑` / `↓` | Transpose selection |
 | **Navigation & Selection** |||
 | `←` / `→` | `←` / `→` | Previous / Next event |
 | `Shift+←/→` | `Shift+←/→` | Extend selection horizontally |
 | `Cmd+↑/↓` | `Ctrl+↑/↓` | Navigate within chord |
+| `Alt+↑/↓` | `Alt+↑/↓` | Switch staff (grand staff) |
 | `Cmd+Shift+↑/↓` | `Ctrl+Shift+↑/↓` | Extend selection vertically |
 | `Cmd+A` | `Ctrl+A` | Select all (progressive) |
 | `Esc` | `Esc` | Clear selection / Cancel |
 | **Playback** |||
 | `Space` | `Space` | Play / Pause |
+| `P` | `P` | Play from selection |
+| `Shift+Space` | `Shift+Space` | Replay from last start |
+| `Shift+Alt+Space` | `Shift+Alt+Space` | Play from beginning |
 | **History** |||
 | `Cmd+Z` | `Ctrl+Z` | Undo |
 | `Cmd+Shift+Z` | `Ctrl+Y` | Redo |
-| **Page View** |||
+| **View** |||
 | `Cmd+\` | `Ctrl+\` | Toggle scroll/page view |
 | `Cmd+,` | `Ctrl+,` | Open Score Setup dialog |
 | `Cmd+P` | `Ctrl+P` | Print |
+| `Cmd+Shift+F` | `Ctrl+Shift+F` | Toggle fullscreen |
 
 See the [Interaction Guide](./docs/INTERACTION.md) for the complete keyboard reference.
 

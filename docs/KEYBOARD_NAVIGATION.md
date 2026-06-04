@@ -370,7 +370,7 @@ This is critical after vertical navigation places a ghost on a different staff.
 
 | File | Function | Responsibility |
 |------|----------|----------------|
-| [useNavigation.ts](../src/hooks/useNavigation.ts) | `moveSelection()` | Orchestrates navigation, determines active staff |
+| [useNavigation.ts](../src/hooks/interaction/useNavigation.ts) | `moveSelection()` | Orchestrates navigation, determines active staff |
 | [horizontal.ts](../src/utils/navigation/horizontal.ts) | `calculateNextSelection()` | Horizontal navigation logic |
 | [vertical.ts](../src/utils/navigation/vertical.ts) | `calculateVerticalNavigation()` | Vertical navigation and cross-staff logic |
 | [horizontal.ts](../src/utils/navigation/horizontal.ts) | `getAdjustedDuration()` | Finds largest duration that fits space |
