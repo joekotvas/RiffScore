@@ -12,18 +12,19 @@ import { MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT, WHOLE_REST_WIDTH, LAYOUT } from 
 import { ScoreEvent, MeasureLayout, HitZone, Note, ChordLayout } from './types';
 import { getNoteWidth, calculateChordLayout, getOffsetForPitch } from './positioning';
 import { getTupletGroup } from './tuplets';
-import { deriveAccidental } from '@/services/MusicService';
+import { pitchHasAlteration } from '@/services/MusicService';
 
 /**
  * Whether a note carries a chromatic alteration in its pitch (the single source
  * of truth). Used to reserve accidental width regardless of the legacy
  * `note.accidental` mirror, which a normally-entered sharp/flat may leave null.
+ * Delegates to the shared `pitchHasAlteration` so `measure.ts` and `system.ts`
+ * reserve accidental width by the SAME rule and cannot drift apart.
  * Note: this intentionally over-reserves for key-signature-implied accidentals
  * (the key is not threaded into the layout engine), which is safe — better a
  * little extra space than a glyph colliding with a notehead.
  */
-const noteHasAlteration = (n: Note): boolean =>
-  n.pitch != null && deriveAccidental(n.pitch) !== 'natural' && deriveAccidental(n.pitch) !== null;
+const noteHasAlteration = (n: Note): boolean => pitchHasAlteration(n.pitch);
 
 // --- CONSTANTS (from centralized LAYOUT) ---
 

@@ -46,6 +46,18 @@ export const deriveAccidental = (
 };
 
 /**
+ * Whether a pitch carries a chromatic alteration (sharp/flat/double) and would
+ * therefore reserve/show an accidental. Derived from the pitch string (the single
+ * source of truth), so it is correct even when the legacy `accidental` mirror is
+ * null or stale. This is the ONE predicate the layout engines (`measure.ts` and
+ * `system.ts`) share so their accidental-width reservation can never drift apart.
+ */
+export const pitchHasAlteration = (pitch: string | null | undefined): boolean => {
+  const a = deriveAccidental(pitch);
+  return a !== null && a !== 'natural';
+};
+
+/**
  * Derives the FULL chromatic alteration of a pitch (including double
  * sharps/flats) from the pitch string. `alt === 0` returns 'natural'.
  */

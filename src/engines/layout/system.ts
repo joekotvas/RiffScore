@@ -10,6 +10,7 @@ import { getNoteDuration } from '@/utils/core';
 import { NOTE_SPACING_BASE_UNIT, LAYOUT } from '@/constants';
 import { ScoreEvent, Note } from './types';
 import { calculateChordLayout } from './positioning';
+import { pitchHasAlteration } from '@/services/MusicService';
 
 // --- CONSTANTS ---
 
@@ -71,7 +72,9 @@ const findEventAtQuant = (events: ScoreEvent[], targetQuant: number): ScoreEvent
 const calculateEventPadding = (event: ScoreEvent): number => {
   let padding = 0;
 
-  const hasAccidental = event.notes.some((n: Note) => n.accidental);
+  // Derive from pitch (the source of truth), matching measure.ts exactly so the
+  // two layout engines reserve accidental width identically (no cross-staff drift).
+  const hasAccidental = event.notes.some((n: Note) => pitchHasAlteration(n.pitch));
   if (hasAccidental) {
     padding = Math.max(padding, ACCIDENTAL_PADDING);
   }

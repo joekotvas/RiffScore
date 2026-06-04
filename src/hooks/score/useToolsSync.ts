@@ -9,6 +9,7 @@
 
 import { useEffect } from 'react';
 import { Selection, Score, ScoreEvent, getActiveStaff } from '@/types';
+import { deriveAccidental } from '@/services/MusicService';
 
 interface UseToolsSyncProps {
   score: Score;
@@ -55,7 +56,12 @@ export const useToolsSync = ({
       if (noteId) {
         const note = event.notes.find((n) => n.id === noteId);
         if (note) {
-          setActiveAccidental(note.accidental || null);
+          // Derive from pitch (source of truth), not the stored mirror which may be
+          // null/stale. Only a real alteration (sharp/flat) becomes sticky — a plain
+          // or natural note must NOT leak a sticky 'natural', or it would suppress
+          // key-signature snapping on the next note entry.
+          const acc = note.pitch ? deriveAccidental(note.pitch) : null;
+          setActiveAccidental(acc && acc !== 'natural' ? acc : null);
           setActiveTie(!!note.tied);
         }
       } else {
