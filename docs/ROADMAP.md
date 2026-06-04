@@ -1,6 +1,6 @@
 # RiffScore Roadmap
 
-> **Generated:** 2026-06-04 · **Living document** · reflects state through **v1.0.0-alpha.12** ([PR #248](https://github.com/joekotvas/RiffScore/pull/248)).
+> **Generated:** 2026-06-04 · **Living document** · reflects state through **v1.0.0-alpha.12** ([PR #248](https://github.com/joekotvas/RiffScore/pull/248)), **plus M1 shipped on `dev`** (post-alpha.12, pending the next release).
 > Grounded in the 2026-06 correctness audit ([CORRECTNESS_AUDIT_2026-06.md](audit/CORRECTNESS_AUDIT_2026-06.md),
 > [AUDIT_QA_2026-06.md](audit/AUDIT_QA_2026-06.md)) and re-sequenced per the audit's
 > own second-pass QA. Every load-bearing claim below was independently fact-checked
@@ -55,30 +55,33 @@ release now on `dev` / [PR #248](https://github.com/joekotvas/RiffScore/pull/248
 
 ## Milestones
 
-### M1 — Truth-in-advertising · *small (days)*
+### M1 — Truth-in-advertising · ✅ *shipped on `dev` (post-alpha.12, pending release)*
 
-Make the README honest immediately — partly by cheap fixes, partly by honest labeling.
-Highest integrity-per-effort.
+Make the README honest — partly by cheap fixes, partly by honest labeling. Highest
+integrity-per-effort. **All items below landed on `dev`; M1's gate was met and
+independently verified.**
 
-- **`api.play()` chord parity** — wire it through `scheduleScorePlayback` instead of the
-  melody-only `scheduleTonePlayback`. The chord-scheduling machinery already exists and
-  is used by the UI; this is a localized scheduler swap. Restores an advertised promise.
-  *(Carve-out from #242's `api-play-ignores-chords`.)*
-- **Page View contradiction** — it is listed as both *Feature* and *Coming Soon* and is
-  mid-branch (`feature/issue-174`) with confirmed defects → mark **experimental/beta**
-  and remove it from the "promises" set until M4.
-- **Alto/tenor `StaffTemplate`** — note geometry and key sigs are already correct and
-  regression-tested; the *only* gap is that `StaffTemplate` (programmatic config /
-  `reset()`) excludes alto/tenor while `setClef`/the clef menu include them. Decide:
-  add them to `StaffTemplate` (small) **or** document the asymmetry. No rendering work.
-- **Honest stub labeling** — `setChordDisplay`/`setChordPlayback` (#207), copy/paste
-  (#36), ABC/MusicXML import (#10/#11), and the never-built grand→single *merge* are
-  all advertised as present or imminent. Label them "Coming Soon" consistently (or
-  implement the cheap ones).
-- **Document** the `on('score')`/`on('selection')` vs `getScore()` coherence contract
-  (async event vs synchronous read).
+- ✅ **`api.play()` chord parity** — routed through `scheduleScorePlayback` with the
+  score + `DEFAULT_CHORD_PLAYBACK`, so the API plays the chord track like the UI's Play
+  button. *(Carve-out from #242's `api-play-ignores-chords`.)*
+- ✅ **Page View contradiction** — marked **Experimental** in the README and removed
+  from the promise set until M4.
+- ✅ **Alto/tenor `StaffTemplate`** — added `'alto' | 'tenor'` to `StaffTemplate`,
+  `generateStaves`, and `reset()`; programmatic config now matches `setClef`. No
+  rendering work (geometry was already correct and regression-tested).
+- ✅ **Honest stub labeling** — `setChordDisplay`/`setChordPlayback` (#207), copy/paste
+  (#36), and ABC/MusicXML import (#10/#11) are consistently labeled (stub / Coming Soon);
+  the never-built grand→single *merge* JSDoc was corrected.
+- ✅ **Coherence contract** — documented `getScore()` (synchronous/authoritative) vs
+  `on('score')`/`on('selection')` (post-commit, may coalesce) on the API.
+- ➕ **Batch event label** (found during M1 QA) — `commitTransaction(label)` now reaches
+  `payload.label` (it was dropped by `ScoreEngine.commitBatch`), so the documented
+  `on('batch')` examples actually work.
+- ➕ **Docs quality pass** — corrected drift across API.md / DATA_MODEL.md /
+  CONFIGURATION.md / COOKBOOK.md (method signatures, the `ChordSymbol` + tuplet shapes,
+  the chord-progression recipe, the keyboard reference, dead links, section numbering).
 
-**Done when:** no doc and no API `@status` makes a false claim.
+**Done when:** no doc and no API `@status` makes a false claim. — ✅ **Met** (independently verified).
 
 ---
 
@@ -175,7 +178,7 @@ dynamics (#20/#21), slurs (#19), lyrics (#30), repeats (#28), inline key/time ch
 ## Critical path
 
 ```
-M1 (truth)  →  M2 (#239 → #242)  →  M3 (export/engraving)  →  (M4 decision)  →  M5
+M1 (truth) ✅  →  M2 (#239 → #242)  →  M3 (export/engraving)  →  (M4 decision)  →  M5
 ```
 
 **M2 is the long pole.** Start with **#239** (clean, self-contained, half-done), then give
@@ -223,12 +226,12 @@ and folds in the promise-gaps:
 ## Verification
 
 This roadmap's load-bearing claims were independently fact-checked against the code
-(2026-06-04, updated post-alpha.12). Confirmed: `SCHEMA_VERSION` is stamped by
-`migrateScore` and was bumped to **2** in alpha.12 so v1 scores re-run the new
+(2026-06-04; **M1 status updated post-M1 on `dev`**). Confirmed: `SCHEMA_VERSION` is
+stamped by `migrateScore` and was bumped to **2** in alpha.12 so v1 scores re-run the new
 migration steps (#237 unblocked); the export wins above are all present (`<fifths>` is score-level, which
-is correct for the single-key model); `api.play()` is melody-only and the fix is a
-localized scheduler swap; alto/tenor note geometry is correct and regression-tested (only
-the `StaffTemplate` gap remains); `setChordDisplay`/`setChordPlayback` are stubs; transpose
+is correct for the single-key model); **`api.play()` now plays the chord track via
+`scheduleScorePlayback` (M1) and alto/tenor are in `StaffTemplate`/`reset()` (M1)** — both
+shipped on `dev`; `setChordDisplay`/`setChordPlayback` are stubs; transpose
 lossless undo is done while the rename/coercion/spelling-test work remains; and the
 tuplet-grid dependency for #242/#245 is real (partial-tuplet quants are non-integer and
 `getBreakdownOfQuants` drops the remainder), making the integrality guard mandatory.
