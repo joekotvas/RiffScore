@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### For musicians
+- **Alto and tenor key signatures are correct now** — the sharps and flats sit on their proper lines and spaces (an alto F♯, for example, no longer lands on the C line). Treble and bass were already right. ([#233](https://github.com/joekotvas/riffscore/issues/233))
+
+### For developers
+- `KEY_SIGNATURE_OFFSETS` is now **derived** from each accidental's conventional engraving pitch via the shared clef geometry (`getClefReference`), instead of a hand-authored offset table — so key-signature glyphs and notes share one source and can't drift apart (the root cause of the alto/tenor bug). Verified by a geometry-oracle test that renders `ScoreHeader` and checks each glyph sits on its letter's line via the production `getPitchForOffset`. ([#233](https://github.com/joekotvas/riffscore/issues/233), [#235](https://github.com/joekotvas/riffscore/issues/235))
+
 ## [1.0.0-alpha.11] - 2026-06-03
 
 A foundational correctness pass focused on music theory, engraving, and export —
