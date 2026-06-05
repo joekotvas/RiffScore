@@ -12,6 +12,9 @@ change can be **seen** to be correct and any regression is caught automatically.
   glyphs jsdom can't render).
 
 One corpus feeds both lanes (and the gallery): [`src/__tests__/fixtures/visual/index.ts`](../src/__tests__/fixtures/visual/index.ts).
+Each fixture is a **focused scenario** (split at natural seams) carrying a `feature` (gallery
+group + filter) and `covers` (the scenarios it exercises). The gallery is **searchable** (by
+name / description / tags / covers) and **filterable** by feature.
 
 > **Why two lanes?** jsdom has no fonts or layout engine, so Lane A can only assert
 > *attributes* — but RiffScore computes engraving geometry purely in JS, so those
@@ -33,8 +36,11 @@ One corpus feeds both lanes (and the gallery): [`src/__tests__/fixtures/visual/i
 
 ## Adding a fixture
 
-Add one entry to `visualFixtures` in [`src/__tests__/fixtures/visual/index.ts`](../src/__tests__/fixtures/visual/index.ts).
-Both lanes and the gallery pick it up automatically. Then:
+Add one entry to `visualFixtures` in [`src/__tests__/fixtures/visual/index.ts`](../src/__tests__/fixtures/visual/index.ts)
+— set `name`, `feature` (reuse an existing group so it filters together), `description`,
+`covers` (the scenarios it exercises — shown in the gallery and searchable), `tags`, and a
+focused `score`. The `treble(...)` / `clefFixture(...)` / `keyFixture(...)` helpers keep most
+fixtures to a line or two. Both lanes and the gallery pick it up automatically. Then:
 
 1. `npm test -- -u` to write its Lane A fact snapshot (review the new snapshot block).
 2. Seed its Lane B baseline via CI (see below).

@@ -46,11 +46,18 @@ describe('Visual regression — Lane A (structured-fact snapshots)', () => {
 });
 
 describe('Visual regression — Lane A (engraving oracles)', () => {
+  // Note ledgers are the short horizontal lines; staff lines span the measure. Isolate the
+  // short ones from a fixture's facts.
+  const noteLedgerWidths = (name: string) =>
+    extractFacts(fixtureByName(name).score)
+      .ledgerLines.map((l) => Math.round(l.x2 - l.x1))
+      .filter((w) => w < 40);
+
   it('ascending scale: noteheads march left-to-right and high-to-low (ascending pitch ⇒ descending Y)', () => {
-    const { canvas, unmount } = renderScore(fixtureByName('treble-ascending-scale').score);
+    const { canvas, unmount } = renderScore(fixtureByName('clef-treble').score);
     try {
-      const heads = noteheads(canvas);
-      expect(heads).toHaveLength(8); // two bars of four quarters
+      const heads = noteheads(canvas); // single bar of eight ascending eighths
+      expect(heads).toHaveLength(8);
       const black = codepointFor('noteheadBlack');
       for (let i = 1; i < heads.length; i++) {
         expect(heads[i].x).toBeGreaterThan(heads[i - 1].x); // strictly rightward
@@ -62,12 +69,34 @@ describe('Visual regression — Lane A (engraving oracles)', () => {
     }
   });
 
+  it.each([
+    ['clef-treble', 'gClef'],
+    ['clef-bass', 'fClef'],
+    ['clef-alto', 'cClef'],
+    ['clef-tenor', 'cClef'],
+  ] as const)('%s renders its clef glyph', (fixture, glyph) => {
+    const { canvas, unmount } = renderScore(fixtureByName(fixture).score);
+    try {
+      expect(codepoints(canvas)).toContain(codepointFor(glyph));
+    } finally {
+      unmount();
+    }
+  });
+
   it('grand staff renders two braced staves (two staff-line groups)', () => {
     const { container, canvas, unmount } = renderScore(fixtureByName('grand-staff').score);
     try {
-      const staffLineGroups = container.querySelectorAll('.staff-lines');
-      expect(staffLineGroups.length).toBeGreaterThanOrEqual(2);
+      expect(container.querySelectorAll('.staff-lines').length).toBeGreaterThanOrEqual(2);
       expect(noteheads(canvas).length).toBeGreaterThan(0);
+    } finally {
+      unmount();
+    }
+  });
+
+  it('multi-staff fixture renders every staff (4 clefs ⇒ 4 staves)', () => {
+    const { container, unmount } = renderScore(fixtureByName('key-placement-all-clefs').score);
+    try {
+      expect(container.querySelectorAll('.staff-lines').length).toBeGreaterThanOrEqual(4);
     } finally {
       unmount();
     }
@@ -88,63 +117,54 @@ describe('Visual regression — Lane A (engraving oracles)', () => {
     }
   });
 
-  it('complete triplet draws a bracket labeled "3"', () => {
-    const { container, unmount } = renderScore(fixtureByName('triplet-complete').score);
+  it('triplet draws a bracket labeled "3"', () => {
+    const { container, unmount } = renderScore(fixtureByName('tuplet-eighth-triplet').score);
     try {
       const bracket = container.querySelector('.tuplet-bracket');
       expect(bracket).not.toBeNull();
-      const label = bracket!.querySelector('text');
-      expect(label?.textContent).toBe('3');
+      expect(bracket!.querySelector('text')?.textContent).toBe('3');
     } finally {
       unmount();
     }
   });
 
   it('chord stacks ≥3 noteheads at a single x (shared stem)', () => {
-    const { canvas, unmount } = renderScore(fixtureByName('chord-triad').score);
+    const { canvas, unmount } = renderScore(fixtureByName('chords-triads').score);
     try {
-      const heads = noteheads(canvas);
-      // The first event is a C-E-G triad: at least one x-column holds ≥3 noteheads.
       const byX = new Map<number, number>();
-      for (const h of heads) byX.set(h.x, (byX.get(h.x) ?? 0) + 1);
-      const tallestColumn = Math.max(...byX.values());
-      expect(tallestColumn).toBeGreaterThanOrEqual(3);
+      for (const h of noteheads(canvas)) byX.set(h.x, (byX.get(h.x) ?? 0) + 1);
+      expect(Math.max(...byX.values())).toBeGreaterThanOrEqual(3);
     } finally {
       unmount();
     }
   });
 
-  it('alto clef in A major: C-clef glyph present with a 3-sharp key signature', () => {
-    const { canvas, unmount } = renderScore(fixtureByName('alto-clef-sharp-key').score);
+  it('double accidentals render their own glyphs (double-sharp + double-flat)', () => {
+    const { canvas, unmount } = renderScore(fixtureByName('accidentals-double').score);
     try {
       const cps = codepoints(canvas);
-      expect(cps).toContain(codepointFor('cClef'));
-      const sharps = cps.filter((cp) => cp === codepointFor('accidentalSharp')).length;
-      // A major = 3 sharps; the in-key melody adds none (F#/C# are covered by the signature).
-      expect(sharps).toBe(3);
+      expect(cps).toContain(codepointFor('accidentalDoubleSharp'));
+      expect(cps).toContain(codepointFor('accidentalDoubleFlat'));
     } finally {
       unmount();
     }
   });
 
-  it("accidentalDisplay 'hide' suppresses the flat glyph", () => {
-    const { canvas, unmount } = renderScore(fixtureByName('accidentals-display-policy').score);
+  it("accidentalDisplay 'hide' suppresses the flat glyph (and 'show' still draws)", () => {
+    const { canvas, unmount } = renderScore(fixtureByName('accidentals-display').score);
     try {
       const cps = codepoints(canvas);
-      // The Bb is marked hide → no flat glyph anywhere in the bar...
-      expect(cps).not.toContain(codepointFor('accidentalFlat'));
-      // ...while the out-of-key F# still draws its sharp.
-      expect(cps).toContain(codepointFor('accidentalSharp'));
+      expect(cps).not.toContain(codepointFor('accidentalFlat')); // hidden Bb draws no flat
+      expect(cps).toContain(codepointFor('accidentalSharp')); // the C# still draws
     } finally {
       unmount();
     }
   });
 
   it("accidentalDisplay 'courtesy' renders a parenthesized accidental", () => {
-    const { canvas, unmount } = renderScore(fixtureByName('accidentals-display-policy').score);
+    const { canvas, unmount } = renderScore(fixtureByName('accidentals-display').score);
     try {
-      // The courtesy note wraps its glyph in SMuFL accidental parentheses (U+E26A left);
-      // its <text> therefore begins with the left-paren codepoint.
+      // Courtesy glyph wraps in SMuFL accidental parens (U+E26A left) → a <text> begins with it.
       expect(codepoints(canvas)).toContain('e26a');
     } finally {
       unmount();
@@ -154,8 +174,8 @@ describe('Visual regression — Lane A (engraving oracles)', () => {
   it('multi-digit time signature: the 12 of 12/8 renders as two digit glyphs', () => {
     const { canvas, unmount } = renderScore(fixtureByName('beaming-12-8').score);
     try {
-      // The numerator is one <text> holding two SMuFL time-sig digit glyphs ("1","2").
-      // A whole-string lookup of "12" used to miss, leaving the numerator blank.
+      // The numerator is one <text> holding two SMuFL time-sig digit glyphs ("1","2"). A
+      // whole-string lookup of "12" used to miss, leaving the numerator blank.
       const numerator = Array.from(canvas.querySelectorAll('text')).find(
         (t) => [...(t.textContent ?? '')].length === 2 && t.textContent!.codePointAt(0) === 0xe081
       );
@@ -166,16 +186,10 @@ describe('Visual regression — Lane A (engraving oracles)', () => {
     }
   });
 
-  it('whole-note ledger line is wider than a normal notehead ledger (peeks past the head)', () => {
-    const facts = extractFacts(fixtureByName('justification-multi-measure').score);
-    // `ledgerLines` captures every horizontal line, which includes full-width staff lines;
-    // note ledgers are the short ones (well under a staff width). Isolate those.
-    const noteLedgers = facts.ledgerLines
-      .map((l) => Math.round(l.x2 - l.x1))
-      .filter((w) => w < 40);
-    // The whole note's ledger uses the widened extension (2*(SPACE-2+EXTRA) = 28); the
-    // quarter-note ledgers use the default (2*(SPACE-2) = 20). Both must be present.
-    expect(Math.max(...noteLedgers)).toBe(28);
-    expect(noteLedgers).toContain(20);
+  it('whole-note ledger is wider than a quarter-note ledger (peeks past the wide head)', () => {
+    // Whole-note ledgers use the widened extension (2*(SPACE-2+EXTRA) = 28); quarter-note
+    // ledgers use the default (2*(SPACE-2) = 20).
+    expect(Math.max(...noteLedgerWidths('ledger-whole-note'))).toBe(28);
+    expect(Math.max(...noteLedgerWidths('ledger-above'))).toBe(20);
   });
 });
