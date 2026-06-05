@@ -531,7 +531,9 @@ export interface MusicEditorAPI {
   /**
    * Start playback from specified position (or current/beginning).
    * Plays the melody together with the score's chord track (same transport as
-   * the UI's Play button), so accompaniment is included automatically.
+   * the UI's Play button), so accompaniment is included automatically. Honors the
+   * configured chord playback (`config.chord.playback` — what {@link MusicEditorAPI.getChordPlayback}
+   * reports), so `enabled: false` or a custom velocity is respected.
    * @param startMeasure - Optional measure index to start from
    * @param startQuant - Optional quant position within measure
    * @status implemented

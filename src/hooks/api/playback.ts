@@ -80,13 +80,17 @@ export const createPlaybackMethods = (
         // accompaniment) so api.play() matches the UI's transport — the API was
         // previously melody-only via scheduleTonePlayback, silently dropping the
         // chord track it advertises (#242 carve-out: api-play-ignores-chords).
-        // DEFAULT_CHORD_PLAYBACK mirrors usePlayback; chord events are only emitted
-        // when score.chordTrack is non-empty, so chordless scores are unaffected.
+        // Honor the embedder's configured chord playback (config.chord.playback —
+        // the same value getChordPlayback() reports) so an `enabled: false` or a
+        // custom velocity is respected; fall back to DEFAULT_CHORD_PLAYBACK. Chord
+        // events are only emitted when chord playback is enabled AND
+        // score.chordTrack is non-empty, so chordless scores are unaffected.
+        const chordPlayback = ctx.config.chord?.playback ?? DEFAULT_CHORD_PLAYBACK;
         scheduleScorePlayback(
           timeline,
           score,
           bpm,
-          DEFAULT_CHORD_PLAYBACK,
+          chordPlayback,
           startTimeOffset,
           // Position update callback - store for potential resume
           (m, q) => {

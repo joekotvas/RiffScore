@@ -142,6 +142,31 @@ describe('ScoreAPI Playback Methods', () => {
       expect(chordConfigArg.enabled).toBe(true);
     });
 
+    test('honors configured chord playback (enabled:false / custom velocity), not forced defaults', async () => {
+      // Regression (Codex review of #250): api.play() must respect the embedder's
+      // configured chord playback — config.chord.playback, the same value
+      // getChordPlayback() reports — rather than forcing DEFAULT_CHORD_PLAYBACK on
+      // every call. Otherwise a score configured with chord playback OFF would still
+      // schedule chords through the API.
+      render(
+        <ThemeProvider>
+          <RiffScore
+            id="play-chords-off"
+            config={{ chord: { playback: { enabled: false, velocity: 30 } } }}
+          />
+        </ThemeProvider>
+      );
+      const api = getAPI('play-chords-off');
+
+      await act(async () => {
+        await api.play();
+      });
+
+      expect(scheduleScorePlayback).toHaveBeenCalledTimes(1);
+      const chordConfigArg = (scheduleScorePlayback as jest.Mock).mock.calls[0][3];
+      expect(chordConfigArg).toEqual({ enabled: false, velocity: 30 });
+    });
+
     test('play() is chainable (returns this)', async () => {
       renderWithTheme('play-chain');
       const api = getAPI('play-chain');
