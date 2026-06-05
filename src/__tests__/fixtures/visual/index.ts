@@ -242,6 +242,15 @@ export const visualFixtures: VisualFixture[] = [
     measure([rest('half'), rest('quarter'), rest('quarter')]),
     measure([rest('quarter'), rest('eighth'), rest('sixteenth'), rest('sixteenth'), rest('quarter'), rest('quarter')]),
   ]),
+  treble('rests-short', 'Durations & rests', '32nd and 64th rest glyphs.', ['32nd rest', '64th rest'], ['rest', 'thirtysecond', 'sixtyfourth'], [
+    // 4 × 32nd (8q) + 8 × 64th (8q) + half (32q) + quarter (16q) = 64q = a full 4/4 bar
+    measure([
+      ...Array.from({ length: 4 }, () => rest('thirtysecond')),
+      ...Array.from({ length: 8 }, () => rest('sixtyfourth')),
+      rest('half'),
+      rest('quarter'),
+    ]),
+  ]),
   treble('dotted-rests', 'Durations & rests', 'A dotted-quarter rest with an eighth and half rest.', ['dotted rest'], ['rest', 'dotted'], [
     measure([rest('quarter', { dotted: true }), rest('eighth'), rest('half')]),
   ]),

@@ -9448,6 +9448,120 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture rests 
 }
 `;
 
+exports[`Visual regression — Lane A (structured-fact snapshots) fixture rests-short matches its structured-fact snapshot: rests-short 1`] = `
+{
+  "beams": [],
+  "glyphCodepoints": [
+    "e050",
+    "e084",
+    "e084",
+    "e4e8",
+    "e4e8",
+    "e4e8",
+    "e4e8",
+    "e4e9",
+    "e4e9",
+    "e4e9",
+    "e4e9",
+    "e4e9",
+    "e4e9",
+    "e4e9",
+    "e4e9",
+    "e4e4",
+    "e4e5",
+  ],
+  "ledgerLines": [
+    {
+      "x1": 0,
+      "x2": 105,
+      "y1": 80,
+      "y2": 80,
+    },
+    {
+      "x1": 0,
+      "x2": 105,
+      "y1": 92,
+      "y2": 92,
+    },
+    {
+      "x1": 0,
+      "x2": 105,
+      "y1": 104,
+      "y2": 104,
+    },
+    {
+      "x1": 0,
+      "x2": 105,
+      "y1": 116,
+      "y2": 116,
+    },
+    {
+      "x1": 0,
+      "x2": 105,
+      "y1": 128,
+      "y2": 128,
+    },
+    {
+      "x1": 0,
+      "x2": 440.11,
+      "y1": 80,
+      "y2": 80,
+    },
+    {
+      "x1": 0,
+      "x2": 440.11,
+      "y1": 92,
+      "y2": 92,
+    },
+    {
+      "x1": 0,
+      "x2": 440.11,
+      "y1": 104,
+      "y2": 104,
+    },
+    {
+      "x1": 0,
+      "x2": 440.11,
+      "y1": 116,
+      "y2": 116,
+    },
+    {
+      "x1": 0,
+      "x2": 440.11,
+      "y1": 128,
+      "y2": 128,
+    },
+  ],
+  "noteheads": [],
+  "stems": [
+    {
+      "x1": 0,
+      "x2": 0,
+      "y1": 80,
+      "y2": 128,
+    },
+    {
+      "x1": 435.11,
+      "x2": 435.11,
+      "y1": 80,
+      "y2": 128,
+    },
+    {
+      "x1": 440.11,
+      "x2": 440.11,
+      "y1": 80,
+      "y2": 128,
+    },
+    {
+      "x1": 0,
+      "x2": 0,
+      "y1": 60,
+      "y2": 148,
+    },
+  ],
+}
+`;
+
 exports[`Visual regression — Lane A (structured-fact snapshots) fixture sixteenth-notes matches its structured-fact snapshot: sixteenth-notes 1`] = `
 {
   "beams": [

@@ -61,7 +61,7 @@ function buildHtml(cards: Card[], features: string[]): string {
       return `
     <section class="feature-section" data-feature="${esc(feature)}">
       <h2 class="feature-title">${esc(feature)} <span class="feature-count">${inFeature.length}</span></h2>
-      ${inFeature.map(cardHtml).join('\n')}
+      <div class="cards">${inFeature.map(cardHtml).join('\n')}</div>
     </section>`;
     })
     .join('\n');
@@ -100,7 +100,11 @@ function buildHtml(cards: Card[], features: string[]): string {
   .feature-title { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: #555;
                    margin: 28px 0 12px; border-bottom: 1px solid #e3e3e3; padding-bottom: 6px; }
   .feature-count { color: #999; font-weight: 400; }
-  .card { margin: 0 0 22px; padding: 16px; background: #fff; border: 1px solid #e3e3e3; border-radius: 10px; }
+  /* One card per row by default; two per row on widescreen. minmax(0,1fr) lets a wide score
+     scroll inside its card (.stage overflow) instead of forcing the column wider. */
+  .cards { display: grid; grid-template-columns: 1fr; gap: 16px 20px; align-items: start; }
+  @media (min-width: 1400px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .card { margin: 0; padding: 16px; background: #fff; border: 1px solid #e3e3e3; border-radius: 10px; }
   .card[hidden], .feature-section[hidden] { display: none; }
   figcaption h3 { margin: 0; font-size: 15px; font-family: ui-monospace, monospace; }
   figcaption p { margin: 4px 0 8px; color: #444; }

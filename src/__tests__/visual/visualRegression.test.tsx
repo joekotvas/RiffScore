@@ -186,6 +186,17 @@ describe('Visual regression — Lane A (engraving oracles)', () => {
     }
   });
 
+  it('32nd and 64th rests render their glyphs', () => {
+    const { canvas, unmount } = renderScore(fixtureByName('rests-short').score);
+    try {
+      const cps = codepoints(canvas);
+      expect(cps).toContain(codepointFor('rest32nd'));
+      expect(cps).toContain(codepointFor('rest64th'));
+    } finally {
+      unmount();
+    }
+  });
+
   it('a sole whole rest is centered in its bar; a beat-positioned rest is not', () => {
     // Lane A facts capture rest glyphs as codepoints only (no x), so this engraving rule —
     // a whole-bar rest is centered — needs a dedicated geometry check.
