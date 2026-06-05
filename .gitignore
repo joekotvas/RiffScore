@@ -38,3 +38,13 @@ dist
 
 # Claude Code local session data / agent worktrees
 .claude/
+
+# Visual regression harness (#252)
+# - the gallery is a generated artifact (render surface), never committed
+# - playwright run outputs
+# - only CI/linux pixel baselines are committed; local platform baselines are ignored
+/visual-gallery/
+/test-results/
+/playwright-report/
+/e2e/visual/__screenshots__/*-darwin.png
+/e2e/visual/__screenshots__/*-win32.png

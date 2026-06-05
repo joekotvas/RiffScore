@@ -30,6 +30,9 @@
     "format:check": "prettier --check src/",
     "demo:dev": "cd demo && npm run dev",
     "demo:build": "cd demo && npm run build",
+    "visual:gallery": "VISUAL_GALLERY=1 jest src/__tests__/visual/gallery.gen.test.tsx",
+    "visual:pixel": "playwright test",
+    "visual:pixel:update": "playwright test --update-snapshots",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
@@ -42,6 +45,7 @@
     "tone": "^15.1.22"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@size-limit/preset-small-lib": "^12.0.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",

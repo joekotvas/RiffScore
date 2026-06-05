@@ -199,7 +199,11 @@ theory) are largely independent of each other once M2 lands and can run in paral
   in the existing CI with no new dependency; verified high-fidelity because layout is
   computed in JS (no DOM/font measurement). Deliberately **decoupled from import** (#10/#11),
   which gives a *semantic* oracle, not a visual baseline (a Lane-B *corpus amplifier*,
-  never a prerequisite). **Runs parallel to M2.**
+  never a prerequisite). **Runs parallel to M2.** · **Status:** implemented on `dev` —
+  Lane A (19-fixture fact snapshots + oracles) and the gallery are green in the normal
+  suite; Lane B Playwright harness + CI workflow are in place (seed its linux baselines via
+  the manual "Visual regression (Lane B)" dispatch). Both lanes verified to catch a seeded
+  regression. See [VISUAL_TESTING.md](VISUAL_TESTING.md).
 - Add **MusicXML 4.0 XSD validation** to CI (with M3 / #246).
 - Ongoing: unit-coverage (#17), E2E harness (#15), hit-detection test robustness
   (#211/#210), keep the theory/geometry oracles green.

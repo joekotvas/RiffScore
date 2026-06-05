@@ -1,0 +1,78 @@
+name: Visual regression (Lane B)
+
+# Real-browser pixel verification for the #252 fixture corpus. Kept SEPARATE from the
+# merge-gating `CI / verify` job because pixel baselines are platform-scoped and must be
+# seeded once (see "Seeding" below) before this can compare.
+#
+# Seeding / updating baselines:
+#   Run this workflow manually (Actions ▸ "Visual regression (Lane B)" ▸ Run workflow)
+#   with `update_baselines = true`. It regenerates the linux baselines and commits them.
+#   Approve baselines ONLY from this CI run — never from a dev laptop (font rasterization
+#   differs by OS). See docs/VISUAL_TESTING.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      update_baselines:
+        description: 'Regenerate and commit the (linux) pixel baselines'
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'e2e/**'
+      - 'playwright.config.ts'
+      - '.github/workflows/visual.yml'
+
+concurrency:
+  group: visual-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  pixel:
+    name: Pixel diff (chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run pixel suite
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.update_baselines) }}
+        run: npx playwright test
+
+      - name: Update & commit baselines
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_baselines }}
+        run: |
+          npx playwright test --update-snapshots
+          if [[ -n "$(git status --porcelain e2e/visual/__screenshots__)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add e2e/visual/__screenshots__
+            git commit -m "test(visual): update Lane B pixel baselines (#252) [skip ci]"
+            git push
+          else
+            echo "No baseline changes."
+          fi
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
