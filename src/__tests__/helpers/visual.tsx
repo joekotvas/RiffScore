@@ -50,7 +50,10 @@ export interface NormalizedFacts {
  * Render a score and return the canvas element (scoped so toolbar icon glyphs are
  * excluded) plus an `unmount` to release the tree. Caller owns cleanup.
  */
-export function renderScore(score: Score): {
+export function renderScore(
+  score: Score,
+  scale = 1
+): {
   container: HTMLElement;
   canvas: Element;
   svg: string;
@@ -58,7 +61,7 @@ export function renderScore(score: Score): {
 } {
   const { container, unmount } = render(
     <ThemeProvider>
-      <ScoreEditor initialData={score} />
+      <ScoreEditor initialData={score} scale={scale} />
     </ThemeProvider>
   );
   const canvas = container.querySelector('[data-testid="score-canvas-container"]');

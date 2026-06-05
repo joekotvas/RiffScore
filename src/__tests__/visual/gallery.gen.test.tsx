@@ -31,6 +31,9 @@ const FONT_SRC = path.resolve(__dirname, '../../assets/fonts/Bravura.woff2');
 const esc = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+/** Render scores at this scale in the gallery (riffscore's built-in canvas scaling). */
+const GALLERY_SCALE = 0.75;
+
 interface Card {
   name: string;
   feature: string;
@@ -103,7 +106,8 @@ function buildHtml(cards: Card[], features: string[]): string {
   /* One card per row by default; two per row on widescreen. minmax(0,1fr) lets a wide score
      scroll inside its card (.stage overflow) instead of forcing the column wider. */
   .cards { display: grid; grid-template-columns: 1fr; gap: 16px 20px; align-items: start; }
-  @media (min-width: 1400px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1280px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1800px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .card { margin: 0; padding: 16px; background: #fff; border: 1px solid #e3e3e3; border-radius: 10px; }
   .card[hidden], .feature-section[hidden] { display: none; }
   figcaption h3 { margin: 0; font-size: 15px; font-family: ui-monospace, monospace; }
@@ -112,7 +116,10 @@ function buildHtml(cards: Card[], features: string[]): string {
   ul.covers li { font-size: 11px; color: #355; background: #eef3ff; border: 1px solid #dde6ff;
                  padding: 1px 7px; border-radius: 6px; }
   .tag { font-size: 11px; background: #f0f0f0; color: #666; padding: 1px 6px; border-radius: 999px; }
-  .stage { overflow-x: auto; padding: 8px 0; }
+  /* The fixture SVGs bake the light theme's ink colors (dark notes, slate staff lines) as
+     inline attributes, which can't follow OS dark mode. Render every score on a white
+     "paper" surface so the ink is always readable, whatever the page chrome does. */
+  .stage { overflow-x: auto; padding: 10px 12px; background: #ffffff; border-radius: 6px; }
   .stage svg text { font-family: 'Bravura', serif; }
   .empty { color: #999; padding: 32px 0; display: none; }
   @media (prefers-color-scheme: dark) {
@@ -189,7 +196,7 @@ describe('visual gallery generator', () => {
     fs.mkdirSync(OUT_DIR, { recursive: true });
 
     const cards: Card[] = visualFixtures.map((f) => {
-      const { svg, unmount } = renderScore(f.score);
+      const { svg, unmount } = renderScore(f.score, GALLERY_SCALE);
       unmount();
       return { name: f.name, feature: f.feature, description: f.description, covers: f.covers, tags: f.tags, svg };
     });
