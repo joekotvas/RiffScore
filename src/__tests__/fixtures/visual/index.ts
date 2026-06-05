@@ -127,14 +127,20 @@ const keyFixture = (
   tonicPitch: string,
   mode: 'major' | 'minor',
   accDesc: string
-): VisualFixture => ({
-  name: `key-${idSafe(keySig)}-${mode}`,
-  feature: 'Key signatures',
-  description: `${keySig.replace('m', '')} ${mode} — ${accDesc}.`,
-  covers: [accDesc, `${keySig.replace('m', '')} ${mode}`, 'key-signature glyph placement'],
-  tags: ['key-signature', mode, /[#]/.test(keySig) ? 'sharp' : /b/.test(keySig.replace('m', '')) ? 'flat' : 'natural'],
-  score: score({ keySignature: keySig, staves: [staff('staff-0', 'treble', keySig, [measure([ev('whole', [note(tonicPitch)])])])] }),
-});
+): VisualFixture => {
+  // Derive the family from accDesc, NOT the key string: sharp keys like G/D/A/E/B contain
+  // no '#', and 'b' appears in flat keys only as a lowercase suffix — regex-deriving would
+  // mis-tag B major (5 sharps) as "natural".
+  const family = accDesc.includes('sharp') ? 'sharp' : accDesc.includes('flat') ? 'flat' : 'natural';
+  return {
+    name: `key-${idSafe(keySig)}-${mode}`,
+    feature: 'Key signatures',
+    description: `${keySig.replace('m', '')} ${mode} — ${accDesc}.`,
+    covers: [accDesc, `${keySig.replace('m', '')} ${mode}`, 'key-signature glyph placement'],
+    tags: ['key-signature', mode, family],
+    score: score({ keySignature: keySig, staves: [staff('staff-0', 'treble', keySig, [measure([ev('whole', [note(tonicPitch)])])])] }),
+  };
+};
 
 const SHARP_KEYS: Array<[string, string, string]> = [
   ['G', 'G4', '1 sharp'],
