@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0-alpha.14] - 2026-06-04
+
+Key-aware transpose spelling (roadmap M2, #239): chromatic and arrow-key
+transposition now choose clean enharmonic spellings from the key signature instead
+of accumulating double/triple accidentals, with a consistent octave jump and a
+corrected diatonic-steps contract.
+
 ### For musicians
 - **Transpose spells notes cleanly (#239)** — transposing now picks sensible sharps/flats from the key signature instead of piling up double and triple accidentals (a repeated semitone shift used to drift E♭ → F♭ → G𝄫 → A𝄫𝄫…). In-key notes use the key's own spelling; out-of-key notes follow the direction you move (up → sharp, down → flat). The sounding pitch is never changed — only how it's written.
 - **Shift+Arrow is consistently one octave (#239)** — the keyboard octave jump now moves a true octave in every case.
