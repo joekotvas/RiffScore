@@ -188,16 +188,18 @@ theory) are largely independent of each other once M2 lands and can run in paral
 
 ## Cross-cutting — testing & CI (continuous, not a phase)
 
-- **Visual / engraving regression harness (#252)** — golden-SVG snapshots from a curated
-  set of **native `Score` fixtures**, so a change can be *seen* to be correct, not just
-  pass assertions. **Lane A** (jsdom/Jest, do now): render each fixture → normalize →
-  snapshot the emitted engraving attributes; runs in the existing CI with no new
-  dependency. **Lane B** (later): the real-browser pixel smoke below. Deliberately
-  **decoupled from import** (#10/#11) — import gives a *semantic* oracle, not a visual
-  baseline, so it's a Lane-B *corpus amplifier*, never a prerequisite. **Runs parallel to M2.**
-- Pull a **thin real-browser geometry smoke** (Playwright) in early — **Lane B of #252** —
-  the seam (`window.riffScore`) exists, and it catches the rendered-geometry / font
-  regressions jsdom-level snapshots miss across M2–M4.
+- **Visual / engraving regression harness (#252)** — a curated set of **native `Score`
+  fixtures** rendered two ways. **Lane B (priority): real-browser pixel verification** —
+  render to actual pixels via the `window.riffScore` seam and image-diff approved
+  baselines (browser pinned, SMuFL font loaded, baselines approved in CI not locally);
+  this is the lane that actually *shows* a score is correct (jsdom can't — no fonts/layout),
+  and is the structured form of the long-planned thin Playwright geometry smoke. **Lane A
+  (supporting, every commit): a fast jsdom geometry net** — a *hybrid* of structured-fact
+  snapshots + targeted oracle assertions (the `RenderingDetailed.test.tsx` house style),
+  in the existing CI with no new dependency; verified high-fidelity because layout is
+  computed in JS (no DOM/font measurement). Deliberately **decoupled from import** (#10/#11),
+  which gives a *semantic* oracle, not a visual baseline (a Lane-B *corpus amplifier*,
+  never a prerequisite). **Runs parallel to M2.**
 - Add **MusicXML 4.0 XSD validation** to CI (with M3 / #246).
 - Ongoing: unit-coverage (#17), E2E harness (#15), hit-detection test robustness
   (#211/#210), keep the theory/geometry oracles green.
