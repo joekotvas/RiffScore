@@ -79,7 +79,10 @@ const measure = (events: ScoreEvent[], extra: Partial<{ isPickup: boolean }> = {
 const score = (
   partial: Pick<Score, 'staves'> & Partial<Score>
 ): Score => ({
-  title: 'Visual Fixture',
+  // Title is intentionally blank: a non-empty title renders into the canvas (MetadataBlock),
+  // polluting the engraving facts with a non-musical glyph and the gallery with stray text.
+  // The gallery already labels each card from the fixture name/description.
+  title: '',
   bpm: 120,
   timeSignature: '4/4',
   keySignature: 'C',

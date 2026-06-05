@@ -4,7 +4,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture accide
 {
   "beams": [],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e084",
     "e084",
@@ -163,7 +162,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture alto-c
 {
   "beams": [],
   "glyphCodepoints": [
-    "56",
     "e05c",
     "e262",
     "e262",
@@ -322,7 +320,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture bass-c
 {
   "beams": [],
   "glyphCodepoints": [
-    "56",
     "e062",
     "e084",
     "e084",
@@ -499,7 +496,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture beamin
     },
   ],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e083",
     "e088",
@@ -684,7 +680,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture beamin
     },
   ],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e084",
     "e084",
@@ -882,7 +877,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture beamin
     },
   ],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e086",
     "e088",
@@ -1123,7 +1117,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture beamin
     },
   ],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e089",
     "e088",
@@ -1420,7 +1413,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture beamin
     },
   ],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e088",
     "e0a4",
@@ -1671,7 +1663,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture chord-
 {
   "beams": [],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e084",
     "e084",
@@ -1851,7 +1842,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture grand-
 {
   "beams": [],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e084",
     "e084",
@@ -2211,7 +2201,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture justif
     },
   ],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e084",
     "e084",
@@ -2613,7 +2602,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture key-fl
 {
   "beams": [],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e260",
     "e260",
@@ -2766,7 +2754,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture key-mi
 {
   "beams": [],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e262",
     "e084",
@@ -2917,7 +2904,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture key-sh
 {
   "beams": [],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e262",
     "e262",
@@ -3076,7 +3062,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture pickup
 {
   "beams": [],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e084",
     "e084",
@@ -3274,7 +3259,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture rests-
 {
   "beams": [],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e084",
     "e084",
@@ -3380,7 +3364,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture tenor-
 {
   "beams": [],
   "glyphCodepoints": [
-    "56",
     "e05c",
     "e260",
     "e260",
@@ -3614,7 +3597,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture treble
     },
   ],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e084",
     "e084",
@@ -3839,7 +3821,6 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture triple
     },
   ],
   "glyphCodepoints": [
-    "56",
     "e050",
     "e084",
     "e084",

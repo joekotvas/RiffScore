@@ -24,7 +24,10 @@ test.describe('visual pixel regression (#252)', () => {
       await page.goto(galleryUrl);
       // Ensure the SMuFL font is actually rasterized before capturing (the key Lane-B
       // determinism guard — a screenshot before font load would diff against tofu glyphs).
-      await page.evaluate(() => document.fonts.ready);
+      // Await inside the page and return nothing (FontFaceSet is not serializable).
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+      });
       const stage = page.locator(`#${fixture.name} .stage`);
       await expect(stage).toHaveScreenshot(`${fixture.name}.png`);
     });
