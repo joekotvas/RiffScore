@@ -115,11 +115,11 @@ function buildHtml(cards: Card[], features: string[]): string {
   ul.covers { margin: 0 0 8px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 6px; }
   ul.covers li { font-size: 11px; color: #355; background: #eef3ff; border: 1px solid #dde6ff;
                  padding: 1px 7px; border-radius: 6px; }
-  .tag { font-size: 11px; background: #f0f0f0; color: #666; padding: 1px 6px; border-radius: 999px; }
+  .tag { font-size: 11px; background: #f0f0f0; color: #666; border: 1px solid #e3e3e3; padding: 1px 7px; border-radius: 999px; }
   /* The fixture SVGs bake the light theme's ink colors (dark notes, slate staff lines) as
      inline attributes, which can't follow OS dark mode. Render every score on a white
      "paper" surface so the ink is always readable, whatever the page chrome does. */
-  .stage { overflow-x: auto; padding: 10px 12px; background: #ffffff; border-radius: 6px; }
+  .stage { overflow-x: auto; padding: 10px 12px; margin-top: 12px; background: #ffffff; border-radius: 6px; }
   .stage svg text { font-family: 'Bravura', serif; }
   .empty { color: #999; padding: 32px 0; display: none; }
   @media (prefers-color-scheme: dark) {
@@ -132,7 +132,7 @@ function buildHtml(cards: Card[], features: string[]): string {
     figcaption p { color: #b9bcc2; }
     .feature-title { color: #aab; border-color: #2c2f36; }
     ul.covers li { color: #bcd; background: #1b2435; border-color: #2a3550; }
-    .tag { background: #2a2d34; color: #99a; }
+    .tag { background: #262b35; color: #c2cad6; border: 1px solid #3a4350; }
   }
 </style>
 </head>
