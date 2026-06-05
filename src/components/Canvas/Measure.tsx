@@ -139,6 +139,15 @@ const Measure: React.FC<MeasureProps> = ({
   // 2. Accidental Logic
   const accidentalOverrides = useAccidentalContext(events, keySignature);
 
+  // Signature of this measure's content (event + note ids). When it changes — e.g.
+  // a notehead is deleted, which unmounts it WITHOUT firing onMouseLeave — the
+  // interaction hook clears any stale note-hover, so the just-emptied measure stays
+  // editable instead of freezing on a stuck `isNoteHovered`.
+  const contentKey = useMemo(
+    () => events.map((e) => `${e.id}:${e.notes.map((n) => n.id).join('|')}`).join(','),
+    [events]
+  );
+
   // 3. Interaction Handlers
   const {
     handleMeasureMouseMove,
@@ -158,6 +167,7 @@ const Measure: React.FC<MeasureProps> = ({
     selection,
     onHover,
     onAddNote,
+    contentSignature: contentKey,
   });
 
   // 4. Ghost Note Logic

@@ -7,21 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.0.0-alpha.14] - 2026-06-04
+## [1.0.0-alpha.14] - 2026-06-05
 
-Key-aware transpose spelling (roadmap M2, #239): chromatic and arrow-key
+Key-aware transpose spelling (roadmap M2, #239) — chromatic and arrow-key
 transposition now choose clean enharmonic spellings from the key signature instead
 of accumulating double/triple accidentals, with a consistent octave jump and a
-corrected diatonic-steps contract.
+corrected diatonic-steps contract — plus a fix for a measure freezing after its
+notes were deleted.
 
 ### For musicians
 - **Transpose spells notes cleanly (#239)** — transposing now picks sensible sharps/flats from the key signature instead of piling up double and triple accidentals (a repeated semitone shift used to drift E♭ → F♭ → G𝄫 → A𝄫𝄫…). In-key notes use the key's own spelling; out-of-key notes follow the direction you move (up → sharp, down → flat). The sounding pitch is never changed — only how it's written.
 - **Shift+Arrow is consistently one octave (#239)** — the keyboard octave jump now moves a true octave in every case.
+- **Fixed: deleting the notes in a measure could freeze it** — after deleting a note you were hovering, that measure stopped responding (no hover preview, clicks ignored) while the rest of the score worked. You can now keep editing the emptied measure normally.
 
 ### For developers
 - **`api.transposeDiatonic(N)` now means N literal diatonic steps (#239).** The previous `|steps| == 12 → 7` coercion was removed, so `transposeDiatonic(12)` now moves 12 steps (C4 → A5) instead of being silently collapsed to an octave (C5). **Behavior change** for any embedder that passed 12/−12 and relied on the octave coercion (Shift+Arrow still moves an octave — the keyboard now sends ±7 directly).
 - **Key-aware chromatic spelling (#239).** New shared `spellPitchInKey(target, key, prefer)` (in `keyResolution.ts`) is the enharmonic policy behind `ChromaticTransposeCommand`: in-key pitch classes take the key's diatonic spelling, otherwise ≤1 accidental with a natural preferred and the black-key tie broken by direction. It is sounding-pitch-preserving (`Note.midi` is invariant). The chromatic command resolves the key per target staff, so grand-staff selections spell each note in its own key.
 - **Internal rename:** `TransposeSelectionCommand`'s diatonic-steps parameter was misnamed `semitones`; renamed to `steps` (the public `transpose(semitones)` and `transposeDiatonic(steps)` are unchanged). Lossless transpose undo (contract C3) is unaffected.
+- **Fix: stuck note-hover froze a just-emptied measure.** A notehead deleted while hovered unmounts without firing `onMouseLeave`, leaving the measure's `isNoteHovered` stuck `true` — which suppressed the hover preview and made `useMeasureInteraction`'s move/click handlers early-return. `useMeasureInteraction` now clears the hover when the measure's content signature changes (React's "adjust state on prop change" pattern). Regression-tested.
 
 ## [1.0.0-alpha.13] - 2026-06-04
 
