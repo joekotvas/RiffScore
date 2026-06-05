@@ -121,7 +121,7 @@ export const CONFIG: EditorConfig = {
   preamble: {
     clefWidth: 40,
     keySigStartX: 45,
-    keySigAccidentalWidth: 10,
+    keySigAccidentalWidth: 13,
     keySigPadding: 10,
     timeSigWidth: 30,
     timeSigPadding: 20,

@@ -323,6 +323,8 @@ export const LAYOUT = {
   SECOND_INTERVAL_SPACE: HALF_SPACE,
   DOT_OFFSET_X: SPACE,
   LEDGER_LINE_EXTENSION: SPACE - 2,
+  /** Extra ledger half-width for the wider whole-note head, so it peeks past both sides. */
+  LEDGER_LINE_WHOLE_EXTRA: 4,
 
   // Accidentals
   ACCIDENTAL: {
@@ -330,6 +332,8 @@ export const LAYOUT = {
     OFFSET_Y: 0,
     FONT_SIZE: 22, // Legacy, now using getFontSize() from SMuFL
     SPACING: HALF_SPACE + 2,
+    /** Leftward nudge for a parenthesized (courtesy) accidental so the parens don't crowd. */
+    PARENTHESIS_PAD: 5,
   },
 
   /** Padding added before noteheads when accidentals are present */
@@ -392,7 +396,9 @@ export const BEAMING = {
 export const TUPLET = {
   HOOK_HEIGHT: 8,
   PADDING: 15,
-  MAX_SLOPE: 0.5,
+  // Matches BEAMING.MAX_SLOPE so a bracket drawn over a beamed tuplet can run parallel to
+  // the beam instead of being clamped flatter than it.
+  MAX_SLOPE: 1.0,
   NUMBER_FONT_SIZE: 11,
   NUMBER_OFFSET_UP: -4,
   NUMBER_OFFSET_DOWN: 12,

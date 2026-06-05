@@ -70,6 +70,11 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
   const { keySigStartX, keySigVisualWidth, timeSigStartX, measuresX } = preamble;
   const { keySigAccidentalWidth, timeSigWidth, clefWidth } = CONFIG.preamble;
 
+  // Map a time-signature part to its SMuFL glyphs PER DIGIT, so multi-digit numerators
+  // like the "12" of 12/8 render (a whole-string lookup would miss "12" entirely).
+  const timeSigGlyphs = (part: string): string =>
+    [...part].map((d) => TIME_SIG_DIGITS[d as unknown as keyof typeof TIME_SIG_DIGITS] ?? '').join('');
+
   return (
     <g className="ScoreHeader">
       {/* Staff Lines for Preamble Area - Extended to start of measures */}
@@ -157,7 +162,7 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
             textAnchor="middle"
             fill={theme.text}
           >
-            {TIME_SIG_DIGITS[timeSignature.split('/')[0] as keyof typeof TIME_SIG_DIGITS]}
+            {timeSigGlyphs(timeSignature.split('/')[0])}
           </text>
           <text
             x={timeSigStartX + 15}
@@ -167,7 +172,7 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
             textAnchor="middle"
             fill={theme.text}
           >
-            {TIME_SIG_DIGITS[timeSignature.split('/')[1] as keyof typeof TIME_SIG_DIGITS]}
+            {timeSigGlyphs(timeSignature.split('/')[1])}
           </text>
         </g>
       )}

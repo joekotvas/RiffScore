@@ -139,4 +139,43 @@ describe('Visual regression — Lane A (engraving oracles)', () => {
       unmount();
     }
   });
+
+  it("accidentalDisplay 'courtesy' renders a parenthesized accidental", () => {
+    const { canvas, unmount } = renderScore(fixtureByName('accidentals-display-policy').score);
+    try {
+      // The courtesy note wraps its glyph in SMuFL accidental parentheses (U+E26A left);
+      // its <text> therefore begins with the left-paren codepoint.
+      expect(codepoints(canvas)).toContain('e26a');
+    } finally {
+      unmount();
+    }
+  });
+
+  it('multi-digit time signature: the 12 of 12/8 renders as two digit glyphs', () => {
+    const { canvas, unmount } = renderScore(fixtureByName('beaming-12-8').score);
+    try {
+      // The numerator is one <text> holding two SMuFL time-sig digit glyphs ("1","2").
+      // A whole-string lookup of "12" used to miss, leaving the numerator blank.
+      const numerator = Array.from(canvas.querySelectorAll('text')).find(
+        (t) => [...(t.textContent ?? '')].length === 2 && t.textContent!.codePointAt(0) === 0xe081
+      );
+      expect(numerator).toBeTruthy();
+      expect(numerator!.textContent!.codePointAt(1)).toBe(0xe082); // the "2"
+    } finally {
+      unmount();
+    }
+  });
+
+  it('whole-note ledger line is wider than a normal notehead ledger (peeks past the head)', () => {
+    const facts = extractFacts(fixtureByName('justification-multi-measure').score);
+    // `ledgerLines` captures every horizontal line, which includes full-width staff lines;
+    // note ledgers are the short ones (well under a staff width). Isolate those.
+    const noteLedgers = facts.ledgerLines
+      .map((l) => Math.round(l.x2 - l.x1))
+      .filter((w) => w < 40);
+    // The whole note's ledger uses the widened extension (2*(SPACE-2+EXTRA) = 28); the
+    // quarter-note ledgers use the default (2*(SPACE-2) = 20). Both must be present.
+    expect(Math.max(...noteLedgers)).toBe(28);
+    expect(noteLedgers).toContain(20);
+  });
 });

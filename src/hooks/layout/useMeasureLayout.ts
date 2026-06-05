@@ -73,10 +73,10 @@ export function useMeasureLayout(
     return calculateBeamingGroups(events, eventPositions, clef, timeSignature);
   }, [events, eventPositions, clef, timeSignature]) as BeamGroup[];
 
-  // Tuplet bracket positioning
+  // Tuplet bracket positioning (beams passed so a beamed tuplet bracket parallels its beam)
   const tupletGroups = useMemo(() => {
-    return calculateTupletBrackets(centeredEvents, eventPositions, clef);
-  }, [centeredEvents, eventPositions, clef]);
+    return calculateTupletBrackets(centeredEvents, eventPositions, clef, beamGroups);
+  }, [centeredEvents, eventPositions, clef, beamGroups]);
 
   return {
     hitZones,
