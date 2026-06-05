@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0-alpha.13] - 2026-06-04
+
+A truth-in-advertising pass (roadmap milestone M1): making every promise the editor
+makes either correct or honestly scoped. The headline fix is that the programmatic
+`api.play()` now plays the chord track, not just the melody; the rest is API and
+documentation accuracy — non-existent method names removed, drifted type docs
+corrected, a broken cookbook recipe fixed, and the `on('batch')` event finally
+delivering its label.
+
+### For musicians
+- **Programmatic playback now includes the chords** — when an embedding app starts playback through the editor's API, the chord accompaniment plays alongside the melody, exactly like the on-screen Play button. (If you press Play in the app, this already worked; this fixes the API path.)
+- **Start a score on an alto or tenor staff** — single alto/tenor staves can now be created from configuration and from "reset", matching the clef menu that already offered them.
+- **Fuller keyboard reference** — the documented shortcuts now include accidentals (`-` / `=` / `0` for flat/sharp/natural), staff switching (`Alt+↑/↓`), the playback variants (`P`, `Shift+Space`, `Shift+Alt+Space`), and fullscreen (`Cmd/Ctrl+Shift+F`), which were bound but undocumented.
+- **Page View is labeled experimental** — it's still in active development with known multi-system layout defects, so it's now clearly marked rather than presented as finished.
+
+### For developers
+- **`api.play()` chord parity** — routed through `scheduleScorePlayback` with the score (was the melody-only `scheduleTonePlayback`), so the API and the UI share one transport. Honors the configured chord playback (`config.chord.playback` — what `getChordPlayback()` reports), so `enabled: false` or a custom velocity is respected; falls back to defaults. Chordless scores are unaffected; `pause`/`stop`/`rewind` already dispose the chord part. The previously-untested `createChordPlaybackEvents` generator is now pinned with unit tests (timing, truncation, velocity, time-signature). *(Carve-out from #242 `api-play-ignores-chords`.)*
+- **`'batch'` event delivers `payload.label`** — `commitTransaction(label)` threads a label to a `BatchCommand`, but `ScoreEngine.commitBatch` had dropped it from the emitted payload, so `payload.label` was always `undefined` despite the type, the command, and the documented examples all expecting it. Now copied through (defaults to `'Batch Action'`).
+- **`StaffTemplate` gains `'alto' | 'tenor'`** — added to the type, `generateStaves`, and `reset()`; programmatic staff config now matches `setClef`. No rendering work — the geometry was already correct and regression-tested.
+- **`getScore()` / `on()` coherence contract documented** — `getScore()` reads engine state synchronously and authoritatively (reflects a just-issued imperative mutation); `on('score')`/`on('selection')` fire after the React commit and may coalesce a burst of mutations. Read back results with `getScore()`; use `on(...)` to react to changes.
+- **API reference accuracy pass** (`docs/API.md`) — 6 implemented methods that were missing are now documented (`setAccidentalDisplay`, `resetLayoutConfig`, `deleteSelectedChord`, `focusChordTrack`, `blurChordTrack`, `isChordTrackFocused`); 5 signatures corrected (`addToSelection`/`selectRangeTo` `noteIndex?`, `addNote`/`addRest` `options.mode`, `loadScore(score)`); the `'batch'` payload and `result` shapes corrected; section numbering de-duplicated; version synced.
+- **Data-model docs corrected** (`docs/DATA_MODEL.md`, `docs/CONFIGURATION.md`) — `ChordSymbol` documented as measure-local `{ measure, quant }` (not the legacy global quant); the inline `ScoreEvent.tuplet` shape (`ratio`/`groupSize`/`position`) replaces the non-existent `TupletInfo`; added `Note.accidentalDisplay`, `Score.schemaVersion` (= 2), `metadata`/`layout`, and `ScoreEvent.chord`; `id` fields typed `string`; `StaffTemplate`/clef enums and chord-notation union corrected.
+- **Cookbook recipe fixed** (`docs/COOKBOOK.md`) — the "Add a Chord Progression" recipe was a silent no-op: chords anchor only where a note/rest already exists, so on a fresh (empty) score every `addChord` returned `INVALID_POSITION` and added nothing. The recipe now adds a note per measure first, and a test runs the exact published recipe so it can't regress. A dead cross-reference anchor was repointed.
+- **Honest labeling** — the never-built grand→single "merge" mode was removed from `SetSingleStaffCommand`'s JSDoc (it only does a "keep" reduction); `setChordDisplay`/`setChordPlayback`, copy/paste, and import remain consistently labeled as stubs / Coming Soon; a stale `@status partial` example and the false "export throws" doc were corrected.
+- **Roadmap updated** — M1 marked shipped on `dev` with its load-bearing "fact-checked" claims corrected to match the code.
+
 ## [1.0.0-alpha.12] - 2026-06-04
 
 A correctness pass on the accidental model end-to-end — one shared resolver behind

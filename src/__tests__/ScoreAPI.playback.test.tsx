@@ -19,6 +19,7 @@ const getAPI = (id: string): MusicEditorAPI => {
 jest.mock('@/engines/toneEngine', () => ({
   initTone: jest.fn().mockResolvedValue(undefined),
   scheduleTonePlayback: jest.fn(),
+  scheduleScorePlayback: jest.fn(),
   stopTonePlayback: jest.fn(),
   setInstrument: jest.fn(),
   isPlaying: jest.fn().mockReturnValue(false),
@@ -71,12 +72,13 @@ jest.mock('@/services/TimelineService', () => ({
 
 import {
   initTone,
-  scheduleTonePlayback,
+  scheduleScorePlayback,
   stopTonePlayback,
   setInstrument as toneSetInstrument,
   isPlaying as toneIsPlaying,
 } from '@/engines/toneEngine';
 import { createTimeline } from '@/services/TimelineService';
+import { DEFAULT_CHORD_PLAYBACK } from '@/types';
 
 describe('ScoreAPI Playback Methods', () => {
   beforeEach(() => {
@@ -104,7 +106,7 @@ describe('ScoreAPI Playback Methods', () => {
 
       expect(initTone).toHaveBeenCalled();
       expect(createTimeline).toHaveBeenCalled();
-      expect(scheduleTonePlayback).toHaveBeenCalled();
+      expect(scheduleScorePlayback).toHaveBeenCalled();
     });
 
     test('plays from specific measure and quant', async () => {
@@ -115,8 +117,54 @@ describe('ScoreAPI Playback Methods', () => {
         await api.play(2, 32);
       });
 
-      expect(scheduleTonePlayback).toHaveBeenCalled();
+      expect(scheduleScorePlayback).toHaveBeenCalled();
       // The schedule call should attempt to find the start offset
+    });
+
+    test('routes through scheduleScorePlayback with the score + chord config (chord parity)', async () => {
+      // Regression: api.play() previously used the melody-only scheduleTonePlayback,
+      // silently dropping the chord track it advertises. It must now pass the full
+      // score and a chord-playback config to the chord-capable scheduler, exactly
+      // as the UI's usePlayback does. (#242 carve-out: api-play-ignores-chords.)
+      renderWithTheme('play-chords');
+      const api = getAPI('play-chords');
+
+      await act(async () => {
+        await api.play();
+      });
+
+      expect(scheduleScorePlayback).toHaveBeenCalledTimes(1);
+      const args = (scheduleScorePlayback as jest.Mock).mock.calls[0];
+      // Signature: (timeline, score, bpm, chordConfig, startTimeOffset, onPos, onDone)
+      const [, scoreArg, , chordConfigArg] = args;
+      expect(scoreArg).toHaveProperty('staves'); // the actual Score, not just a timeline
+      expect(chordConfigArg).toEqual(DEFAULT_CHORD_PLAYBACK);
+      expect(chordConfigArg.enabled).toBe(true);
+    });
+
+    test('honors configured chord playback (enabled:false / custom velocity), not forced defaults', async () => {
+      // Regression (Codex review of #250): api.play() must respect the embedder's
+      // configured chord playback — config.chord.playback, the same value
+      // getChordPlayback() reports — rather than forcing DEFAULT_CHORD_PLAYBACK on
+      // every call. Otherwise a score configured with chord playback OFF would still
+      // schedule chords through the API.
+      render(
+        <ThemeProvider>
+          <RiffScore
+            id="play-chords-off"
+            config={{ chord: { playback: { enabled: false, velocity: 30 } } }}
+          />
+        </ThemeProvider>
+      );
+      const api = getAPI('play-chords-off');
+
+      await act(async () => {
+        await api.play();
+      });
+
+      expect(scheduleScorePlayback).toHaveBeenCalledTimes(1);
+      const chordConfigArg = (scheduleScorePlayback as jest.Mock).mock.calls[0][3];
+      expect(chordConfigArg).toEqual({ enabled: false, velocity: 30 });
     });
 
     test('play() is chainable (returns this)', async () => {
@@ -220,8 +268,8 @@ describe('ScoreAPI Playback Methods', () => {
         await new Promise((r) => setTimeout(r, 10));
       });
 
-      // scheduleTonePlayback should be called again for the restart
-      expect(scheduleTonePlayback).toHaveBeenCalled();
+      // scheduleScorePlayback should be called again for the restart
+      expect(scheduleScorePlayback).toHaveBeenCalled();
     });
 
     test('rewind() is chainable', () => {
@@ -300,8 +348,8 @@ describe('ScoreAPI Playback Methods', () => {
       });
 
       // initTone should not be called again (already initialized)
-      // But scheduleTonePlayback should be called
-      expect(scheduleTonePlayback).toHaveBeenCalled();
+      // But scheduleScorePlayback should be called
+      expect(scheduleScorePlayback).toHaveBeenCalled();
     });
 
     test('stop resets position to beginning', async () => {
@@ -325,7 +373,7 @@ describe('ScoreAPI Playback Methods', () => {
         await api.play();
       });
 
-      expect(scheduleTonePlayback).toHaveBeenCalled();
+      expect(scheduleScorePlayback).toHaveBeenCalled();
     });
   });
 });

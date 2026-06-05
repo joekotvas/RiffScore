@@ -105,11 +105,23 @@ score.select(0)
 ```javascript
 const score = window.riffScore.active;
 
-// I-IV-V-I in C major (one chord per measure in 4/4)
-score.addChord(0, 'C')         // Beat 1 of measure 1 (quant 0)
-     .addChord(64, 'F')        // Beat 1 of measure 2 (quant 64)
-     .addChord(128, 'G7')      // Beat 1 of measure 3 (quant 128)
-     .addChord(192, 'C');      // Beat 1 of measure 4 (quant 192)
+// Chords anchor to existing events: a chord can only sit where a note or rest
+// already starts, and a fresh score's measures are empty. So add a note at beat 1
+// of each measure first, then attach the chord there. Positions are measure-local
+// — { measure, quant } where quant is relative to the start of the measure
+// (0 = beat 1), NOT a global offset.
+score.select(0).addNote('C4', 'whole')   // event at beat 1 of measure 1
+     .select(1).addNote('A3', 'whole')   //                    measure 2
+     .select(2).addNote('G3', 'whole')   //                    measure 3
+     .select(3).addNote('C4', 'whole');  //                    measure 4
+
+// I-IV-V-I in C major (one chord per measure)
+score.addChord({ measure: 0, quant: 0 }, 'C')
+     .addChord({ measure: 1, quant: 0 }, 'F')
+     .addChord({ measure: 2, quant: 0 }, 'G7')
+     .addChord({ measure: 3, quant: 0 }, 'C');
+
+// Tip: call getValidChordPositions() to discover exactly where chords may be placed.
 ```
 
 ### Navigate and Edit Chords
@@ -268,7 +280,7 @@ if (!report.ok) {
 
 > [!NOTE]
 > **Callback Timing:** Event callbacks fire after React processes state updates (via `useEffect`), not synchronously.
-> This ensures callbacks receive guaranteed-fresh data. See [API.md > Events](./API.md#12-events--subscriptions) for details.
+> This ensures callbacks receive guaranteed-fresh data. See [API.md > Events](./API.md#16-events--subscriptions) for details.
 
 ### Auto-Save to Backend
 

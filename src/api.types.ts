@@ -30,6 +30,7 @@ import type {
   LayoutConfig,
   ScoreMetadata,
   AccidentalDisplay,
+  StaffTemplate,
 } from './types';
 
 // ========== UTILITY TYPES ==========
@@ -266,6 +267,7 @@ export interface MusicEditorAPI {
    * @param duration - Duration of the rest (default: 'quarter')
    * @param dotted - Whether the rest is dotted (default: false)
    * @param options - Entry options
+   * @status implemented
    */
   addRest(duration?: string, dotted?: boolean, options?: { mode?: 'overwrite' | 'insert' }): this;
   /**
@@ -513,9 +515,12 @@ export interface MusicEditorAPI {
   loadScore(score: Score): this;
   /**
    * Reset to a blank score.
+   * @param template - Staff layout: 'grand' (treble+bass) or a single-clef staff
+   *   ('treble' | 'bass' | 'alto' | 'tenor'). Defaults to 'grand'.
+   * @param measures - Number of measures to generate. Defaults to 4.
    * @status implemented
    */
-  reset(template?: 'grand' | 'treble' | 'bass', measures?: number): this;
+  reset(template?: StaffTemplate, measures?: number): this;
   /**
    * Export the score in the specified format.
    * @status implemented
@@ -525,6 +530,10 @@ export interface MusicEditorAPI {
   // --- Playback ---
   /**
    * Start playback from specified position (or current/beginning).
+   * Plays the melody together with the score's chord track (same transport as
+   * the UI's Play button), so accompaniment is included automatically. Honors the
+   * configured chord playback (`config.chord.playback` — what {@link MusicEditorAPI.getChordPlayback}
+   * reports), so `enabled: false` or a custom velocity is respected.
    * @param startMeasure - Optional measure index to start from
    * @param startQuant - Optional quant position within measure
    * @status implemented
@@ -555,6 +564,13 @@ export interface MusicEditorAPI {
   // --- Data (Queries) ---
   /**
    * Get the current score state (read-only).
+   *
+   * **Synchronous and authoritative.** `getScore()` reads engine state directly, so
+   * it reflects every mutation issued so far in the current tick — including one you
+   * just made imperatively (e.g. `api.addNote('C4'); api.getScore()` sees the note).
+   * To confirm the result of an imperative call, read it back with `getScore()`, not
+   * by waiting for an `on('score')` event — see {@link MusicEditorAPI.on} for the
+   * coherence contract between the two.
    * @status implemented
    */
   getScore(): Score;
@@ -587,7 +603,8 @@ export interface MusicEditorAPI {
   beginTransaction(): this;
   /**
    * Commit the transaction with optional label.
-   * Note: label parameter is not yet used by the history system.
+   * The label is delivered on the `'batch'` event payload (`payload.label`) and
+   * defaults to `'Batch Action'` when omitted.
    * @status implemented
    */
   commitTransaction(label?: string): this;
@@ -615,6 +632,19 @@ export interface MusicEditorAPI {
   // --- Events ---
   /**
    * Subscribe to state changes.
+   *
+   * **Coherence contract — events are asynchronous; reads are synchronous.**
+   * `on('score')` / `on('selection')` callbacks fire *after* React commits the
+   * corresponding state update (they ride a `useEffect`), not at the moment you call
+   * a mutating method. So directly after an imperative call the subscriber has not
+   * necessarily run yet, and a tight burst of mutations may coalesce into fewer
+   * `'score'` notifications than calls. Two consequences:
+   *  - To read the result of a mutation you just issued, call {@link MusicEditorAPI.getScore}
+   *    (synchronous, authoritative) — do not block on an `on('score')` event.
+   *  - Use `on('score')` / `on('selection')` for *reacting* to changes (re-render,
+   *    sync external UI), where eventual, post-commit delivery is exactly what you want.
+   * Every delivered `'score'` payload is internally consistent (a real committed state),
+   * never a partial one.
    * @status implemented
    * @returns Unsubscribe function
    */

@@ -333,7 +333,7 @@ riffscore/
 │   ├── data/                 # Static data
 │   │   └── melodies.ts       # Sample melodies
 │
-│   └── __tests__/            # All tests (48 files)
+│   └── __tests__/            # Unit/integration test suites
 │
 ├── demo/                     # Demo Next.js app
 │   ├── app/

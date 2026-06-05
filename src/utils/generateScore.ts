@@ -23,7 +23,7 @@ export const createEmptyMeasure = (): Measure => ({
  * Creates a staff with the specified clef and number of measures
  */
 const createStaff = (
-  clef: 'treble' | 'bass',
+  clef: 'treble' | 'bass' | 'alto' | 'tenor',
   measureCount: number,
   keySignature: string
 ): Staff => ({
@@ -35,7 +35,8 @@ const createStaff = (
 
 /**
  * Generates staves from a template
- * @param template - 'grand', 'treble', or 'bass'
+ * @param template - 'grand' (treble+bass system) or a single-clef staff:
+ *   'treble', 'bass', 'alto', or 'tenor'
  * @param measureCount - Number of measures per staff
  * @param keySignature - Key signature for all staves
  * @returns Array of Staff objects
@@ -55,6 +56,10 @@ export const generateStaves = (
       return [createStaff('treble', measureCount, keySignature)];
     case 'bass':
       return [createStaff('bass', measureCount, keySignature)];
+    case 'alto':
+      return [createStaff('alto', measureCount, keySignature)];
+    case 'tenor':
+      return [createStaff('tenor', measureCount, keySignature)];
     default:
       // Fallback to treble
       return [createStaff('treble', measureCount, keySignature)];

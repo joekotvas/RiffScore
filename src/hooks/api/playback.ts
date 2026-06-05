@@ -2,13 +2,14 @@ import { MusicEditorAPI } from '@/api.types';
 import { APIContext } from './types';
 import {
   initTone,
-  scheduleTonePlayback,
+  scheduleScorePlayback,
   stopTonePlayback,
   setInstrument as toneSetInstrument,
   isPlaying as toneIsPlaying,
   InstrumentType,
 } from '@/engines/toneEngine';
 import { createTimeline } from '@/services/TimelineService';
+import { DEFAULT_CHORD_PLAYBACK } from '@/types';
 
 /**
  * Playback method names provided by this factory
@@ -75,10 +76,21 @@ export const createPlaybackMethods = (
           startTimeOffset = startEvent.time;
         }
 
-        // Schedule playback
-        scheduleTonePlayback(
+        // Schedule playback. Route through scheduleScorePlayback (melody + chord
+        // accompaniment) so api.play() matches the UI's transport — the API was
+        // previously melody-only via scheduleTonePlayback, silently dropping the
+        // chord track it advertises (#242 carve-out: api-play-ignores-chords).
+        // Honor the embedder's configured chord playback (config.chord.playback —
+        // the same value getChordPlayback() reports) so an `enabled: false` or a
+        // custom velocity is respected; fall back to DEFAULT_CHORD_PLAYBACK. Chord
+        // events are only emitted when chord playback is enabled AND
+        // score.chordTrack is non-empty, so chordless scores are unaffected.
+        const chordPlayback = ctx.config.chord?.playback ?? DEFAULT_CHORD_PLAYBACK;
+        scheduleScorePlayback(
           timeline,
+          score,
           bpm,
+          chordPlayback,
           startTimeOffset,
           // Position update callback - store for potential resume
           (m, q) => {

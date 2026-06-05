@@ -43,13 +43,13 @@ interface RiffScoreConfig {
     bpm: number;             // Beats per minute
     timeSignature: string;   // e.g., '4/4', '3/4', '6/8'
     keySignature: string;    // e.g., 'C', 'G', 'Bb'
-    staff?: StaffTemplate;   // 'grand' | 'treble' | 'bass'
+    staff?: StaffTemplate;   // 'grand' | 'treble' | 'bass' | 'alto' | 'tenor'
     measureCount?: number;   // Number of measures to generate
-    staves?: Staff[];        // Explicit content (overrides generator)
+    staves?: Staff[];        // Explicit content (overrides generator); staff.clef: 'treble' | 'bass' | 'alto' | 'tenor' | 'grand'
   };
   chord?: {
     display?: {
-      notation: string;        // 'letter' | 'roman' | 'nashville' | 'fixedDo' | 'movableDo'
+      notation: 'letter' | 'roman' | 'nashville' | 'fixedDo' | 'movableDo';
       useSymbols: boolean;     // △/°/+ vs maj/dim/aug
     };
     playback?: {

@@ -88,7 +88,13 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 *   **Playback**: Chord voicings play back alongside the score.
 *   **Full API**: CRUD, selection, and navigation via `addChord()`, `selectChord()`, etc.
 
-### Page View & Print
+### Page View & Print _(Experimental)_
+
+> ⚠️ **Experimental — not part of the stable feature set yet.** Page View is in active
+> development with known layout defects on multi-system grand-staff scores. It is being
+> hardened in a dedicated milestone (see the [roadmap](./docs/ROADMAP.md)). The scroll-based
+> editor is the supported default; the items below describe the in-progress capability.
+
 *   **Multi-System Layout**: Automatic system breaks with first system indent and justified measures.
 *   **Multi-Page Pagination**: True page breaks with visual gaps between pages.
 *   **Layout Options**: Letter/A4 page sizes, margin presets, staff size (50-150%), system spacing.
@@ -120,24 +126,30 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 | `.` | `.` | Toggle dotted |
 | `R` | `R` | Toggle note/rest mode |
 | `T` | `T` | Toggle tie |
+| `-` / `=` / `0` | `-` / `=` / `0` | Flat / Sharp / Natural |
 | `Enter` | `Enter` | Insert note/rest at cursor |
 | `↑` / `↓` | `↑` / `↓` | Transpose selection |
 | **Navigation & Selection** |||
 | `←` / `→` | `←` / `→` | Previous / Next event |
 | `Shift+←/→` | `Shift+←/→` | Extend selection horizontally |
 | `Cmd+↑/↓` | `Ctrl+↑/↓` | Navigate within chord |
+| `Alt+↑/↓` | `Alt+↑/↓` | Switch staff (grand staff) |
 | `Cmd+Shift+↑/↓` | `Ctrl+Shift+↑/↓` | Extend selection vertically |
 | `Cmd+A` | `Ctrl+A` | Select all (progressive) |
 | `Esc` | `Esc` | Clear selection / Cancel |
 | **Playback** |||
 | `Space` | `Space` | Play / Pause |
+| `P` | `P` | Play from selection |
+| `Shift+Space` | `Shift+Space` | Replay from last start |
+| `Shift+Alt+Space` | `Shift+Alt+Space` | Play from beginning |
 | **History** |||
 | `Cmd+Z` | `Ctrl+Z` | Undo |
 | `Cmd+Shift+Z` | `Ctrl+Y` | Redo |
-| **Page View** |||
+| **View** |||
 | `Cmd+\` | `Ctrl+\` | Toggle scroll/page view |
 | `Cmd+,` | `Ctrl+,` | Open Score Setup dialog |
 | `Cmd+P` | `Ctrl+P` | Print |
+| `Cmd+Shift+F` | `Ctrl+Shift+F` | Toggle fullscreen |
 
 See the [Interaction Guide](./docs/INTERACTION.md) for the complete keyboard reference.
 

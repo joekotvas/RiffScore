@@ -137,10 +137,17 @@ The editor transitions between the following states:
 | `R` | **Convert Selection** | Selection |
 | `Esc` | Clear Selection / Pause / Close Menu | Global |
 | `Space` | Play / Pause | Global |
+| `P` | Play from Selection | Global |
 | `Shift + Space` | Play from Last Start | Global |
+| `Shift + Alt + Space` | Play from Beginning | Global |
 | `Cmd + Z` | Undo | Global |
 | `Cmd + Shift + Z` | Redo | Global |
 | `Cmd + Y` | Redo (alternative) | Global |
+| `Cmd + A` | Select All (progressive) | Global |
+| `Cmd + \` | Toggle Scroll/Page View | Global |
+| `Cmd + ,` | Open Score Setup | Global |
+| `Cmd + P` | Print | Global |
+| `Cmd + Shift + F` | Toggle Fullscreen | Global |
 
 ### 🎵 Pitch & Duration
 | Key | Action | Notes |

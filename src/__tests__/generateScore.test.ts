@@ -24,6 +24,24 @@ describe('generateScore', () => {
       expect(staves[0].measures).toHaveLength(3);
     });
 
+    it('generates a single alto staff with correct number of measures', () => {
+      const staves = generateStaves('alto', 4, 'D');
+
+      expect(staves).toHaveLength(1);
+      expect(staves[0].clef).toBe('alto');
+      expect(staves[0].keySignature).toBe('D');
+      expect(staves[0].measures).toHaveLength(4);
+    });
+
+    it('generates a single tenor staff with correct number of measures', () => {
+      const staves = generateStaves('tenor', 5, 'Bb');
+
+      expect(staves).toHaveLength(1);
+      expect(staves[0].clef).toBe('tenor');
+      expect(staves[0].keySignature).toBe('Bb');
+      expect(staves[0].measures).toHaveLength(5);
+    });
+
     it('generates grand staff with treble and bass clefs', () => {
       const staves = generateStaves('grand', 2, 'F');
 

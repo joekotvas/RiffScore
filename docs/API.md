@@ -6,7 +6,7 @@
 
 > **See also**: [Cookbook](./COOKBOOK.md) • [Configuration](./CONFIGURATION.md) • [Architecture](./ARCHITECTURE.md) • [Coding Patterns](./CODING_PATTERNS.md)
 
-**Version:** 1.0.0-alpha.10  
+**Version:** 1.0.0-alpha.13  
 **Access:**
 -   **React**: `const ref = useRef<MusicEditorAPI>(null)`
 -   **Global**: `window.riffScore.get('my-score-id')` or `window.riffScore.active`
@@ -60,7 +60,7 @@ Each factory receives an `APIContext` containing refs and dispatch functions, th
 All methods in `src/api.types.ts` are annotated with `@status` JSDoc tags:
 - `@status implemented` — Ready to use
 - `@status stub` — Returns `this` (no-op), tracked in [Issue #119](https://github.com/joekotvas/RiffScore/issues/119)
-- `@status partial` — Partially implemented (e.g., `export('json')` works, others throw)
+- `@status partial` — Partially implemented (some arguments or code paths work, others are no-ops or throw)
 
 ---
 
@@ -104,8 +104,8 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `addToSelection` | `addToSelection(measureIndex, staffIndex, eventIndex)` | ✅ | Cmd+Click toggle behavior. |
-| `selectRangeTo` | `selectRangeTo(measureIndex, staffIndex, eventIndex)` | ✅ | Shift+Click range from anchor. |
+| `addToSelection` | `addToSelection(measureIndex, staffIndex, eventIndex, noteIndex?)` | ✅ | Cmd+Click toggle behavior. |
+| `selectRangeTo` | `selectRangeTo(measureIndex, staffIndex, eventIndex, noteIndex?)` | ✅ | Shift+Click range from anchor. |
 | `selectAll` | `selectAll(scope)` | ✅ | `'score'`, `'measure'`, `'staff'`, `'event'`. |
 | `selectEvent` | `selectEvent(measureIndex?, staffIndex?, eventIndex?)` | ✅ | Select all notes in chord. |
 | `deselectAll` | `deselectAll()` | ✅ | Clear selection. |
@@ -120,8 +120,8 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `addNote` | `addNote(pitch, duration?, dotted?)` | ✅ | Append note at cursor; auto-advances. |
-| `addRest` | `addRest(duration?, dotted?)` | ✅ | Append rest at cursor. |
+| `addNote` | `addNote(pitch, duration?, dotted?, options?)` | ✅ | Append note at cursor; auto-advances. `options.mode`: `'overwrite' \| 'insert'`. |
+| `addRest` | `addRest(duration?, dotted?, options?)` | ✅ | Append rest at cursor. `options.mode`: `'overwrite' \| 'insert'`. |
 | `addTone` | `addTone(pitch)` | ✅ | Stack pitch onto existing chord. |
 | `makeTuplet` | `makeTuplet(numNotes, inSpaceOf)` | ✅ | Convert selection to tuplet. |
 | `unmakeTuplet` | `unmakeTuplet()` | ✅ | Remove tuplet grouping. |
@@ -141,6 +141,7 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 | `toggleAccidental` | `toggleAccidental()` | ✅ | Cycle accidental. |
 | `transpose` | `transpose(semitones)` | ✅ | Chromatic transposition. |
 | `transposeDiatonic` | `transposeDiatonic(steps)` | ✅ | Visual/diatonic transposition. |
+| `setAccidentalDisplay` | `setAccidentalDisplay(policy)` | ✅ | Display policy for selected note(s): `'auto' \| 'show' \| 'hide' \| 'courtesy'`. Orthogonal to sounding pitch. |
 | `updateEvent` | `updateEvent(props)` | ✅ | Generic escape hatch. |
 
 ---
@@ -175,7 +176,7 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `loadScore` | `loadScore(json)` | ✅ | Load score object. |
+| `loadScore` | `loadScore(score)` | ✅ | Load a `Score` object. |
 | `reset` | `reset(template?, measures?)` | ✅ | Reset to blank score/template. |
 | `export` | `export(format)` | ✅ | Returns string (empty on error). `'json' \| 'abc' \| 'musicxml'`. |
 
@@ -203,29 +204,38 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 
 ---
 
-## 13. Chord Symbols ✅
+## 11. Chord Symbols ✅
 
 ### CRUD
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `addChord` | `addChord(quant, symbol)` | ✅ | Add chord symbol at global quant position. |
+| `addChord` | `addChord(position, symbol)` | ✅ | Add chord symbol at `{ measure, quant }`. |
 | `updateChord` | `updateChord(chordId, symbol)` | ✅ | Update an existing chord symbol. |
 | `removeChord` | `removeChord(chordId)` | ✅ | Remove a chord symbol. |
-| `getChords` | `getChords()` | ✅ | Get all chords sorted by quant ascending. |
+| `getChords` | `getChords()` | ✅ | Get all chords sorted by position ascending. |
 | `getChord` | `getChord(chordId)` | ✅ | Get a specific chord by ID. |
-| `getChordAtQuant` | `getChordAtQuant(quant)` | ✅ | Get the chord at a specific quant position. |
-| `getValidChordQuants` | `getValidChordQuants()` | ✅ | Get all valid quant positions for chords. |
+| `getChordAt` | `getChordAt(position)` | ✅ | Get the chord at `{ measure, quant }` (or `null`). |
+| `getValidChordPositions` | `getValidChordPositions()` | ✅ | `Map<measure, Set<quant>>` of valid chord positions. |
 
 ### Selection
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
 | `selectChord` | `selectChord(chordId)` | ✅ | Select a chord by ID. |
-| `selectChordAtQuant` | `selectChordAtQuant(quant)` | ✅ | Select the chord at a quant position. |
+| `selectChordAt` | `selectChordAt(position)` | ✅ | Select the chord at `{ measure, quant }`. |
 | `deselectChord` | `deselectChord()` | ✅ | Deselect the currently selected chord. |
+| `deleteSelectedChord` | `deleteSelectedChord()` | ✅ | Remove the currently selected chord. |
 | `getSelectedChord` | `getSelectedChord()` | ✅ | Get the currently selected chord. |
 | `hasChordSelection` | `hasChordSelection()` | ✅ | Check if a chord is selected. |
+
+### Focus
+
+| Method | Signature | Status | Description |
+| :--- | :--- | :--- | :--- |
+| `focusChordTrack` | `focusChordTrack()` | ✅ | Move focus into the chord track for keyboard editing. |
+| `blurChordTrack` | `blurChordTrack(options?)` | ✅ | Leave the chord track. `options.selectNoteAtQuant`: re-select the note under the chord. |
+| `isChordTrackFocused` | `isChordTrackFocused()` | ✅ | Whether the chord track currently has focus. |
 
 ### Navigation
 
@@ -247,7 +257,7 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 
 ---
 
-## 14. Layout & View Mode ✅
+## 12. Layout & View Mode ✅
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
@@ -256,6 +266,7 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 | `toggleViewMode` | `toggleViewMode()` | ✅ | Toggle between scroll and page view. |
 | `getLayoutConfig` | `getLayoutConfig()` | ✅ | Get current layout configuration. |
 | `setLayoutConfig` | `setLayoutConfig(config)` | ✅ | Update layout configuration (partial merge). |
+| `resetLayoutConfig` | `resetLayoutConfig()` | ✅ | Reset layout configuration to defaults. |
 
 ### LayoutConfig Properties
 
@@ -271,7 +282,7 @@ interface LayoutConfig {
 
 ---
 
-## 15. Metadata ✅
+## 13. Metadata ✅
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
@@ -301,14 +312,14 @@ interface ScoreMetadata {
 
 ---
 
-## 16. History & Clipboard
+## 14. History & Clipboard
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
 | `undo` | `undo()` | ✅ | Undo last mutation. |
 | `redo` | `redo()` | ✅ | Redo last undone. |
 | `beginTransaction` | `beginTransaction()` | ✅ | Start batch (single undo step). |
-| `commitTransaction` | `commitTransaction(label?)` | ✅ | End batch with optional history label. |
+| `commitTransaction` | `commitTransaction(label?)` | ✅ | End batch; `label` is delivered on the `'batch'` event (default `'Batch Action'`). |
 | `rollbackTransaction` | `rollbackTransaction()` | ✅ | Abort batch and revert changes. |
 | `copy` | `copy()` | ⏳ | Copy selection. |
 | `cut` | `cut()` | ⏳ | Cut selection. |
@@ -316,12 +327,12 @@ interface ScoreMetadata {
 
 ---
 
-## 12. Batch & Feedback
+## 15. Batch & Feedback
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
 | `collect` | `collect(callback)` | ✅ | Execute batch and aggregate results. |
-| `result` | `get result()` | ✅ | Get result of last operation (`{ ok, code, message }`). |
+| `result` | `get result()` | ✅ | Get result of last operation (`{ ok, status, method, message, timestamp, code?, details? }`). |
 | `ok` | `get ok()` | ✅ | Helper check for `result.ok`. |
 | `hasError` | `get hasError()` | ✅ | Sticky flag if *any* error occurred since clear. |
 | `clearStatus` | `clearStatus()` | ✅ | Reset sticky `hasError` flag. |
@@ -329,7 +340,7 @@ interface ScoreMetadata {
 
 ---
 
-## 12. Events & Subscriptions
+## 16. Events & Subscriptions
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
@@ -339,7 +350,7 @@ interface ScoreMetadata {
 - `'score'` — Score mutations
 - `'selection'` — Selection changes
 - `'playback'` — Play/pause state (Pending)
-- `'batch'` — Batch transaction commit (Payload: `{ type: 'batch', commands: CommandSummary[], timestamp: number }`)
+- `'batch'` — Batch transaction commit. Payload (`BatchEventPayload`): `{ type: 'batch', label?: string, timestamp: number, commands: { type: string, summary?: string }[], affectedMeasures: number[] }`. `label` is the value passed to `commitTransaction(label)` (default `'Batch Action'`); `affectedMeasures` is currently always empty (reserved).
 - `'operation'` — Any API method call (Payload: `Result`)
 - `'error'` — Any API error (Payload: `Result`)
 
@@ -360,7 +371,7 @@ await waitFor(() => {
 
 ---
 
-## 14. Error Handling
+## 17. Error Handling
 
 API methods implement a **Fail-Soft** pattern. They never throw errors (except for critical system failures).
 
@@ -384,11 +395,11 @@ api.clearStatus();
 | :--- | :--- |
 | Invalid `measureNum` | Clamped to valid range. |
 | Invalid `pitch` format | `ok: false`, `code: 'INVALID_PITCH'`. |
-| `export` unknown format | Throws `Error` (Critical). |
+| `export` unknown format | `ok: false`, `code: 'NOT_IMPLEMENTED'`; returns `''`. |
 
 ---
 
-## 14. Usage Examples
+## 18. Usage Examples
 
 ### Linear Entry ✅
 ```javascript
