@@ -431,6 +431,67 @@ describe('ScoreAPI Modification & IO Methods', () => {
       expect(note.pitch).toBe('D5');
     });
 
+    test('transposeDiatonic(12): moves 12 diatonic steps, NOT an octave (#239 coercion removed)', () => {
+      // Regression: the command used to coerce |steps|==12 to 7 (an octave),
+      // silently corrupting api.transposeDiatonic(12). 12 diatonic steps from C4
+      // is an octave + a 6th (C4 -> A5), not C5. This FAILS on the pre-#239 code.
+      render(<RiffScore id="diatonic-12" />);
+      const api = getAPI('diatonic-12');
+
+      act(() => {
+        api.select(0).addNote('C4', 'quarter');
+        api.select(0, 0, 0, 0);
+        api.transposeDiatonic(12);
+      });
+      expect(api.getScore().staves[0].measures[0].events[0].notes[0].pitch).toBe('A5');
+    });
+
+    test('transposeDiatonic(-12): moves 12 diatonic steps down, not an octave', () => {
+      render(<RiffScore id="diatonic-neg12" />);
+      const api = getAPI('diatonic-neg12');
+
+      act(() => {
+        api.select(0).addNote('C4', 'quarter');
+        api.select(0, 0, 0, 0);
+        api.transposeDiatonic(-12);
+      });
+      expect(api.getScore().staves[0].measures[0].events[0].notes[0].pitch).toBe('E2');
+    });
+
+    test('transposeDiatonic: spelling is key-aware through the command (sharp key)', () => {
+      // CHARACTERIZATION (not a #239 regression guard): diatonic key-aware spelling
+      // predates #239 — it lives in movePitchVisual/applyKeySignature, which #239
+      // did NOT change (the diatonic delta was only the steps rename + coercion
+      // removal). This pins the end-to-end command contract, previously asserted
+      // only at the movePitchVisual unit level, never through the command in a
+      // non-C key.
+      render(<RiffScore id="diatonic-keyaware-g" />);
+      const api = getAPI('diatonic-keyaware-g');
+
+      // G major: stepping E4 up onto the F line -> F#4 (F# is diatonic in G).
+      act(() => {
+        api.setKeySignature('G');
+        api.select(0).addNote('E4', 'quarter');
+        api.select(0, 0, 0, 0);
+        api.transposeDiatonic(1);
+      });
+      expect(api.getScore().staves[0].measures[0].events[0].notes[0].pitch).toBe('F#4');
+    });
+
+    test('transposeDiatonic: spelling is key-aware through the command (flat key)', () => {
+      render(<RiffScore id="diatonic-keyaware-f" />);
+      const api = getAPI('diatonic-keyaware-f');
+
+      // F major: stepping A4 up onto the B line -> Bb4 (Bb is diatonic in F).
+      act(() => {
+        api.setKeySignature('F');
+        api.select(0).addNote('A4', 'quarter');
+        api.select(0, 0, 0, 0);
+        api.transposeDiatonic(1);
+      });
+      expect(api.getScore().staves[0].measures[0].events[0].notes[0].pitch).toBe('Bb4');
+    });
+
     test('setClef: preserves note pitches', () => {
       render(<RiffScore id="edge-clef-pitch" />);
       const api = getAPI('edge-clef-pitch');

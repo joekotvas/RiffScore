@@ -19,7 +19,7 @@
  * @tested src/__tests__/theory/minorKeys.test.ts
  */
 
-import { Key, Note } from 'tonal';
+import { Key, Note, Midi } from 'tonal';
 
 export type KeyMode = 'major' | 'minor';
 
@@ -154,4 +154,64 @@ export const canonicalizeKeySignature = (key: string): string => {
   if (Math.abs(resolveKey(respelled).alteration) <= MAX_SIGNATURE_ACCIDENTALS) return respelled;
 
   return 'C';
+};
+
+/**
+ * Find the octave at which a pitch class lands on a given MIDI number, then
+ * return the fully-spelled pitch. The octave MUST be derived from MIDI rather
+ * than copied from the source pitch string: at the C boundary a flat/sharp pc
+ * (e.g. `Cb`/`B#`) belongs to the adjacent octave, so naive string concatenation
+ * lands an octave off.
+ */
+const pitchClassAtMidi = (pc: string, midi: number): string => {
+  const base = Math.floor(midi / 12) - 1;
+  for (const oct of [base - 1, base, base + 1]) {
+    if (Note.midi(`${pc}${oct}`) === midi) return `${pc}${oct}`;
+  }
+  // Should not happen for the diatonic pcs we feed in; fall back to a valid spelling.
+  return Midi.midiToNoteName(midi);
+};
+
+/**
+ * Choose the conventional spelling for a sounding pitch in a given key (#239).
+ *
+ * This is the key-aware enharmonic policy shared by chromatic transposition (and
+ * any future caller that needs to spell an absolute pitch). It NEVER changes the
+ * sounding pitch — `Note.midi(spellPitchInKey(p, k)) === Note.midi(p)` always —
+ * it only chooses how the pitch is written, killing the double/triple-accidental
+ * explosion that raw `Note.transpose` produces (e.g. E♭ +1 → F♭ → G𝄫 → …).
+ *
+ * Policy (agreed for #239):
+ *  1. If the target pitch class is diatonic in the key, use the key's diatonic
+ *     spelling (e.g. raising to the 4th in D major → C♯, never D♭).
+ *  2. Otherwise spell it with at most one accidental, preferring a natural where
+ *     one exists (so a semitone below C reads B, not C♭), and breaking the
+ *     remaining black-key tie by DIRECTION via `prefer`: ascending transposition
+ *     passes `'sharp'`, descending passes `'flat'`.
+ *
+ * @param target - a pitch string (e.g. 'Ebb4') or a MIDI number
+ * @param keySignature - internal key descriptor (e.g. 'C', 'Bb', 'F#', 'Em')
+ * @param prefer - tie-break for an out-of-key black key ('sharp' for up, 'flat' for down)
+ * @returns the spelled pitch with octave, or the input unchanged if unparseable
+ */
+export const spellPitchInKey = (
+  target: string | number,
+  keySignature: string,
+  prefer: 'sharp' | 'flat' = 'sharp'
+): string => {
+  const midi = typeof target === 'number' ? target : Note.midi(target);
+  if (midi == null) return typeof target === 'string' ? target : '';
+
+  const chroma = ((midi % 12) + 12) % 12;
+
+  // 1. In-key: use the key's own diatonic spelling for this pitch class.
+  const scale = getEffectiveScale(keySignature);
+  for (const pc of scale) {
+    if (Note.chroma(pc) === chroma) return pitchClassAtMidi(pc, midi);
+  }
+
+  // 2. Out-of-key: Tonal's midiToNoteName always yields <= 1 accidental and a
+  //    natural for white keys (in both modes), so naturals win automatically;
+  //    the sharp/flat tie for a black key is broken by direction.
+  return Midi.midiToNoteName(midi, { sharps: prefer === 'sharp' });
 };

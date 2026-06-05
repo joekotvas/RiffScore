@@ -1,6 +1,6 @@
 # RiffScore Roadmap
 
-> **Generated:** 2026-06-04 · **Living document** · reflects state through **v1.0.0-alpha.12** ([PR #248](https://github.com/joekotvas/RiffScore/pull/248)), **plus M1 shipped on `dev`** (post-alpha.12, pending the next release).
+> **Generated:** 2026-06-04 · **Living document** · reflects state through **v1.0.0-alpha.14**: M1 (truth-in-advertising) shipped in **alpha.13**; M2's first item **#239 (transpose spelling)** shipped in **alpha.14**.
 > Grounded in the 2026-06 correctness audit ([CORRECTNESS_AUDIT_2026-06.md](audit/CORRECTNESS_AUDIT_2026-06.md),
 > [AUDIT_QA_2026-06.md](audit/AUDIT_QA_2026-06.md)) and re-sequenced per the audit's
 > own second-pass QA. Every load-bearing claim below was independently fact-checked
@@ -55,7 +55,7 @@ release now on `dev` / [PR #248](https://github.com/joekotvas/RiffScore/pull/248
 
 ## Milestones
 
-### M1 — Truth-in-advertising · ✅ *shipped on `dev` (post-alpha.12, pending release)*
+### M1 — Truth-in-advertising · ✅ *shipped (v1.0.0-alpha.13)*
 
 Make the README honest — partly by cheap fixes, partly by honest labeling. Highest
 integrity-per-effort. **All items below landed on `dev`; M1's gate was met and
@@ -90,11 +90,12 @@ independently verified.**
 The model users actually edit and integrators actually drive. The audit's own QA
 prioritizes this over deep export fidelity.
 
-- **#239 Transpose spelling** — `semitones → steps` rename; remove the `|steps|==12 → 7`
-  octave coercion; key-aware chromatic enharmonic policy (kill the `Ebb`/`Gbbb`
-  explosion); add the missing key-aware **spelling tests**. *Diatonic spelling is
-  already partly key-aware (`movePitchVisual` snaps via `applyKeySignature`) but
-  untested.* Self-contained, half-done, high value — **start here.**
+- ✅ **#239 Transpose spelling** *(shipped v1.0.0-alpha.14)* — `semitones → steps`
+  rename; removed the `|steps|==12 → 7` octave coercion (coupled with the keyboard
+  sending ±7); key-aware chromatic enharmonic policy via the shared, MIDI-preserving
+  `spellPitchInKey` (in-key spelling wins, naturals preferred, out-of-key tie broken
+  by direction — kills the `E♭→F♭→G𝄫…` explosion); added the key-aware spelling tests
+  (incl. minor keys). Lossless undo (C3) unaffected.
 - **#242 Structural invariants at the model boundary** — capacity validation, tie
   validity, selection repair on staff removal, chordTrack re-anchoring on
   add/delete/reflow, `loadScore` validation; resolve the fail-fast vs fail-soft
@@ -178,7 +179,7 @@ dynamics (#20/#21), slurs (#19), lyrics (#30), repeats (#28), inline key/time ch
 ## Critical path
 
 ```
-M1 (truth) ✅  →  M2 (#239 → #242)  →  M3 (export/engraving)  →  (M4 decision)  →  M5
+M1 (truth) ✅  →  M2 (#239 ✅ → #242)  →  M3 (export/engraving)  →  (M4 decision)  →  M5
 ```
 
 **M2 is the long pole.** Start with **#239** (clean, self-contained, half-done), then give
@@ -203,7 +204,7 @@ theory) are largely independent of each other once M2 lands and can run in paral
 | #245 dotted/secondary beams | — | No #237 dependency; lands in M3. |
 | #245 tuplet beaming | #237 | Beat-boundary `% beatQuants` is unreliable with non-integer tuplet quants; deferred with #237. |
 | M4 cross-system ties | M2 (#242 tie model) | Page-view tie rendering needs the corrected tie model. |
-| #239 (transpose) | — | Lossless undo already done; residual is spelling/units. |
+| #239 (transpose) | ✅ done (alpha.14) | Key-aware spelling + steps rename + coercion removal shipped. |
 
 ## Mapping to the audit phases
 
@@ -229,9 +230,10 @@ This roadmap's load-bearing claims were independently fact-checked against the c
 (2026-06-04; **M1 status updated post-M1 on `dev`**). Confirmed: `SCHEMA_VERSION` is
 stamped by `migrateScore` and was bumped to **2** in alpha.12 so v1 scores re-run the new
 migration steps (#237 unblocked); the export wins above are all present (`<fifths>` is score-level, which
-is correct for the single-key model); **`api.play()` now plays the chord track via
-`scheduleScorePlayback` (M1) and alto/tenor are in `StaffTemplate`/`reset()` (M1)** — both
-shipped on `dev`; `setChordDisplay`/`setChordPlayback` are stubs; transpose
-lossless undo is done while the rename/coercion/spelling-test work remains; and the
+is correct for the single-key model); `api.play()` now plays the chord track via
+`scheduleScorePlayback` and alto/tenor are in `StaffTemplate`/`reset()` (both M1,
+shipped in alpha.13); `setChordDisplay`/`setChordPlayback` are stubs; transpose is now
+key-aware with lossless undo (#239 shipped in alpha.14 — `spellPitchInKey`, octave
+coercion removed); and the
 tuplet-grid dependency for #242/#245 is real (partial-tuplet quants are non-integer and
 `getBreakdownOfQuants` drops the remainder), making the integrality guard mandatory.

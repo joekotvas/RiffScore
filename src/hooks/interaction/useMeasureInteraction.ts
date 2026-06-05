@@ -16,6 +16,14 @@ interface UseMeasureInteractionParams {
   selection: Selection;
   onHover?: (measureIndex: number | null, hit: HitZone | null, pitch: string | null) => void;
   onAddNote?: (measureIndex: number, note: NoteInput, autoAdvance: boolean) => void;
+  /**
+   * A signature of the measure's content (e.g. event + note ids). When it changes,
+   * stale note-hover is cleared — a notehead deleted WHILE hovered unmounts without
+   * firing onMouseLeave, which would otherwise leave `isNoteHovered` stuck true and
+   * freeze the measure (no hover preview, clicks ignored), making a just-emptied
+   * measure ineditable.
+   */
+  contentSignature?: string;
 }
 
 interface UseMeasureInteractionReturn {
@@ -47,10 +55,25 @@ export function useMeasureInteraction({
   selection,
   onHover,
   onAddNote,
+  contentSignature,
 }: UseMeasureInteractionParams): UseMeasureInteractionReturn {
   const [hoveredMeasure, setHoveredMeasure] = useState(false);
   const [cursorStyle, setCursorStyle] = useState<string>('crosshair');
   const [isNoteHovered, setIsNoteHovered] = useState(false);
+
+  // Clear stale note-hover whenever the measure's content changes. A notehead
+  // deleted while hovered unmounts WITHOUT firing its onMouseLeave, so without this
+  // `isNoteHovered` would stay stuck true — and handleMeasureMouseMove /
+  // handleMeasureClick below early-return on it (and the renderer suppresses the
+  // hover preview), leaving a just-emptied measure unresponsive to hover and click.
+  // Adjust during render when the content signature changes (React's documented
+  // "store information from previous renders" pattern) so the next mouse move
+  // re-evaluates hover from scratch — no effect, no cascading render.
+  const [prevContentSignature, setPrevContentSignature] = useState(contentSignature);
+  if (contentSignature !== prevContentSignature) {
+    setPrevContentSignature(contentSignature);
+    setIsNoteHovered(false);
+  }
 
   const handleMeasureMouseMove = useCallback(
     (e: React.MouseEvent) => {

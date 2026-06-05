@@ -340,11 +340,14 @@ export const useNavigation = ({
 
   const transposeSelection = useCallback(
     (direction: string, isShift: boolean) => {
-      // 1. Determine Semitone Shift
-      let semitones = 0;
-      if (direction === 'up') semitones = isShift ? 12 : 1;
-      if (direction === 'down') semitones = isShift ? -12 : -1;
-      if (semitones === 0) return;
+      // 1. Determine the diatonic step shift. TransposeSelectionCommand moves by
+      // diatonic STEPS, so an octave is 7 steps (not 12). Sending 7 directly (was
+      // 12, then coerced inside the command) keeps this path aligned with the
+      // preview/ghost path and removes the need for any coercion (#239).
+      let steps = 0;
+      if (direction === 'up') steps = isShift ? 7 : 1;
+      if (direction === 'down') steps = isShift ? -7 : -1;
+      if (steps === 0) return;
 
       const activeStaff = getActiveStaff(scoreRef.current, selection.staffIndex || 0);
 
@@ -368,7 +371,7 @@ export const useNavigation = ({
 
       // 3. Scenario B: Transposing Real Selection
       const keySignature = activeStaff.keySignature || 'C';
-      dispatch(new TransposeSelectionCommand(selection, semitones, keySignature));
+      dispatch(new TransposeSelectionCommand(selection, steps, keySignature));
 
       // Audio Preview for the change
       if (selection.measureIndex !== null && selection.eventId) {
