@@ -19,9 +19,9 @@ import type { ScoreEvent } from '@/types';
 const slope = (g: { startX: number; endX: number; startY: number; endY: number }) =>
   (g.endY - g.startY) / (g.endX - g.startX);
 
-// Three ascending eighth-note triplet events (one beam spans them). chordLayout.direction
-// is set so the bracket side matches the beam side, as the real layout pipeline guarantees.
-const tripletEvents = (pitches: string[]): ScoreEvent[] =>
+// Three eighth-note triplet events (one beam spans them). chordLayout.direction is set so
+// the bracket side matches the beam side, as the real layout pipeline guarantees.
+const tripletEvents = (pitches: string[], direction: 'up' | 'down' = 'up'): ScoreEvent[] =>
   pitches.map((pitch, i) => ({
     id: `e${i}`,
     duration: 'eighth',
@@ -29,8 +29,8 @@ const tripletEvents = (pitches: string[]): ScoreEvent[] =>
     notes: [{ id: `n${i}`, pitch }],
     tuplet: { ratio: [3, 2], groupSize: 3, position: i },
     // chordLayout is attached by the layout pipeline, not part of the base ScoreEvent type;
-    // the bracket reads its direction, so set it here to mirror a beamed (stems-up) group.
-    chordLayout: { direction: 'up' } as any,
+    // the bracket reads its direction, so set it to mirror the beamed group's stem side.
+    chordLayout: { direction } as any,
   }));
 
 const positions = { e0: 50, e1: 95, e2: 140 };
@@ -62,6 +62,20 @@ describe('tuplet bracket runs parallel to the beam (#252)', () => {
 
     expect(Math.sign(bracketSlope)).toBe(Math.sign(beamSlope)); // same direction
     expect(Math.abs(bracketSlope - beamSlope)).toBeLessThan(0.08);
+  });
+
+  it('a high triplet (stems down, beam below): bracket parallels the beam on the down side', () => {
+    const events = tripletEvents(['A5', 'F5', 'D5'], 'down'); // high ⇒ stems down, beam below
+    const beams = calculateBeamingGroups(events, positions, 'treble');
+    const brackets = calculateTupletBrackets(events, positions, 'treble', beams);
+
+    expect(beams[0].direction).toBe('down');
+    expect(brackets[0].direction).toBe('down');
+    const beamSlope = slope(beams[0]);
+    const bracketSlope = slope(brackets[0]);
+    expect(Math.abs(bracketSlope - beamSlope)).toBeLessThan(0.08);
+    // The bracket sits BELOW the beam (larger y) on the down side.
+    expect(brackets[0].startY).toBeGreaterThan(beams[0].startY);
   });
 
   it('without beam info the bracket still renders (unbeamed fallback is intact)', () => {

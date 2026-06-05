@@ -347,6 +347,41 @@ export const visualFixtures: VisualFixture[] = [
     }),
   },
   {
+    name: 'triplet-unbeamed-quarters',
+    description: 'A quarter-note triplet (3:2) — UNBEAMED, so the bracket uses the stem-tip contour.',
+    tags: ['tuplet', 'triplet', 'unbeamed'],
+    score: score({
+      staves: [
+        trebleStaff([
+          measure([
+            ev('quarter', [note('C4')], { tuplet: { ratio: [3, 2], groupSize: 3, position: 0 } }),
+            ev('quarter', [note('E4')], { tuplet: { ratio: [3, 2], groupSize: 3, position: 1 } }),
+            ev('quarter', [note('G4')], { tuplet: { ratio: [3, 2], groupSize: 3, position: 2 } }),
+            rest('half'),
+          ]),
+        ]),
+      ],
+    }),
+  },
+  {
+    name: 'triplet-high-stems-down',
+    description: 'A high eighth-note triplet (stems down, beam below) — guards the down-side bracket.',
+    tags: ['tuplet', 'triplet', 'stems-down'],
+    score: score({
+      staves: [
+        trebleStaff([
+          measure([
+            ev('eighth', [note('A5')], { tuplet: { ratio: [3, 2], groupSize: 3, position: 0 } }),
+            ev('eighth', [note('G5')], { tuplet: { ratio: [3, 2], groupSize: 3, position: 1 } }),
+            ev('eighth', [note('F5')], { tuplet: { ratio: [3, 2], groupSize: 3, position: 2 } }),
+            q('E5'),
+            rest('half'),
+          ]),
+        ]),
+      ],
+    }),
+  },
+  {
     name: 'chord-triad',
     description: 'A four-beat chord measure — stacked triads share one stem.',
     tags: ['chord'],
