@@ -208,12 +208,12 @@ const getEventMetrics = (
  * Post-processes the events to apply special centering rules.
  */
 export const applyMeasureCentering = (events: ScoreEvent[], measureWidth: number): ScoreEvent[] => {
-  if (events.length === 1 && events[0].id === 'rest-placeholder') {
-    const rest = events[0];
-    const targetVisualCenter = measureWidth / 2;
-    const x = targetVisualCenter - WHOLE_REST_WIDTH / 2;
-
-    return [{ ...rest, x }];
+  // A measure whose sole event is a whole rest is a whole-bar rest — center it (engraving
+  // convention). Covers both the auto placeholder and an explicitly-authored whole rest.
+  const sole = events.length === 1 ? events[0] : null;
+  if (sole && sole.isRest && sole.duration === 'whole' && !sole.dotted) {
+    const x = measureWidth / 2 - WHOLE_REST_WIDTH / 2;
+    return [{ ...sole, x }];
   }
 
   return events;
@@ -552,6 +552,24 @@ export const calculateMeasureLayout = (
   const minWidth =
     getNoteWidth(minDuration, false) + CONFIG.measurePaddingLeft + CONFIG.measurePaddingRight;
   const naturalWidth = Math.max(currentX + CONFIG.measurePaddingRight, minWidth);
+
+  // 5b. Whole-bar rest centering. A measure whose ONLY event is a whole rest is a whole-bar
+  // rest, which engraving convention centers horizontally (Behind Bars) — matching the
+  // empty-measure placeholder. Move the rest's selection (EVENT) hit zone with it so clicking
+  // the centered glyph still selects the rest.
+  const lone = events.length === 1 ? processedEvents[0] : undefined;
+  if (lone && lone.isRest && lone.duration === 'whole' && !lone.dotted) {
+    const centeredX = naturalWidth / 2 - WHOLE_REST_WIDTH / 2;
+    const delta = centeredX - (lone.x ?? CONFIG.measurePaddingLeft);
+    lone.x = centeredX;
+    if (lone.id in eventPositions) eventPositions[lone.id] += delta;
+    for (const z of hitZones) {
+      if (z.type === 'EVENT' && z.eventId === lone.id) {
+        z.startX += delta;
+        z.endX += delta;
+      }
+    }
+  }
 
   // 6. Apply Stretch Factor for Justified Systems
   // When stretchFactor > 1.0, expand all X positions to fill system width

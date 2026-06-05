@@ -237,7 +237,7 @@ export const visualFixtures: VisualFixture[] = [
     measure([dot('half', [note('G4')]), q('A4')]),
     measure([dot('quarter', [note('C4')]), e('D4'), dot('quarter', [note('E4')]), e('F4')]),
   ]),
-  treble('rests', 'Durations & rests', 'Rest glyphs for every duration.', ['whole rest', 'half rest', 'quarter rest', 'eighth rest', 'sixteenth rest'], ['rest'], [
+  treble('rests', 'Durations & rests', 'Rest glyphs for every duration (whole-bar whole rest is centered).', ['whole rest', 'half rest', 'quarter rest', 'eighth rest', 'sixteenth rest', 'whole-bar rest centered'], ['rest'], [
     measure([rest('whole')]),
     measure([rest('half'), rest('quarter'), rest('quarter')]),
     measure([rest('quarter'), rest('eighth'), rest('sixteenth'), rest('sixteenth'), rest('quarter'), rest('quarter')]),

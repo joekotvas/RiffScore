@@ -186,6 +186,28 @@ describe('Visual regression — Lane A (engraving oracles)', () => {
     }
   });
 
+  it('a sole whole rest is centered in its bar; a beat-positioned rest is not', () => {
+    // Lane A facts capture rest glyphs as codepoints only (no x), so this engraving rule —
+    // a whole-bar rest is centered — needs a dedicated geometry check.
+    const { canvas, unmount } = renderScore(fixtureByName('rests').score);
+    try {
+      const measures = Array.from(canvas.querySelectorAll('.Measure'));
+      const firstRestX = (m: Element) => Number(m.querySelector('.Rest text')?.getAttribute('x'));
+      const measureW = (m: Element) =>
+        Math.max(...Array.from(m.querySelectorAll('.staff-lines line')).map((l) => Number(l.getAttribute('x2'))));
+
+      // m0: the sole whole rest is centered (its glyph left-edge sits near mid-measure).
+      const w0 = measureW(measures[0]);
+      expect(firstRestX(measures[0])).toBeGreaterThan(w0 * 0.3);
+      expect(firstRestX(measures[0])).toBeLessThan(w0 * 0.6);
+
+      // m1 leads with a half rest at beat 1 — left portion, NOT centered (rhythmic position).
+      expect(firstRestX(measures[1])).toBeLessThan(measureW(measures[1]) * 0.3);
+    } finally {
+      unmount();
+    }
+  });
+
   it('whole-note ledger is wider than a quarter-note ledger (peeks past the wide head)', () => {
     // Whole-note ledgers use the widened extension (2*(SPACE-2+EXTRA) = 28); quarter-note
     // ledgers use the default (2*(SPACE-2) = 20).
