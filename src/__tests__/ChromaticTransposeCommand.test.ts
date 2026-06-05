@@ -103,11 +103,10 @@ describe('ChromaticTransposeCommand', () => {
     const n1 = score.staves[0].measures[0].events[0].notes[0];
     const n2 = score.staves[0].measures[0].events[1].notes[0];
 
-    // Tonal.js: C4 + 1 semitone = Db4 (or C#4 depending on context, verify)
-    // Tonal usually prefers sharps for positive moves unless key context?
-    // Let's just check expectation.
-    expect(['Db4', 'C#4']).toContain(n1.pitch);
-    expect(n2.pitch).toBe('F4');
+    // #239: deterministic key-aware spelling. C4 +1 in C major is out-of-key, so
+    // direction decides (up -> sharp) -> C#4 (no longer a Db4/C#4 toss-up).
+    expect(n1.pitch).toBe('C#4');
+    expect(n2.pitch).toBe('F4'); // E4 +1 -> F natural (in key)
   });
 
   test('ignores null pitch events (rests)', () => {
@@ -136,5 +135,62 @@ describe('ChromaticTransposeCommand', () => {
     const after = JSON.stringify(newScore);
 
     expect(before).toBe(after); // Should not differ
+  });
+
+  // #239: key-aware enharmonic spelling. Each case asserts BOTH the spelled pitch
+  // AND the sounding MIDI, so a "clean but wrong-pitch" respelling cannot pass.
+  describe('key-aware spelling (#239)', () => {
+    const { Note } = require('tonal');
+
+    const transposeSingle = (pitch: string, semitones: number, key: string): string => {
+      const score = createScoreWithNote(pitch);
+      score.staves[0].keySignature = key;
+      const selection = {
+        measureIndex: 0,
+        staffIndex: 0,
+        eventId: 'e1',
+        noteId: 'n1',
+        selectedNotes: [],
+      };
+      const result = new ChromaticTransposeCommand(selection, semitones).execute(score);
+      return result.staves[0].measures[0].events[0].notes[0].pitch as string;
+    };
+
+    it('uses the key diatonic spelling for an in-key result (sharp key)', () => {
+      // C# is diatonic in D major -> C#4, not Db4.
+      const out = transposeSingle('C4', 1, 'D');
+      expect(out).toBe('C#4');
+      expect(Note.midi(out)).toBe(61);
+    });
+
+    it('spells an out-of-key black key by direction (flat key)', () => {
+      // In F major, D#/Eb (chroma 3) is out of key; ascending -> sharp -> D#4.
+      const up = transposeSingle('D4', 1, 'F');
+      expect(up).toBe('D#4');
+      expect(Note.midi(up)).toBe(63);
+      // Descending onto the same pitch class -> flat -> Eb4.
+      const down = transposeSingle('E4', -1, 'F');
+      expect(down).toBe('Eb4');
+      expect(Note.midi(down)).toBe(63);
+    });
+
+    it('prefers a natural over a double flat (no Fb where E will do)', () => {
+      // Eb4 +1 is E natural; raw Note.transpose would yield Fb4.
+      const out = transposeSingle('Eb4', 1, 'Eb');
+      expect(out).toBe('E4');
+      expect(Note.midi(out)).toBe(64);
+    });
+
+    it('never explodes into multi-accidentals under repeated transposition', () => {
+      // Regression for the Eb -> Fb -> Gbb -> Abbb ... cascade.
+      let pitch = 'Eb4';
+      let expectedMidi = Note.midi('Eb4');
+      for (let i = 0; i < 7; i++) {
+        pitch = transposeSingle(pitch, 1, 'C');
+        expectedMidi += 1;
+        expect(Math.abs(Note.get(pitch).alt)).toBeLessThanOrEqual(1);
+        expect(Note.midi(pitch)).toBe(expectedMidi);
+      }
+    });
   });
 });

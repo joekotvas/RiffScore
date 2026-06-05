@@ -13,6 +13,7 @@ import { Score, getActiveStaff, Selection, Staff, ScoreEvent, Note as NoteType }
 import { Note, Interval } from 'tonal';
 import { PIANO_RANGE } from '@/constants';
 import { getMidi } from '@/services/MusicService';
+import { spellPitchInKey } from '@/utils/keyResolution';
 import { NoteSnapshot, snapshotNotes, restoreNoteSnapshots } from './transposeSnapshot';
 
 export class ChromaticTransposeCommand implements Command {
@@ -27,7 +28,11 @@ export class ChromaticTransposeCommand implements Command {
 
   constructor(
     private selection: Selection,
-    private semitones: number
+    private semitones: number,
+    // Fallback key when a target staff has no key signature. execute() prefers
+    // each target staff's own key (per-staff, so grand-staff/multi-staff
+    // selections spanning different keys spell correctly).
+    private keySignature: string = 'C'
   ) {}
 
   /**
@@ -113,9 +118,17 @@ export class ChromaticTransposeCommand implements Command {
   }
 
   /**
-   * Transpose a pitch by semitones, clamped to piano range.
+   * Transpose a pitch by semitones, respelled key-aware, clamped to piano range.
+   *
+   * Raw `Note.transpose` accumulates accidentals without bound (a +1 is a minor
+   * 2nd, forcing a letter-step + an extra flat each time: E♭ → F♭ → G𝄫 → …).
+   * We keep that result's SOUNDING pitch but choose a conventional spelling for
+   * the target key (#239) — `spellPitchInKey` is MIDI-preserving, so transpose
+   * still moves by exactly `semitones`; only the spelling changes. Direction
+   * (sign of `semitones`) breaks the out-of-key sharp/flat tie: up → sharp,
+   * down → flat.
    */
-  private transposePitch(pitch: string): string | null {
+  private transposePitch(pitch: string, keySig: string): string | null {
     if (!pitch) return null;
 
     // Get the interval from semitones (e.g., 3 -> "3m" or "3M" depending on context)
@@ -126,8 +139,11 @@ export class ChromaticTransposeCommand implements Command {
     const transposed = Note.transpose(pitch, interval);
     if (!transposed) return pitch;
 
-    // Clamp to piano range
-    const midi = getMidi(transposed);
+    // Key-aware respelling (kills the double/triple-accidental explosion).
+    const spelled = spellPitchInKey(transposed, keySig, this.semitones >= 0 ? 'sharp' : 'flat');
+
+    // Clamp to piano range (on the sounding pitch).
+    const midi = getMidi(spelled);
     const minMidi = getMidi(PIANO_RANGE.min);
     const maxMidi = getMidi(PIANO_RANGE.max);
 
@@ -135,7 +151,7 @@ export class ChromaticTransposeCommand implements Command {
       return pitch; // Don't transpose out of range
     }
 
-    return transposed;
+    return spelled;
   }
 
   execute(score: Score): Score {
@@ -168,6 +184,10 @@ export class ChromaticTransposeCommand implements Command {
         const [sIdxStr, mIdxStr] = key.split('-');
         const sIdx = parseInt(sIdxStr, 10);
         const mIdx = parseInt(mIdxStr, 10);
+
+        // Resolve the key per target staff so a selection spanning staves with
+        // different key signatures (grand staff) spells each note in its own key.
+        const keySig = score.staves[sIdx]?.keySignature || this.keySignature || 'C';
 
         if (!staffMap.has(sIdx)) {
           staffMap.set(sIdx, {
@@ -211,7 +231,7 @@ export class ChromaticTransposeCommand implements Command {
             if (noteIndex !== -1) {
               const currentPitch = newEvent.notes[noteIndex].pitch;
               if (currentPitch !== null) {
-                const newPitch = this.transposePitch(currentPitch);
+                const newPitch = this.transposePitch(currentPitch, keySig);
                 if (newPitch) {
                   newEvent.notes[noteIndex] = {
                     ...newEvent.notes[noteIndex],
@@ -229,6 +249,7 @@ export class ChromaticTransposeCommand implements Command {
 
     // Case 1: Transpose specific note
     const activeStaff = getActiveStaff(score, staffIndex);
+    const keySig = activeStaff.keySignature || this.keySignature || 'C';
     const newMeasures = [...activeStaff.measures];
 
     if (!newMeasures[this.selection.measureIndex]) return score;
@@ -246,7 +267,7 @@ export class ChromaticTransposeCommand implements Command {
 
       const note = { ...event.notes[noteIndex] };
       if (note.pitch !== null) {
-        note.pitch = this.transposePitch(note.pitch) ?? note.pitch;
+        note.pitch = this.transposePitch(note.pitch, keySig) ?? note.pitch;
       }
 
       const newNotes = [...event.notes];
@@ -265,7 +286,7 @@ export class ChromaticTransposeCommand implements Command {
       const event = { ...measure.events[eventIndex] };
       const newNotes = event.notes.map((n) => ({
         ...n,
-        pitch: n.pitch !== null ? (this.transposePitch(n.pitch) ?? n.pitch) : null,
+        pitch: n.pitch !== null ? (this.transposePitch(n.pitch, keySig) ?? n.pitch) : null,
       }));
 
       event.notes = newNotes;

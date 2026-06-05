@@ -17,7 +17,10 @@ export class TransposeSelectionCommand implements Command {
 
   constructor(
     private selection: Selection,
-    private semitones: number,
+    // DIATONIC STEPS (not semitones): movePitchVisual walks the staff letters by
+    // this count and snaps to the key. An octave is 7 steps. The misnomer this
+    // field used to carry ('semitones') is gone (#239).
+    private steps: number,
     private keySignature: string = 'C'
   ) {}
 
@@ -134,24 +137,12 @@ export class TransposeSelectionCommand implements Command {
 
     const measure = { ...newMeasures[this.selection.measureIndex] };
 
-    // Determine transposition logic
-    // The command is called "semitones", but typically "Transpose Selection" via arrows means "Visual Steps".
-    // If semitones is small (+/- 1), it usually implies Steps (User pressed Arrow).
-    // If semitones is large (+12), it implies Shift+Arrow (Octave).
-
-    // BUG FIX: The caller (useNavigation) was passing +12 Semitones for Shift+Up,
-    // but the old PitchService treated it as Steps (Octave+6th).
-    // Here we need to decide if we are moving by Steps or Semitones.
-
-    // For now, let's assume 'semitones' actually means 'steps' in the context of arrow keys.
-    // If it's +/- 12, that's 7 steps (Octave).
-    // Caller needs to send correct step count?
-    // Or we handle it here.
-
-    let steps = this.semitones;
-    if (Math.abs(steps) === 12) {
-      steps = steps > 0 ? 7 : -7;
-    }
+    // Move by literal diatonic steps. Callers pass step counts directly (an
+    // octave is 7 steps; the keyboard sends ±7 for Shift+Arrow). There is no
+    // |steps|==12 → 7 coercion: it silently corrupted api.transposeDiatonic(12)
+    // into an octave and existed only to paper over a caller that mislabeled the
+    // octave jump as 12 (#239).
+    const steps = this.steps;
 
     // Helper for robust ID comparison
     const idsMatch = (a: string | null, b: string | null) => String(a) === String(b);
