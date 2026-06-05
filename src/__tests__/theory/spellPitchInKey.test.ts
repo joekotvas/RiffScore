@@ -51,6 +51,30 @@ describe('spellPitchInKey', () => {
     }
   });
 
+  it('resolves spelling mode-aware in minor keys', () => {
+    // Eb minor's natural scale contains Cb, so B4 (chroma 11) is in-key -> Cb5
+    // (octave from MIDI: Cb5 and B4 are the same sounding pitch, midi 71).
+    const inKey = spellPitchInKey('B4', 'Ebm', 'sharp');
+    expect(inKey).toBe('Cb5');
+    expect(Note.midi(inKey)).toBe(71);
+    // A minor's natural scale has no G#/Ab -> out of key -> direction decides.
+    expect(spellPitchInKey(68, 'Am', 'sharp')).toBe('G#4');
+    expect(spellPitchInKey(68, 'Am', 'flat')).toBe('Ab4');
+  });
+
+  it('respells a multi-accidental input cleanly against a non-C key', () => {
+    // In-key override: F##4 sounds G (chroma 7), diatonic in C -> plain G4.
+    const inKey = spellPitchInKey('F##4', 'C', 'sharp');
+    expect(inKey).toBe('G4');
+    expect(Note.midi(inKey)).toBe(67);
+    // Out-of-key in a non-C key: B##3 sounds C#4 (midi 61); C# is not in A minor
+    // -> direction (sharp). Result is a single accidental, MIDI preserved.
+    const outKey = spellPitchInKey('B##3', 'Am', 'sharp');
+    expect(outKey).toBe('C#4');
+    expect(Math.abs(Note.get(outKey).alt)).toBeLessThanOrEqual(1);
+    expect(Note.midi(outKey)).toBe(61);
+  });
+
   it('NEVER changes the sounding pitch (MIDI-preserving)', () => {
     const samples: Array<[string, string, 'sharp' | 'flat']> = [
       ['Db4', 'C', 'sharp'],

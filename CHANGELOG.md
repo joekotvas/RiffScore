@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### For musicians
+- **Transpose spells notes cleanly (#239)** — transposing now picks sensible sharps/flats from the key signature instead of piling up double and triple accidentals (a repeated semitone shift used to drift E♭ → F♭ → G𝄫 → A𝄫𝄫…). In-key notes use the key's own spelling; out-of-key notes follow the direction you move (up → sharp, down → flat). The sounding pitch is never changed — only how it's written.
+- **Shift+Arrow is consistently one octave (#239)** — the keyboard octave jump now moves a true octave in every case.
+
+### For developers
+- **`api.transposeDiatonic(N)` now means N literal diatonic steps (#239).** The previous `|steps| == 12 → 7` coercion was removed, so `transposeDiatonic(12)` now moves 12 steps (C4 → A5) instead of being silently collapsed to an octave (C5). **Behavior change** for any embedder that passed 12/−12 and relied on the octave coercion (Shift+Arrow still moves an octave — the keyboard now sends ±7 directly).
+- **Key-aware chromatic spelling (#239).** New shared `spellPitchInKey(target, key, prefer)` (in `keyResolution.ts`) is the enharmonic policy behind `ChromaticTransposeCommand`: in-key pitch classes take the key's diatonic spelling, otherwise ≤1 accidental with a natural preferred and the black-key tie broken by direction. It is sounding-pitch-preserving (`Note.midi` is invariant). The chromatic command resolves the key per target staff, so grand-staff selections spell each note in its own key.
+- **Internal rename:** `TransposeSelectionCommand`'s diatonic-steps parameter was misnamed `semitones`; renamed to `steps` (the public `transpose(semitones)` and `transposeDiatonic(steps)` are unchanged). Lossless transpose undo (contract C3) is unaffected.
+
 ## [1.0.0-alpha.13] - 2026-06-04
 
 A truth-in-advertising pass (roadmap milestone M1): making every promise the editor

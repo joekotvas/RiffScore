@@ -459,9 +459,12 @@ describe('ScoreAPI Modification & IO Methods', () => {
     });
 
     test('transposeDiatonic: spelling is key-aware through the command (sharp key)', () => {
-      // Diatonic transpose snaps the destination letter to the key signature.
-      // Previously only asserted at the movePitchVisual unit level, never through
-      // TransposeSelectionCommand in a non-C key.
+      // CHARACTERIZATION (not a #239 regression guard): diatonic key-aware spelling
+      // predates #239 — it lives in movePitchVisual/applyKeySignature, which #239
+      // did NOT change (the diatonic delta was only the steps rename + coercion
+      // removal). This pins the end-to-end command contract, previously asserted
+      // only at the movePitchVisual unit level, never through the command in a
+      // non-C key.
       render(<RiffScore id="diatonic-keyaware-g" />);
       const api = getAPI('diatonic-keyaware-g');
 

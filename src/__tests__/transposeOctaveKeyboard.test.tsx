@@ -1,12 +1,14 @@
 /**
- * Keyboard octave transpose (Shift+Arrow) — #239 regression guard.
+ * Keyboard octave transpose (Shift+Arrow) — #239 wiring guard.
  *
- * The diatonic command moves by STEPS (an octave = 7 steps). Removing the old
- * |steps|==12 -> 7 coercion is only safe because useNavigation.transposeSelection
- * now sends +/-7 for Shift+Arrow (it used to send +/-12 and rely on the coercion).
- * This test drives the REAL transposeSelection through the context and asserts a
- * Shift+Arrow moves exactly one octave — if useNavigation regressed to +/-12,
- * the note would jump an octave + a 6th (C4 -> A5) and this would fail.
+ * The diatonic command moves by STEPS (an octave = 7 steps). This drives the REAL
+ * useNavigation.transposeSelection through context and asserts Shift+Arrow moves
+ * exactly one octave. With the |steps|==12 -> 7 coercion now removed from the
+ * command, this guards the COUPLED half of #239: useNavigation must send +/-7 for
+ * Shift+Arrow. If it regressed to +/-12, the (no-coercion) command would move 12
+ * steps -> C4 -> A5 and this would fail. (The command-side coercion removal itself
+ * is guarded by the ScoreAPI tests: transposeDiatonic(12) -> A5, (-12) -> E2, which
+ * fail on pre-#239 source.)
  */
 
 import React from 'react';
