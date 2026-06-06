@@ -10,6 +10,7 @@
 import { useEffect } from 'react';
 import { Selection, Score, ScoreEvent, getActiveStaff } from '@/types';
 import { deriveAccidental } from '@/services/MusicService';
+import { hasTieTarget } from '@/utils/ties';
 
 interface UseToolsSyncProps {
   score: Score;
@@ -45,10 +46,12 @@ export const useToolsSync = ({
       return;
     }
 
-    const measure = getActiveStaff(score, staffIndex || 0).measures[measureIndex];
+    const staff = getActiveStaff(score, staffIndex || 0);
+    const measure = staff.measures[measureIndex];
     if (!measure) return;
 
-    const event = measure.events.find((e: ScoreEvent) => e.id === eventId);
+    const eventIndex = measure.events.findIndex((e: ScoreEvent) => e.id === eventId);
+    const event = eventIndex >= 0 ? measure.events[eventIndex] : undefined;
 
     if (event) {
       // Duration is NOT synced - user controls duration independently
@@ -62,7 +65,13 @@ export const useToolsSync = ({
           // key-signature snapping on the next note entry.
           const acc = note.pitch ? deriveAccidental(note.pitch) : null;
           setActiveAccidental(acc && acc !== 'natural' ? acc : null);
-          setActiveTie(!!note.tied);
+          // Lane E: the tie button reflects what RENDERS — a forward `tied` flag whose target was
+          // deleted/rested draws no tie, so it must not light the button (button-lit ⟺ tie-visible).
+          setActiveTie(
+            !!note.tied &&
+              note.pitch != null &&
+              hasTieTarget(staff.measures, { measureIndex, eventIndex, pitch: note.pitch })
+          );
         }
       } else {
         // When no specific note selected (rest or event selection), clear

@@ -1,5 +1,6 @@
 import { useCallback, RefObject } from 'react';
 import { canModifyEventDuration, canToggleEventDot } from '@/utils/validation';
+import { hasTieTarget } from '@/utils/ties';
 
 import { playNote } from '@/engines/toneEngine';
 import { Score, getActiveStaff, Selection, Note as ScoreNote, ScoreEvent } from '@/types';
@@ -336,10 +337,33 @@ export const useModifiers = ({
     const hasAnyTied = noteObjects.some((n) => n.tied);
     const targetState = !hasAnyTied;
 
-    // 3. Apply to all targets
-    targets.forEach((target) => {
-      // We just dispatch. Note updates don't require measure-level validation usually (unless changing pitch/duration invalidates something else?)
-      // Ties don't affect duration. Safe.
+    // 3. Apply. Turning a tie OFF is always safe. Turning ON is gated per-target (Lane E): a tie
+    //    must connect to a same-pitch successor, so only resolvable targets get tied; if none
+    //    resolve we dispatch nothing (the keyboard can't create a dangling tie). Partial turn-ON
+    //    ties just the resolvable subset.
+    const toApply = targetState
+      ? targets.filter((target) => {
+          const staff = score.staves[target.staffIndex] || getActiveStaff(score);
+          const measure = staff.measures[target.measureIndex];
+          if (!measure) return false;
+          const eventIndex = measure.events.findIndex((e: ScoreEvent) => e.id === target.eventId);
+          const note = measure.events[eventIndex]?.notes.find((n: ScoreNote) => n.id === target.noteId);
+          return (
+            eventIndex >= 0 &&
+            note != null &&
+            note.pitch != null &&
+            hasTieTarget(staff.measures, {
+              measureIndex: target.measureIndex,
+              eventIndex,
+              pitch: note.pitch,
+            })
+          );
+        })
+      : targets;
+
+    if (toApply.length === 0) return;
+
+    toApply.forEach((target) => {
       dispatch(
         new UpdateNoteCommand(
           target.measureIndex,
@@ -351,7 +375,7 @@ export const useModifiers = ({
       );
     });
 
-    // Sync tool UI
+    // Sync tool UI to the state we actually applied
     if (tools.activeTie !== targetState) tools.handleTieToggle();
   }, [selection, tools, dispatch, scoreRef]);
 

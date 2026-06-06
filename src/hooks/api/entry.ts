@@ -29,6 +29,7 @@ import {
 } from '@/utils/entry/insertion';
 import { getBreakdownOfQuants, getNoteDuration } from '@/utils/core';
 import { isValidTupletRatio } from '@/utils/tuplet';
+import { hasTieTarget } from '@/utils/ties';
 import { getMeasureCapacity } from '@/constants';
 
 /**
@@ -834,12 +835,34 @@ export const createEntryMethods = (
         return this;
       }
 
+      // Lane E: gate the turn-ON transition — a tie must connect to a same-pitch successor.
+      // Turning a tie OFF is always allowed (it's the repair path).
+      const resultingTied = !note.tied;
+      if (
+        resultingTied &&
+        (note.pitch === null ||
+          !hasTieTarget(staff!.measures, {
+            measureIndex: sel.measureIndex,
+            eventIndex: measure!.events.findIndex((e) => e.id === sel.eventId),
+            pitch: note.pitch,
+          }))
+      ) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'toggleTie',
+          message: 'No matching note to tie to',
+          code: 'NO_TIE_TARGET',
+        });
+        return this;
+      }
+
       dispatch(
         new UpdateNoteCommand(
           sel.measureIndex,
           sel.eventId,
           sel.noteId,
-          { tied: !note.tied },
+          { tied: resultingTied },
           sel.staffIndex
         )
       );
@@ -848,8 +871,8 @@ export const createEntryMethods = (
         ok: true,
         status: 'info',
         method: 'toggleTie',
-        message: `Tie ${!note.tied ? 'added' : 'removed'}`,
-        details: { tied: !note.tied, noteId: sel.noteId },
+        message: `Tie ${resultingTied ? 'added' : 'removed'}`,
+        details: { tied: resultingTied, noteId: sel.noteId },
       });
 
       return this;
@@ -880,6 +903,26 @@ export const createEntryMethods = (
           method: 'setTie',
           message: 'Note not found',
           code: 'NOTE_NOT_FOUND',
+        });
+        return this;
+      }
+
+      // Lane E: gate setting a tie ON — it must connect to a same-pitch successor.
+      if (
+        tied === true &&
+        (note.pitch === null ||
+          !hasTieTarget(staff!.measures, {
+            measureIndex: sel.measureIndex,
+            eventIndex: measure!.events.findIndex((e) => e.id === sel.eventId),
+            pitch: note.pitch,
+          }))
+      ) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'setTie',
+          message: 'No matching note to tie to',
+          code: 'NO_TIE_TARGET',
         });
         return this;
       }

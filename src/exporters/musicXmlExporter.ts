@@ -11,6 +11,7 @@ import {
   ScoreMetadata,
 } from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
+import { findTieTarget } from '@/utils/ties';
 import { Note } from 'tonal';
 import { canonicalizeKeySignature } from '@/utils/keyResolution';
 import { MeasureAccidentalState, keySignatureAltForLetter } from '@/utils/accidentalContext';
@@ -349,6 +350,9 @@ const renderEvent = (
   accidentalState: MeasureAccidentalState,
   measureKey: string,
   activeTies: Set<string>,
+  measures: Measure[],
+  measureIndex: number,
+  eventIndex: number,
   staffNumber?: number
 ): string => {
   let xml = '';
@@ -446,7 +450,11 @@ const renderEvent = (
       tiedNotations += '<tied type="stop"/>';
     }
 
-    if (note.tied) {
+    // Lane E: only START a tie when it resolves to a same-pitch successor in the model. Padding
+    // only appends trailing rests (never removes the real successor) and activeTies persists
+    // across measures, so gating the START here guarantees every start gets a matching stop —
+    // no orphaned/unbalanced <tie> from a deleted/rested/last-note target.
+    if (note.tied && findTieTarget(measures, { measureIndex, eventIndex, pitch: pitchKey })) {
       tieTags += '<tie type="start"/>';
       tiedNotations += '<tied type="start"/>';
       activeTies.add(pitchKey);
@@ -684,7 +692,7 @@ export const generateMusicXML = (score: Score): string => {
       // Track local quant position within measure (for chord placement, top staff only).
       let localQuant = 0;
 
-      events.forEach((event: ScoreEvent) => {
+      events.forEach((event: ScoreEvent, eventIndex: number) => {
         // Insert harmony element before note if chord exists at this position
         // (chords annotate the top staff's timeline only).
         if (staffIndex === 0) {
@@ -694,7 +702,17 @@ export const generateMusicXML = (score: Score): string => {
           }
         }
 
-        xml += renderEvent(event, divisions, accidentalState, measureKey, activeTies, staffNumber);
+        xml += renderEvent(
+          event,
+          divisions,
+          accidentalState,
+          measureKey,
+          activeTies,
+          staff.measures,
+          mIndex,
+          eventIndex,
+          staffNumber
+        );
 
         // Advance quant position for chord placement tracking
         localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);

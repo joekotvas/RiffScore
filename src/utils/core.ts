@@ -9,6 +9,7 @@
 import { NOTE_TYPES, TIME_SIGNATURES } from '@/constants';
 import { Measure, ScoreEvent } from '@/types';
 import { measureId, eventId } from '@/utils/id';
+import { hasTieTarget } from '@/utils/ties';
 
 // --- Constants ---
 
@@ -88,14 +89,16 @@ export const getBreakdownOfQuants = (quants: number) => {
 // --- Reflow Logic Helpers ---
 
 /**
- * Flattens all measures into a single array of events and resets ties.
- * Ties are reset because reflow changes bar lines, requiring tie recalculation.
+ * Flattens all measures into a single event stream, cloning events/notes. Authored ties are
+ * PRESERVED (Lane E) — reflow keeps the user's ties and a final repairTies pass clears only those
+ * whose same-pitch neighbor is no longer adjacent after re-barring (the blanket tied:false reset
+ * here used to destroy every user tie on any time-signature change).
  */
 const flattenMeasures = (measures: Measure[]): ScoreEvent[] => {
   return measures.flatMap((m) =>
     m.events.map((e) => ({
       ...e,
-      notes: e.notes.map((n) => ({ ...n, tied: false })),
+      notes: e.notes.map((n) => ({ ...n })),
     }))
   );
 };
@@ -183,15 +186,18 @@ export const reflowScore = (measures: Measure[], newTimeSignature: string): Meas
       if (remainingQuants > 0) {
         const remainderParts = getBreakdownOfQuants(remainingQuants);
 
-        remainderParts.forEach((part) => {
+        remainderParts.forEach((part, partIndex) => {
+          // Every fragment but the last ties to the next fragment of the same split note; the LAST
+          // fragment carries each note's ORIGINAL onward tie, PER-NOTE (not broadcast from notes[0],
+          // which silently dropped per-note chord-tie granularity). repairTies later clears the last
+          // fragment's tie if that onward target didn't survive re-barring.
+          const isLastFragment = partIndex === remainderParts.length - 1;
           const newEvent = {
             ...event,
             id: eventId(),
             duration: part.duration,
             dotted: part.dotted,
-            // Remainder inherits the *original* tie status of the event
-            // (If the original note was tied to a following note, this remainder keeps that connection)
-            notes: event.notes.map((n) => ({ ...n, tied: event.notes[0].tied })),
+            notes: event.notes.map((n) => ({ ...n, tied: isLastFragment ? !!n.tied : true })),
           };
 
           // Handle edge case: If a single note is massive (larger than a full measure),
@@ -218,8 +224,30 @@ export const reflowScore = (measures: Measure[], newTimeSignature: string): Meas
     newMeasures.push({ id: measureId(), events: [], isPickup });
   }
 
-  return newMeasures;
+  // Lane E: drop ties whose same-pitch neighbor no longer sits immediately after them post-rebar.
+  return repairTies(newMeasures);
 };
+
+/**
+ * Clears ties that no longer resolve to a same-pitch successor (Lane E). Run after reflow re-bars
+ * the stream: a user tie survives iff its neighbor is still immediately adjacent; split-internal
+ * fragment ties always resolve and are kept. This ONLY clears ties — it never invents one — so two
+ * coincidentally-adjacent same-pitch notes the user never tied stay untied.
+ */
+export const repairTies = (measures: Measure[]): Measure[] =>
+  measures.map((measure, measureIndex) => ({
+    ...measure,
+    events: measure.events.map((event, eventIndex) => ({
+      ...event,
+      notes: event.notes.map((note) =>
+        note.tied &&
+        (note.pitch === null ||
+          !hasTieTarget(measures, { measureIndex, eventIndex, pitch: note.pitch }))
+          ? { ...note, tied: false }
+          : note
+      ),
+    })),
+  }));
 
 // --- Type Guards & Helpers ---
 

@@ -263,29 +263,47 @@ describe('ScoreAPI Entry Methods', () => {
       });
     });
 
-    test('toggles tie on selected note', () => {
+    test('toggles tie on a note that has a same-pitch successor', () => {
       render(<RiffScore id="tie-toggle" />);
       const api = getAPI('tie-toggle');
 
+      // Two same-pitch notes so the first has a valid tie target (Lane E gate).
       act(() => {
-        api.select(0).addNote('C4', 'quarter');
+        api.select(0).addNote('C4', 'quarter').addNote('C4', 'quarter');
       });
 
-      // Toggle on - with advance cursor model, must move back to select inserted note
+      // Move back to the FIRST note (cursor advanced past both) and tie it.
       act(() => {
-        api.move('left').toggleTie();
+        api.move('left').move('left').toggleTie();
       });
 
       let score = api.getScore();
       expect(score.staves[0].measures[0].events[0].notes[0].tied).toBe(true);
 
-      // Toggle off - with advance cursor model, must move back to select inserted note
+      // Toggle off — selection stays on the same note after a tie toggle.
       act(() => {
-        api.move('left').toggleTie();
+        api.toggleTie();
       });
 
       score = api.getScore();
       expect(score.staves[0].measures[0].events[0].notes[0].tied).toBe(false);
+    });
+
+    test('rejects a tie with no same-pitch successor (NO_TIE_TARGET)', () => {
+      render(<RiffScore id="tie-toggle-no-target" />);
+      const api = getAPI('tie-toggle-no-target');
+
+      act(() => {
+        api.select(0).addNote('C4', 'quarter');
+      });
+
+      // The lone note has no successor → the tie must be refused and the model left untouched.
+      act(() => {
+        api.move('left').toggleTie();
+      });
+
+      expect(api.result).toMatchObject({ ok: false, status: 'error', code: 'NO_TIE_TARGET' });
+      expect(api.getScore().staves[0].measures[0].events[0].notes[0].tied).toBeFalsy();
     });
   });
 
@@ -305,27 +323,44 @@ describe('ScoreAPI Entry Methods', () => {
       });
     });
 
-    test('sets tie explicitly', () => {
+    test('sets tie explicitly on a note with a same-pitch successor', () => {
       render(<RiffScore id="tie-set" />);
       const api = getAPI('tie-set');
 
       act(() => {
-        api.select(0).addNote('C4', 'quarter');
+        api.select(0).addNote('C4', 'quarter').addNote('C4', 'quarter');
       });
 
       act(() => {
-        api.move('left').setTie(true);
+        api.move('left').move('left').setTie(true);
       });
 
       let score = api.getScore();
       expect(score.staves[0].measures[0].events[0].notes[0].tied).toBe(true);
 
       act(() => {
-        api.move('left').setTie(false);
+        api.setTie(false);
       });
 
       score = api.getScore();
       expect(score.staves[0].measures[0].events[0].notes[0].tied).toBe(false);
+    });
+
+    test('setTie(true) rejects when the successor is a different pitch (NO_TIE_TARGET)', () => {
+      render(<RiffScore id="tie-set-no-target" />);
+      const api = getAPI('tie-set-no-target');
+
+      act(() => {
+        api.select(0).addNote('D4', 'quarter').addNote('E4', 'quarter');
+      });
+
+      // First note is D4, its successor is E4 (different pitch) → reject.
+      act(() => {
+        api.move('left').move('left').setTie(true);
+      });
+
+      expect(api.result).toMatchObject({ ok: false, status: 'error', code: 'NO_TIE_TARGET' });
+      expect(api.getScore().staves[0].measures[0].events[0].notes[0].tied).toBeFalsy();
     });
   });
 
