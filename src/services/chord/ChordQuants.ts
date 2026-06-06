@@ -7,7 +7,7 @@
  * @tested src/__tests__/services/ChordService.test.ts
  */
 
-import type { Measure, Score } from '@/types';
+import type { ChordSymbol, Measure, Score } from '@/types';
 import { getNoteDuration } from '@/utils/core';
 import { TIME_SIGNATURES } from '@/constants';
 
@@ -131,4 +131,37 @@ export const removeOrphanedChords = (score: Score, orphanedIds: string[]): Score
     ...score,
     chordTrack: score.chordTrack.filter((chord) => !orphanedIds.includes(chord.id)),
   };
+};
+
+// ============================================================================
+// STRUCTURAL RE-ANCHORING (#242)
+// ============================================================================
+
+/**
+ * Re-anchor chords when a measure is INSERTED at `insertedIndex`: every chord at or after that
+ * bar moves one bar later so the harmony stays over the same music. Anchors are measure-local,
+ * so this is an exact index shift — no global-quant round-trip needed.
+ */
+export const shiftChordsForInsertedMeasure = (
+  chordTrack: ChordSymbol[] | undefined,
+  insertedIndex: number
+): ChordSymbol[] | undefined => {
+  if (!chordTrack?.length) return chordTrack;
+  return chordTrack.map((chord) =>
+    chord.measure >= insertedIndex ? { ...chord, measure: chord.measure + 1 } : chord
+  );
+};
+
+/**
+ * Re-anchor chords when the measure at `deletedIndex` is REMOVED: chords anchored in that bar
+ * are dropped (their anchor is gone); chords after it move one bar earlier.
+ */
+export const shiftChordsForDeletedMeasure = (
+  chordTrack: ChordSymbol[] | undefined,
+  deletedIndex: number
+): ChordSymbol[] | undefined => {
+  if (!chordTrack?.length) return chordTrack;
+  return chordTrack
+    .filter((chord) => chord.measure !== deletedIndex)
+    .map((chord) => (chord.measure > deletedIndex ? { ...chord, measure: chord.measure - 1 } : chord));
 };

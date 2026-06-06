@@ -51,6 +51,7 @@ export const createIOMethods = (
         staves,
         title: 'New Score',
         bpm: 120, // Reset BPM to default
+        chordTrack: [], // fresh staves have no events — drop the old chords (#242)
       };
 
       dispatch(new LoadScoreCommand(newScore));
