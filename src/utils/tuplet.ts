@@ -1,0 +1,85 @@
+/**
+ * Tuplet quant integrality — the #237 guard scope, a foundation for #242.
+ *
+ * On the current `sixtyfourth = 1` grid a tuplet MEMBER is generally non-integer: an eighth
+ * in a 3:2 triplet is `8 × 2/3 = 5.333…` quants. Summing members with `+` then drifts under
+ * IEEE-754 — a complete eighth septuplet (7:4) reduce-sums to `31.999999999999993`, not 32 —
+ * which silently breaks any `sum === capacity` invariant or exact-quant map key (#242 capacity
+ * validation, delete backfill, chordTrack re-anchoring).
+ *
+ * But a complete tuplet GROUP is always integral: its span is `inSpaceOf × baseDuration`
+ * quants (16 for a triplet of eighths), independent of how the members are spelled. These
+ * helpers account groups ATOMICALLY by that span so downstream quant math stays exact, and
+ * reject ratios that could not tile an integer number of quants. The full ×LCM grid migration
+ * (which would make members integers too) stays deferred — see #237.
+ */
+import { NOTE_TYPES } from '@/constants';
+import { ScoreEvent } from '@/types';
+import { getNoteDuration } from '@/utils/core';
+
+/** Tolerance for comparing a drift-prone member sum against an integer quant target. */
+export const QUANT_EPSILON = 1e-6;
+
+/** Exact integer quant span of one COMPLETE tuplet group = `inSpaceOf × baseDuration` quants. */
+export const tupletGroupSpan = (baseDuration: string, ratio: [number, number]): number =>
+  (NOTE_TYPES[baseDuration]?.duration ?? 0) * ratio[1];
+
+/**
+ * A tuplet ratio `[actual, inSpaceOf]` over `baseDuration` is valid when it tiles a positive
+ * integer number of quants: both halves are integers (`actual ≥ 2`, `inSpaceOf ≥ 1`) and the
+ * base resolves to a real duration. Guards API/command callers from minting zero-length or
+ * non-tiling tuplets (e.g. `inSpaceOf = 0`, a `1:1` "tuplet", or an unknown base duration).
+ */
+export const isValidTupletRatio = (baseDuration: string, ratio: [number, number]): boolean => {
+  const [actual, inSpaceOf] = ratio;
+  if (!Number.isInteger(actual) || !Number.isInteger(inSpaceOf)) return false;
+  if (actual < 2 || inSpaceOf < 1) return false;
+  const span = tupletGroupSpan(baseDuration, ratio);
+  return span > 0 && Number.isInteger(span);
+};
+
+/** True when two quant counts are equal within `QUANT_EPSILON` (member sums drift under FP). */
+export const quantsEqual = (a: number, b: number): boolean => Math.abs(a - b) <= QUANT_EPSILON;
+
+/**
+ * Total quant length of an event list, accounting each COMPLETE tuplet group by its exact
+ * integer span instead of summing fractional members (which drifts). Consecutive events that
+ * share a `tuplet.id` form a group.
+ *
+ * Returns the total and whether an incomplete tuplet is present — fewer members than
+ * `groupSize`, or a tuplet event with no group id. A partial tuplet means the measure is
+ * mid-edit and not safely tileable, so capacity/validation should treat it as not-yet-valid
+ * rather than trust the (fractional) running sum.
+ */
+export const sumQuants = (events: ScoreEvent[]): { quants: number; partialTuplet: boolean } => {
+  let quants = 0;
+  let partialTuplet = false;
+  let i = 0;
+  while (i < events.length) {
+    const event = events[i];
+    if (event.tuplet?.id) {
+      const groupId = event.tuplet.id;
+      let j = i;
+      while (j < events.length && events[j].tuplet?.id === groupId) j++;
+      const present = j - i;
+      if (present === event.tuplet.groupSize) {
+        quants += tupletGroupSpan(event.tuplet.baseDuration ?? event.duration, event.tuplet.ratio);
+      } else {
+        for (let k = i; k < j; k++) {
+          quants += getNoteDuration(events[k].duration, events[k].dotted, events[k].tuplet);
+        }
+        partialTuplet = true;
+      }
+      i = j;
+    } else if (event.tuplet) {
+      // Tuplet metadata with no group id can't be grouped atomically — sum it and flag.
+      quants += getNoteDuration(event.duration, event.dotted, event.tuplet);
+      partialTuplet = true;
+      i += 1;
+    } else {
+      quants += getNoteDuration(event.duration, event.dotted);
+      i += 1;
+    }
+  }
+  return { quants, partialTuplet };
+};

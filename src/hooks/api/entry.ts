@@ -27,6 +27,7 @@ import {
   createRestsForRange,
 } from '@/utils/entry/insertion';
 import { getBreakdownOfQuants, getNoteDuration } from '@/utils/core';
+import { isValidTupletRatio } from '@/utils/tuplet';
 import { TIME_SIGNATURES } from '@/constants';
 
 /**
@@ -648,6 +649,21 @@ export const createEntryMethods = (
           });
           return this;
         }
+      }
+
+      // Integrality guard (#237/#242): the ratio must tile an integer number of quants, so a
+      // caller can't mint a zero-length or non-tiling tuplet (e.g. inSpaceOf 0). The base is
+      // the first selected event's duration — the tuplet's unit.
+      const baseDuration = measure.events[eventIndex].duration;
+      if (!isValidTupletRatio(baseDuration, [numNotes, inSpaceOf])) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'makeTuplet',
+          message: `Invalid tuplet ratio ${numNotes}:${inSpaceOf}`,
+          code: 'INVALID_TUPLET_RATIO',
+        });
+        return this;
       }
 
       dispatch(

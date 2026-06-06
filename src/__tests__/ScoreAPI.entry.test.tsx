@@ -118,6 +118,32 @@ describe('ScoreAPI Entry Methods', () => {
       });
     });
 
+    test('rejects a non-tiling ratio with a structured error (#237/#242 guard)', () => {
+      render(<RiffScore id="tuplet-bad-ratio" />);
+      const api = getAPI('tuplet-bad-ratio');
+
+      act(() => {
+        api.select(0).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
+      });
+      act(() => {
+        api.select(0, 0, 0, 0);
+      });
+
+      // inSpaceOf 0 would mint zero-length tuplet members — must be rejected, not applied.
+      act(() => {
+        api.makeTuplet(3, 0);
+      });
+
+      expect(api.result).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'INVALID_TUPLET_RATIO',
+      });
+      // The score is untouched: the events did not gain tuplet metadata.
+      const events = api.getScore().staves[0].measures[0].events;
+      expect(events.every((e) => e.tuplet === undefined)).toBe(true);
+    });
+
     test('preserves tuplet properties during insert-mode overflow', () => {
       render(<RiffScore id="tuplet-overflow" />);
       const api = getAPI('tuplet-overflow');
