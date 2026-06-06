@@ -52,6 +52,10 @@ describe('getMeasureCapacity — single source of truth', () => {
     expect(getMeasureCapacity('garbage')).toBe(64);
   });
 
+  it('rejects a non-power-of-two denominator rather than returning a fractional capacity', () => {
+    expect(getMeasureCapacity('4/3')).toBe(64); // 4*64/3 = 85.33… is not integral → fallback
+  });
+
   it('is null-safe for scores loaded without a time signature', () => {
     // Scores loaded via the API can carry a missing timeSignature; must not throw.
     expect(getMeasureCapacity(undefined as unknown as string)).toBe(64);
@@ -93,6 +97,22 @@ describe('validateMeasure (#242 measure integrity)', () => {
     const result = validateMeasure(partial, 64);
     expect(result.valid).toBe(false);
     expect(result.reason).toBe('incomplete-tuplet');
+  });
+
+  it('rejects an over-full bar built from a dotted (heterogeneous) tuplet group', () => {
+    // 3 dotted-eighths in a 3:2 triplet occupy 24 quants (not the 16-quant nominal span);
+    // with a dotted half (48) that is 72 > 64. Accounting by span would have read this valid.
+    const dottedTriplet: ScoreEvent[] = ['eighth', 'eighth', 'eighth'].map((d, i) => ({
+      id: `dt${i}`,
+      duration: d,
+      dotted: true,
+      notes: [{ id: `dt${i}n`, pitch: 'C4' }],
+      tuplet: { ratio: [3, 2], groupSize: 3, position: i, baseDuration: 'eighth', id: 'DT' },
+    }));
+    const result = validateMeasure(measure([...dottedTriplet, ev('dh', 'half', true)]), 64);
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe('overfull');
+    expect(result.quants).toBe(72);
   });
 });
 

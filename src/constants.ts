@@ -51,7 +51,10 @@ export const getMeasureCapacity = (timeSignature: string): number => {
   if (typeof timeSignature === 'string') {
     const [num, den] = timeSignature.split('/').map(Number);
     if (Number.isInteger(num) && num > 0 && Number.isInteger(den) && den > 0) {
-      return (num * TIME_SIGNATURES['4/4']) / den;
+      const capacity = (num * TIME_SIGNATURES['4/4']) / den;
+      // Real meters have power-of-two denominators, so this is integral; reject anything that
+      // isn't (e.g. 4/3) rather than return a fractional capacity.
+      if (Number.isInteger(capacity)) return capacity;
     }
   }
   return TIME_SIGNATURES['4/4'];

@@ -42,6 +42,27 @@ const withTuplet = (events: ScoreEvent[], groupSize: number, ratio: [number, num
     .events;
 };
 
+/** Build a tuplet group by hand (for cases the command won't create: dotted/mixed members,
+ *  corrupt groupSize). */
+const manualGroup = (
+  durations: string[],
+  ratio: [number, number],
+  opts: { dotted?: boolean; groupSize?: number; id?: string } = {}
+): ScoreEvent[] =>
+  durations.map((duration, i) => ({
+    id: `mg${i}`,
+    duration,
+    dotted: opts.dotted ?? false,
+    notes: [{ id: `mg${i}n`, pitch: 'C4' }],
+    tuplet: {
+      ratio,
+      groupSize: opts.groupSize ?? durations.length,
+      position: i,
+      baseDuration: 'eighth',
+      id: opts.id ?? 'G',
+    },
+  }));
+
 describe('tuplet integrality (#237 guard / #242 foundation)', () => {
   describe('tupletGroupSpan — a complete group is an exact integer span', () => {
     it.each([
@@ -76,6 +97,8 @@ describe('tuplet integrality (#237 guard / #242 foundation)', () => {
       ['eighth', [3, 0]], // inSpaceOf 0 — zero-length members
       ['eighth', [0, 2]], // actual 0
       ['eighth', [3.5, 2]], // non-integer
+      ['eighth', [2, 2]], // identity (n:n) — a no-op tuplet
+      ['eighth', [4, 4]], // identity
       ['triple-whole', [3, 2]], // unknown base → span 0
     ])('rejects %s %p', (base, ratio) => {
       expect(isValidTupletRatio(base, ratio as [number, number])).toBe(false);
@@ -171,6 +194,29 @@ describe('tuplet integrality (#237 guard / #242 foundation)', () => {
         tuplet: { ratio: [3, 2], groupSize: 3, position: 0, baseDuration: 'eighth' },
       };
       expect(sumQuants([orphan]).partialTuplet).toBe(true);
+    });
+  });
+
+  describe('sumQuants — dotted/mixed members and malformed groups (QA hardening)', () => {
+    it('accounts a complete group by its real footprint, not the nominal span (dotted members)', () => {
+      // Three DOTTED eighths in a 3:2 triplet: each = 12 * 2/3 = 8 → footprint 24, NOT the
+      // span (inSpaceOf*base = 16). Accounting by span would undercount and let an over-full
+      // bar read as valid.
+      const { quants, partialTuplet } = sumQuants(manualGroup(['eighth', 'eighth', 'eighth'], [3, 2], { dotted: true }));
+      expect(quants).toBe(24);
+      expect(partialTuplet).toBe(false);
+    });
+
+    it('flags an incoherent complete group whose footprint is non-integer', () => {
+      // quarter + eighth + eighth as a 3:2 triplet → (16+8+8)*2/3 = 21.333… (not tileable).
+      const { quants, partialTuplet } = sumQuants(manualGroup(['quarter', 'eighth', 'eighth'], [3, 2]));
+      expect(partialTuplet).toBe(true);
+      expect(quants).toBeCloseTo(((16 + 8 + 8) * 2) / 3, 6);
+    });
+
+    it('does not hang on a corrupt groupSize ≤ 0 (terminates and flags partial)', () => {
+      const result = sumQuants(manualGroup(['eighth'], [3, 2], { groupSize: 0 }));
+      expect(result.partialTuplet).toBe(true);
     });
   });
 
