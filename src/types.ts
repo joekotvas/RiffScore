@@ -484,6 +484,15 @@ export const getActiveStaff = (score: Score, staffIndex: number = 0): Staff => {
 };
 
 /**
+ * Strict staff lookup for MUTATION / validation paths (#242 Lane G): returns undefined for an
+ * out-of-range staff instead of silently retargeting staff 0. Use this anywhere a wrong staff
+ * index must NOT be masked (selection resolution, transpose). getActiveStaff stays the forgiving
+ * reader for the many render/export call sites that legitimately want a fallback.
+ */
+export const getValidStaff = (score: Score, staffIndex: number): Staff | undefined =>
+  score.staves[staffIndex];
+
+/**
  * Maps a legacy absolute (global) quant position to a measure-local
  * { measure, quant } pair using the engine's nominal convention:
  * `measure = floor(global / nominal)`, `quant = global % nominal`.

@@ -28,6 +28,7 @@ import { useInteraction } from './interaction';
 import { useTupletActions } from './useTupletActions';
 
 import { createDefaultScore, migrateScore, PreviewNote, Score } from '@/types';
+import { repairSelection } from '@/utils/selectionRepair';
 
 // Extracted score modules
 import { useDerivedSelection } from './score/useDerivedSelection';
@@ -142,6 +143,16 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     engine: selectionEngine,
   } = useSelection({ score, scoreGetter: () => engine.getState() });
   const [previewNote, setPreviewNote] = useState<PreviewNote | null>(null);
+
+  // #242 Lane G: after any structural score change (delete / reflow / tuplet-pack), prune selection
+  // coordinates that no longer resolve so later commands can't act on a phantom selection.
+  // repairSelection returns the SAME reference when nothing is stale, and this effect keys on
+  // `score` (not `selection`), so it never loops on its own write-back.
+  useEffect(() => {
+    const current = selectionEngine.getState();
+    const repaired = repairSelection(current, score);
+    if (repaired !== current) selectionEngine.setState(repaired);
+  }, [score, selectionEngine]);
 
   // --- COMPUTED VALUES ---
   // Fail-fast: throw for Error Boundary instead of logging and continuing

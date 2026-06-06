@@ -254,6 +254,7 @@ export const useNoteActions = ({
     selection,
     select,
     dispatch,
+    scoreRef,
   });
 
   // --- UPDATE: Pitch modification ---

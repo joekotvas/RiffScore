@@ -1,7 +1,8 @@
 import { MusicEditorAPI } from '@/api.types';
-import { Score } from '@/types';
+import { Score, migrateScore } from '@/types';
 import { APIContext } from './types';
 import { LoadScoreCommand } from '@/commands';
+import { validateScore } from '@/utils/validation';
 import { generateABC } from '@/exporters/abcExporter';
 import { generateMusicXML } from '@/exporters/musicXmlExporter';
 import { generateStaves } from '@/utils/generateScore';
@@ -29,14 +30,43 @@ export const createIOMethods = (
     loadScore(newScore) {
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
       const { dispatch } = ctx;
+
+      // #209 / Lane G: don't claim success on structurally malformed input — the dispatch would
+      // otherwise no-op (invalid state) while loadScore still reported ok:true.
+      if (!newScore || !Array.isArray(newScore.staves) || newScore.staves.length === 0) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'loadScore',
+          message: 'Cannot load score: missing or empty staves',
+          code: 'INVALID_SCORE',
+        });
+        return this;
+      }
+
       dispatch(new LoadScoreCommand(newScore));
-      setResult({
-        ok: true,
-        status: 'info',
-        method: 'loadScore',
-        message: 'Score loaded',
-        details: { title: newScore.title, measures: newScore.staves[0]?.measures.length },
-      });
+
+      // Surface content-validity problems (over-full / incomplete-tuplet bars, grand-staff parity)
+      // as a NON-blocking warning: the score still loads (so it can be fixed) but the caller is told.
+      const validation = validateScore(migrateScore(newScore));
+      setResult(
+        validation.valid
+          ? {
+              ok: true,
+              status: 'info',
+              method: 'loadScore',
+              message: 'Score loaded',
+              details: { title: newScore.title, measures: newScore.staves[0]?.measures.length },
+            }
+          : {
+              ok: true,
+              status: 'warning',
+              method: 'loadScore',
+              message: `Score loaded with ${validation.errors.length} validation issue(s)`,
+              code: 'SCORE_VALIDATION_WARNINGS',
+              details: { title: newScore.title, errors: validation.errors },
+            }
+      );
       return this;
     },
 

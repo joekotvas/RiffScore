@@ -56,6 +56,20 @@ describe('ScoreAPI Modification & IO Methods', () => {
       expect(current.title).toBe('New Score');
       expect(current.staves[0].clef).toBe('bass');
     });
+
+    test('rejects structurally malformed input instead of reporting success (#209)', () => {
+      render(<RiffScore id="load-bad" />);
+      const api = getAPI('load-bad');
+      const beforeTitle = api.getScore().title;
+
+      act(() => {
+        api.loadScore({ title: 'No staves' } as unknown as Score);
+      });
+
+      expect(api.result).toMatchObject({ ok: false, status: 'error', code: 'INVALID_SCORE' });
+      // The score is left untouched (the malformed load did not replace it).
+      expect(api.getScore().title).toBe(beforeTitle);
+    });
   });
 
   describe('IO: export', () => {

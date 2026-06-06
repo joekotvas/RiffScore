@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { Selection } from '@/types';
+import { useCallback, RefObject } from 'react';
+import { Score, Selection, getValidStaff } from '@/types';
 import { Command } from '@/commands/types';
 import { DeleteNoteCommand } from '@/commands/DeleteNoteCommand';
 import { DeleteEventCommand } from '@/commands/DeleteEventCommand';
@@ -19,6 +19,8 @@ export interface UseNoteDeleteProps {
   ) => void;
   /** Command dispatcher */
   dispatch: (command: Command) => void;
+  /** Live score ref — used to pick the post-delete re-anchor target (#242 Lane G) */
+  scoreRef: RefObject<Score>;
 }
 
 /**
@@ -58,6 +60,7 @@ export function useNoteDelete({
   selection,
   select,
   dispatch,
+  scoreRef,
 }: UseNoteDeleteProps): UseNoteDeleteReturn {
   const deleteSelected = useCallback(() => {
     // 1. Delete Multi-Selection
@@ -80,6 +83,32 @@ export function useNoteDelete({
 
     if (selection.measureIndex === null || !selection.eventId) return;
 
+    // Re-anchor target, computed from the PRE-delete measure (ids are stable across the delete; the
+    // selection-repair effect clears it if it didn't survive, e.g. a whole tuplet-group removal).
+    const measure = getValidStaff(scoreRef.current, selection.staffIndex)?.measures[
+      selection.measureIndex
+    ];
+    const idx = measure?.events.findIndex((e) => e.id === selection.eventId) ?? -1;
+    const event = idx >= 0 ? measure!.events[idx] : undefined;
+
+    let reanchorEventId: string | null = null;
+    let reanchorNoteId: string | null = null;
+    if (event && selection.noteId && event.notes.length > 1) {
+      // Chord-note delete: the event survives — keep it selected on a remaining note.
+      reanchorEventId = event.id;
+      reanchorNoteId = event.notes.find((n) => n.id !== selection.noteId)?.id ?? null;
+    } else if (measure && idx >= 0) {
+      // Whole-event delete shifts the measure left: select the note that takes its place — the next
+      // selectable (non-reserved) event, else the previous one, else nothing (empty measure).
+      const neighbor =
+        measure.events.slice(idx + 1).find((e) => !e.reserved) ??
+        [...measure.events.slice(0, idx)].reverse().find((e) => !e.reserved);
+      if (neighbor) {
+        reanchorEventId = neighbor.id;
+        reanchorNoteId = neighbor.notes[0]?.id ?? null;
+      }
+    }
+
     // 2. Delete Single Selection
     if (selection.noteId) {
       dispatch(
@@ -97,8 +126,12 @@ export function useNoteDelete({
       );
     }
 
-    select(null, null, null, selection.staffIndex);
-  }, [selection, dispatch, select]);
+    if (reanchorEventId === null) {
+      select(null, null, null, selection.staffIndex);
+    } else {
+      select(selection.measureIndex, reanchorEventId, reanchorNoteId, selection.staffIndex);
+    }
+  }, [selection, dispatch, select, scoreRef]);
 
   return { deleteSelected };
 }
