@@ -8,6 +8,7 @@
 import { render, act } from '@testing-library/react';
 import { RiffScore } from '../RiffScore';
 import type { MusicEditorAPI } from '../api.types';
+import { sumQuants } from '../utils/tuplet';
 
 // Helper to get typed API
 const getAPI = (id: string): MusicEditorAPI => {
@@ -341,6 +342,32 @@ describe('ScoreAPI Entry Methods', () => {
 
       // Method should return this for chaining
       expect(result).toBe(api);
+    });
+  });
+
+  describe('capacity (#242): API insertion respects the real time signature', () => {
+    test('inserting a whole note into an empty 3/4 bar splits and ties across the barline', () => {
+      render(<RiffScore id="cap-3-4" />);
+      const api = getAPI('cap-3-4');
+
+      act(() => {
+        api.setTimeSignature('3/4');
+      });
+      act(() => {
+        api.select(0).addNote('C4', 'whole');
+      });
+
+      const measures = api.getScore().staves[0].measures;
+
+      // The 3/4 bar holds 48 quants — the whole note (64) must NOT create a 64-quant bar.
+      // (Before the fix, the API used a hardcoded 64 capacity and overfilled the bar.)
+      expect(sumQuants(measures[0].events).quants).toBe(48);
+      // The 16-quant remainder lands in the next measure...
+      expect(measures[1]).toBeDefined();
+      expect(sumQuants(measures[1].events).quants).toBe(16);
+      // ...tied from the head note in the first bar.
+      const head = measures[0].events[measures[0].events.length - 1];
+      expect(head.notes[0].tied).toBe(true);
     });
   });
 });

@@ -56,30 +56,36 @@ export const sumQuants = (events: ScoreEvent[]): { quants: number; partialTuplet
   let partialTuplet = false;
   let i = 0;
   while (i < events.length) {
-    const event = events[i];
-    if (event.tuplet?.id) {
-      const groupId = event.tuplet.id;
-      let j = i;
-      while (j < events.length && events[j].tuplet?.id === groupId) j++;
-      const present = j - i;
-      if (present === event.tuplet.groupSize) {
-        quants += tupletGroupSpan(event.tuplet.baseDuration ?? event.duration, event.tuplet.ratio);
-      } else {
-        for (let k = i; k < j; k++) {
-          quants += getNoteDuration(events[k].duration, events[k].dotted, events[k].tuplet);
-        }
-        partialTuplet = true;
-      }
-      i = j;
-    } else if (event.tuplet) {
-      // Tuplet metadata with no group id can't be grouped atomically — sum it and flag.
-      quants += getNoteDuration(event.duration, event.dotted, event.tuplet);
-      partialTuplet = true;
+    const tuplet = events[i].tuplet;
+    if (!tuplet) {
+      quants += getNoteDuration(events[i].duration, events[i].dotted);
       i += 1;
-    } else {
-      quants += getNoteDuration(event.duration, event.dotted);
-      i += 1;
+      continue;
     }
+    // Gather this tuplet group's members: consecutive tuplet events sharing the group id (when
+    // present), bounded by `groupSize`. Tuplets built outside ApplyTupletCommand may omit the
+    // id, so fall back to chunking the contiguous tuplet run by groupSize.
+    const groupId = tuplet.id;
+    let take = 0;
+    while (
+      i + take < events.length &&
+      take < tuplet.groupSize &&
+      events[i + take].tuplet != null &&
+      (groupId == null || events[i + take].tuplet!.id === groupId)
+    ) {
+      take += 1;
+    }
+    if (take === tuplet.groupSize) {
+      quants += tupletGroupSpan(tuplet.baseDuration ?? events[i].duration, tuplet.ratio);
+    } else {
+      // Incomplete group (mid-edit): sum the present members (fractional) and flag.
+      for (let k = i; k < i + take; k++) {
+        quants += getNoteDuration(events[k].duration, events[k].dotted, events[k].tuplet);
+      }
+      partialTuplet = true;
+    }
+    i += take;
   }
   return { quants, partialTuplet };
 };
+

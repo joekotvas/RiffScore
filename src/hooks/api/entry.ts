@@ -28,7 +28,7 @@ import {
 } from '@/utils/entry/insertion';
 import { getBreakdownOfQuants, getNoteDuration } from '@/utils/core';
 import { isValidTupletRatio } from '@/utils/tuplet';
-import { TIME_SIGNATURES } from '@/constants';
+import { getMeasureCapacity } from '@/constants';
 
 /**
  * Entry method names provided by this factory
@@ -142,7 +142,11 @@ function executeInsertion(
     // If this is an overflow continuation, start at quant 0 to overwrite existing content
     const startQuant = isOverflowContinuation ? 0 : computeStartQuant(originalMeasure, sel.eventId);
 
-    const capacity = getRemainingCapacity(originalMeasure, startQuant);
+    const capacity = getRemainingCapacity(
+      originalMeasure,
+      startQuant,
+      getMeasureCapacity(getScore().timeSignature)
+    );
     const noteQuants = getNoteDuration(state.currentDuration, state.currentDotted);
 
     // Determine what to insert in this measure
@@ -285,8 +289,7 @@ function executeInsertion(
       // INSERT MODE: Handle overflow of displaced events
       if (config.mode === 'insert') {
         const measureAfterInsert = getScore().staves[staffIndex].measures[measureIndex];
-        const timeSig = getScore().timeSignature;
-        const measureCapacity = TIME_SIGNATURES[timeSig] || 64;
+        const measureCapacity = getMeasureCapacity(getScore().timeSignature);
 
         // Calculate total measure duration
         let totalQuants = 0;

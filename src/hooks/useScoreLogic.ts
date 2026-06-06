@@ -18,8 +18,7 @@
  */
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { TIME_SIGNATURES } from '@/constants';
-import { CONFIG } from '@/config';
+import { getMeasureCapacity } from '@/constants';
 import { useScoreEngine, useTransactionBatching, useSelection } from './score';
 import { useEditorTools } from './editor';
 import { useMeasureActions } from './useMeasureActions';
@@ -154,12 +153,10 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     );
   }
 
-  const currentQuantsPerMeasure = useMemo(() => {
-    if (score.timeSignature) {
-      return TIME_SIGNATURES[score.timeSignature as keyof typeof TIME_SIGNATURES] || 64;
-    }
-    return CONFIG.quantsPerMeasure;
-  }, [score.timeSignature]);
+  const currentQuantsPerMeasure = useMemo(
+    () => getMeasureCapacity(score.timeSignature ?? '4/4'),
+    [score.timeSignature]
+  );
 
   // --- SYNC TOOLBAR STATE ---
   // Uses extracted hook for cleaner separation

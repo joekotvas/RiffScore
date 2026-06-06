@@ -31,6 +31,32 @@ export const TIME_SIGNATURES: Record<string, number> = {
   '6/8': 48,
 };
 
+/**
+ * Bar capacity in quants for a time signature — the single source of truth for "how many
+ * quants fill a measure" (#242). Every capacity check and the measure-integrity invariant go
+ * through this, so they can never disagree.
+ *
+ * The `TIME_SIGNATURES` table is a fast-path; any other `n/d` signature is derived directly
+ * (a whole note is 64 quants, so a `1/d` note is `64/d` quants and the bar holds `n` of them).
+ * This is why compound meters like 9/8 (72) and 12/8 (96) — which the table omits but the
+ * beaming engine supports — get the right capacity. Malformed input falls back to 4/4.
+ *
+ * Note: a quant count does NOT uniquely identify the meter (6/8 and 3/4 both yield 48) — fine
+ * for capacity math, but callers needing the meter (e.g. beaming) must read `timeSignature`.
+ */
+export const getMeasureCapacity = (timeSignature: string): number => {
+  const known = TIME_SIGNATURES[timeSignature];
+  if (known != null) return known;
+  // Defensive: scores loaded through the API may carry a missing/garbage timeSignature.
+  if (typeof timeSignature === 'string') {
+    const [num, den] = timeSignature.split('/').map(Number);
+    if (Number.isInteger(num) && num > 0 && Number.isInteger(den) && den > 0) {
+      return (num * TIME_SIGNATURES['4/4']) / den;
+    }
+  }
+  return TIME_SIGNATURES['4/4'];
+};
+
 // =============================================================================
 // KEY SIGNATURES (Generated from Tonal)
 // =============================================================================
