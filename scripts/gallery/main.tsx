@@ -14,7 +14,7 @@
 import '@/styles/index.css';
 import './gallery.css';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RiffScore } from '@/RiffScore';
 import { visualFixtures, visualFeatures, type VisualFixture } from '@/__tests__/fixtures/visual';
@@ -28,9 +28,27 @@ const matches = (fx: VisualFixture, query: string, feature: string): boolean => 
   return hay.includes(query);
 };
 
-function FixtureCard({ fx, hidden }: { fx: VisualFixture; hidden: boolean }) {
+function FixtureCard({
+  fx,
+  hidden,
+  editing,
+  onToggle,
+}: {
+  fx: VisualFixture;
+  hidden: boolean;
+  editing: boolean;
+  onToggle: (name: string) => void;
+}) {
   return (
-    <figure className="card" id={fx.name} hidden={hidden}>
+    <figure className={`card${editing ? ' editing' : ''}`} id={fx.name} hidden={hidden}>
+      <button
+        type="button"
+        className="edit-toggle"
+        aria-pressed={editing}
+        onClick={() => onToggle(fx.name)}
+      >
+        {editing ? '✓ Done' : '✎ Edit'}
+      </button>
       <figcaption>
         <h3>{fx.name}</h3>
         <p>{fx.description}</p>
@@ -47,13 +65,17 @@ function FixtureCard({ fx, hidden }: { fx: VisualFixture; hidden: boolean }) {
           ))}
         </small>
       </figcaption>
-      <div className="stage">
+      <div className={`stage${editing ? ' editing' : ''}`}>
         <RiffScore
           id={`gx-${fx.name}`}
           config={{
             score: fx.score,
-            ui: { showToolbar: false, scale: SCALE, theme: 'LIGHT' },
-            interaction: { isEnabled: false },
+            ui: { showToolbar: editing, scale: SCALE, theme: 'LIGHT' },
+            interaction: {
+              isEnabled: editing,
+              enableKeyboard: editing,
+              enablePlayback: editing,
+            },
           }}
         />
       </div>
@@ -64,8 +86,22 @@ function FixtureCard({ fx, hidden }: { fx: VisualFixture; hidden: boolean }) {
 function Gallery() {
   const [query, setQuery] = useState('');
   const [feature, setFeature] = useState('all');
+  // Single active editor: at most one card is editable at a time. Clicking "Edit" on another
+  // card locks the previous one (keyboard/MIDI/playback then route unambiguously).
+  const [editingId, setEditingId] = useState<string | null>(null);
   const features = useMemo(() => visualFeatures(), []);
   const q = query.trim().toLowerCase();
+  const handleToggle = useCallback(
+    (name: string) => setEditingId((cur) => (cur === name ? null : name)),
+    []
+  );
+  // If the active editor gets filtered out of view, lock it — don't leave an invisible,
+  // still-interactive editor mounted (and registered as window.riffScore.active).
+  useEffect(() => {
+    if (editingId && !visualFixtures.some((fx) => fx.name === editingId && matches(fx, q, feature))) {
+      setEditingId(null);
+    }
+  }, [q, feature, editingId]);
 
   // Render EVERY fixture always (editors mount once); filtering just toggles `hidden` so the
   // live editors aren't unmounted/remounted on each keystroke.
@@ -111,7 +147,13 @@ function Gallery() {
               </h2>
               <div className="cards">
                 {inFeature.map((fx) => (
-                  <FixtureCard key={fx.name} fx={fx} hidden={!matches(fx, q, feature)} />
+                  <FixtureCard
+                    key={fx.name}
+                    fx={fx}
+                    hidden={!matches(fx, q, feature)}
+                    editing={fx.name === editingId}
+                    onToggle={handleToggle}
+                  />
                 ))}
               </div>
             </section>

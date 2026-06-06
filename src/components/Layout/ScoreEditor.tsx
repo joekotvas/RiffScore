@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 
 // Contexts
 import { ScoreProvider, useScoreContext } from '@context/ScoreContext';
@@ -45,6 +45,9 @@ interface ScoreEditorContentProps {
   label?: string;
   showToolbar?: boolean;
   showBackground?: boolean;
+  /** Whether the score is interactive. When false (static/read-only view), transient
+   *  interaction state (playback cursor, selection, entry preview) is reset. */
+  interactive?: boolean;
   enableKeyboard?: boolean;
   enablePlayback?: boolean;
 }
@@ -58,6 +61,7 @@ const ScoreEditorContent = ({
   label,
   showToolbar = true,
   showBackground = true,
+  interactive = true,
   enableKeyboard = true,
   enablePlayback = true,
 }: ScoreEditorContentProps) => {
@@ -97,6 +101,31 @@ const ScoreEditorContent = ({
 
   // --- Complex Hooks ---
   const playback = usePlayback(score, bpm);
+
+  // When the score switches to a static (non-interactive) view — e.g. a gallery card toggled
+  // back from editing — reset transient interaction state so nothing stale lingers on the
+  // read-only score: stop playback and hide the playhead, drop the selection, and clear the
+  // entry ghost-note preview.
+  const { isActive: isPlaybackActive, stopPlayback, exitPlaybackMode } = playback;
+  useEffect(() => {
+    if (interactive) return;
+    if (isPlaybackActive) {
+      stopPlayback();
+      exitPlaybackMode();
+    }
+    if (selection.eventId || selection.noteId || selection.chordId) clearSelection();
+    if (previewNote) setPreviewNote(null);
+  }, [
+    interactive,
+    isPlaybackActive,
+    selection,
+    previewNote,
+    stopPlayback,
+    exitPlaybackMode,
+    clearSelection,
+    setPreviewNote,
+  ]);
+
   const { midiStatus } = useMIDI(
     addChordToMeasure,
     activeDuration,
@@ -308,7 +337,7 @@ const ScoreEditorContent = ({
 
   // Exit playback mode (hide cursor) whenever selection changes
   // This covers: clicking notes, keyboard navigation, background clicks
-  const { exitPlaybackMode } = playback;
+  // (exitPlaybackMode is destructured alongside the playback-disable effect above.)
   React.useEffect(() => {
     exitPlaybackMode();
   }, [selection, exitPlaybackMode]);

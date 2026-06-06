@@ -60,7 +60,7 @@ export const useKeyboardShortcuts = (
   const { move: moveSelection, switchStaff } = logic.navigation;
   const { selectionEngine, scoreRef, dispatch } = logic.engines;
 
-  const { isEditingTitle, isHoveringScore, scoreContainerRef, isAnyMenuOpen } = meta;
+  const { isEditingTitle, isHoveringScore, scoreContainerRef, isAnyMenuOpen, isDisabled } = meta;
   const { handleTitleCommit } = handlers;
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -274,9 +274,13 @@ export const useKeyboardShortcuts = (
   );
 
   useEffect(() => {
+    // When keyboard input is disabled (enableKeyboard:false, e.g. readonly gallery cards),
+    // don't attach the global listener at all — avoids dozens of no-op handlers on a page of
+    // readonly scores and makes the flag actually mean something.
+    if (isDisabled) return;
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+  }, [handleKeyDown, isDisabled]);
 
   return handleKeyDown;
 };
