@@ -30,7 +30,7 @@
     "format:check": "prettier --check src/",
     "demo:dev": "cd demo && npm run dev",
     "demo:build": "cd demo && npm run build",
-    "visual:gallery": "VISUAL_GALLERY=1 jest src/__tests__/visual/gallery.gen.test.tsx",
+    "visual:gallery": "node scripts/build-gallery.mjs",
     "visual:pixel": "playwright test",
     "visual:pixel:update": "playwright test --update-snapshots",
     "prepublishOnly": "npm run build"
