@@ -1,5 +1,6 @@
-import { NOTE_TYPES, KEY_SIGNATURES } from '@/constants';
+import { NOTE_TYPES, KEY_SIGNATURES, getMeasureCapacity } from '@/constants';
 import { DEFAULT_SCORE_METADATA } from '@/config';
+import { padMeasureForExport } from './exportNormalize';
 import {
   getActiveStaff,
   Score,
@@ -375,14 +376,24 @@ const renderEvent = (
   }
 
   if (isRestEvent(event)) {
-    // REST — DTD order: <rest/> <duration> <type> <dot> <time-modification> <staff>
+    // A rest can be a tuplet member — including a reserved trailing slot at position
+    // groupSize-1 (#242). Emit its bracket start/stop so the tuplet bracket stays balanced;
+    // without this, deleting a tuplet member yields a <tuplet start> with no matching stop.
+    let restTupletTag = '';
+    if (event.tuplet) {
+      if (event.tuplet.position === 0) restTupletTag = '<tuplet type="start" bracket="yes"/>';
+      else if (event.tuplet.position === event.tuplet.groupSize - 1)
+        restTupletTag = '<tuplet type="stop"/>';
+    }
+    const restNotations = restTupletTag ? `\n      <notations>${restTupletTag}</notations>` : '';
+    // REST — DTD order: <rest/> <duration> <type> <dot> <time-modification> <staff> <notations>
     xml += `
     <note>
       <rest/>
       <duration>${duration}</duration>
       <type>${xmlType}</type>
       ${event.dotted ? '<dot/>' : ''}
-      ${timeModTag}${staffTag}
+      ${timeModTag}${staffTag}${restNotations}
     </note>`;
     return xml;
   }
@@ -513,6 +524,7 @@ const measureDivisionSum = (events: ScoreEvent[], divisions: number): number =>
 export const generateMusicXML = (score: Score): string => {
   const staves = score.staves || [getActiveStaff(score)];
   const timeSig = score.timeSignature || '4/4';
+  const measureCapacity = getMeasureCapacity(timeSig);
 
   // Per-score <divisions>: derived from tuplet content so every duration is an
   // exact integer number of divisions (no floor/truncation of tuplet rhythm).
@@ -643,11 +655,14 @@ export const generateMusicXML = (score: Score): string => {
     // next staff starts at the same time position (proper grand-staff layout).
     staves.forEach((staff: Staff, staffIndex: number) => {
       const measure: Measure | undefined = staff.measures[mIndex];
-      const events = measure?.events ?? [];
+      // Pad an under-full bar with trailing rests for valid output (#242); never mutates state.
+      const events = measure ? padMeasureForExport(measure, measureCapacity) : [];
 
       if (staffIndex > 0) {
-        // Rewind to the start of the measure for the next staff.
-        const prevEvents = staves[staffIndex - 1].measures[mIndex]?.events ?? [];
+        // Rewind to the start of the measure for the next staff. Pad the previous staff's bar
+        // the same way so the <backup> duration matches the padded measure (grand-staff align).
+        const prevMeasure = staves[staffIndex - 1].measures[mIndex];
+        const prevEvents = prevMeasure ? padMeasureForExport(prevMeasure, measureCapacity) : [];
         const backup = measureDivisionSum(prevEvents, divisions);
         if (backup > 0) {
           xml += `

@@ -12,6 +12,7 @@ import { Measure, ScoreEvent } from '@/types';
 import { AddEventCommand } from '@/commands/AddEventCommand';
 import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
 import { DeleteEventCommand } from '@/commands/DeleteEventCommand';
+import { FillReservedSlotCommand } from '@/commands/FillReservedSlotCommand';
 import { InsertEventCommand } from '@/commands/InsertEventCommand';
 import { ApplyTupletCommand } from '@/commands/TupletCommands';
 import { RemoveTupletCommand } from '@/commands/RemoveTupletCommand';
@@ -188,10 +189,12 @@ function executeInsertion(
       if (config.mode === 'overwrite') {
         const overwritePlan = getOverwritePlan(originalMeasure, currentInsertQuant, evtQuants);
 
-        // Delete conflicting events
+        // Delete conflicting events — vanish: true so a tuplet member's quant space actually
+        // frees up for the overwriting note, instead of being repacked into a reserved slot
+        // (which would leave the bar overfull) (#242).
         if (overwritePlan.toRemove.length > 0) {
           overwritePlan.toRemove.forEach((id) => {
-            dispatch(new DeleteEventCommand(measureIndex, id, staffIndex));
+            dispatch(new DeleteEventCommand(measureIndex, id, staffIndex, { vanish: true }));
           });
           state.warnings.push(`Overwrote ${overwritePlan.toRemove.length} event(s)`);
         }
@@ -368,9 +371,10 @@ function executeInsertion(
             state.info.push(`Created measure ${measureIndex + 2} for insert overflow`);
           }
 
-          // Delete events from current measure and re-add to next
+          // Delete events from current measure and re-add to next — vanish: true so a moved
+          // tuplet member is removed outright (relocated), not left as a reserved slot (#242).
           eventsToMove.forEach((movedEvent) => {
-            dispatch(new DeleteEventCommand(measureIndex, movedEvent.id, staffIndex));
+            dispatch(new DeleteEventCommand(measureIndex, movedEvent.id, staffIndex, { vanish: true }));
           });
 
           // Re-add at start of next measure using InsertEventCommand to preserve ALL properties
@@ -452,6 +456,42 @@ export const createEntryMethods = (
         return this;
       }
 
+      // Tuplet input (#242): typing a pitch onto a RESERVED slot fills that slot (the tuplet's
+      // rhythm is fixed, so only the pitch is supplied). The reserved slots ARE the tuplet's
+      // free space, so this can never overflow the group. Any other target falls through to the
+      // normal insert (which handles inserting around / pushing a full tuplet as before).
+      const tupletSel = getSelection();
+      if (tupletSel.measureIndex !== null && tupletSel.eventId) {
+        const measure = getScore().staves[tupletSel.staffIndex]?.measures[tupletSel.measureIndex];
+        const slot = measure?.events.find((e) => e.id === tupletSel.eventId);
+        if (slot?.reserved) {
+          const note = createNotePayload({ pitch });
+          dispatch(new FillReservedSlotCommand(tupletSel.measureIndex, slot.id, note, tupletSel.staffIndex));
+          syncSelection({
+            staffIndex: tupletSel.staffIndex,
+            measureIndex: tupletSel.measureIndex,
+            eventId: slot.id,
+            noteId: note.id,
+            selectedNotes: [],
+            anchor: null,
+          });
+          // The tuplet's rhythm is fixed, so a requested duration is intentionally ignored —
+          // surface that for parity with the rest of the API (which reports warnings).
+          const warnings =
+            duration !== 'quarter' || dotted
+              ? [`Requested duration '${duration}'${dotted ? ' dotted' : ''} ignored; tuplet slot rhythm is fixed`]
+              : [];
+          setResult({
+            ok: true,
+            status: warnings.length ? 'warning' : 'info',
+            method: 'addNote',
+            message: `Filled tuplet slot with ${pitch}`,
+            details: { pitch, warnings },
+          });
+          return this;
+        }
+      }
+
       this.beginTransaction();
 
       try {
@@ -494,6 +534,28 @@ export const createEntryMethods = (
     },
 
     addRest(duration = 'quarter', dotted = false, options = { mode: 'overwrite' }) {
+      // Tuplet input (#242): entering a rest onto a RESERVED slot fills it as a notated rest
+      // (symmetric with addNote), keeping the slot's fixed rhythm. Other targets fall through.
+      const restSel = getSelection();
+      if (restSel.measureIndex !== null && restSel.eventId) {
+        const measure = getScore().staves[restSel.staffIndex]?.measures[restSel.measureIndex];
+        const slot = measure?.events.find((e) => e.id === restSel.eventId);
+        if (slot?.reserved) {
+          const restNote = { id: noteId(), pitch: null, isRest: true };
+          dispatch(new FillReservedSlotCommand(restSel.measureIndex, slot.id, restNote, restSel.staffIndex));
+          syncSelection({
+            staffIndex: restSel.staffIndex,
+            measureIndex: restSel.measureIndex,
+            eventId: slot.id,
+            noteId: restNote.id,
+            selectedNotes: [],
+            anchor: null,
+          });
+          setResult({ ok: true, status: 'info', method: 'addRest', message: 'Filled tuplet slot with a rest' });
+          return this;
+        }
+      }
+
       this.beginTransaction();
 
       try {

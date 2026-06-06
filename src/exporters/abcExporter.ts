@@ -1,5 +1,6 @@
-import { NOTE_TYPES, KEY_SIGNATURES } from '@/constants';
+import { NOTE_TYPES, KEY_SIGNATURES, getMeasureCapacity } from '@/constants';
 import { DEFAULT_SCORE_METADATA } from '@/config';
+import { padMeasureForExport } from './exportNormalize';
 import {
   getActiveStaff,
   Score,
@@ -192,7 +193,8 @@ export const generateABC = (score: Score, bpm: number): string => {
       // are cancelled with '='; reset for every new measure.
       const accidentalState = new MeasureAccidentalState();
 
-      measure.events.forEach((event: ScoreEvent) => {
+      // Pad an under-full bar with trailing rests for valid output (#242); never mutates state.
+      padMeasureForExport(measure, getMeasureCapacity(timeSig)).forEach((event: ScoreEvent) => {
         // Calculate Duration
         let durationString = '';
         const base = NOTE_TYPES[event.duration]?.abcDuration || '';

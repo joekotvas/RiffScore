@@ -229,6 +229,13 @@ export const isNoteEvent = (event: ScoreEvent): boolean =>
   !isRestEvent(event) && (event.notes?.length ?? 0) > 0;
 
 /**
+ * A reserved tuplet placeholder slot (#242): occupies its footprint and plays/exports as a
+ * rest, but renders blank and is overwritten by input. It IS a rest (`isRestEvent` is true);
+ * this only distinguishes it from a notated rest the user entered.
+ */
+export const isReservedSlot = (event: ScoreEvent): boolean => event.reserved === true;
+
+/**
  * Safe accessor for the first note ID of an event.
  * Useful for maintaining selection state across reflows.
  */

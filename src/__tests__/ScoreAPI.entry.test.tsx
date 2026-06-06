@@ -370,4 +370,38 @@ describe('ScoreAPI Entry Methods', () => {
       expect(head.notes[0].tied).toBe(true);
     });
   });
+
+  describe('tuplet input (#242): fill reserved space', () => {
+    test('typing a pitch onto a reserved slot fills it at the slot rhythm', () => {
+      render(<RiffScore id="tup-fill" />);
+      const api = getAPI('tup-fill');
+
+      // Build an eighth-note triplet (3 eighths → makeTuplet).
+      act(() => {
+        api.select(0).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
+      });
+      act(() => {
+        api.select(0, 0, 0, 0).makeTuplet(3, 2);
+      });
+      // Delete the middle member → one reserved slot at the end.
+      act(() => {
+        api.select(0, 0, 1, 0).deleteSelected();
+      });
+      const reservedIdx = api
+        .getScore()
+        .staves[0].measures[0].events.findIndex((e) => e.reserved);
+      expect(reservedIdx).toBeGreaterThanOrEqual(0);
+
+      // Select the reserved slot and type a pitch → it fills (duration forced to the slot's).
+      act(() => {
+        api.select(0, 0, reservedIdx, 0).addNote('A4', 'whole'); // requested duration is ignored
+      });
+      const events = api.getScore().staves[0].measures[0].events;
+      expect(events.filter((e) => e.reserved)).toHaveLength(0); // slot filled
+      const filled = events.find((e) => e.notes.some((n) => n.pitch === 'A4'));
+      expect(filled).toBeDefined();
+      expect(filled!.duration).toBe('eighth'); // tuplet rhythm fixed, not the requested whole
+      expect(filled!.tuplet).toMatchObject({ groupSize: 3 }); // still part of the tuplet group
+    });
+  });
 });

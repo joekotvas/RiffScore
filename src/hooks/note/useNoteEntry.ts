@@ -15,8 +15,9 @@ import { Command } from '@/commands/types';
 import { AddEventCommand } from '@/commands/AddEventCommand';
 import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
 import { AddMeasureCommand } from '@/commands/MeasureCommands';
+import { FillReservedSlotCommand } from '@/commands/FillReservedSlotCommand';
 import { createNotePayload, createPreviewNote, PreviewNote } from '@/utils/entry';
-import { eventId as createEventId } from '@/utils/id';
+import { eventId as createEventId, noteId } from '@/utils/id';
 import { deriveAccidental } from '@/services/MusicService';
 import { InputMode } from '../editor';
 
@@ -176,6 +177,30 @@ export function useNoteEntry({
       const newMeasures = [...currentStaffData.measures];
       const targetMeasure = { ...newMeasures[measureIndex] };
       if (!targetMeasure.events) targetMeasure.events = [];
+
+      // Tuplet input (#242): entering a pitch (or a rest) onto a RESERVED slot fills it at the
+      // tuplet's fixed rhythm. Reserved slots ARE the tuplet's free space, so this can't overflow
+      // the group. Resolve the actual placement target (not just selection) so a preview/click
+      // placed elsewhere isn't hijacked into a stale-selected reserved slot. Chord-stacking is
+      // unaffected; any non-reserved target falls through to the normal flow.
+      if (newNote.mode !== 'CHORD' && selection.measureIndex === measureIndex) {
+        const intendedEventId = placementOverride?.eventId ?? newNote.eventId ?? selection.eventId;
+        const slot = targetMeasure.events.find((e) => e.id === intendedEventId);
+        if (slot?.reserved) {
+          const noteToAdd =
+            inputMode === 'REST'
+              ? { id: noteId(), pitch: null, isRest: true }
+              : createNotePayload({
+                  pitch: newNote.pitch,
+                  accidental: deriveAccidental(newNote.pitch),
+                  tied: activeTie,
+                });
+          dispatch(new FillReservedSlotCommand(measureIndex, slot.id, noteToAdd, currentStaffIndex));
+          select(measureIndex, slot.id, noteToAdd.id, currentStaffIndex);
+          setPreviewNote(null);
+          return;
+        }
+      }
 
       // Determine placement
       let insertIndex = targetMeasure.events.length;

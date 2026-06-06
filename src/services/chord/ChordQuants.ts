@@ -8,7 +8,7 @@
  */
 
 import type { ChordSymbol, Measure, Score } from '@/types';
-import { getNoteDuration } from '@/utils/core';
+import { getNoteDuration, isReservedSlot } from '@/utils/core';
 import { TIME_SIGNATURES } from '@/constants';
 
 // ============================================================================
@@ -73,8 +73,10 @@ export const getValidChordQuants = (score: Score): Map<number, Set<number>> => {
       const measureQuants = validPositions.get(measureIndex)!;
 
       for (const event of measure.events) {
-        // All events (notes and rests) are valid chord anchor points
-        measureQuants.add(localQuant);
+        // All events (notes and notated rests) are valid chord anchor points — but NOT a
+        // reserved tuplet slot (#242): it draws nothing, so a chord must not float over it.
+        // It still advances localQuant (it occupies its footprint).
+        if (!isReservedSlot(event)) measureQuants.add(localQuant);
         localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
       }
     }

@@ -53,6 +53,7 @@ export interface Note {
   accidentalDisplay?: AccidentalDisplay;
   tied?: boolean; // Tied to next note
   isRest?: boolean; // True for rest notes (pitchless)
+  reserved?: boolean; // Reserved tuplet placeholder slot (see ScoreEvent.reserved)
 }
 
 // ========== EVENT ==========
@@ -63,6 +64,14 @@ export interface ScoreEvent {
   dotted: boolean;
   notes: Note[]; // Multiple notes = chord
   isRest?: boolean;
+  /**
+   * Reserved trailing tuplet slot (#242): unused space inside a tuplet whose span is conserved
+   * after a delete. Always also `isRest: true` and pitch-less, so it counts toward the group's
+   * footprint (Lane 0/A see a complete group) and exports/plays as a rest — but it renders
+   * BLANK (no glyph) and is overwritten by input. A real rest (from explicit entry / note→rest)
+   * is NOT reserved.
+   */
+  reserved?: boolean;
   chord?: string | null; // Chord symbol (e.g., "G", "C", "D7")
   tuplet?: {
     ratio: [number, number]; // e.g., [3, 2] for triplet (3 notes in space of 2)
