@@ -75,7 +75,7 @@ const ScoreEditorContent = ({
   const { activeDuration, isDotted, activeAccidental } = scoreLogic.tools;
   const { select: handleNoteSelection, focus: focusScore } = scoreLogic.navigation;
   const { addChord: addChordToMeasure, updatePitch: updateNotePitch } = scoreLogic.entry;
-  const { clearSelection, setPreviewNote } = scoreLogic;
+  const { clearSelection, setPreviewNote, feedback, setFeedback } = scoreLogic;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { pendingClefChange, setPendingClefChange } = scoreLogic as any; // UI state from context
 
@@ -86,9 +86,16 @@ const ScoreEditorContent = ({
   const [selectedInstrument, setSelectedInstrument] = useState<InstrumentType>('bright');
   const [viewportZoom, setViewportZoom] = useState(100); // Viewport zoom in percentage
   const [isFullscreen, setIsFullscreen] = useState(false);
-  // Error state temporarily disabled/unused
-  // const [errorMsg, setErrorMsg] = useState(null);
-  const errorMsg = null;
+  // #242 Lane D: transient feedback (e.g. an overflow rejection) surfaced from the editor logic and
+  // shown in the toolbar, auto-dismissed after a few seconds. setFeedback is stable (useCallback)
+  // and `feedback` only changes when a new message is set, so the timer resets per message rather
+  // than on every render.
+  const errorMsg = feedback?.message ?? null;
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = setTimeout(() => setFeedback(null), 4000);
+    return () => clearTimeout(timer);
+  }, [feedback, setFeedback]);
 
   // --- Refs ---
   const toolbarRef = useRef<ToolbarHandle>(null);

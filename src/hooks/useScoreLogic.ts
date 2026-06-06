@@ -144,6 +144,13 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
   } = useSelection({ score, scoreGetter: () => engine.getState() });
   const [previewNote, setPreviewNote] = useState<PreviewNote | null>(null);
 
+  // #242 Lane D: transient user-facing feedback (e.g. an overflow rejection). The nonce lets a
+  // repeated identical message re-trigger the banner and its auto-dismiss timer.
+  const [feedback, setFeedbackState] = useState<{ message: string; nonce: number } | null>(null);
+  const setFeedback = useCallback((message: string | null) => {
+    setFeedbackState((prev) => (message === null ? null : { message, nonce: (prev?.nonce ?? 0) + 1 }));
+  }, []);
+
   // #242 Lane G: after any structural score change (delete / reflow / tuplet-pack), prune selection
   // coordinates that no longer resolve so later commands can't act on a phantom selection.
   // repairSelection returns the SAME reference when nothing is stale, and this effect keys on
@@ -212,6 +219,7 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     currentQuantsPerMeasure,
     tools,
     dispatch,
+    setFeedback,
   });
 
   // Tuplet Actions: apply/remove tuplets
@@ -350,5 +358,7 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     setPreviewNote,
     clearSelection,
     currentQuantsPerMeasure,
+    feedback,
+    setFeedback,
   };
 };

@@ -24,6 +24,8 @@ interface UseModifiersProps {
     activeAccidental: 'flat' | 'natural' | 'sharp' | null;
   };
   dispatch: (command: Command) => void;
+  /** Surface a transient user-facing message (e.g. an overflow rejection), or clear it with null. */
+  setFeedback: (message: string | null) => void;
 }
 
 interface UseModifiersReturn {
@@ -122,30 +124,26 @@ export const useModifiers = ({
   currentQuantsPerMeasure,
   tools,
   dispatch,
+  setFeedback,
 }: UseModifiersProps): UseModifiersReturn => {
   const handleDurationChange = useCallback(
     (newDuration: string, applyToSelection = false) => {
       // Always update the active tool state
       tools.handleDurationChange(newDuration);
 
-      // If requested, try to apply to selection
+      // If requested, try to apply to selection. #242 Lane D: a change that would overflow the bar
+      // is REJECTED with feedback — never silently dropped.
       if (applyToSelection) {
         const targets = getEventTargets(selection);
 
-        // Iterate and apply if valid
+        let applied = 0;
+        let skipped = 0;
         targets.forEach((target) => {
           const staff =
             scoreRef.current.staves[target.staffIndex] || getActiveStaff(scoreRef.current);
           const measure = staff.measures[target.measureIndex];
-          if (
-            measure &&
-            canModifyEventDuration(
-              measure.events,
-              target.eventId,
-              newDuration,
-              currentQuantsPerMeasure
-            )
-          ) {
+          if (!measure) return;
+          if (canModifyEventDuration(measure.events, target.eventId, newDuration, currentQuantsPerMeasure)) {
             dispatch(
               new UpdateEventCommand(
                 target.measureIndex,
@@ -154,11 +152,24 @@ export const useModifiers = ({
                 target.staffIndex
               )
             );
+            applied += 1;
+          } else {
+            skipped += 1;
           }
         });
+
+        if (skipped > 0) {
+          setFeedback(
+            applied === 0
+              ? "Can't lengthen the note — not enough room left in the measure"
+              : `Lengthened ${applied}; ${skipped} didn't fit the measure`
+          );
+        } else if (applied > 0) {
+          setFeedback(null);
+        }
       }
     },
-    [selection, tools, dispatch, scoreRef, currentQuantsPerMeasure]
+    [selection, tools, dispatch, scoreRef, currentQuantsPerMeasure, setFeedback]
   );
 
   const handleDotToggle = useCallback(() => {
@@ -192,13 +203,16 @@ export const useModifiers = ({
     // We can't set directly, but we can try to sync if mismatched (optional)
     // tools.isDotted is local.
 
-    // 3. Apply to all targets
+    // 3. Apply to all targets. #242 Lane D: adding a dot that would overflow the bar is rejected
+    // with feedback rather than silently skipped (removing a dot always fits).
+    let applied = 0;
+    let skipped = 0;
     targets.forEach((target) => {
       const staff = score.staves[target.staffIndex] || getActiveStaff(score);
       const measure = staff.measures[target.measureIndex];
       const event = measure?.events.find((e: ScoreEvent) => e.id === target.eventId);
 
-      if (event) {
+      if (event && measure) {
         // Skip if already in target state
         if (!!event.dotted === targetState) return;
 
@@ -211,13 +225,26 @@ export const useModifiers = ({
               target.staffIndex
             )
           );
+          applied += 1;
+        } else {
+          skipped += 1;
         }
       }
     });
 
+    if (skipped > 0) {
+      setFeedback(
+        applied === 0
+          ? "Can't add a dot — not enough room left in the measure"
+          : `Dotted ${applied}; ${skipped} didn't fit the measure`
+      );
+    } else if (applied > 0) {
+      setFeedback(null);
+    }
+
     // Sync tool UI (approximate)
     if (tools.isDotted !== targetState) tools.handleDotToggle();
-  }, [selection, tools, dispatch, scoreRef, currentQuantsPerMeasure]);
+  }, [selection, tools, dispatch, scoreRef, currentQuantsPerMeasure, setFeedback]);
 
   const handleAccidentalToggle = useCallback(
     (type: 'flat' | 'natural' | 'sharp' | null) => {

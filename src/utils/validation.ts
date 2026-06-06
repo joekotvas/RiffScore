@@ -109,7 +109,8 @@ export const canModifyEventDuration = (
   events: ScoreEvent[],
   eventId: string,
   targetDuration: string,
-  maxQuants: number
+  maxQuants: number,
+  targetDotted?: boolean
 ): boolean => {
   const eventIndex = events.findIndex((e: ScoreEvent) => e.id === eventId);
   if (eventIndex === -1) return true; // Defensive: If event doesn't exist, we can't strict check
@@ -122,8 +123,12 @@ export const canModifyEventDuration = (
     return acc + getNoteDuration(e.duration, e.dotted, e.tuplet);
   }, 0);
 
-  // Calculate new duration for THIS event
-  const newEventQuants = getNoteDuration(targetDuration, currentEvent.dotted, currentEvent.tuplet);
+  // New duration for THIS event. Use the TARGET dotted state when the caller changes it in the same
+  // operation (setDuration sets duration AND dotted together); otherwise keep the event's current
+  // dotted (a plain duration change). Previously this always used currentEvent.dotted, so a
+  // duration+dot change could be mis-judged.
+  const dotted = targetDotted ?? currentEvent.dotted;
+  const newEventQuants = getNoteDuration(targetDuration, dotted, currentEvent.tuplet);
 
   return otherEventsQuants + newEventQuants <= maxQuants;
 };

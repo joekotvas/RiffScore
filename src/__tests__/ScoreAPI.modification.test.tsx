@@ -72,6 +72,32 @@ describe('ScoreAPI Modification & IO Methods', () => {
     });
   });
 
+  describe('setDuration overflow (#242 Lane D)', () => {
+    test('rejects an overflowing duration change instead of producing an over-full bar', () => {
+      render(<RiffScore id="dur-overflow" />);
+      const api = getAPI('dur-overflow');
+
+      // Fill a 4/4 bar with four quarters.
+      act(() => {
+        api
+          .select(0)
+          .addNote('C4', 'quarter')
+          .addNote('C4', 'quarter')
+          .addNote('C4', 'quarter')
+          .addNote('C4', 'quarter');
+      });
+
+      // Select the first quarter and try to make it a whole note — it can't fit.
+      act(() => {
+        api.move('left').move('left').move('left').move('left').setDuration('whole');
+      });
+
+      expect(api.result).toMatchObject({ ok: false, status: 'error', code: 'DURATION_OVERFLOW' });
+      // The event is left unchanged (no over-full bar created).
+      expect(api.getScore().staves[0].measures[0].events[0].duration).toBe('quarter');
+    });
+  });
+
   describe('IO: export', () => {
     test('exports JSON', () => {
       render(<RiffScore id="export-json" />);

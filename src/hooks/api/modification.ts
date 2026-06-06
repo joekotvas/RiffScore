@@ -19,9 +19,10 @@ import {
   UpdateNoteCommand,
   SetBpmCommand,
 } from '@/commands';
-import { parseDuration, clampBpm } from '@/utils/validation';
+import { parseDuration, clampBpm, canModifyEventDuration } from '@/utils/validation';
 import { foldAccidentalIntoPitch, deriveAccidental } from '@/services/MusicService';
-import { Note, Score } from '@/types';
+import { Note, Score, getValidStaff } from '@/types';
+import { getMeasureCapacity } from '@/constants';
 
 /**
  * Modification method names provided by this factory
@@ -139,16 +140,38 @@ export const createModificationMethods = (
 
       const sel = selectionRef.current;
 
-      // Multi-selection: update each unique event
+      // #242 Lane D: never silently produce an over-full bar. The API path previously dispatched
+      // unconditionally (fail-open), yielding a measure that validateMeasure now flags as invalid.
+      const maxQuants = getMeasureCapacity(scoreRef.current.timeSignature ?? '4/4');
+      const fitsInMeasure = (staffIndex: number, measureIndex: number, eventId: string): boolean => {
+        const measure = getValidStaff(scoreRef.current, staffIndex)?.measures[measureIndex];
+        return !measure || canModifyEventDuration(measure.events, eventId, validDuration, maxQuants, dotted);
+      };
+
+      // Multi-selection: update each unique event (atomic — reject all if ANY would overflow).
       if (sel.selectedNotes && sel.selectedNotes.length > 0) {
+        const uniqueEvents = Array.from(
+          new Map(
+            sel.selectedNotes.map((n) => [`${n.staffIndex}-${n.measureIndex}-${n.eventId}`, n])
+          ).values()
+        );
+        const overflowing = uniqueEvents.filter(
+          (n) => !fitsInMeasure(n.staffIndex, n.measureIndex, n.eventId)
+        );
+        if (overflowing.length > 0) {
+          setResult({
+            ok: false,
+            status: 'error',
+            method: 'setDuration',
+            message: `Cannot set duration to ${duration}${dotted ? ' (dotted)' : ''}: ${overflowing.length} event(s) would overflow the measure`,
+            code: 'DURATION_OVERFLOW',
+            details: { duration, dotted, overflow: overflowing.length },
+          });
+          return this;
+        }
+
         ctx.history.begin();
-
-        const processedEvents = new Set<string>();
-        sel.selectedNotes.forEach((note) => {
-          const eventKey = `${note.staffIndex}-${note.measureIndex}-${note.eventId}`;
-          if (processedEvents.has(eventKey)) return;
-          processedEvents.add(eventKey);
-
+        uniqueEvents.forEach((note) => {
           dispatch(
             new UpdateEventCommand(
               note.measureIndex,
@@ -158,14 +181,13 @@ export const createModificationMethods = (
             )
           );
         });
-
         ctx.history.commit();
         setResult({
           ok: true,
           status: 'info',
           method: 'setDuration',
-          message: `Duration set to ${duration} (dotted: ${dotted}) for ${processedEvents.size} events`,
-          details: { duration, dotted, count: processedEvents.size },
+          message: `Duration set to ${duration} (dotted: ${dotted}) for ${uniqueEvents.length} events`,
+          details: { duration, dotted, count: uniqueEvents.length },
         });
         return this;
       }
@@ -178,6 +200,18 @@ export const createModificationMethods = (
           method: 'setDuration',
           message: 'No event selected',
           code: 'NO_SELECTION',
+        });
+        return this;
+      }
+
+      if (!fitsInMeasure(sel.staffIndex, sel.measureIndex, sel.eventId)) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'setDuration',
+          message: `Cannot set duration to ${duration}${dotted ? ' (dotted)' : ''}: it would overflow the measure`,
+          code: 'DURATION_OVERFLOW',
+          details: { duration, dotted, eventId: sel.eventId },
         });
         return this;
       }
