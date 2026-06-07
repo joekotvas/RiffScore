@@ -457,15 +457,18 @@ export const createEntryMethods = (
         return this;
       }
 
-      // Tuplet input (#242): typing a pitch onto a RESERVED slot fills that slot (the tuplet's
-      // rhythm is fixed, so only the pitch is supplied). The reserved slots ARE the tuplet's
-      // free space, so this can never overflow the group. Any other target falls through to the
-      // normal insert (which handles inserting around / pushing a full tuplet as before).
+      // Tuplet input (#242): typing a pitch onto a tuplet MEMBER sets it at the tuplet's fixed
+      // rhythm — fills a reserved slot or replaces a real member's pitch — keeping the group
+      // coherent (the normal insert ran a duration-based overwrite that dropped the tuplet and
+      // consumed the reserved slot). The rhythm is fixed, so this can never overflow the group.
+      // Any non-tuplet target falls through to the normal insert.
       const tupletSel = getSelection();
       if (tupletSel.measureIndex !== null && tupletSel.eventId) {
         const measure = getScore().staves[tupletSel.staffIndex]?.measures[tupletSel.measureIndex];
         const slot = measure?.events.find((e) => e.id === tupletSel.eventId);
-        if (slot?.reserved) {
+        // Only the REPLACE/overwrite case (set this member's pitch). Insert mode legitimately
+        // pushes a whole tuplet to overflow into the next measure — leave that to the inserter.
+        if (slot?.tuplet && options.mode !== 'insert') {
           const note = createNotePayload({ pitch });
           dispatch(new FillReservedSlotCommand(tupletSel.measureIndex, slot.id, note, tupletSel.staffIndex));
           syncSelection({
@@ -480,13 +483,13 @@ export const createEntryMethods = (
           // surface that for parity with the rest of the API (which reports warnings).
           const warnings =
             duration !== 'quarter' || dotted
-              ? [`Requested duration '${duration}'${dotted ? ' dotted' : ''} ignored; tuplet slot rhythm is fixed`]
+              ? [`Requested duration '${duration}'${dotted ? ' dotted' : ''} ignored; tuplet rhythm is fixed`]
               : [];
           setResult({
             ok: true,
             status: warnings.length ? 'warning' : 'info',
             method: 'addNote',
-            message: `Filled tuplet slot with ${pitch}`,
+            message: `Set tuplet note to ${pitch}`,
             details: { pitch, warnings },
           });
           return this;
@@ -541,7 +544,7 @@ export const createEntryMethods = (
       if (restSel.measureIndex !== null && restSel.eventId) {
         const measure = getScore().staves[restSel.staffIndex]?.measures[restSel.measureIndex];
         const slot = measure?.events.find((e) => e.id === restSel.eventId);
-        if (slot?.reserved) {
+        if (slot?.tuplet && options.mode !== 'insert') {
           const restNote = { id: noteId(), pitch: null, isRest: true };
           dispatch(new FillReservedSlotCommand(restSel.measureIndex, slot.id, restNote, restSel.staffIndex));
           syncSelection({
@@ -552,7 +555,7 @@ export const createEntryMethods = (
             selectedNotes: [],
             anchor: null,
           });
-          setResult({ ok: true, status: 'info', method: 'addRest', message: 'Filled tuplet slot with a rest' });
+          setResult({ ok: true, status: 'info', method: 'addRest', message: 'Set tuplet note to a rest' });
           return this;
         }
       }

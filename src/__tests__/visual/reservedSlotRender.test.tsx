@@ -16,6 +16,8 @@ jest.mock('@/engines/toneEngine', () => ({
 
 import { extractFacts } from '../helpers/visual';
 import { createDefaultScore, Score, ScoreEvent } from '@/types';
+import { DeleteEventCommand } from '@/commands/DeleteEventCommand';
+import { FillReservedSlotCommand } from '@/commands/FillReservedSlotCommand';
 
 const EIGHTH_REST = 'e4e6'; // SMuFL restEighth, lowercase hex (RESTS.eighth = )
 
@@ -55,5 +57,15 @@ describe('reserved tuplet slot rendering', () => {
   it('DOES draw a rest glyph for an explicitly-entered tuplet rest (control)', () => {
     const facts = extractFacts(tripletScore(member('t1', null, 1, { isRest: true })));
     expect(facts.glyphCodepoints).toContain(EIGHTH_REST);
+  });
+
+  it('renders a notehead for a note that FILLED a reserved slot (delete member → fill)', () => {
+    let score = tripletScore(member('t1', 'E4', 1)); // [C4, E4, G4] triplet
+    score = new DeleteEventCommand(0, 't1').execute(score); // → [C4, G4, reserved]
+    const slot = score.staves[0].measures[0].events.find((e) => e.reserved)!;
+    score = new FillReservedSlotCommand(0, slot.id, { id: 'fn', pitch: 'A4' }).execute(score);
+    const facts = extractFacts(score);
+    // C4, G4, and the freshly-filled A4 must ALL render (the bug: the filled note is invisible).
+    expect(facts.noteheads).toHaveLength(3);
   });
 });

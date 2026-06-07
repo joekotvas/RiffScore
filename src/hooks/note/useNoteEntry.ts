@@ -178,15 +178,18 @@ export function useNoteEntry({
       const targetMeasure = { ...newMeasures[measureIndex] };
       if (!targetMeasure.events) targetMeasure.events = [];
 
-      // Tuplet input (#242): entering a pitch (or a rest) onto a RESERVED slot fills it at the
-      // tuplet's fixed rhythm. Reserved slots ARE the tuplet's free space, so this can't overflow
-      // the group. Resolve the actual placement target (not just selection) so a preview/click
-      // placed elsewhere isn't hijacked into a stale-selected reserved slot. Chord-stacking is
-      // unaffected; any non-reserved target falls through to the normal flow.
-      if (newNote.mode !== 'CHORD' && selection.measureIndex === measureIndex) {
+      // Tuplet input (#242): entering a pitch (or a rest) onto a tuplet MEMBER sets it at the
+      // tuplet's fixed rhythm — a reserved slot is filled, a real member's pitch is replaced —
+      // keeping the group coherent. The old path ran a duration-based overwrite, which dropped the
+      // tuplet and consumed the reserved slot (orphaned single-member group → broken render). The
+      // tuplet's rhythm is fixed so this can't overflow. Resolve the actual placement target (not
+      // just selection) so a preview/click placed elsewhere isn't hijacked. Chord-stacking is
+      // unaffected (CHORD); INSERT also falls through so inserting around a tuplet still pushes the
+      // whole group to overflow. Any non-tuplet target falls through to the normal flow.
+      if (newNote.mode !== 'CHORD' && newNote.mode !== 'INSERT' && selection.measureIndex === measureIndex) {
         const intendedEventId = placementOverride?.eventId ?? newNote.eventId ?? selection.eventId;
         const slot = targetMeasure.events.find((e) => e.id === intendedEventId);
-        if (slot?.reserved) {
+        if (slot?.tuplet) {
           const noteToAdd =
             inputMode === 'REST'
               ? { id: noteId(), pitch: null, isRest: true }

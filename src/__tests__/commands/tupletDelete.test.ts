@@ -143,6 +143,26 @@ describe('FillReservedSlotCommand', () => {
     const restored = cmd.undo(cmd.execute(score));
     expect(eventsOf(restored).find((e) => e.id === slot.id)!.reserved).toBe(true);
   });
+
+  it('replaces a REAL (non-reserved) tuplet member pitch, keeping the group (user-bug fix)', () => {
+    // Typing onto a surviving sibling after a delete must set its pitch at the fixed rhythm —
+    // not run a duration-based overwrite that drops the tuplet.
+    const score = scoreOf(triplet());
+    const after = new FillReservedSlotCommand(0, 't1', { id: 'fn', pitch: 'A4' }).execute(score);
+    const e = eventsOf(after);
+    expect(e.map((x) => x.notes[0].pitch)).toEqual(['C4', 'A4', 'G4']); // E4 → A4, group intact
+    expect(e.every((x) => x.tuplet?.id === 'T')).toBe(true);
+    expect(e[1].reserved).toBeFalsy();
+    expect(sumQuants(e).partialTuplet).toBe(false);
+  });
+
+  it('undo restores a replaced real member exactly (not marked reserved)', () => {
+    const cmd = new FillReservedSlotCommand(0, 't1', { id: 'fn', pitch: 'A4' });
+    const restored = cmd.undo(cmd.execute(scoreOf(triplet())));
+    const e = eventsOf(restored);
+    expect(e.map((x) => x.notes[0].pitch)).toEqual(['C4', 'E4', 'G4']);
+    expect(e.every((x) => !x.reserved)).toBe(true);
+  });
 });
 
 describe('reserved slots are not valid chord anchors', () => {
