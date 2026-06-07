@@ -334,6 +334,18 @@ describe('ScoreAPI Modification & IO Methods', () => {
       note = api.getScore().staves[0].measures[0].events[0].notes[0];
       expect(note.pitch).toBe('D4');
     });
+
+    test('reports NO_SELECTION on a no-op (nothing selected), matching transpose() (#242 QA)', () => {
+      render(<RiffScore id="transpose-noop" />);
+      const api = getAPI('transpose-noop');
+
+      // Fresh instance, nothing selected → a no-op must report failure, not ok:true.
+      act(() => {
+        api.transposeDiatonic(2);
+      });
+
+      expect(api.result).toMatchObject({ ok: false, status: 'error', code: 'NO_SELECTION' });
+    });
   });
 
   describe('Modification: updateEvent', () => {
@@ -361,6 +373,31 @@ describe('ScoreAPI Modification & IO Methods', () => {
 
       const event = api.getScore().staves[0].measures[0].events[0];
       expect(event.duration).toBe('half');
+    });
+
+    test('rejects a duration change that would overflow the measure (#242 QA)', () => {
+      render(<RiffScore id="update-event-overflow" />);
+      const api = getAPI('update-event-overflow');
+
+      // Fill a 4/4 bar with four quarters, then try to widen the first to a whole via the escape hatch.
+      act(() => {
+        api
+          .select(0)
+          .addNote('C4', 'quarter')
+          .addNote('C4', 'quarter')
+          .addNote('C4', 'quarter')
+          .addNote('C4', 'quarter');
+      });
+      act(() => {
+        api.select(0, 0, 0); // select the first quarter
+      });
+      act(() => {
+        api.updateEvent({ duration: 'whole' } as unknown as Parameters<typeof api.updateEvent>[0]);
+      });
+
+      expect(api.result).toMatchObject({ ok: false, status: 'error', code: 'DURATION_OVERFLOW' });
+      // Escape hatch still upholds the never-silently-overfull invariant — event unchanged.
+      expect(api.getScore().staves[0].measures[0].events[0].duration).toBe('quarter');
     });
   });
 

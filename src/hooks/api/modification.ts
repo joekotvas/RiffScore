@@ -260,6 +260,18 @@ export const createModificationMethods = (
     transposeDiatonic(steps) {
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
       const sel = selectionRef.current;
+      // Report a no-op as failure (matches transpose()); TransposeSelectionCommand handles both the
+      // primary selection and a multi-note selection, so only reject when BOTH are empty.
+      if (sel.measureIndex === null && (!sel.selectedNotes || sel.selectedNotes.length === 0)) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'transposeDiatonic',
+          message: 'No selection',
+          code: 'NO_SELECTION',
+        });
+        return this;
+      }
       dispatch(new TransposeSelectionCommand(sel, steps));
       setResult({
         ok: true,
@@ -275,6 +287,28 @@ export const createModificationMethods = (
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
       const sel = selectionRef.current;
       if (sel.eventId && sel.measureIndex !== null) {
+        // Escape hatch for arbitrary event props, but still uphold the never-silently-overfull
+        // invariant (#242 Lane D): a duration/dotted change that wouldn't fit the bar is rejected.
+        if ('duration' in props || 'dotted' in props) {
+          const measure = getValidStaff(scoreRef.current, sel.staffIndex)?.measures[sel.measureIndex];
+          const event = measure?.events.find((e) => e.id === sel.eventId);
+          if (measure && event) {
+            const targetDuration = props.duration ?? event.duration;
+            const targetDotted = 'dotted' in props ? !!props.dotted : event.dotted;
+            const maxQuants = getMeasureCapacity(scoreRef.current.timeSignature ?? '4/4');
+            if (!canModifyEventDuration(measure.events, sel.eventId, targetDuration, maxQuants, targetDotted)) {
+              setResult({
+                ok: false,
+                status: 'error',
+                method: 'updateEvent',
+                message: 'Cannot update event: the new duration would overflow the measure',
+                code: 'DURATION_OVERFLOW',
+                details: { props },
+              });
+              return this;
+            }
+          }
+        }
         dispatch(new UpdateEventCommand(sel.measureIndex, sel.eventId, props, sel.staffIndex));
         setResult({
           ok: true,
