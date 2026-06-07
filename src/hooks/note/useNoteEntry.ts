@@ -178,18 +178,23 @@ export function useNoteEntry({
       const targetMeasure = { ...newMeasures[measureIndex] };
       if (!targetMeasure.events) targetMeasure.events = [];
 
-      // Tuplet input (#242): entering a pitch (or a rest) onto a tuplet MEMBER sets it at the
-      // tuplet's fixed rhythm — a reserved slot is filled, a real member's pitch is replaced —
-      // keeping the group coherent. The old path ran a duration-based overwrite, which dropped the
-      // tuplet and consumed the reserved slot (orphaned single-member group → broken render). The
-      // tuplet's rhythm is fixed so this can't overflow. Resolve the actual placement target (not
-      // just selection) so a preview/click placed elsewhere isn't hijacked. Chord-stacking is
-      // unaffected (CHORD); INSERT also falls through so inserting around a tuplet still pushes the
-      // whole group to overflow. Any non-tuplet target falls through to the normal flow.
-      if (newNote.mode !== 'CHORD' && newNote.mode !== 'INSERT' && selection.measureIndex === measureIndex) {
+      // Tuplet input (#242): set a tuplet MEMBER at the tuplet's fixed rhythm instead of the
+      // duration-based overwrite (which dropped the tuplet and consumed the reserved slot → an
+      // orphaned single-member group that renders "invisible"). Two cases:
+      //   - a RESERVED slot is the tuplet's free space → ALWAYS fill it. Hovering it yields a
+      //     CHORD-mode preview (it's an EVENT hit zone), but you can't chord-stack/insert into blank
+      //     space — filling is the only sensible result, for any mode.
+      //   - a REAL member → replace its pitch on overwrite/append (NOT CHORD, which legitimately
+      //     stacks a chord onto it; NOT INSERT, which pushes the whole group to overflow).
+      // The rhythm is fixed, so this can't overflow. Resolve the actual placement target (not just
+      // selection) so a preview/click placed elsewhere isn't hijacked.
+      if (selection.measureIndex === measureIndex) {
         const intendedEventId = placementOverride?.eventId ?? newNote.eventId ?? selection.eventId;
         const slot = targetMeasure.events.find((e) => e.id === intendedEventId);
-        if (slot?.tuplet) {
+        const fillMember =
+          !!slot?.tuplet &&
+          (slot.reserved || (newNote.mode !== 'CHORD' && newNote.mode !== 'INSERT'));
+        if (fillMember && slot) {
           const noteToAdd =
             inputMode === 'REST'
               ? { id: noteId(), pitch: null, isRest: true }

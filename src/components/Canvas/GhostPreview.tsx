@@ -52,8 +52,12 @@ const GhostPreview: React.FC<GhostPreviewProps> = ({
     );
   }
 
-  // Normal note preview
-  const shouldDrawStem = NOTE_TYPES[previewNote.duration]?.stem && previewNote.mode !== 'CHORD';
+  // Normal note preview. A CHORD-mode ghost normally omits its stem (it shares the stacked event's
+  // stem), but a STANDALONE chord ghost (length 1) is really a fill of a reserved tuplet slot (#242)
+  // — draw its stem so the freed space previews as a real note, not a lone notehead.
+  const isStandalone = chordNotes.length === 1;
+  const shouldDrawStem =
+    NOTE_TYPES[previewNote.duration]?.stem && (previewNote.mode !== 'CHORD' || isStandalone);
 
   return (
     <ChordGroup

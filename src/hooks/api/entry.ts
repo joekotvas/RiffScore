@@ -466,9 +466,9 @@ export const createEntryMethods = (
       if (tupletSel.measureIndex !== null && tupletSel.eventId) {
         const measure = getScore().staves[tupletSel.staffIndex]?.measures[tupletSel.measureIndex];
         const slot = measure?.events.find((e) => e.id === tupletSel.eventId);
-        // Only the REPLACE/overwrite case (set this member's pitch). Insert mode legitimately
-        // pushes a whole tuplet to overflow into the next measure — leave that to the inserter.
-        if (slot?.tuplet && options.mode !== 'insert') {
+        // A RESERVED slot is the tuplet's free space → always fill it. A REAL member → replace its
+        // pitch on overwrite, but leave INSERT to the inserter (it pushes a whole tuplet to overflow).
+        if (slot?.tuplet && (slot.reserved || options.mode !== 'insert')) {
           const note = createNotePayload({ pitch });
           dispatch(new FillReservedSlotCommand(tupletSel.measureIndex, slot.id, note, tupletSel.staffIndex));
           syncSelection({
@@ -544,7 +544,7 @@ export const createEntryMethods = (
       if (restSel.measureIndex !== null && restSel.eventId) {
         const measure = getScore().staves[restSel.staffIndex]?.measures[restSel.measureIndex];
         const slot = measure?.events.find((e) => e.id === restSel.eventId);
-        if (slot?.tuplet && options.mode !== 'insert') {
+        if (slot?.tuplet && (slot.reserved || options.mode !== 'insert')) {
           const restNote = { id: noteId(), pitch: null, isRest: true };
           dispatch(new FillReservedSlotCommand(restSel.measureIndex, slot.id, restNote, restSel.staffIndex));
           syncSelection({

@@ -81,8 +81,12 @@ export function usePreviewRender({
       const existingEvent = events[previewNote.index];
       if (existingEvent) {
         xPos = eventPositions[existingEvent.id];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        combinedNotes = [...(existingEvent.notes as any[]), visualTempNote];
+        // A reserved tuplet slot (#242) is the group's free space, not a note to stack onto —
+        // preview a STANDALONE note that will fill it, not a chord on top of the (blank) slot.
+        combinedNotes = existingEvent.reserved
+          ? [visualTempNote]
+          : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            [...(existingEvent.notes as any[]), visualTempNote];
       }
     } else if (previewNote.mode === 'INSERT') {
       const insertZone = hitZones.find((z) => z.type === 'INSERT' && z.index === previewNote.index);
