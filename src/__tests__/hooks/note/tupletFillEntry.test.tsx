@@ -73,6 +73,21 @@ describe('interactive tuplet entry (#242 user bug)', () => {
     expect(dispatch.mock.calls[0][0]).toBeInstanceOf(FillReservedSlotCommand);
   });
 
+  it('fills the reserved slot with NO active selection (real hover-to-place flow)', () => {
+    // The hover-to-place flow clears the selection so the ghost can render; the preview carries the
+    // target eventId. The fill must still fire (this is the regression: it used to fall through to a
+    // chord-stack onto the blank reserved slot → invisible note).
+    const dispatch = jest.fn();
+    const { result } = renderHook(() =>
+      useNoteEntry(props(reservedTripletScore(), dispatch, { measureIndex: null, eventId: null, noteId: null }))
+    );
+    act(() => {
+      result.current.addNoteToMeasure(0, { pitch: 'A4', mode: 'CHORD', eventId: 'res' }, true);
+    });
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch.mock.calls[0][0]).toBeInstanceOf(FillReservedSlotCommand);
+  });
+
   it('overwrite-mode commit onto a real member REPLACES its pitch (fills, keeps the group)', () => {
     const dispatch = jest.fn();
     const { result } = renderHook(() =>

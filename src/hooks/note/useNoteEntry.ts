@@ -186,28 +186,33 @@ export function useNoteEntry({
       //     space — filling is the only sensible result, for any mode.
       //   - a REAL member → replace its pitch on overwrite/append (NOT CHORD, which legitimately
       //     stacks a chord onto it; NOT INSERT, which pushes the whole group to overflow).
-      // The rhythm is fixed, so this can't overflow. Resolve the actual placement target (not just
-      // selection) so a preview/click placed elsewhere isn't hijacked.
-      if (selection.measureIndex === measureIndex) {
-        const intendedEventId = placementOverride?.eventId ?? newNote.eventId ?? selection.eventId;
-        const slot = targetMeasure.events.find((e) => e.id === intendedEventId);
-        const fillMember =
-          !!slot?.tuplet &&
-          (slot.reserved || (newNote.mode !== 'CHORD' && newNote.mode !== 'INSERT'));
-        if (fillMember && slot) {
-          const noteToAdd =
-            inputMode === 'REST'
-              ? { id: noteId(), pitch: null, isRest: true }
-              : createNotePayload({
-                  pitch: newNote.pitch,
-                  accidental: deriveAccidental(newNote.pitch),
-                  tied: activeTie,
-                });
-          dispatch(new FillReservedSlotCommand(measureIndex, slot.id, noteToAdd, currentStaffIndex));
-          select(measureIndex, slot.id, noteToAdd.id, currentStaffIndex);
-          setPreviewNote(null);
-          return;
-        }
+      // The rhythm is fixed, so this can't overflow. Resolve the placement target from the explicit
+      // placement / preview FIRST, falling back to the selection only when it's in this measure.
+      // (Do NOT gate on selection matching the measure: the hover-to-place flow clears the selection
+      // so the ghost can render, so gating there made a CHORD-preview commit onto the freed space
+      // fall through and chord-stack onto the blank reserved slot → the note "disappeared".)
+      const intendedEventId =
+        placementOverride?.eventId ??
+        newNote.eventId ??
+        (selection.measureIndex === measureIndex ? selection.eventId : null);
+      const slot = intendedEventId
+        ? targetMeasure.events.find((e) => e.id === intendedEventId)
+        : undefined;
+      const fillMember =
+        !!slot?.tuplet && (slot.reserved || (newNote.mode !== 'CHORD' && newNote.mode !== 'INSERT'));
+      if (fillMember && slot) {
+        const noteToAdd =
+          inputMode === 'REST'
+            ? { id: noteId(), pitch: null, isRest: true }
+            : createNotePayload({
+                pitch: newNote.pitch,
+                accidental: deriveAccidental(newNote.pitch),
+                tied: activeTie,
+              });
+        dispatch(new FillReservedSlotCommand(measureIndex, slot.id, noteToAdd, currentStaffIndex));
+        select(measureIndex, slot.id, noteToAdd.id, currentStaffIndex);
+        setPreviewNote(null);
+        return;
       }
 
       // Determine placement
