@@ -287,8 +287,12 @@ const handleGhostNavigation = (
   const { measureIndex } = previewNote;
   const measure = measures[measureIndex];
 
+  // A persisted ghost can outlive a shrinking structural edit (loadScore / setTimeSignature) that
+  // dropped its measure — degrade to "no move" instead of dereferencing an undefined measure (#6 QA).
+  if (!measure) return null;
+
   // --- From a Tuplet-Fill Ghost (cursor sitting over a group's free reserved slot) ---
-  if (previewNote.eventId && measure) {
+  if (previewNote.eventId) {
     const reservedIdx = measure.events.findIndex((e) => e.id === previewNote.eventId);
     const target = reservedIdx >= 0 ? measure.events[reservedIdx] : undefined;
     if (target?.reserved && target.tuplet) {
@@ -362,7 +366,7 @@ const handleGhostNavigation = (
   // --- Left: Snap to existing event or prev measure ghost ---
   if (direction === 'left') {
     // 1. Try to find an event in the current measure before the ghost cursor
-    if (measure && measure.events.length > 0) {
+    if (measure.events.length > 0) {
       // Calculate ghost quant position
       const totalMeasureQuants = calculateTotalQuants(measure.events);
       const ghostQuant =

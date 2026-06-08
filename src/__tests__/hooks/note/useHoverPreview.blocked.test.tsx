@@ -69,6 +69,33 @@ describe('useHoverPreview blocked previews', () => {
     expect(preview?.blocked).toBe('measure-full');
   });
 
+  it('a reserved-slot insert in a FULL bar is NOT mislabeled measure-full (#6 — it consumes the slot)', () => {
+    // Incomplete eighth-triplet [C, E, reserved] (16q) + 3 quarters (48q) = a full 4/4 bar (64q).
+    // The bar has no room for a NEW event, but inserting between C and E consumes the reserved slot
+    // (bar total unchanged) → the commit succeeds, so the hover must not grey it "measure full".
+    const m = (id: string, pitch: string, pos: number, reserved = false): ScoreEvent => ({
+      id,
+      duration: 'eighth',
+      dotted: false,
+      reserved,
+      isRest: reserved,
+      notes: reserved
+        ? [{ id: `${id}-r`, pitch: null, isRest: true, reserved: true }]
+        : [{ id: `${id}n`, pitch }],
+      tuplet: { ratio: [3, 2], groupSize: 3, position: pos, baseDuration: 'eighth', id: 'T' },
+    });
+    const full = scoreWith([
+      m('a', 'C4', 0),
+      m('b', 'E4', 1),
+      m('r', 'X', 2, true),
+      quarter('q1', 'C4'),
+      quarter('q2', 'D4'),
+      quarter('q3', 'E4'),
+    ]);
+    const preview = hoverPreview(full, { type: 'INSERT', index: 1, startX: 10, endX: 20 } as HitZone);
+    expect(preview?.blocked).toBeUndefined();
+  });
+
   it('an incomplete tuplet gap is NOT blocked (normal insert ghost)', () => {
     const score = scoreWith([
       trip('a', 'C4'),

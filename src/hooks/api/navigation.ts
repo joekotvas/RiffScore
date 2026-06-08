@@ -106,7 +106,9 @@ export const createNavigationMethods = (
           details: {
             direction,
             newSelection: { measure: measureIndex, event: newSel?.eventId ?? null },
-            previewNote: ghostPreview, // a ghost cursor (e.g. a tuplet's free slot), or null
+            // A COPY of the ghost cursor (a tuplet's free slot, or null) — never the internal
+            // closure object, so a caller can't mutate it and corrupt the next navigation.
+            previewNote: ghostPreview ? { ...ghostPreview } : null,
           },
         });
       } else if (direction === 'up' || direction === 'down') {
@@ -144,7 +146,11 @@ export const createNavigationMethods = (
             status: 'info',
             method: 'move',
             message: `Moved ${direction}`,
-            details: { direction, newSelection: fullSelection },
+            details: {
+              direction,
+              newSelection: fullSelection,
+              previewNote: ghostPreview ? { ...ghostPreview } : null,
+            },
           });
         } else {
           setResult({

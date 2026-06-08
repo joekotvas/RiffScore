@@ -79,6 +79,7 @@ export function arePreviewsEqual(prev: PreviewNote | null, next: PreviewNote): b
     prev.isRest === next.isRest &&
     prev.duration === next.duration &&
     prev.dotted === next.dotted &&
-    prev.blocked === next.blocked
+    prev.blocked === next.blocked &&
+    prev.eventId === next.eventId
   );
 }

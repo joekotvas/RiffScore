@@ -149,24 +149,24 @@ export function useHoverPreview({
           targetIndex = measure.events.length;
         }
       } else if (targetMode === 'INSERT') {
-        if (!barHasRoom) {
+        // Mirror the commit's decision order (useNoteEntry case C). An insert strictly BETWEEN two
+        // members of one tuplet group consumes a reserved slot — the bar total is unchanged — so it's
+        // valid even in an otherwise-full bar; only a FULL group (no reserved slot) blocks it. A
+        // measure-full verdict applies ONLY to inserts that aren't this in-tuplet slot-fill.
+        const prevEv = measure.events[targetIndex - 1];
+        const hereEv = measure.events[targetIndex];
+        const run =
+          prevEv?.tuplet && hereEv?.tuplet ? getTupletRun(measure.events, targetIndex - 1) : null;
+        const insideTupletRun = !!run && targetIndex > run.start && targetIndex <= run.end;
+
+        if (insideTupletRun) {
+          const groupHasFreeSlot = measure.events
+            .slice(run.start, run.end + 1)
+            .some((e) => e.reserved);
+          if (!groupHasFreeSlot) blocked = 'tuplet-full';
+          // else: a valid mid-insert that consumes the reserved slot — not blocked.
+        } else if (!barHasRoom) {
           blocked = 'measure-full';
-        } else {
-          // Inserting between two members of a FULL tuplet (no reserved slot) isn't possible — its
-          // span is fixed.
-          const prevEv = measure.events[targetIndex - 1];
-          const hereEv = measure.events[targetIndex];
-          if (prevEv?.tuplet && hereEv?.tuplet) {
-            const run = getTupletRun(measure.events, targetIndex - 1);
-            if (
-              run &&
-              targetIndex > run.start &&
-              targetIndex <= run.end &&
-              !measure.events.slice(run.start, run.end + 1).some((e) => e.reserved)
-            ) {
-              blocked = 'tuplet-full';
-            }
-          }
         }
       }
 

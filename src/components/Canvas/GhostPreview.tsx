@@ -3,7 +3,7 @@ import { Note } from '@/types';
 import { ChordLayout, getOffsetForPitch } from '@/engines/layout';
 import { LayoutConfig, InteractionState } from '@/componentTypes';
 import { useTheme } from '@/context/ThemeContext';
-import { Rest } from './Rest';
+import { Rest, getRestY } from './Rest';
 import ChordGroup from './ChordGroup';
 import { NOTE_TYPES } from '@/constants';
 
@@ -93,7 +93,7 @@ const GhostPreview: React.FC<GhostPreviewProps> = ({
   // The X is drawn in the accent colour INSIDE the grayscale group, so it desaturates to the exact
   // same grey as the ghost note.
   const markY = previewNote.isRest
-    ? baseY
+    ? getRestY(previewNote.duration, baseY)
     : baseY + getOffsetForPitch(previewNote.pitch ?? 'B4', layout.clef);
 
   return (
