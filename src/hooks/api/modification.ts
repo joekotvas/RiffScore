@@ -20,6 +20,7 @@ import {
   SetBpmCommand,
 } from '@/commands';
 import { parseDuration, clampBpm, canModifyEventDuration } from '@/utils/validation';
+import { tupletsFitTimeSignature } from '@/utils/core';
 import { foldAccidentalIntoPitch, deriveAccidental } from '@/services/MusicService';
 import { Note, Score, getValidStaff } from '@/types';
 import { getMeasureCapacity } from '@/constants';
@@ -414,6 +415,19 @@ export const createModificationMethods = (
 
     setTimeSignature(sig) {
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
+      // A tuplet group is atomic; if one can't fit a whole bar of the new meter, reflow has no valid
+      // placement — refuse rather than corrupt the score into an overfull bar. (#256)
+      if (!tupletsFitTimeSignature(ctx.getScore().staves, sig)) {
+        setResult({
+          ok: false,
+          status: 'warning',
+          method: 'setTimeSignature',
+          message: `Cannot change to ${sig}: a tuplet is longer than one bar of the new meter`,
+          code: 'TUPLET_EXCEEDS_BAR',
+          details: { signature: sig },
+        });
+        return this;
+      }
       dispatch(new SetTimeSignatureCommand(sig));
       setResult({
         ok: true,

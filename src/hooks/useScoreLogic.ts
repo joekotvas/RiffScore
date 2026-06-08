@@ -195,6 +195,7 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     clearSelection,
     setPreviewNote,
     dispatch,
+    setFeedback,
   });
 
   // Note Actions: add/delete notes, chords

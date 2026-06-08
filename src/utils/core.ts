@@ -125,6 +125,42 @@ const createSplitEvents = (sourceEvent: ScoreEvent, availableQuants: number): Sc
 };
 
 /**
+ * The integral quant footprint of a tuplet group's members. A group's span is always an integral
+ * number of quants (the tuplet invariant), so rounding the summed member durations recovers the
+ * exact footprint without IEEE-754 drift. Shared by reflow and the fit guard so they agree.
+ */
+const tupletFootprint = (members: ScoreEvent[]): number =>
+  Math.round(members.reduce((sum, m) => sum + getNoteDuration(m.duration, m.dotted, m.tuplet), 0));
+
+/**
+ * Whether every tuplet group fits within a single bar of `timeSignature`. Reflow treats a group as
+ * atomic (never split), so a group whose footprint exceeds a whole bar has NO valid placement — the
+ * caller refuses the change rather than emit an overfull, invalid bar (#256).
+ */
+export const tupletsFitTimeSignature = (
+  staves: { measures: Measure[] }[],
+  timeSignature: string
+): boolean => {
+  const capacity = getMeasureCapacity(timeSignature);
+  for (const staff of staves) {
+    for (const measure of staff.measures) {
+      let i = 0;
+      while (i < measure.events.length) {
+        const run = measure.events[i].tuplet ? getTupletRun(measure.events, i) : null;
+        if (run) {
+          const members = measure.events.slice(run.start, run.end + 1);
+          if (tupletFootprint(members) > capacity) return false;
+          i = run.end + 1;
+        } else {
+          i += 1;
+        }
+      }
+    }
+  }
+  return true;
+};
+
+/**
  * Reflows the score based on a new time signature.
  * Redistributes events into measures, splitting and tying notes across bar lines.
  *
@@ -158,7 +194,11 @@ export const reflowScore = (measures: Measure[], newTimeSignature: string): Meas
 
   // 3. Calculate Pickup Constraints
   // If we have a pickup, the first measure has a custom capacity (min of actual content or maxQuants)
-  const pickupTarget = isPickup ? Math.min(calculateTotalQuants(measures[0].events), maxQuants) : 0;
+  // Round to the integral quant scale the atomic-tuplet branch uses (footprint is Math.round'd), so a
+  // pickup tuplet isn't seen as "doesn't fit" by sub-quant IEEE-754 drift and pushed to the next bar.
+  const pickupTarget = isPickup
+    ? Math.min(Math.round(calculateTotalQuants(measures[0].events)), maxQuants)
+    : 0;
 
   let isFillingPickup = isPickup;
 
@@ -171,16 +211,15 @@ export const reflowScore = (measures: Measure[], newTimeSignature: string): Meas
   while (i < allEvents.length) {
     const event = allEvents[i];
     const currentMax = isFillingPickup ? pickupTarget : maxQuants;
-    const available = currentMax - currentMeasureQuants;
+    // Never negative: an atomic tuplet larger than the bar can leave currentMeasureQuants > currentMax;
+    // a negative `available` would inflate the NEXT plain event's split remainder (eventDuration -
+    // available), dropping/adding quants. Clamp so the overfull bar stays contained.
+    const available = Math.max(0, currentMax - currentMeasureQuants);
 
     if (event.tuplet) {
       const run = getTupletRun(allEvents, i);
       const members = run ? allEvents.slice(run.start, run.end + 1) : [event];
-      // A group's span is always an integral number of quants (the tuplet invariant), so rounding
-      // the summed member durations recovers the exact footprint without IEEE-754 drift.
-      const footprint = Math.round(
-        members.reduce((sum, m) => sum + getNoteDuration(m.duration, m.dotted, m.tuplet), 0)
-      );
+      const footprint = tupletFootprint(members);
 
       // Doesn't fit the remaining space → close the current (possibly under-full) bar and start a
       // fresh one. (A group larger than a whole bar still lands in its own bar rather than looping.)

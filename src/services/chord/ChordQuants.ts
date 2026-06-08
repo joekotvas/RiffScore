@@ -9,7 +9,15 @@
 
 import type { ChordSymbol, Measure, Score } from '@/types';
 import { getNoteDuration, isReservedSlot } from '@/utils/core';
-import { TIME_SIGNATURES } from '@/constants';
+import { getMeasureCapacity } from '@/constants';
+
+/**
+ * Snap a running quant sum to a fine grid to kill IEEE-754 drift from accumulating tuplet-member
+ * durations (e.g. 16/3 + 16/3 + 16/3), while preserving genuine fractional tuplet anchors. The
+ * anchor grid and the position probe both go through this so a chord just after a tuplet isn't
+ * dropped as orphaned over a sub-nanoquant mismatch.
+ */
+const quantizeAnchor = (q: number): number => Math.round(q * 1000) / 1000;
 
 // ============================================================================
 // MEASURE CAPACITY (TILING)
@@ -45,7 +53,7 @@ export const getMeasureSpan = (measure: Measure): number => {
  * @returns Measure capacity in quants
  */
 export const getMeasureQuantCapacity = (timeSignature: string): number =>
-  TIME_SIGNATURES[timeSignature] ?? 64;
+  getMeasureCapacity(timeSignature);
 
 // ============================================================================
 // VALID POSITION CALCULATION
@@ -76,7 +84,7 @@ export const getValidChordQuants = (score: Score): Map<number, Set<number>> => {
         // All events (notes and notated rests) are valid chord anchor points — but NOT a
         // reserved tuplet slot (#242): it draws nothing, so a chord must not float over it.
         // It still advances localQuant (it occupies its footprint).
-        if (!isReservedSlot(event)) measureQuants.add(localQuant);
+        if (!isReservedSlot(event)) measureQuants.add(quantizeAnchor(localQuant));
         localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
       }
     }
@@ -94,7 +102,7 @@ export const isValidChordPosition = (
   quant: number
 ): boolean => {
   const measureQuants = validPositions.get(measure);
-  return measureQuants?.has(quant) ?? false;
+  return measureQuants?.has(quantizeAnchor(quant)) ?? false;
 };
 
 // ============================================================================
