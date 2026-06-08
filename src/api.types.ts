@@ -32,6 +32,7 @@ import type {
   AccidentalDisplay,
   StaffTemplate,
 } from './types';
+import type { RefusalCode, RefusalSeverity } from './refusals';
 
 // ========== UTILITY TYPES ==========
 
@@ -59,15 +60,18 @@ export interface Result {
   /** True when status is 'info' or 'warning' (false for 'error') */
   ok: boolean;
   /** 'info' = success, 'warning' = success w/ caveat, 'error' = failure */
-  status: 'info' | 'warning' | 'error';
+  status: RefusalSeverity;
   /** Name of the method that produced this result */
   method: string;
   /** Human-readable message */
   message: string;
   /** Timestamp of the operation */
   timestamp: number;
-  /** Optional machine-readable error/status code */
-  code?: string;
+  /**
+   * Optional machine-readable status code from the closed {@link RefusalCode} vocabulary. The code's
+   * canonical severity + message live in the refusal registry (src/refusals.ts), shared with the UI.
+   */
+  code?: RefusalCode;
   /** Additional context (counts, measures affected, etc.) */
   details?: Record<string, unknown>;
 }

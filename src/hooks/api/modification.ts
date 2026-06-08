@@ -21,6 +21,7 @@ import {
 } from '@/commands';
 import { parseDuration, clampBpm, canModifyEventDuration } from '@/utils/validation';
 import { tupletsFitTimeSignature } from '@/utils/core';
+import { refuse } from '@/refusals';
 import { foldAccidentalIntoPitch, deriveAccidental } from '@/services/MusicService';
 import { Note, Score, getValidStaff } from '@/types';
 import { getMeasureCapacity } from '@/constants';
@@ -161,12 +162,11 @@ export const createModificationMethods = (
         );
         if (overflowing.length > 0) {
           setResult({
-            ok: false,
-            status: 'error',
             method: 'setDuration',
-            message: `Cannot set duration to ${duration}${dotted ? ' (dotted)' : ''}: ${overflowing.length} event(s) would overflow the measure`,
-            code: 'DURATION_OVERFLOW',
-            details: { duration, dotted, overflow: overflowing.length },
+            ...refuse('DURATION_OVERFLOW', {
+              messageCtx: { duration, dotted },
+              details: { duration, dotted, overflow: overflowing.length },
+            }),
           });
           return this;
         }
@@ -207,12 +207,11 @@ export const createModificationMethods = (
 
       if (!fitsInMeasure(sel.staffIndex, sel.measureIndex, sel.eventId)) {
         setResult({
-          ok: false,
-          status: 'error',
           method: 'setDuration',
-          message: `Cannot set duration to ${duration}${dotted ? ' (dotted)' : ''}: it would overflow the measure`,
-          code: 'DURATION_OVERFLOW',
-          details: { duration, dotted, eventId: sel.eventId },
+          ...refuse('DURATION_OVERFLOW', {
+            messageCtx: { duration, dotted },
+            details: { duration, dotted, eventId: sel.eventId },
+          }),
         });
         return this;
       }
@@ -299,12 +298,8 @@ export const createModificationMethods = (
             const maxQuants = getMeasureCapacity(scoreRef.current.timeSignature ?? '4/4');
             if (!canModifyEventDuration(measure.events, sel.eventId, targetDuration, maxQuants, targetDotted)) {
               setResult({
-                ok: false,
-                status: 'error',
                 method: 'updateEvent',
-                message: 'Cannot update event: the new duration would overflow the measure',
-                code: 'DURATION_OVERFLOW',
-                details: { props },
+                ...refuse('DURATION_OVERFLOW', { details: { props } }),
               });
               return this;
             }
@@ -419,12 +414,11 @@ export const createModificationMethods = (
       // placement — refuse rather than corrupt the score into an overfull bar. (#256)
       if (!tupletsFitTimeSignature(ctx.getScore().staves, sig)) {
         setResult({
-          ok: false,
-          status: 'warning',
           method: 'setTimeSignature',
-          message: `Cannot change to ${sig}: a tuplet is longer than one bar of the new meter`,
-          code: 'TUPLET_EXCEEDS_BAR',
-          details: { signature: sig },
+          ...refuse('TUPLET_EXCEEDS_BAR', {
+            messageCtx: { signature: sig },
+            details: { signature: sig },
+          }),
         });
         return this;
       }

@@ -6,6 +6,7 @@ import { validateScore } from '@/utils/validation';
 import { generateABC } from '@/exporters/abcExporter';
 import { generateMusicXML } from '@/exporters/musicXmlExporter';
 import { generateStaves } from '@/utils/generateScore';
+import { refuse } from '@/refusals';
 
 /**
  * IO method names provided by this factory
@@ -110,12 +111,11 @@ export const createIOMethods = (
         } else if (format === 'musicxml') {
           output = generateMusicXML(score);
         } else {
+          // A hard failure (the export did not happen), distinct from the lenient NOT_IMPLEMENTED
+          // stubs — so it keeps error severity / ok:false.
           setResult({
-            ok: false,
-            status: 'error',
             method: 'export',
-            message: `Export format '${format}' not yet implemented`,
-            code: 'NOT_IMPLEMENTED',
+            ...refuse('EXPORT_NOT_IMPLEMENTED', { messageCtx: { format } }),
           });
           return ''; // Fail-safe: return empty string
         }
