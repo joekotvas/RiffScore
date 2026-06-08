@@ -236,6 +236,7 @@ export const useNoteActions = ({
     activeAccidental,
     currentQuantsPerMeasure,
     inputMode,
+    setFeedback,
   });
 
   // --- CREATE: Note and chord entry ---

@@ -1,4 +1,4 @@
-import { useCallback, RefObject } from 'react';
+import { useCallback, useRef, RefObject } from 'react';
 import { Score, getActiveStaff } from '@/types';
 import { canAddEventToMeasure } from '@/utils/validation';
 import { getTupletRun } from '@/utils/tupletEdit';
@@ -26,6 +26,8 @@ export interface UseHoverPreviewProps {
   currentQuantsPerMeasure: number;
   /** Current input mode (NOTE or REST) */
   inputMode: InputMode;
+  /** Surface a non-blocking message (e.g. hovering a full tuplet's insert gap). */
+  setFeedback?: (message: string | null) => void;
 }
 
 /**
@@ -76,7 +78,10 @@ export function useHoverPreview({
   activeAccidental,
   currentQuantsPerMeasure,
   inputMode,
+  setFeedback,
 }: UseHoverPreviewProps): UseHoverPreviewReturn {
+  // Debounce the "tuplet is full" notice so it fires once per hover-entry, not every mousemove frame.
+  const fullTupletNoticeRef = useRef<string | null>(null);
   const handleMeasureHover = useCallback(
     (
       measureIndex: number | null,
@@ -147,7 +152,8 @@ export function useHoverPreview({
           return;
         }
         // Between two members of the SAME tuplet group, a FULL group (no reserved slot) can't accept
-        // an insert — don't render a ghost that the commit (useNoteEntry case C) would only reject.
+        // an insert — don't render a ghost the commit would reject; instead surface a clear message
+        // (once per hover-entry) so the rejection is visible rather than a silent dead zone.
         const prevEv = measure.events[targetIndex - 1];
         const hereEv = measure.events[targetIndex];
         if (prevEv?.tuplet && hereEv?.tuplet) {
@@ -158,11 +164,18 @@ export function useHoverPreview({
             targetIndex <= run.end &&
             !measure.events.slice(run.start, run.end + 1).some((e) => e.reserved)
           ) {
+            const noticeKey = `${measureIndex}:${prevEv.id}`;
+            if (fullTupletNoticeRef.current !== noticeKey) {
+              fullTupletNoticeRef.current = noticeKey;
+              setFeedback?.('That tuplet is full — delete a note in it to make room.');
+            }
             setPreviewNote(null);
             return;
           }
         }
       }
+      // Not over a full-tuplet gap → allow the notice to fire again next time one is entered.
+      fullTupletNoticeRef.current = null;
 
       // Build new preview using utility
       const newPreview = createPreviewNote({
@@ -194,6 +207,7 @@ export function useHoverPreview({
       setPreviewNote,
       activeAccidental,
       inputMode,
+      setFeedback,
     ]
   );
 
