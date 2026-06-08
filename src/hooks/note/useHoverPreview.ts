@@ -1,4 +1,4 @@
-import { useCallback, useRef, RefObject } from 'react';
+import { useCallback, RefObject } from 'react';
 import { Score, getActiveStaff } from '@/types';
 import { canAddEventToMeasure } from '@/utils/validation';
 import { getTupletRun } from '@/utils/tupletEdit';
@@ -26,8 +26,6 @@ export interface UseHoverPreviewProps {
   currentQuantsPerMeasure: number;
   /** Current input mode (NOTE or REST) */
   inputMode: InputMode;
-  /** Surface a non-blocking message (e.g. hovering a full tuplet's insert gap). */
-  setFeedback?: (message: string | null) => void;
 }
 
 /**
@@ -78,10 +76,7 @@ export function useHoverPreview({
   activeAccidental,
   currentQuantsPerMeasure,
   inputMode,
-  setFeedback,
 }: UseHoverPreviewProps): UseHoverPreviewReturn {
-  // Debounce the "tuplet is full" notice so it fires once per hover-entry, not every mousemove frame.
-  const fullTupletNoticeRef = useRef<string | null>(null);
   const handleMeasureHover = useCallback(
     (
       measureIndex: number | null,
@@ -122,60 +117,58 @@ export function useHoverPreview({
       let targetIndex = hit.index;
       let targetMode: 'APPEND' | 'INSERT' | 'CHORD' =
         hit.type === 'EVENT' ? 'CHORD' : hit.type === 'INSERT' ? 'INSERT' : 'APPEND';
+      // When the active note can't be placed at the hovered spot we DON'T suppress the ghost — we
+      // mark it 'blocked' so it renders greyed with an X (a clear "can't place here" signal) and the
+      // footer shows a matching status. (We never showed a transient error here: a tuplet becomes
+      // full right after a SUCCESSFUL insert while the cursor is still in the gap, so an error would
+      // false-fire on every success — a steady greyed ghost + status reads cleanly.)
+      let blocked: 'tuplet-full' | 'measure-full' | undefined;
 
       if (targetMode === 'INSERT' && targetIndex === measure.events.length) {
         targetMode = 'APPEND';
       }
 
+      const barHasRoom = canAddEventToMeasure(
+        measure.events,
+        activeDuration,
+        isDotted,
+        currentQuantsPerMeasure
+      );
+
       if (targetMode === 'APPEND') {
-        if (
-          !canAddEventToMeasure(measure.events, activeDuration, isDotted, currentQuantsPerMeasure)
-        ) {
+        if (!barHasRoom) {
           if (measureIndex === currentStaff.measures.length - 1) {
+            // Last bar overflows into a new one — that's allowed, not blocked.
             targetMeasureIndex = measureIndex + 1;
             targetIndex = 0;
           } else {
-            setPreviewNote(null);
-            return;
+            blocked = 'measure-full';
           }
-        } else {
-          if (measure.events.length > 0) {
-            targetMode = 'INSERT';
-            targetIndex = measure.events.length;
-          }
+        } else if (measure.events.length > 0) {
+          targetMode = 'INSERT';
+          targetIndex = measure.events.length;
         }
       } else if (targetMode === 'INSERT') {
-        if (
-          !canAddEventToMeasure(measure.events, activeDuration, isDotted, currentQuantsPerMeasure)
-        ) {
-          setPreviewNote(null);
-          return;
-        }
-        // Between two members of the SAME tuplet group, a FULL group (no reserved slot) can't accept
-        // an insert — don't render a ghost the commit would reject; instead surface a clear message
-        // (once per hover-entry) so the rejection is visible rather than a silent dead zone.
-        const prevEv = measure.events[targetIndex - 1];
-        const hereEv = measure.events[targetIndex];
-        if (prevEv?.tuplet && hereEv?.tuplet) {
-          const run = getTupletRun(measure.events, targetIndex - 1);
-          if (
-            run &&
-            targetIndex > run.start &&
-            targetIndex <= run.end &&
-            !measure.events.slice(run.start, run.end + 1).some((e) => e.reserved)
-          ) {
-            const noticeKey = `${measureIndex}:${prevEv.id}`;
-            if (fullTupletNoticeRef.current !== noticeKey) {
-              fullTupletNoticeRef.current = noticeKey;
-              setFeedback?.('That tuplet is full — delete a note in it to make room.');
+        if (!barHasRoom) {
+          blocked = 'measure-full';
+        } else {
+          // Inserting between two members of a FULL tuplet (no reserved slot) isn't possible — its
+          // span is fixed.
+          const prevEv = measure.events[targetIndex - 1];
+          const hereEv = measure.events[targetIndex];
+          if (prevEv?.tuplet && hereEv?.tuplet) {
+            const run = getTupletRun(measure.events, targetIndex - 1);
+            if (
+              run &&
+              targetIndex > run.start &&
+              targetIndex <= run.end &&
+              !measure.events.slice(run.start, run.end + 1).some((e) => e.reserved)
+            ) {
+              blocked = 'tuplet-full';
             }
-            setPreviewNote(null);
-            return;
           }
         }
       }
-      // Not over a full-tuplet gap → allow the notice to fire again next time one is entered.
-      fullTupletNoticeRef.current = null;
 
       // Build new preview using utility
       const newPreview = createPreviewNote({
@@ -189,6 +182,7 @@ export function useHoverPreview({
         eventId: hit.type === 'EVENT' ? hit.eventId : undefined,
         isRest: inputMode === 'REST',
         source: 'hover',
+        blocked,
       });
 
       // Only update if preview actually changed to avoid flickering
@@ -207,7 +201,6 @@ export function useHoverPreview({
       setPreviewNote,
       activeAccidental,
       inputMode,
-      setFeedback,
     ]
   );
 

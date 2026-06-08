@@ -819,6 +819,13 @@ export interface PreviewNote {
    * (vs creating a new event). Undefined for plain APPEND/INSERT ghosts.
    */
   eventId?: string;
+  /**
+   * When set, the hover position can't accept the input. The ghost still renders — but greyed with
+   * an X (a clear "can't place here" signal) — and the footer shows a matching status.
+   *   - 'tuplet-full'  → the insert gap of a complete tuplet (its span is fixed).
+   *   - 'measure-full' → no room left in the bar for the active duration.
+   */
+  blocked?: 'tuplet-full' | 'measure-full';
 }
 
 // ========== NAVIGATION RESULT TYPES ==========

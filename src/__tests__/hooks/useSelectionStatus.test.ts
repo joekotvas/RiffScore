@@ -95,6 +95,29 @@ describe('useSelectionStatus', () => {
       expect(result.current.type).toBe('ready');
       expect(result.current.text).toBe('Ready to insert');
     });
+
+    it('returns a subtle "Tuplet is full" status for a blocked preview (#242)', () => {
+      const selection = createDefaultSelection();
+      const score = createDefaultScore();
+      const previewNote: PreviewNote = {
+        measureIndex: 0,
+        staffIndex: 0,
+        quant: 0,
+        visualQuant: 0,
+        pitch: 'C4',
+        duration: 'eighth',
+        dotted: false,
+        mode: 'INSERT',
+        index: 1,
+        isRest: false,
+        blocked: 'tuplet-full',
+      };
+
+      const { result } = renderHook(() => useSelectionStatus({ selection, previewNote, score }));
+
+      expect(result.current.type).toBe('blocked');
+      expect(result.current.text).toBe('Tuplet is full');
+    });
   });
 
   describe('single note selected', () => {

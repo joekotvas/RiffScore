@@ -22,6 +22,8 @@ export interface PreviewNoteOptions {
   isRest?: boolean;
   /** Source of the preview: 'hover' or 'keyboard' */
   source?: 'hover' | 'keyboard' | 'mouse';
+  /** Marks a position that can't accept input (ghost renders greyed with an X + footer status). */
+  blocked?: 'tuplet-full' | 'measure-full';
 }
 
 /**
@@ -76,6 +78,7 @@ export function createPreviewNote(options: PreviewNoteOptions): PreviewNote {
     eventId: options.eventId,
     isRest: options.isRest ?? false,
     source: options.source ?? 'hover',
+    ...(options.blocked ? { blocked: options.blocked } : {}),
   };
 }
 
@@ -102,6 +105,7 @@ export function arePreviewsEqual(prev: PreviewNote | null, next: PreviewNote): b
     prev.index === next.index &&
     prev.isRest === next.isRest &&
     prev.duration === next.duration &&
-    prev.dotted === next.dotted
+    prev.dotted === next.dotted &&
+    prev.blocked === next.blocked
   );
 }

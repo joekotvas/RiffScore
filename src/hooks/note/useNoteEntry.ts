@@ -91,8 +91,6 @@ export interface UseNoteEntryProps {
   dispatch: (command: Command) => void;
   /** Current input mode */
   inputMode: InputMode;
-  /** Surface a non-blocking message (e.g. rejecting an insert into a full tuplet). */
-  setFeedback?: (message: string | null) => void;
 }
 
 /**
@@ -160,7 +158,6 @@ export function useNoteEntry({
   currentQuantsPerMeasure,
   dispatch,
   inputMode,
-  setFeedback,
 }: UseNoteEntryProps): UseNoteEntryReturn {
   /*
    * Named function expression used here to support self-recursion.
@@ -261,8 +258,9 @@ export function useNoteEntry({
       }
 
       // (C) INSERT strictly BETWEEN two members of the same tuplet group → insert into the fixed
-      // span (consume a reserved slot). A FULL group has no free space → reject with feedback (a
-      // triplet's span is fixed; you can't add a 4th member).
+      // span (consume a reserved slot). A FULL group has no free space → reject (a triplet's span is
+      // fixed; you can't add a 4th member). The rejection is surfaced as a subtle footer status on
+      // hover (previewNote.blocked → useSelectionStatus), so commit just rejects silently here.
       if (effMode === 'INSERT') {
         const prev = targetMeasure.events[effIndex - 1];
         const here = targetMeasure.events[effIndex];
@@ -273,7 +271,6 @@ export function useNoteEntry({
         if (run && here?.tuplet && effIndex > run.start && effIndex <= run.end) {
           const members = targetMeasure.events.slice(run.start, run.end + 1);
           if (!members.some((e) => e.reserved)) {
-            setFeedback?.('That tuplet is full — delete a note in it to make room.');
             setPreviewNote(null);
             return;
           }
@@ -453,7 +450,6 @@ export function useNoteEntry({
       selection,
       select,
       inputMode,
-      setFeedback,
     ]
   );
 

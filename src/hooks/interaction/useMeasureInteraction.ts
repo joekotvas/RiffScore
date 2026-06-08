@@ -58,7 +58,7 @@ export function useMeasureInteraction({
   contentSignature,
 }: UseMeasureInteractionParams): UseMeasureInteractionReturn {
   const [hoveredMeasure, setHoveredMeasure] = useState(false);
-  const [cursorStyle, setCursorStyle] = useState<string>('crosshair');
+  const [cursorStyle, setCursorStyle] = useState<string>('default');
   const [isNoteHovered, setIsNoteHovered] = useState(false);
 
   // Clear stale note-hover whenever the measure's content changes. A notehead
@@ -108,7 +108,7 @@ export function useMeasureInteraction({
         if (hoveredMeasure) {
           setHoveredMeasure(false);
           onHover?.(null, null, null);
-          setCursorStyle('crosshair');
+          setCursorStyle('default');
         }
         return;
       }
@@ -119,12 +119,12 @@ export function useMeasureInteraction({
 
       if (hit) {
         onHover?.(measureIndex, hit, pitch);
-        setCursorStyle(hit.type === 'EVENT' ? 'default' : 'crosshair');
+        setCursorStyle('default');
       } else {
         // Gap hit - we pass null for hit, meaning "no valid insert position"
         // This effectively clears the preview when hovering in dead space
         onHover?.(measureIndex, null, pitch);
-        setCursorStyle('crosshair');
+        setCursorStyle('default');
       }
     },
     [isNoteHovered, hitZones, clef, scale, mouseLimits, measureIndex, hoveredMeasure, onHover]
@@ -133,7 +133,7 @@ export function useMeasureInteraction({
   const handleMeasureMouseLeave = useCallback(() => {
     setHoveredMeasure(false);
     onHover?.(null, null, null);
-    setCursorStyle('crosshair');
+    setCursorStyle('default');
   }, [onHover]);
 
   const handleMeasureClick = useCallback(

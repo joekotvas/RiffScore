@@ -134,12 +134,11 @@ describe('interactive tuplet entry (#242 user bug)', () => {
     expect(dispatch.mock.calls[0][0]).toBeInstanceOf(InsertTupletMemberCommand);
   });
 
-  it('INSERT between members of a FULL tuplet is rejected with feedback (no dispatch)', () => {
+  it('INSERT between members of a FULL tuplet is rejected (no dispatch; surfaced as footer status)', () => {
+    // A full tuplet's span is fixed → commit rejects silently. The "Tuplet is full" notice is shown
+    // on hover via the footer status (previewNote.blocked → useSelectionStatus), not a toolbar error.
     const dispatch = jest.fn();
-    const setFeedback = jest.fn();
-    const { result } = renderHook(() =>
-      useNoteEntry(props(fullTripletScore(), dispatch, {}, setFeedback))
-    );
+    const { result } = renderHook(() => useNoteEntry(props(fullTripletScore(), dispatch)));
     act(() => {
       result.current.addNoteToMeasure(0, { pitch: 'D4', mode: 'INSERT', index: 1 }, true, {
         mode: 'INSERT',
@@ -147,7 +146,6 @@ describe('interactive tuplet entry (#242 user bug)', () => {
       });
     });
     expect(dispatch).not.toHaveBeenCalled();
-    expect(setFeedback).toHaveBeenCalledWith(expect.stringContaining('full'));
   });
 
   it('does NOT merge two adjacent id-less (legacy) tuplets: INSERT at the seam falls through', () => {

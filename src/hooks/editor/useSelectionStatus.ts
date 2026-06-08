@@ -7,6 +7,7 @@ import type { Selection, PreviewNote, Score } from '@/types';
 export type SelectionStatusType =
   | 'inactive'
   | 'ready'
+  | 'blocked'
   | 'note'
   | 'notes'
   | 'chord'
@@ -50,6 +51,14 @@ export const useSelectionStatus = ({
 
     // Check if we're in ghost cursor mode (ready to insert)
     if (previewNote) {
+      // A blocked position shows a status explaining why the note can't be placed (the ghost itself
+      // renders greyed with an X as the primary signal).
+      if (previewNote.blocked) {
+        return {
+          type: 'blocked',
+          text: previewNote.blocked === 'tuplet-full' ? 'Tuplet is full' : 'Measure is full',
+        };
+      }
       return {
         type: 'ready',
         text: 'Ready to insert',

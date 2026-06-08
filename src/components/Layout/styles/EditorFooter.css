@@ -35,6 +35,12 @@
   opacity: 0.7;
 }
 
+/* A "can't insert here" notice — subtle italic, not an alarming error. */
+.riff-EditorFooter__status--blocked .riff-EditorFooter__status-text {
+  opacity: 0.85;
+  font-style: italic;
+}
+
 .riff-EditorFooter__status--note .riff-EditorFooter__status-text,
 .riff-EditorFooter__status--notes .riff-EditorFooter__status-text,
 .riff-EditorFooter__status--chord .riff-EditorFooter__status-text,
