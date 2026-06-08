@@ -13,7 +13,9 @@ import { AddEventCommand } from '@/commands/AddEventCommand';
 import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
 import { DeleteEventCommand } from '@/commands/DeleteEventCommand';
 import { FillReservedSlotCommand } from '@/commands/FillReservedSlotCommand';
+import { InsertTupletMemberCommand } from '@/commands/InsertTupletMemberCommand';
 import { InsertEventCommand } from '@/commands/InsertEventCommand';
+import { getTupletRun } from '@/utils/tupletEdit';
 import { ApplyTupletCommand } from '@/commands/TupletCommands';
 import { RemoveTupletCommand } from '@/commands/RemoveTupletCommand';
 import { UpdateNoteCommand } from '@/commands/UpdateNoteCommand';
@@ -96,6 +98,37 @@ function computeStartQuant(measure: Measure, selectedEventId: string | null): nu
   const lastStart = calculateInsertionQuant(measure, lastEvent.id) ?? 0;
   return lastStart + getNoteDuration(lastEvent.duration, lastEvent.dotted, lastEvent.tuplet);
 }
+
+/**
+ * Container-aware fill of a tuplet's RESERVED free slot (#242), shared by addNote/addRest. Uses the
+ * same path as the UI (InsertTupletMemberCommand end-fill) so it always packs to the FIRST free slot
+ * and renumbers — the old in-place FillReservedSlotCommand left a hole when a non-first reserved slot
+ * was targeted. Returns the command plus the ids to select.
+ */
+const buildReservedFill = (
+  measure: Measure,
+  slot: ScoreEvent,
+  note: { id: string; pitch: string | null; isRest?: boolean },
+  measureIndex: number,
+  staffIndex: number
+): { command: InsertTupletMemberCommand; eventId: string; noteId: string } => {
+  const slotIdx = measure.events.findIndex((e) => e.id === slot.id);
+  const run = getTupletRun(measure.events, slotIdx)!;
+  const realCount = measure.events.slice(run.start, run.end + 1).filter((e) => !e.reserved).length;
+  const evId = createEventId();
+  const newMember: ScoreEvent = {
+    id: evId,
+    duration: slot.duration,
+    dotted: slot.dotted,
+    isRest: note.pitch === null,
+    notes: [note],
+  };
+  return {
+    command: new InsertTupletMemberCommand(measureIndex, slot.id, realCount, newMember, staffIndex),
+    eventId: evId,
+    noteId: note.id,
+  };
+};
 
 /**
  * Unified event insertion logic shared by addNote and addRest.
@@ -468,21 +501,29 @@ export const createEntryMethods = (
         const slot = measure?.events.find((e) => e.id === tupletSel.eventId);
         // A RESERVED slot is the tuplet's free space → always fill it. A REAL member → replace its
         // pitch on overwrite, but leave INSERT to the inserter (it pushes a whole tuplet to overflow).
-        if (slot?.tuplet && (slot.reserved || options.mode !== 'insert')) {
+        if (slot?.tuplet && measure && (slot.reserved || options.mode !== 'insert')) {
           const note = createNotePayload({ pitch });
-          dispatch(new FillReservedSlotCommand(tupletSel.measureIndex, slot.id, note, tupletSel.staffIndex));
+          // Reserved free slot → container-aware end-fill (no gap); real member → set pitch in place.
+          let selEventId = slot.id;
+          if (slot.reserved) {
+            const fill = buildReservedFill(measure, slot, note, tupletSel.measureIndex, tupletSel.staffIndex);
+            dispatch(fill.command);
+            selEventId = fill.eventId;
+          } else {
+            dispatch(new FillReservedSlotCommand(tupletSel.measureIndex, slot.id, note, tupletSel.staffIndex));
+          }
           syncSelection({
             staffIndex: tupletSel.staffIndex,
             measureIndex: tupletSel.measureIndex,
-            eventId: slot.id,
+            eventId: selEventId,
             noteId: note.id,
             selectedNotes: [],
             anchor: null,
           });
-          // The tuplet's rhythm is fixed, so a requested duration is intentionally ignored —
-          // surface that for parity with the rest of the API (which reports warnings).
+          // The tuplet's rhythm is fixed (the slot's own duration/dotted), so a DIFFERENT requested
+          // duration is intentionally ignored — surface that for parity with the rest of the API.
           const warnings =
-            duration !== 'quarter' || dotted
+            duration !== slot.duration || dotted !== !!slot.dotted
               ? [`Requested duration '${duration}'${dotted ? ' dotted' : ''} ignored; tuplet rhythm is fixed`]
               : [];
           setResult({
@@ -544,13 +585,20 @@ export const createEntryMethods = (
       if (restSel.measureIndex !== null && restSel.eventId) {
         const measure = getScore().staves[restSel.staffIndex]?.measures[restSel.measureIndex];
         const slot = measure?.events.find((e) => e.id === restSel.eventId);
-        if (slot?.tuplet && (slot.reserved || options.mode !== 'insert')) {
+        if (slot?.tuplet && measure && (slot.reserved || options.mode !== 'insert')) {
           const restNote = { id: noteId(), pitch: null, isRest: true };
-          dispatch(new FillReservedSlotCommand(restSel.measureIndex, slot.id, restNote, restSel.staffIndex));
+          let selEventId = slot.id;
+          if (slot.reserved) {
+            const fill = buildReservedFill(measure, slot, restNote, restSel.measureIndex, restSel.staffIndex);
+            dispatch(fill.command);
+            selEventId = fill.eventId;
+          } else {
+            dispatch(new FillReservedSlotCommand(restSel.measureIndex, slot.id, restNote, restSel.staffIndex));
+          }
           syncSelection({
             staffIndex: restSel.staffIndex,
             measureIndex: restSel.measureIndex,
-            eventId: slot.id,
+            eventId: selEventId,
             noteId: restNote.id,
             selectedNotes: [],
             anchor: null,

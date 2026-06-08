@@ -150,6 +150,52 @@ describe('interactive tuplet entry (#242 user bug)', () => {
     expect(setFeedback).toHaveBeenCalledWith(expect.stringContaining('full'));
   });
 
+  it('does NOT merge two adjacent id-less (legacy) tuplets: INSERT at the seam falls through', () => {
+    // Two back-to-back triplets with NO tuplet.id (legacy/imported). Inserting at the seam (index 3,
+    // between the last member of group 1 and the first of group 2) must NOT be treated as a mid-insert
+    // into a single group (the old `undefined === undefined` id check did exactly that and rejected).
+    const idless = (id: string, pitch: string, position: number): ScoreEvent => ({
+      id,
+      duration: 'eighth',
+      dotted: false,
+      notes: [{ id: `${id}n`, pitch }],
+      tuplet: { ratio: [3, 2], groupSize: 3, position, baseDuration: 'eighth' },
+    });
+    const s = createDefaultScore();
+    s.timeSignature = '4/4';
+    s.staves = [
+      {
+        ...s.staves[0],
+        measures: [
+          {
+            id: 'm0',
+            events: [
+              idless('g1a', 'C4', 0),
+              idless('g1b', 'D4', 1),
+              idless('g1c', 'E4', 2),
+              idless('g2a', 'F4', 0),
+              idless('g2b', 'G4', 1),
+              idless('g2c', 'A4', 2),
+            ],
+          },
+        ],
+      },
+    ];
+    const dispatch = jest.fn();
+    const setFeedback = jest.fn();
+    const { result } = renderHook(() => useNoteEntry(props(s, dispatch, {}, setFeedback)));
+    act(() => {
+      result.current.addNoteToMeasure(0, { pitch: 'B4', mode: 'INSERT', index: 3 }, true, {
+        mode: 'INSERT',
+        index: 3,
+      });
+    });
+    // Not intercepted as a tuplet mid-insert, and not spuriously rejected.
+    const dispatched = dispatch.mock.calls.map((c) => c[0]);
+    expect(dispatched.some((c) => c instanceof InsertTupletMemberCommand)).toBe(false);
+    expect(setFeedback).not.toHaveBeenCalled();
+  });
+
   it('INSERT mode onto a real member is NOT intercepted (group-overflow insert still works)', () => {
     const dispatch = jest.fn();
     const { result } = renderHook(() =>

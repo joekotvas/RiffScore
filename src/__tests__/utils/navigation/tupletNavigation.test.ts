@@ -94,6 +94,59 @@ describe('tuplet keyboard navigation', () => {
     expect(r?.selection?.eventId).toBe('n');
   });
 
+  // ---- bar-filling incomplete tuplet (half-note triplet = 64q = full 4/4 bar) ----
+  // Regression cases from QA: when the incomplete tuplet fills the whole bar there is NO trailing
+  // append stop, so the fill ghost is the last stop — easy to skip past at boundaries.
+  const htrip = (id: string, pitch: string | null, position: number, reserved = false): ScoreEvent => ({
+    id,
+    duration: 'half',
+    dotted: false,
+    reserved,
+    isRest: reserved || pitch === null,
+    notes: reserved
+      ? [{ id: `${id}-rest`, pitch: null, isRest: true, reserved: true }]
+      : [{ id: `${id}n`, pitch: pitch as string }],
+    tuplet: { ratio: [3, 2], groupSize: 3, position, baseDuration: 'half', id: 'HT' },
+  });
+
+  it('#2 backward across a measure boundary reaches the fill ghost (bar-filling tuplet)', () => {
+    const measures: Measure[] = [
+      { id: 'm0', events: [htrip('a', 'C4', 0), htrip('b', 'E4', 1), htrip('r', null, 2, true)] },
+      { id: 'm1', events: [note('z', 'G4')] },
+    ];
+    const r = step(measures, sel(1, 'z'), 'left');
+    expect(r?.previewNote?.eventId).toBe('r'); // the fill ghost, not landing directly on member b
+    expect(r?.previewNote?.measureIndex).toBe(0);
+  });
+
+  it('#7 cross-measure Left from an append ghost never lands ON the reserved slot', () => {
+    const measures: Measure[] = [
+      { id: 'm0', events: [htrip('a', 'C4', 0), htrip('b', 'E4', 1), htrip('r', null, 2, true)] },
+      { id: 'm1', events: [] },
+    ];
+    const appendGhost: PreviewNote = {
+      measureIndex: 1, staffIndex: 0, quant: 0, visualQuant: 0, pitch: 'C4',
+      duration: 'eighth', dotted: false, mode: 'APPEND', index: 0, isRest: false,
+    };
+    const r = step(measures, sel(null, null), 'left', appendGhost);
+    expect(r?.selection?.eventId).not.toBe('r'); // never the blank reserved slot
+    expect(r?.selection?.eventId).toBe('b'); // the last real member
+  });
+
+  it('#9 stepping right off a fill ghost at end of score offers a new-measure ghost (not a dead end)', () => {
+    const measures: Measure[] = [
+      { id: 'm0', events: [htrip('a', 'C4', 0), htrip('b', 'E4', 1), htrip('r', null, 2, true)] },
+    ];
+    const fillGhost: PreviewNote = {
+      measureIndex: 0, staffIndex: 0, quant: 42, visualQuant: 42, pitch: 'E4',
+      duration: 'half', dotted: false, mode: 'CHORD', index: 2, eventId: 'r', isRest: false,
+    };
+    const r = step(measures, sel(null, null), 'right', fillGhost);
+    expect(r).not.toBeNull();
+    expect(r?.shouldCreateMeasure).toBe(true);
+    expect(r?.previewNote?.measureIndex).toBe(1);
+  });
+
   it('a COMPLETE tuplet has no fill ghost — stepping off the last member behaves normally', () => {
     const complete: Measure[] = [
       { id: 'm0', events: [trip('a', 'C4', 0), trip('b', 'E4', 1), trip('c', 'G4', 2)] },

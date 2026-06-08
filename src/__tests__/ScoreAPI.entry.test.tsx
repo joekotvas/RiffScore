@@ -438,5 +438,59 @@ describe('ScoreAPI Entry Methods', () => {
       expect(filled!.duration).toBe('eighth'); // tuplet rhythm fixed, not the requested whole
       expect(filled!.tuplet).toMatchObject({ groupSize: 3 }); // still part of the tuplet group
     });
+
+    test('filling a NON-FIRST reserved slot packs to the front — no gap (#242 QA #8)', () => {
+      render(<RiffScore id="api-gap" />);
+      const api = getAPI('api-gap');
+      // A triplet with one real member + TWO reserved slots (two members deleted).
+      const reservedMember = (id: string, position: number) => ({
+        id,
+        duration: 'eighth',
+        dotted: false,
+        reserved: true,
+        isRest: true,
+        notes: [{ id: `${id}-rest`, pitch: null, isRest: true, reserved: true }],
+        tuplet: { ratio: [3, 2] as [number, number], groupSize: 3, position, baseDuration: 'eighth', id: 'G' },
+      });
+      act(() => {
+        api.loadScore({
+          title: 'T',
+          timeSignature: '4/4',
+          keySignature: 'C',
+          bpm: 120,
+          staves: [
+            {
+              id: 's0',
+              clef: 'treble',
+              keySignature: 'C',
+              measures: [
+                {
+                  id: 'm0',
+                  events: [
+                    {
+                      id: 'c',
+                      duration: 'eighth',
+                      dotted: false,
+                      notes: [{ id: 'cn', pitch: 'C4' }],
+                      tuplet: { ratio: [3, 2], groupSize: 3, position: 0, baseDuration: 'eighth', id: 'G' },
+                    },
+                    reservedMember('r1', 1),
+                    reservedMember('r2', 2),
+                  ],
+                },
+              ],
+            },
+          ],
+        });
+      });
+      act(() => {
+        api.select(0, 0, 2); // select the SECOND reserved slot (r2)
+        api.addNote('G4');
+      });
+      const events = api.getScore().staves[0].measures[0].events;
+      // The note must pack to the FIRST free position (no hole): [C4, G4, reserved], not [C4, RES, G4].
+      expect(events.map((e) => (e.reserved ? 'RES' : e.notes[0].pitch))).toEqual(['C4', 'G4', 'RES']);
+      expect(events.map((e) => e.tuplet?.position)).toEqual([0, 1, 2]);
+    });
   });
 });

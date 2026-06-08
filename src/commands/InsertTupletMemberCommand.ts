@@ -56,10 +56,11 @@ export class InsertTupletMemberCommand implements Command {
     const snapshot = this.runSnapshot;
     const runStart = this.runStart;
     return updateMeasure(score, this.staffIndex, this.measureIndex, (measure) => {
-      // The inserted run has exactly one more member than the snapshot (a reserved slot was
-      // consumed); restore the original run in place.
+      // Insert consumes one reserved slot and adds one real member → the run length is UNCHANGED,
+      // so the inserted run occupies exactly snapshot.length slots. Restore the original run in place
+      // (deleting snapshot.length, NOT +1 — that would also eat the event after the tuplet).
       const newEvents = [...measure.events];
-      newEvents.splice(runStart, snapshot.length + 1, ...snapshot.map(cloneEvent));
+      newEvents.splice(runStart, snapshot.length, ...snapshot.map(cloneEvent));
       measure.events = newEvents;
       return true;
     });

@@ -1,6 +1,7 @@
 import { useCallback, RefObject } from 'react';
 import { Score, getActiveStaff } from '@/types';
 import { canAddEventToMeasure } from '@/utils/validation';
+import { getTupletRun } from '@/utils/tupletEdit';
 import { resolvePitch, createPreviewNote, arePreviewsEqual, PreviewNote } from '@/utils/entry';
 import { InputMode } from '../editor';
 import { HitZone } from '@/engines/layout/types';
@@ -144,6 +145,22 @@ export function useHoverPreview({
         ) {
           setPreviewNote(null);
           return;
+        }
+        // Between two members of the SAME tuplet group, a FULL group (no reserved slot) can't accept
+        // an insert — don't render a ghost that the commit (useNoteEntry case C) would only reject.
+        const prevEv = measure.events[targetIndex - 1];
+        const hereEv = measure.events[targetIndex];
+        if (prevEv?.tuplet && hereEv?.tuplet) {
+          const run = getTupletRun(measure.events, targetIndex - 1);
+          if (
+            run &&
+            targetIndex > run.start &&
+            targetIndex <= run.end &&
+            !measure.events.slice(run.start, run.end + 1).some((e) => e.reserved)
+          ) {
+            setPreviewNote(null);
+            return;
+          }
         }
       }
 

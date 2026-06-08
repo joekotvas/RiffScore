@@ -135,10 +135,15 @@ export const insertTupletMember = (
   // on the trailing reserved space clamps to the end (end-fill).
   const at = Math.max(0, Math.min(localIndex, reals.length));
 
+  // Stamp the new member with the rhythm of the slot it consumes (reserved slots created by
+  // repackTupletRun carry the deleted member's duration/dotted), so insert is a true inverse of
+  // delete and conserves the group footprint even for a non-uniform group. For the common uniform
+  // group every slot is baseDuration/non-dotted, so this is identical to the simple case.
+  const consumed = reserved[0];
   const stamped: ScoreEvent = {
     ...newMember,
-    duration: groupTuplet?.baseDuration ?? newMember.duration,
-    dotted: false,
+    duration: consumed.duration ?? groupTuplet?.baseDuration ?? newMember.duration,
+    dotted: consumed.dotted ?? false,
     tuplet: groupTuplet ? { ...groupTuplet } : newMember.tuplet,
   };
 

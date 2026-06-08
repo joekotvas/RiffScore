@@ -81,6 +81,25 @@ describe('insertTupletMember', () => {
     expect(pitches(res.members)).toEqual(['B3', 'C4', 'RES']);
   });
 
+  it('stamps the CONSUMED slot rhythm (preserves a dotted/non-uniform footprint), not a flat baseDuration', () => {
+    // A reserved slot left by deleting a DOTTED member carries duration:'quarter', dotted:true.
+    const reservedDotted: ScoreEvent = {
+      id: 'rd',
+      duration: 'quarter',
+      dotted: true,
+      reserved: true,
+      isRest: true,
+      notes: [{ id: 'rd-rest', pitch: null, isRest: true, reserved: true }],
+      tuplet: { ratio: [3, 2], groupSize: 3, position: 2, baseDuration: 'eighth', id: T },
+    };
+    const members = [member('a', 'C4', 0), member('b', 'E4', 1), reservedDotted];
+    const res = insertTupletMember(members, 2, newReal('x', 'G4'));
+    if (res.full) throw new Error('expected insert');
+    const inserted = res.members.find((m) => m.id === 'x')!;
+    expect(inserted.duration).toBe('quarter'); // consumed slot's duration, not baseDuration 'eighth'
+    expect(inserted.dotted).toBe(true); // dotting preserved, not hard-coded false
+  });
+
   it('round-trips with repackTupletRun: insert then delete restores the run shape', () => {
     const start = [member('a', 'C4', 0), member('b', 'E4', 1), member('r', null, 2, true)];
     const inserted = insertTupletMember(start, 1, newReal('x', 'D4'));

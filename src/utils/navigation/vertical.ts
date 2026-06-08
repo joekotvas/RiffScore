@@ -271,7 +271,10 @@ export const calculateVerticalNavigation = (
             previewNote: null,
           };
         } else {
-          // No events - move ghost cursor to target staff
+          // No events - move ghost cursor to target staff. Drop any origin-specific slot anchor
+          // (a tuplet-fill ghost's eventId/CHORD/reservedIndex are meaningless in the empty target
+          // measure): reset to a plain APPEND ghost so Enter creates a note here (not a stale
+          // reserved-slot fill that resolves to nothing) and it renders at the bar start, not x=0.
           const defaultPitch = getDefaultPitchForClef(targetStaff.clef || 'treble');
 
           return {
@@ -287,6 +290,9 @@ export const calculateVerticalNavigation = (
               ...previewNote,
               staffIndex: targetStaffIndex,
               pitch: defaultPitch,
+              eventId: undefined,
+              mode: 'APPEND',
+              index: 0,
             },
           };
         }
@@ -318,6 +324,10 @@ export const calculateVerticalNavigation = (
           ...previewNote,
           staffIndex: cycleStaffIndex,
           pitch: defaultPitch,
+          // Drop any origin-specific slot anchor (see the no-events branch above).
+          eventId: undefined,
+          mode: 'APPEND',
+          index: 0,
         },
       };
     }

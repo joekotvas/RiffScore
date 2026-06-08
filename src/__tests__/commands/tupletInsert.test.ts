@@ -67,6 +67,19 @@ describe('InsertTupletMemberCommand', () => {
     expect(pitches(after)).toEqual(['C4', 'E4', 'G4']); // unchanged
   });
 
+  it('undo restores the prior run WITHOUT disturbing a following event', () => {
+    // [C, E, reserved] tuplet THEN a trailing quarter note. Insert into the tuplet, then undo.
+    const trailing: ScoreEvent = { id: 'after', duration: 'quarter', dotted: false, notes: [{ id: 'aftern', pitch: 'B4' }] };
+    const score = scoreWith([trip('a', 'C4', 0), trip('b', 'E4', 1), trip('r', null, 2, true), trailing]);
+    const cmd = new InsertTupletMemberCommand(0, 'a', 1, newMember('x', 'D4'), 0);
+    const after = cmd.execute(score);
+    expect(pitches(after)).toEqual(['C4', 'D4', 'E4', 'B4']); // group filled, trailing intact
+    const back = cmd.undo(after);
+    // Undo must restore [C, E, reserved, B4] — the trailing B4 must NOT be eaten.
+    expect(pitches(back)).toEqual(['C4', 'E4', 'RES', 'B4']);
+    expect(events(back)).toHaveLength(4);
+  });
+
   it('undo restores the exact prior run', () => {
     const score = scoreWith([trip('a', 'C4', 0), trip('b', 'E4', 1), trip('r', null, 2, true)]);
     const cmd = new InsertTupletMemberCommand(0, 'a', 1, newMember('x', 'D4'), 0);

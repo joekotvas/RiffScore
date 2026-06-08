@@ -266,8 +266,11 @@ export function useNoteEntry({
       if (effMode === 'INSERT') {
         const prev = targetMeasure.events[effIndex - 1];
         const here = targetMeasure.events[effIndex];
-        if (prev?.tuplet && here?.tuplet && prev.tuplet.id === here.tuplet.id) {
-          const run = getTupletRun(targetMeasure.events, effIndex - 1)!;
+        // Resolve the group via the id-safe getTupletRun and require the insert point to lie strictly
+        // INSIDE one run — not at the seam between two adjacent id-less (legacy) groups, where the
+        // inline `prev.tuplet.id === here.tuplet.id` would be `undefined === undefined` → true.
+        const run = prev?.tuplet ? getTupletRun(targetMeasure.events, effIndex - 1) : null;
+        if (run && here?.tuplet && effIndex > run.start && effIndex <= run.end) {
           const members = targetMeasure.events.slice(run.start, run.end + 1);
           if (!members.some((e) => e.reserved)) {
             setFeedback?.('That tuplet is full — delete a note in it to make room.');

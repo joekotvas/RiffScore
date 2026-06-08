@@ -164,12 +164,19 @@ export const navigateSelection = (
     }
 
     if (direction === 'left') {
-      const lastEvent = measure.events[measure.events.length - 1];
-      return { ...selection, eventId: lastEvent.id, noteId: getFirstNoteId(lastEvent) };
+      const k = nextRealIndex(measure.events, measure.events.length, -1);
+      if (k >= 0) {
+        const lastEvent = measure.events[k];
+        return { ...selection, eventId: lastEvent.id, noteId: getFirstNoteId(lastEvent) };
+      }
     } else {
-      const firstEvent = measure.events[0];
-      return { ...selection, eventId: firstEvent.id, noteId: getFirstNoteId(firstEvent) };
+      const k = nextRealIndex(measure.events, -1, 1);
+      if (k < measure.events.length) {
+        const firstEvent = measure.events[k];
+        return { ...selection, eventId: firstEvent.id, noteId: getFirstNoteId(firstEvent) };
+      }
     }
+    return selection;
   }
 
   const eventIdx = measure.events.findIndex((e) => e.id === eventId);
@@ -329,7 +336,25 @@ const handleGhostNavigation = (
             inputMode
           );
         }
-        return null;
+        // End of score: offer a new-measure append ghost (mirror the last-note behavior in
+        // handleEventNavigation section C) instead of dead-ending.
+        return {
+          selection: { staffIndex, measureIndex: null, eventId: null, noteId: null },
+          previewNote: {
+            measureIndex: nextIndex,
+            staffIndex,
+            quant: 0,
+            visualQuant: 0,
+            pitch,
+            duration: activeDuration,
+            dotted: isDotted,
+            mode: 'APPEND',
+            index: 0,
+            isRest: inputMode === 'REST',
+          },
+          shouldCreateMeasure: true,
+          audio: null,
+        };
       }
     }
   }
@@ -382,13 +407,10 @@ const handleGhostNavigation = (
         if (ghostResult) return ghostResult;
       }
 
-      // Fallback: Last event of prev measure
-      if (prevMeasure.events.length > 0) {
-        return createEventResult(
-          staffIndex,
-          measureIndex - 1,
-          prevMeasure.events[prevMeasure.events.length - 1]
-        );
+      // Fallback: last NON-RESERVED event of prev measure (reserved slots are never a landing spot).
+      const k = nextRealIndex(prevMeasure.events, prevMeasure.events.length, -1);
+      if (k >= 0) {
+        return createEventResult(staffIndex, measureIndex - 1, prevMeasure.events[k]);
       }
     }
   }
@@ -471,6 +493,17 @@ const handleEventNavigation = (
   // 1. Moving Left from First Event -> Try Ghost in Prev Measure
   if (direction === 'left' && eventIdx === 0 && measureIndex > 0) {
     const prevMeasure = measures[measureIndex - 1];
+
+    // If the prev measure ends with an incomplete tuplet that fills the bar, its last stop is the
+    // fill ghost (no trailing append stop). Land on it — symmetric with the forward path, and the
+    // only way to reach that fill ghost by keyboard when the group fills its bar.
+    const prevStops = getStops(prevMeasure, currentQuantsPerMeasure);
+    const lastStop = prevStops[prevStops.length - 1];
+    if (lastStop && lastStop.kind === 'tupletFill') {
+      const pitch = getLastPitch(currentEvent, clef);
+      return buildTupletFillGhost(measureIndex - 1, staffIndex, lastStop, pitch, inputMode === 'REST');
+    }
+
     const prevTotal = calculateTotalQuants(prevMeasure.events);
     const available = currentQuantsPerMeasure - prevTotal;
 
