@@ -1,4 +1,5 @@
 import { MusicEditorAPI } from '@/api.types';
+import { PreviewNote } from '@/types';
 import { APIContext } from './types';
 import { getFirstNoteId, getNoteDuration } from '@/utils/core';
 import { calculateVerticalNavigation } from '@/utils/navigation/vertical';
@@ -23,9 +24,17 @@ export const createNavigationMethods = (
 ): Pick<MusicEditorAPI, NavigationMethodNames> & ThisType<MusicEditorAPI> => {
   const { getScore, selectionRef, syncSelection, selectionEngine, setResult } = ctx;
 
+  // Ghost-cursor state persisted across move() calls. Stepping onto a ghost (a tuplet-fill or append
+  // cursor) leaves selection.eventId null; the NEXT move must feed that ghost back to the navigators
+  // so their ghost branch engages — the API used to pass null and mis-navigated (e.g. a second
+  // right-arrow jumped backward into the tuplet). It's only valid while sitting on a ghost, so it's
+  // cleared whenever the selection is on a real event. (#6)
+  let ghostPreview: PreviewNote | null = null;
+
   return {
     move(direction) {
       const sel = selectionRef.current;
+      if (sel.eventId) ghostPreview = null;
       const score = getScore();
       const staff = score.staves[sel.staffIndex];
       if (!staff) {
@@ -42,13 +51,9 @@ export const createNavigationMethods = (
       const measures = staff.measures;
 
       if (direction === 'left' || direction === 'right') {
-        // Use calculateNextSelection for horizontal movement (same as keyboard)
-        const navResult = calculateNextSelection(
-          measures,
-          sel,
-          direction
-          // All other params use defaults: previewNote=null, activeDuration='quarter', etc.
-        );
+        // Use calculateNextSelection for horizontal movement (same as keyboard). Feed the persisted
+        // ghost so stepping off/through a ghost engages the ghost branch (other params default).
+        const navResult = calculateNextSelection(measures, sel, direction, ghostPreview);
 
         if (!navResult) {
           setResult({
@@ -60,6 +65,11 @@ export const createNavigationMethods = (
           });
           return this;
         }
+
+        // Remember only a SLOT-ANCHORED ghost (a tuplet-fill ghost carries the reserved slot's
+        // eventId) for the next step. A plain APPEND ghost is left unpersisted so move() keeps its
+        // long-standing append-cursor navigation (which chord-building recipes rely on).
+        ghostPreview = navResult.previewNote?.eventId ? navResult.previewNote : null;
 
         // When navigating to append position, selection has measureIndex: null
         // but previewNote contains the actual measure. Merge them for API selection.
@@ -96,19 +106,21 @@ export const createNavigationMethods = (
           details: {
             direction,
             newSelection: { measure: measureIndex, event: newSel?.eventId ?? null },
+            previewNote: ghostPreview, // a ghost cursor (e.g. a tuplet's free slot), or null
           },
         });
       } else if (direction === 'up' || direction === 'down') {
-        // Use calculateVerticalNavigation for cross-staff and chord navigation
-        // Note: activeDuration defaults to 'quarter' - if needed, expose via API context
+        // Use calculateVerticalNavigation for cross-staff and chord navigation. Feed the persisted
+        // ghost so vertical stepping from a ghost cursor works too.
         const result = calculateVerticalNavigation(
           score,
           sel,
           direction,
           'quarter', // Default duration for ghost cursor creation
           false, // Default dotted state
-          null // No preview note in API context
+          ghostPreview
         );
+        ghostPreview = result?.previewNote?.eventId ? result.previewNote : null;
 
         if (result?.selection) {
           const fullSelection = {

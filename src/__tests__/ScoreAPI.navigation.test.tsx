@@ -182,6 +182,53 @@ describe('Navigation - Horizontal Boundaries', () => {
   });
 });
 
+describe('Navigation - tuplet-fill ghost stepping (#6)', () => {
+  beforeEach(() => {
+    Element.prototype.scrollTo = jest.fn();
+  });
+  afterEach(() => {
+    if (window.riffScore) {
+      window.riffScore.instances.clear();
+      window.riffScore.active = null;
+    }
+  });
+
+  test('move("right") steps onto then PAST the fill ghost (no backward jump to the first member)', () => {
+    render(<RiffScore id="nav-tuplet-ghost" />);
+    const api = getAPI('nav-tuplet-ghost');
+    const trip = (id: string, pitch: string, position: number) => ({
+      id,
+      duration: 'eighth',
+      dotted: false,
+      notes: [{ id: `${id}n`, pitch }],
+      tuplet: { ratio: [3, 2] as [number, number], groupSize: 3, position, baseDuration: 'eighth', id: 'T' },
+    });
+    act(() => {
+      api.loadScore({
+        title: 'T',
+        timeSignature: '4/4',
+        keySignature: 'C',
+        bpm: 120,
+        staves: [
+          { id: 's0', clef: 'treble', keySignature: 'C', measures: [{ id: 'm0', events: [trip('t0', 'C4', 0), trip('t1', 'E4', 1), trip('t2', 'G4', 2)] }] },
+        ],
+      });
+    });
+    // → [C, E, reserved]
+    act(() => {
+      api.select(0, 0, 2);
+      api.deleteSelected();
+      api.select(0, 0, 1); // the last real member (E)
+    });
+
+    act(() => api.move('right')); // onto the tuplet-fill ghost
+    expect(api.getSelection().eventId).toBeNull();
+
+    act(() => api.move('right')); // PAST the group — must NOT jump back to the first member (t0)
+    expect(api.getSelection().eventId).not.toBe('t0');
+  });
+});
+
 describe('Navigation - Vertical (Cross-Staff)', () => {
   afterEach(() => {
     if (window.riffScore) {
