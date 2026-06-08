@@ -91,6 +91,7 @@ const ScoreEditorContent = ({
   // and `feedback` only changes when a new message is set, so the timer resets per message rather
   // than on every render.
   const errorMsg = feedback?.message ?? null;
+  const feedbackSeverity = feedback?.severity ?? 'error';
   useEffect(() => {
     if (!feedback) return;
     const timer = setTimeout(() => setFeedback(null), 4000);
@@ -381,6 +382,7 @@ const ScoreEditorContent = ({
           onInstrumentChange={handleInstrumentChange}
           samplerLoaded={samplerLoaded}
           errorMsg={errorMsg}
+          feedbackSeverity={feedbackSeverity}
           onToggleHelp={() => setShowHelp(true)}
           onEscape={handleEscape}
           isFullscreen={isFullscreen}

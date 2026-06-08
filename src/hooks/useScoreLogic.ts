@@ -28,6 +28,7 @@ import { useInteraction } from './interaction';
 import { useTupletActions } from './useTupletActions';
 
 import { createDefaultScore, migrateScore, PreviewNote, Score } from '@/types';
+import type { RefusalSeverity } from '@/refusals';
 import { repairSelection } from '@/utils/selectionRepair';
 
 // Extracted score modules
@@ -144,11 +145,18 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
   } = useSelection({ score, scoreGetter: () => engine.getState() });
   const [previewNote, setPreviewNote] = useState<PreviewNote | null>(null);
 
-  // #242 Lane D: transient user-facing feedback (e.g. an overflow rejection). The nonce lets a
-  // repeated identical message re-trigger the banner and its auto-dismiss timer.
-  const [feedback, setFeedbackState] = useState<{ message: string; nonce: number } | null>(null);
-  const setFeedback = useCallback((message: string | null) => {
-    setFeedbackState((prev) => (message === null ? null : { message, nonce: (prev?.nonce ?? 0) + 1 }));
+  // #242 Lane D: transient user-facing feedback (e.g. an overflow rejection). Carries a severity so
+  // the banner can render a gentle refusal (amber) rather than always a hard error (red). The nonce
+  // lets a repeated identical message re-trigger the banner and its auto-dismiss timer.
+  const [feedback, setFeedbackState] = useState<{
+    message: string;
+    severity: RefusalSeverity;
+    nonce: number;
+  } | null>(null);
+  const setFeedback = useCallback((message: string | null, severity: RefusalSeverity = 'error') => {
+    setFeedbackState((prev) =>
+      message === null ? null : { message, severity, nonce: (prev?.nonce ?? 0) + 1 }
+    );
   }, []);
 
   // #242 Lane G: after any structural score change (delete / reflow / tuplet-pack), prune selection

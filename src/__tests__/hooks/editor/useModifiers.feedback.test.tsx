@@ -73,7 +73,8 @@ describe('useModifiers duration overflow feedback', () => {
     act(() => result.current.handleDurationChange('whole', true));
 
     expect(dispatch).not.toHaveBeenCalled();
-    expect(setFeedback).toHaveBeenCalledWith(expect.stringContaining('not enough room'));
+    // A gentle "didn't fit" notice — warning severity, not a hard error.
+    expect(setFeedback).toHaveBeenCalledWith(expect.stringContaining('not enough room'), 'warning');
   });
 
   it('clears feedback and dispatches when a duration change fits', () => {
@@ -122,7 +123,8 @@ describe('useModifiers dot overflow feedback', () => {
     act(() => result.current.handleDotToggle());
 
     expect(dispatch).not.toHaveBeenCalled();
-    expect(setFeedback).toHaveBeenCalledWith(expect.stringContaining('not enough room'));
+    // A gentle "didn't fit" notice — warning severity, not a hard error.
+    expect(setFeedback).toHaveBeenCalledWith(expect.stringContaining('not enough room'), 'warning');
   });
 
   it('clears feedback and dispatches when adding a dot fits', () => {

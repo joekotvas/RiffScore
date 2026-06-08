@@ -4,6 +4,7 @@ import { hasTieTarget } from '@/utils/ties';
 
 import { playNote } from '@/engines/toneEngine';
 import { Score, getActiveStaff, Selection, Note as ScoreNote, ScoreEvent } from '@/types';
+import type { RefusalSeverity } from '@/refusals';
 import { Command } from '@/commands/types';
 import { UpdateEventCommand } from '@/commands/UpdateEventCommand';
 import { UpdateNoteCommand } from '@/commands/UpdateNoteCommand';
@@ -25,7 +26,7 @@ interface UseModifiersProps {
   };
   dispatch: (command: Command) => void;
   /** Surface a transient user-facing message (e.g. an overflow rejection), or clear it with null. */
-  setFeedback: (message: string | null) => void;
+  setFeedback: (message: string | null, severity?: RefusalSeverity) => void;
 }
 
 interface UseModifiersReturn {
@@ -162,7 +163,8 @@ export const useModifiers = ({
           setFeedback(
             applied === 0
               ? "Can't lengthen the note — not enough room left in the measure"
-              : `Lengthened ${applied}; ${skipped} didn't fit the measure`
+              : `Lengthened ${applied}; ${skipped} didn't fit the measure`,
+            'warning' // a gentle "didn't fit" notice, not a hard error
           );
         } else if (applied > 0) {
           setFeedback(null);
@@ -236,7 +238,8 @@ export const useModifiers = ({
       setFeedback(
         applied === 0
           ? "Can't add a dot — not enough room left in the measure"
-          : `Dotted ${applied}; ${skipped} didn't fit the measure`
+          : `Dotted ${applied}; ${skipped} didn't fit the measure`,
+        'warning' // a gentle "didn't fit" notice, not a hard error
       );
     } else if (applied > 0) {
       setFeedback(null);

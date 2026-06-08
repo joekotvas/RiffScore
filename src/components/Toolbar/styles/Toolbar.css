@@ -24,14 +24,29 @@
   flex: 1;
 }
 
-/* Error message styling */
+/* Transient feedback banner. Shared layout; severity modifier sets tone (see --error/--warning/--info). */
 .riff-Toolbar__error {
   width: 100%;
-  color: var(--riff-color-danger);
   font-size: var(--riff-font-size-xs);
   margin-top: var(--riff-spacing-2);
+}
+
+/* Hard failure: bold danger, pulsing for attention. */
+.riff-Toolbar__error--error {
+  color: var(--riff-color-danger);
   font-weight: bold;
   animation: riff-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Gentle refusal / "didn't fit" — amber, steady (no pulse), normal weight. */
+.riff-Toolbar__error--warning {
+  color: var(--riff-color-warning, #b45309);
+  font-weight: 500;
+}
+
+/* Neutral note. */
+.riff-Toolbar__error--info {
+  color: var(--riff-color-text-secondary);
 }
 
 @keyframes riff-pulse {

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { Selection, PreviewNote, Score } from '@/types';
+import { refusalForBlockedKind } from '@/refusals';
 
 /**
  * Selection status types for the editor footer.
@@ -52,11 +53,12 @@ export const useSelectionStatus = ({
     // Check if we're in ghost cursor mode (ready to insert)
     if (previewNote) {
       // A blocked position shows a status explaining why the note can't be placed (the ghost itself
-      // renders greyed with an X as the primary signal).
+      // renders greyed with an X as the primary signal). The wording is single-sourced from the
+      // refusal registry so the footer, ghost, and API all agree.
       if (previewNote.blocked) {
         return {
           type: 'blocked',
-          text: previewNote.blocked === 'tuplet-full' ? 'Tuplet is full' : 'Measure is full',
+          text: refusalForBlockedKind(previewNote.blocked).spec.message(),
         };
       }
       return {
