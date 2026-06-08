@@ -105,3 +105,48 @@ export const repackTupletRun = (
 
 /** Mint a reserved-slot id (stable across redo via the command that owns it). */
 export const reservedSlotId = (): string => makeEventId();
+
+export type InsertResult = { full: true } | { full: false; members: ScoreEvent[] };
+
+/**
+ * Insert `newMember` into a tuplet group at real-member local index `localIndex` (0..realCount),
+ * consuming one reserved slot so the group's span AND member count stay constant. The inverse of
+ * {@link repackTupletRun}: delete frees a slot, insert consumes one. Returns `{ full: true }`
+ * (caller rejects with feedback) when the group has no reserved slot — a full tuplet's span is
+ * fixed, so a 4th member can't be added to a triplet.
+ *
+ * `newMember` supplies identity + content (id, notes, isRest); this stamps the group's fixed rhythm
+ * (baseDuration, dotted:false) and tuplet metadata onto it. Reserved slots always pack to the end,
+ * so `localIndex === realCount` is the end-fill case (equivalent to filling the next free slot).
+ * Positions are renumbered 0..n-1.
+ */
+export const insertTupletMember = (
+  members: ScoreEvent[],
+  localIndex: number,
+  newMember: ScoreEvent
+): InsertResult => {
+  const reserved = members.filter((e) => e.reserved);
+  if (reserved.length === 0) return { full: true };
+
+  const reals = members.filter((e) => !e.reserved);
+  const groupTuplet = members.find((e) => e.tuplet)?.tuplet;
+
+  // Insert positions are meaningful only among real members (0..realCount); a hover index landing
+  // on the trailing reserved space clamps to the end (end-fill).
+  const at = Math.max(0, Math.min(localIndex, reals.length));
+
+  const stamped: ScoreEvent = {
+    ...newMember,
+    duration: groupTuplet?.baseDuration ?? newMember.duration,
+    dotted: false,
+    tuplet: groupTuplet ? { ...groupTuplet } : newMember.tuplet,
+  };
+
+  // Place the new real member, drop ONE reserved slot (free space consumed), keep the rest.
+  const packed = [...reals.slice(0, at), stamped, ...reals.slice(at), ...reserved.slice(1)];
+
+  const renumbered = packed.map((e, i) =>
+    e.tuplet ? { ...e, tuplet: { ...e.tuplet, position: i } } : e
+  );
+  return { full: false, members: renumbered };
+};

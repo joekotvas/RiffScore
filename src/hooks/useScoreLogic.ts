@@ -210,6 +210,7 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     currentQuantsPerMeasure,
     dispatch,
     inputMode,
+    setFeedback,
   });
 
   // Modifiers: duration, dots, accidentals, ties

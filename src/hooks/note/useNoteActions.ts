@@ -86,6 +86,9 @@ export interface UseNoteActionsProps {
 
   /** Current input mode (NOTE or REST) */
   inputMode: InputMode;
+
+  /** Surface a non-blocking message (e.g. rejecting an insert into a full tuplet). */
+  setFeedback?: (message: string | null) => void;
 }
 
 /**
@@ -222,6 +225,7 @@ export const useNoteActions = ({
   currentQuantsPerMeasure,
   dispatch,
   inputMode,
+  setFeedback,
 }: UseNoteActionsProps): UseNoteActionsReturn => {
   // --- READ: Hover preview for ghost note display ---
   const { handleMeasureHover } = useHoverPreview({
@@ -247,6 +251,7 @@ export const useNoteActions = ({
     currentQuantsPerMeasure,
     dispatch,
     inputMode,
+    setFeedback,
   });
 
   // --- DELETE: Note/event removal ---

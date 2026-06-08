@@ -10,12 +10,14 @@ import { useCallback, RefObject } from 'react';
 import { getAppendPreviewNote } from '@/utils/interaction';
 import { canAddEventToMeasure } from '@/utils/validation';
 import { playNote } from '@/engines/toneEngine';
-import { Score, getActiveStaff, Selection } from '@/types';
+import { Score, ScoreEvent, getActiveStaff, Selection } from '@/types';
 import { Command } from '@/commands/types';
 import { AddEventCommand } from '@/commands/AddEventCommand';
 import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
 import { AddMeasureCommand } from '@/commands/MeasureCommands';
 import { FillReservedSlotCommand } from '@/commands/FillReservedSlotCommand';
+import { InsertTupletMemberCommand } from '@/commands/InsertTupletMemberCommand';
+import { getTupletRun } from '@/utils/tupletEdit';
 import { createNotePayload, createPreviewNote, PreviewNote } from '@/utils/entry';
 import { eventId as createEventId, noteId } from '@/utils/id';
 import { deriveAccidental } from '@/services/MusicService';
@@ -89,6 +91,8 @@ export interface UseNoteEntryProps {
   dispatch: (command: Command) => void;
   /** Current input mode */
   inputMode: InputMode;
+  /** Surface a non-blocking message (e.g. rejecting an insert into a full tuplet). */
+  setFeedback?: (message: string | null) => void;
 }
 
 /**
@@ -156,6 +160,7 @@ export function useNoteEntry({
   currentQuantsPerMeasure,
   dispatch,
   inputMode,
+  setFeedback,
 }: UseNoteEntryProps): UseNoteEntryReturn {
   /*
    * Named function expression used here to support self-recursion.
@@ -178,19 +183,16 @@ export function useNoteEntry({
       const targetMeasure = { ...newMeasures[measureIndex] };
       if (!targetMeasure.events) targetMeasure.events = [];
 
-      // Tuplet input (#242): set a tuplet MEMBER at the tuplet's fixed rhythm instead of the
-      // duration-based overwrite (which dropped the tuplet and consumed the reserved slot → an
-      // orphaned single-member group that renders "invisible"). Two cases:
-      //   - a RESERVED slot is the tuplet's free space → ALWAYS fill it. Hovering it yields a
-      //     CHORD-mode preview (it's an EVENT hit zone), but you can't chord-stack/insert into blank
-      //     space — filling is the only sensible result, for any mode.
-      //   - a REAL member → replace its pitch on overwrite/append (NOT CHORD, which legitimately
-      //     stacks a chord onto it; NOT INSERT, which pushes the whole group to overflow).
-      // The rhythm is fixed, so this can't overflow. Resolve the placement target from the explicit
-      // placement / preview FIRST, falling back to the selection only when it's in this measure.
-      // (Do NOT gate on selection matching the measure: the hover-to-place flow clears the selection
-      // so the ghost can render, so gating there made a CHORD-preview commit onto the freed space
-      // fall through and chord-stack onto the blank reserved slot → the note "disappeared".)
+      // Effective placement: an explicit override wins, else the preview's own mode/index.
+      const effMode: 'APPEND' | 'INSERT' | 'CHORD' =
+        placementOverride?.mode ?? newNote.mode ?? 'APPEND';
+      const effIndex = placementOverride?.index ?? newNote.index ?? targetMeasure.events.length;
+
+      // --- Tuplet container edits (#242): a tuplet is a fixed-span container; entry never changes
+      // its rhythm, only fills/inserts/sets members. Resolve the placement target from the explicit
+      // placement / preview FIRST, falling back to the selection only when it's in this measure (the
+      // hover-to-place flow clears the selection so the ghost can render — gating on selection there
+      // let a CHORD commit fall through and chord-stack onto a blank reserved slot → "disappeared").
       const intendedEventId =
         placementOverride?.eventId ??
         newNote.eventId ??
@@ -198,9 +200,52 @@ export function useNoteEntry({
       const slot = intendedEventId
         ? targetMeasure.events.find((e) => e.id === intendedEventId)
         : undefined;
-      const fillMember =
-        !!slot?.tuplet && (slot.reserved || (newNote.mode !== 'CHORD' && newNote.mode !== 'INSERT'));
-      if (fillMember && slot) {
+
+      // A fixed-rhythm member payload (duration/dotted/tuplet are stamped by insertTupletMember).
+      const buildMember = () => {
+        const evId = createEventId();
+        const isRestMember = inputMode === 'REST';
+        const restId = `${evId}-rest`;
+        const payload = isRestMember
+          ? null
+          : createNotePayload({
+              pitch: newNote.pitch,
+              accidental: deriveAccidental(newNote.pitch),
+              tied: activeTie,
+            });
+        const member: ScoreEvent = {
+          id: evId,
+          duration: activeDuration,
+          dotted: isDotted,
+          isRest: isRestMember,
+          notes: isRestMember ? [{ id: restId, pitch: null, isRest: true }] : [payload!],
+        };
+        return { member, selNoteId: isRestMember ? restId : payload!.id, evId };
+      };
+
+      // (A) RESERVED free slot → INSERT a member (end-fill), consuming the slot. This container-aware
+      // insert subsumes the old in-place reserved fill, so the hover CHORD preview over freed space
+      // AND the keyboard ghost cursor at a tuplet's free space both commit through one path.
+      if (slot?.tuplet && slot.reserved) {
+        const slotIdx = targetMeasure.events.findIndex((e) => e.id === slot.id);
+        const run = getTupletRun(targetMeasure.events, slotIdx);
+        if (run) {
+          const realCount = targetMeasure.events
+            .slice(run.start, run.end + 1)
+            .filter((e) => !e.reserved).length;
+          const { member, selNoteId, evId } = buildMember();
+          dispatch(
+            new InsertTupletMemberCommand(measureIndex, slot.id, realCount, member, currentStaffIndex)
+          );
+          select(measureIndex, evId, selNoteId, currentStaffIndex);
+          setPreviewNote(null);
+          return;
+        }
+      }
+
+      // (B) REAL member, overwrite/append → SET its pitch in place (keep the group; don't drop the
+      // tuplet). CHORD legitimately stacks a chord; INSERT is the between-members case in (C).
+      if (slot?.tuplet && !slot.reserved && effMode !== 'CHORD' && effMode !== 'INSERT') {
         const noteToAdd =
           inputMode === 'REST'
             ? { id: noteId(), pitch: null, isRest: true }
@@ -215,17 +260,39 @@ export function useNoteEntry({
         return;
       }
 
-      // Determine placement
-      let insertIndex = targetMeasure.events.length;
-      let mode = 'APPEND';
-
-      if (placementOverride) {
-        mode = placementOverride.mode;
-        insertIndex = placementOverride.index;
-      } else if (newNote.mode) {
-        mode = newNote.mode;
-        insertIndex = newNote.index ?? targetMeasure.events.length;
+      // (C) INSERT strictly BETWEEN two members of the same tuplet group → insert into the fixed
+      // span (consume a reserved slot). A FULL group has no free space → reject with feedback (a
+      // triplet's span is fixed; you can't add a 4th member).
+      if (effMode === 'INSERT') {
+        const prev = targetMeasure.events[effIndex - 1];
+        const here = targetMeasure.events[effIndex];
+        if (prev?.tuplet && here?.tuplet && prev.tuplet.id === here.tuplet.id) {
+          const run = getTupletRun(targetMeasure.events, effIndex - 1)!;
+          const members = targetMeasure.events.slice(run.start, run.end + 1);
+          if (!members.some((e) => e.reserved)) {
+            setFeedback?.('That tuplet is full — delete a note in it to make room.');
+            setPreviewNote(null);
+            return;
+          }
+          const { member, selNoteId, evId } = buildMember();
+          dispatch(
+            new InsertTupletMemberCommand(
+              measureIndex,
+              prev.id,
+              effIndex - run.start,
+              member,
+              currentStaffIndex
+            )
+          );
+          select(measureIndex, evId, selNoteId, currentStaffIndex);
+          setPreviewNote(null);
+          return;
+        }
       }
+
+      // Determine placement
+      const insertIndex = effIndex;
+      const mode: string = effMode;
 
       // Check capacity
       if (
@@ -383,6 +450,7 @@ export function useNoteEntry({
       selection,
       select,
       inputMode,
+      setFeedback,
     ]
   );
 
