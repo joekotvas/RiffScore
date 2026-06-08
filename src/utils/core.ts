@@ -6,10 +6,11 @@
  *
  * @tested src/__tests__/core.test.ts
  */
-import { NOTE_TYPES, TIME_SIGNATURES } from '@/constants';
+import { NOTE_TYPES, getMeasureCapacity } from '@/constants';
 import { Measure, ScoreEvent } from '@/types';
 import { measureId, eventId } from '@/utils/id';
 import { hasTieTarget } from '@/utils/ties';
+import { getTupletRun } from '@/utils/tupletEdit';
 
 // --- Constants ---
 
@@ -131,7 +132,9 @@ const createSplitEvents = (sourceEvent: ScoreEvent, availableQuants: number): Sc
  * @param newTimeSignature - New time signature string (e.g., '4/4')
  */
 export const reflowScore = (measures: Measure[], newTimeSignature: string): Measure[] => {
-  const maxQuants = TIME_SIGNATURES[newTimeSignature as keyof typeof TIME_SIGNATURES] || 64;
+  // Capacity comes from the single source of truth (derives any n/d, not just the fast-path table),
+  // so reflow can never disagree with the validators about how many quants fill a bar.
+  const maxQuants = getMeasureCapacity(newTimeSignature);
   const isPickup = measures.length > 0 && measures[0].isPickup;
 
   // 1. Flatten events to a single stream
@@ -159,18 +162,46 @@ export const reflowScore = (measures: Measure[], newTimeSignature: string): Meas
 
   let isFillingPickup = isPickup;
 
-  // 4. Distribute Events
-  allEvents.forEach((event) => {
-    const eventDuration = getNoteDuration(event.duration, event.dotted, event.tuplet);
+  // 4. Distribute Events.
+  //   - A TUPLET GROUP is an atomic, indivisible unit (#256): its whole run is placed in the current
+  //     bar if it fits, else pushed to the next bar — never split (splitting it via getBreakdownOfQuants
+  //     emitted plain fragments still carrying the tuplet object → an incoherent, invalid group).
+  //   - A plain event splits-and-ties across the bar line as before.
+  let i = 0;
+  while (i < allEvents.length) {
+    const event = allEvents[i];
     const currentMax = isFillingPickup ? pickupTarget : maxQuants;
     const available = currentMax - currentMeasureQuants;
+
+    if (event.tuplet) {
+      const run = getTupletRun(allEvents, i);
+      const members = run ? allEvents.slice(run.start, run.end + 1) : [event];
+      // A group's span is always an integral number of quants (the tuplet invariant), so rounding
+      // the summed member durations recovers the exact footprint without IEEE-754 drift.
+      const footprint = Math.round(
+        members.reduce((sum, m) => sum + getNoteDuration(m.duration, m.dotted, m.tuplet), 0)
+      );
+
+      // Doesn't fit the remaining space → close the current (possibly under-full) bar and start a
+      // fresh one. (A group larger than a whole bar still lands in its own bar rather than looping.)
+      if (footprint > available && currentMeasureEvents.length > 0) {
+        commitMeasure(isFillingPickup);
+        if (isFillingPickup) isFillingPickup = false;
+      }
+      currentMeasureEvents.push(...members);
+      currentMeasureQuants += footprint;
+      i = run ? run.end + 1 : i + 1;
+      continue;
+    }
+
+    const eventDuration = getNoteDuration(event.duration, event.dotted, event.tuplet);
 
     // A. Event fits in current measure
     if (eventDuration <= available) {
       currentMeasureEvents.push(event);
       currentMeasureQuants += eventDuration;
     }
-    // B. Event does not fit -> Split needed
+    // B. Event does not fit -> split-and-tie across the bar line
     else {
       // 1. Fill the remaining space in current measure
       if (available > 0) {
@@ -212,7 +243,8 @@ export const reflowScore = (measures: Measure[], newTimeSignature: string): Meas
         });
       }
     }
-  });
+    i++;
+  }
 
   // 5. Cleanup
   if (currentMeasureEvents.length > 0) {
