@@ -813,6 +813,12 @@ export interface PreviewNote {
   isRest: boolean;
   /** How the ghost cursor was triggered */
   source?: 'keyboard' | 'mouse' | 'hover';
+  /**
+   * Target event id when the ghost cursor sits over an existing event's slot — a CHORD preview over
+   * a note, or a tuplet-fill ghost over a reserved free slot. Commit reads this to fill that slot
+   * (vs creating a new event). Undefined for plain APPEND/INSERT ghosts.
+   */
+  eventId?: string;
 }
 
 // ========== NAVIGATION RESULT TYPES ==========

@@ -24,6 +24,8 @@ import {
   createGhostCursorResult,
 } from './previewNote';
 import { notesToAudioNotes } from './transposition';
+import { getStops, NavStop } from './stops';
+import { getTupletRun } from '../tupletEdit';
 
 // --- Constants ---
 
@@ -94,10 +96,49 @@ const createGhostResultIfFits = (
   );
 };
 
+/**
+ * A ghost-cursor result sitting over a tuplet's free space (an incomplete group's reserved slot).
+ * Reuses the existing ghost cursor: a CHORD-mode preview anchored to the reserved slot (`eventId`),
+ * so committing it routes through the container-aware fill (useNoteEntry case A). This is the tuplet
+ * analog of the measure APPEND ghost — "fixed unit inside a fixed-size unit".
+ */
+const buildTupletFillGhost = (
+  measureIndex: number,
+  staffIndex: number,
+  stop: Extract<NavStop, { kind: 'tupletFill' }>,
+  pitch: string,
+  isRest: boolean
+): HorizontalNavigationResult => ({
+  selection: { staffIndex, measureIndex: null, eventId: null, noteId: null },
+  previewNote: {
+    measureIndex,
+    staffIndex,
+    quant: stop.quant,
+    visualQuant: stop.quant,
+    pitch,
+    duration: stop.baseDuration,
+    dotted: false,
+    mode: 'CHORD',
+    index: stop.reservedIndex,
+    eventId: stop.reservedId,
+    isRest,
+  },
+  audio: null,
+  shouldCreateMeasure: false,
+});
+
+/** Next index in `events` (in `dir`) that isn't a reserved slot; out-of-range index if none. */
+const nextRealIndex = (events: ScoreEvent[], from: number, dir: 1 | -1): number => {
+  let j = from + dir;
+  while (j >= 0 && j < events.length && events[j].reserved) j += dir;
+  return j;
+};
+
 // --- Core Logic ---
 
 /**
- * Navigates the selection horizontally (left/right) between events.
+ * Navigates the selection horizontally (left/right) between events. Reserved tuplet slots are
+ * skipped (they surface as a fill ghost, never as a landing spot).
  */
 export const navigateSelection = (
   measures: Measure[],
@@ -135,16 +176,18 @@ export const navigateSelection = (
   if (eventIdx === -1) return selection;
 
   if (direction === 'left') {
-    // 1. Previous event in current measure
-    if (eventIdx > 0) {
-      const prevEvent = measure.events[eventIdx - 1];
+    // 1. Previous (non-reserved) event in current measure
+    const j = nextRealIndex(measure.events, eventIdx, -1);
+    if (j >= 0) {
+      const prevEvent = measure.events[j];
       return { ...selection, eventId: prevEvent.id, noteId: getFirstNoteId(prevEvent) };
     }
-    // 2. Last event of previous measure
+    // 2. Last (non-reserved) event of previous measure
     else if (measureIndex > 0) {
       const prevMeasure = measures[measureIndex - 1];
-      if (prevMeasure.events.length > 0) {
-        const prevEvent = prevMeasure.events[prevMeasure.events.length - 1];
+      const k = nextRealIndex(prevMeasure.events, prevMeasure.events.length, -1);
+      if (k >= 0) {
+        const prevEvent = prevMeasure.events[k];
         return {
           ...selection,
           measureIndex: measureIndex - 1,
@@ -154,16 +197,18 @@ export const navigateSelection = (
       }
     }
   } else if (direction === 'right') {
-    // 1. Next event in current measure
-    if (eventIdx < measure.events.length - 1) {
-      const nextEvent = measure.events[eventIdx + 1];
+    // 1. Next (non-reserved) event in current measure
+    const j = nextRealIndex(measure.events, eventIdx, 1);
+    if (j < measure.events.length) {
+      const nextEvent = measure.events[j];
       return { ...selection, eventId: nextEvent.id, noteId: getFirstNoteId(nextEvent) };
     }
-    // 2. First event of next measure
+    // 2. First (non-reserved) event of next measure
     else if (measureIndex < measures.length - 1) {
       const nextMeasure = measures[measureIndex + 1];
-      if (nextMeasure.events.length > 0) {
-        const nextEvent = nextMeasure.events[0];
+      const k = nextRealIndex(nextMeasure.events, -1, 1);
+      if (k < nextMeasure.events.length) {
+        const nextEvent = nextMeasure.events[k];
         return {
           ...selection,
           measureIndex: measureIndex + 1,
@@ -234,6 +279,60 @@ const handleGhostNavigation = (
   const { staffIndex, activeDuration, isDotted, currentQuantsPerMeasure, clef, inputMode } = params;
   const { measureIndex } = previewNote;
   const measure = measures[measureIndex];
+
+  // --- From a Tuplet-Fill Ghost (cursor sitting over a group's free reserved slot) ---
+  if (previewNote.eventId && measure) {
+    const reservedIdx = measure.events.findIndex((e) => e.id === previewNote.eventId);
+    const target = reservedIdx >= 0 ? measure.events[reservedIdx] : undefined;
+    if (target?.reserved && target.tuplet) {
+      const run = getTupletRun(measure.events, reservedIdx)!;
+      const members = measure.events.slice(run.start, run.end + 1);
+      if (direction === 'left') {
+        // Back to the last real member of the group.
+        const lastReal = [...members].reverse().find((m) => !m.reserved);
+        if (lastReal) return createEventResult(staffIndex, measureIndex, lastReal);
+      } else {
+        // Forward past the group: next event in the bar, else the bar's append ghost, else next bar.
+        const afterIdx = nextRealIndex(measure.events, run.end, 1);
+        if (afterIdx < measure.events.length) {
+          return createEventResult(staffIndex, measureIndex, measure.events[afterIdx]);
+        }
+        const available = currentQuantsPerMeasure - calculateTotalQuants(measure.events);
+        const pitch = previewNote.pitch || getDefaultPitchForClef(clef);
+        if (available > 0) {
+          const ghost = createGhostResultIfFits(
+            measures,
+            measureIndex,
+            staffIndex,
+            available,
+            activeDuration,
+            isDotted,
+            pitch,
+            inputMode
+          );
+          if (ghost) return ghost;
+        }
+        const nextIndex = measureIndex + 1;
+        if (nextIndex < measures.length) {
+          const nextMeasure = measures[nextIndex];
+          if (nextMeasure.events.length > 0) {
+            return createEventResult(staffIndex, nextIndex, nextMeasure.events[0]);
+          }
+          return createGhostResultIfFits(
+            measures,
+            nextIndex,
+            staffIndex,
+            currentQuantsPerMeasure - calculateTotalQuants(nextMeasure.events),
+            activeDuration,
+            isDotted,
+            pitch,
+            inputMode
+          );
+        }
+        return null;
+      }
+    }
+  }
 
   // --- Left: Snap to existing event or prev measure ghost ---
   if (direction === 'left') {
@@ -350,6 +449,22 @@ const handleEventNavigation = (
   const measure = measures[measureIndex];
   const eventIdx = measure.events.findIndex((e) => e.id === eventId);
   const currentEvent = measure.events[eventIdx];
+
+  // --- Tuplet free space (Entering Tuplet-Fill Ghost) ---
+  // A tuplet is a fixed-span container nested in the measure: stepping off the last real member of
+  // an INCOMPLETE group lands on its fill ghost before leaving the group (and symmetrically when
+  // stepping back into it). Consult the unified stops model so this stays consistent with rendering.
+  if (currentEvent) {
+    const stops = getStops(measure, currentQuantsPerMeasure);
+    const curStop = stops.findIndex((s) => s.kind === 'note' && s.eventId === eventId);
+    if (curStop >= 0) {
+      const neighbor = stops[curStop + (direction === 'right' ? 1 : -1)];
+      if (neighbor && neighbor.kind === 'tupletFill') {
+        const pitch = getLastPitch(currentEvent, clef);
+        return buildTupletFillGhost(measureIndex, staffIndex, neighbor, pitch, inputMode === 'REST');
+      }
+    }
+  }
 
   // --- Boundary Checks (Entering Ghost Mode) ---
 
