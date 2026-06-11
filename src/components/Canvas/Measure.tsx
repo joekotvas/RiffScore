@@ -214,6 +214,11 @@ const Measure: React.FC<MeasureProps> = ({
       {/* LAYER 2: Musical Content */}
       {centeredEvents.map((event) => {
         if (event.isRest) {
+          // A reserved tuplet slot (#242) holds its space in the layout but draws nothing —
+          // it's invisible, fillable space, not a notated rest. The layout already allotted its
+          // width (by duration), so skipping the glyph keeps the tuplet's span + bracket intact.
+          if ((event as import('@/types').ScoreEvent).reserved) return null;
+
           const isPlaceholder = event.id === 'rest-placeholder';
           const isSelected = isRestSelected(selection, event, measureIndex, layout.staffIndex);
 

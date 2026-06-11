@@ -1,6 +1,7 @@
 import { Command } from './types';
 import { Score } from '@/types';
 import { tupletId as createTupletId } from '@/utils/id';
+import { isValidTupletRatio } from '@/utils/tuplet';
 
 /**
  * Command to apply tuplet metadata to a group of consecutive events.
@@ -38,6 +39,14 @@ export class ApplyTupletCommand implements Command {
       return score; // Not enough events
     }
 
+    // Integrality guard (#237/#242): reject a ratio that wouldn't tile an integer number of
+    // quants (e.g. inSpaceOf 0 → zero-length members). The base is the first member's
+    // duration, matching how the group's quants are computed below.
+    const baseDuration = newEvents[this.startEventIndex].duration;
+    if (!isValidTupletRatio(baseDuration, this.ratio)) {
+      return score; // Invalid tuplet ratio — leave the score untouched
+    }
+
     // Store previous states for undo
     this.previousStates = [];
 
@@ -60,19 +69,9 @@ export class ApplyTupletCommand implements Command {
         tuplet: event.tuplet ? { ...event.tuplet } : undefined,
       });
 
-      // Apply tuplet metadata
-      // Determine base duration from the first event (or passed in?)
-      // For now, assume uniform duration or take the first one.
-      // Ideally, the command should accept baseDuration or infer it.
-      // Let's infer it from the first event in the selection if not mixed?
-      // Or just take the duration of the current event?
-      // Wait, for mixed duration support, the baseDuration is the "unit" of the tuplet.
-      // e.g. "Eighth Note Triplet".
-      // Usually the user selects notes of the same duration to make a tuplet.
-      // So taking the duration of the first note is a safe bet for creation.
-
-      const baseDuration = newEvents[this.startEventIndex].duration;
-
+      // Apply tuplet metadata. The base duration (the tuplet's "unit", e.g. eighth for an
+      // eighth-note triplet) is taken from the first event in the group — callers select
+      // same-duration notes to form a tuplet, so the first note's duration is the unit.
       newEvents[eventIndex] = {
         ...event,
         tuplet: {

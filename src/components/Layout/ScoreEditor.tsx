@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 
 // Contexts
 import { ScoreProvider, useScoreContext } from '@context/ScoreContext';
@@ -45,6 +45,9 @@ interface ScoreEditorContentProps {
   label?: string;
   showToolbar?: boolean;
   showBackground?: boolean;
+  /** Whether the score is interactive. When false (static/read-only view), transient
+   *  interaction state (playback cursor, selection, entry preview) is reset. */
+  interactive?: boolean;
   enableKeyboard?: boolean;
   enablePlayback?: boolean;
 }
@@ -58,6 +61,7 @@ const ScoreEditorContent = ({
   label,
   showToolbar = true,
   showBackground = true,
+  interactive = true,
   enableKeyboard = true,
   enablePlayback = true,
 }: ScoreEditorContentProps) => {
@@ -71,7 +75,7 @@ const ScoreEditorContent = ({
   const { activeDuration, isDotted, activeAccidental } = scoreLogic.tools;
   const { select: handleNoteSelection, focus: focusScore } = scoreLogic.navigation;
   const { addChord: addChordToMeasure, updatePitch: updateNotePitch } = scoreLogic.entry;
-  const { clearSelection, setPreviewNote } = scoreLogic;
+  const { clearSelection, setPreviewNote, feedback, setFeedback } = scoreLogic;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { pendingClefChange, setPendingClefChange } = scoreLogic as any; // UI state from context
 
@@ -82,9 +86,17 @@ const ScoreEditorContent = ({
   const [selectedInstrument, setSelectedInstrument] = useState<InstrumentType>('bright');
   const [viewportZoom, setViewportZoom] = useState(100); // Viewport zoom in percentage
   const [isFullscreen, setIsFullscreen] = useState(false);
-  // Error state temporarily disabled/unused
-  // const [errorMsg, setErrorMsg] = useState(null);
-  const errorMsg = null;
+  // #242 Lane D: transient feedback (e.g. an overflow rejection) surfaced from the editor logic and
+  // shown in the toolbar, auto-dismissed after a few seconds. setFeedback is stable (useCallback)
+  // and `feedback` only changes when a new message is set, so the timer resets per message rather
+  // than on every render.
+  const errorMsg = feedback?.message ?? null;
+  const feedbackSeverity = feedback?.severity ?? 'error';
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = setTimeout(() => setFeedback(null), 4000);
+    return () => clearTimeout(timer);
+  }, [feedback, setFeedback]);
 
   // --- Refs ---
   const toolbarRef = useRef<ToolbarHandle>(null);
@@ -97,6 +109,31 @@ const ScoreEditorContent = ({
 
   // --- Complex Hooks ---
   const playback = usePlayback(score, bpm);
+
+  // When the score switches to a static (non-interactive) view — e.g. a gallery card toggled
+  // back from editing — reset transient interaction state so nothing stale lingers on the
+  // read-only score: stop playback and hide the playhead, drop the selection, and clear the
+  // entry ghost-note preview.
+  const { isActive: isPlaybackActive, stopPlayback, exitPlaybackMode } = playback;
+  useEffect(() => {
+    if (interactive) return;
+    if (isPlaybackActive) {
+      stopPlayback();
+      exitPlaybackMode();
+    }
+    if (selection.eventId || selection.noteId || selection.chordId) clearSelection();
+    if (previewNote) setPreviewNote(null);
+  }, [
+    interactive,
+    isPlaybackActive,
+    selection,
+    previewNote,
+    stopPlayback,
+    exitPlaybackMode,
+    clearSelection,
+    setPreviewNote,
+  ]);
+
   const { midiStatus } = useMIDI(
     addChordToMeasure,
     activeDuration,
@@ -308,7 +345,7 @@ const ScoreEditorContent = ({
 
   // Exit playback mode (hide cursor) whenever selection changes
   // This covers: clicking notes, keyboard navigation, background clicks
-  const { exitPlaybackMode } = playback;
+  // (exitPlaybackMode is destructured alongside the playback-disable effect above.)
   React.useEffect(() => {
     exitPlaybackMode();
   }, [selection, exitPlaybackMode]);
@@ -345,6 +382,7 @@ const ScoreEditorContent = ({
           onInstrumentChange={handleInstrumentChange}
           samplerLoaded={samplerLoaded}
           errorMsg={errorMsg}
+          feedbackSeverity={feedbackSeverity}
           onToggleHelp={() => setShowHelp(true)}
           onEscape={handleEscape}
           isFullscreen={isFullscreen}

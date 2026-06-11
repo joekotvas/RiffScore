@@ -311,8 +311,12 @@ export const initTone = async (onState?: (state: ToneEngineState) => void): Prom
 
   updateState({ instrumentState: 'ready' });
 
-  // Begin loading piano samples in background
-  loadPianoSampler(Tone);
+  // Piano samples load lazily — only fetch them if the piano is the selected instrument.
+  // A session that stays on a synth (the default) never requests the sample set, which also
+  // keeps the console clean when the app runs somewhere the samples aren't reachable (file://).
+  if (state.selectedInstrument === 'piano') {
+    loadPianoSampler(Tone);
+  }
 };
 
 /**
@@ -375,6 +379,11 @@ const loadPianoSampler = (Tone: ToneModule) => {
  * Changes the active instrument.
  */
 export const setInstrument = (type: InstrumentType): void => {
+  // Lazily fetch the piano sample set the first time the piano is chosen (if Tone is ready).
+  if (type === 'piano' && !sampler) {
+    const Tone = getTone();
+    if (Tone) loadPianoSampler(Tone);
+  }
   updateState({ selectedInstrument: type });
 };
 

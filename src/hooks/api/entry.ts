@@ -12,7 +12,10 @@ import { Measure, ScoreEvent } from '@/types';
 import { AddEventCommand } from '@/commands/AddEventCommand';
 import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
 import { DeleteEventCommand } from '@/commands/DeleteEventCommand';
+import { FillReservedSlotCommand } from '@/commands/FillReservedSlotCommand';
+import { InsertTupletMemberCommand } from '@/commands/InsertTupletMemberCommand';
 import { InsertEventCommand } from '@/commands/InsertEventCommand';
+import { getTupletRun } from '@/utils/tupletEdit';
 import { ApplyTupletCommand } from '@/commands/TupletCommands';
 import { RemoveTupletCommand } from '@/commands/RemoveTupletCommand';
 import { UpdateNoteCommand } from '@/commands/UpdateNoteCommand';
@@ -27,7 +30,9 @@ import {
   createRestsForRange,
 } from '@/utils/entry/insertion';
 import { getBreakdownOfQuants, getNoteDuration } from '@/utils/core';
-import { TIME_SIGNATURES } from '@/constants';
+import { isValidTupletRatio } from '@/utils/tuplet';
+import { hasTieTarget } from '@/utils/ties';
+import { getMeasureCapacity } from '@/constants';
 
 /**
  * Entry method names provided by this factory
@@ -95,6 +100,37 @@ function computeStartQuant(measure: Measure, selectedEventId: string | null): nu
 }
 
 /**
+ * Container-aware fill of a tuplet's RESERVED free slot (#242), shared by addNote/addRest. Uses the
+ * same path as the UI (InsertTupletMemberCommand end-fill) so it always packs to the FIRST free slot
+ * and renumbers — the old in-place FillReservedSlotCommand left a hole when a non-first reserved slot
+ * was targeted. Returns the command plus the ids to select.
+ */
+const buildReservedFill = (
+  measure: Measure,
+  slot: ScoreEvent,
+  note: { id: string; pitch: string | null; isRest?: boolean },
+  measureIndex: number,
+  staffIndex: number
+): { command: InsertTupletMemberCommand; eventId: string; noteId: string } => {
+  const slotIdx = measure.events.findIndex((e) => e.id === slot.id);
+  const run = getTupletRun(measure.events, slotIdx)!;
+  const realCount = measure.events.slice(run.start, run.end + 1).filter((e) => !e.reserved).length;
+  const evId = createEventId();
+  const newMember: ScoreEvent = {
+    id: evId,
+    duration: slot.duration,
+    dotted: slot.dotted,
+    isRest: note.pitch === null,
+    notes: [note],
+  };
+  return {
+    command: new InsertTupletMemberCommand(measureIndex, slot.id, realCount, newMember, staffIndex),
+    eventId: evId,
+    noteId: note.id,
+  };
+};
+
+/**
  * Unified event insertion logic shared by addNote and addRest.
  * This eliminates the 95% code duplication between the two methods.
  *
@@ -141,7 +177,11 @@ function executeInsertion(
     // If this is an overflow continuation, start at quant 0 to overwrite existing content
     const startQuant = isOverflowContinuation ? 0 : computeStartQuant(originalMeasure, sel.eventId);
 
-    const capacity = getRemainingCapacity(originalMeasure, startQuant);
+    const capacity = getRemainingCapacity(
+      originalMeasure,
+      startQuant,
+      getMeasureCapacity(getScore().timeSignature)
+    );
     const noteQuants = getNoteDuration(state.currentDuration, state.currentDotted);
 
     // Determine what to insert in this measure
@@ -183,10 +223,12 @@ function executeInsertion(
       if (config.mode === 'overwrite') {
         const overwritePlan = getOverwritePlan(originalMeasure, currentInsertQuant, evtQuants);
 
-        // Delete conflicting events
+        // Delete conflicting events — vanish: true so a tuplet member's quant space actually
+        // frees up for the overwriting note, instead of being repacked into a reserved slot
+        // (which would leave the bar overfull) (#242).
         if (overwritePlan.toRemove.length > 0) {
           overwritePlan.toRemove.forEach((id) => {
-            dispatch(new DeleteEventCommand(measureIndex, id, staffIndex));
+            dispatch(new DeleteEventCommand(measureIndex, id, staffIndex, { vanish: true }));
           });
           state.warnings.push(`Overwrote ${overwritePlan.toRemove.length} event(s)`);
         }
@@ -284,8 +326,7 @@ function executeInsertion(
       // INSERT MODE: Handle overflow of displaced events
       if (config.mode === 'insert') {
         const measureAfterInsert = getScore().staves[staffIndex].measures[measureIndex];
-        const timeSig = getScore().timeSignature;
-        const measureCapacity = TIME_SIGNATURES[timeSig] || 64;
+        const measureCapacity = getMeasureCapacity(getScore().timeSignature);
 
         // Calculate total measure duration
         let totalQuants = 0;
@@ -364,9 +405,10 @@ function executeInsertion(
             state.info.push(`Created measure ${measureIndex + 2} for insert overflow`);
           }
 
-          // Delete events from current measure and re-add to next
+          // Delete events from current measure and re-add to next — vanish: true so a moved
+          // tuplet member is removed outright (relocated), not left as a reserved slot (#242).
           eventsToMove.forEach((movedEvent) => {
-            dispatch(new DeleteEventCommand(measureIndex, movedEvent.id, staffIndex));
+            dispatch(new DeleteEventCommand(measureIndex, movedEvent.id, staffIndex, { vanish: true }));
           });
 
           // Re-add at start of next measure using InsertEventCommand to preserve ALL properties
@@ -448,6 +490,53 @@ export const createEntryMethods = (
         return this;
       }
 
+      // Tuplet input (#242): typing a pitch onto a tuplet MEMBER sets it at the tuplet's fixed
+      // rhythm — fills a reserved slot or replaces a real member's pitch — keeping the group
+      // coherent (the normal insert ran a duration-based overwrite that dropped the tuplet and
+      // consumed the reserved slot). The rhythm is fixed, so this can never overflow the group.
+      // Any non-tuplet target falls through to the normal insert.
+      const tupletSel = getSelection();
+      if (tupletSel.measureIndex !== null && tupletSel.eventId) {
+        const measure = getScore().staves[tupletSel.staffIndex]?.measures[tupletSel.measureIndex];
+        const slot = measure?.events.find((e) => e.id === tupletSel.eventId);
+        // A RESERVED slot is the tuplet's free space → always fill it. A REAL member → replace its
+        // pitch on overwrite, but leave INSERT to the inserter (it pushes a whole tuplet to overflow).
+        if (slot?.tuplet && measure && (slot.reserved || options.mode !== 'insert')) {
+          const note = createNotePayload({ pitch });
+          // Reserved free slot → container-aware end-fill (no gap); real member → set pitch in place.
+          let selEventId = slot.id;
+          if (slot.reserved) {
+            const fill = buildReservedFill(measure, slot, note, tupletSel.measureIndex, tupletSel.staffIndex);
+            dispatch(fill.command);
+            selEventId = fill.eventId;
+          } else {
+            dispatch(new FillReservedSlotCommand(tupletSel.measureIndex, slot.id, note, tupletSel.staffIndex));
+          }
+          syncSelection({
+            staffIndex: tupletSel.staffIndex,
+            measureIndex: tupletSel.measureIndex,
+            eventId: selEventId,
+            noteId: note.id,
+            selectedNotes: [],
+            anchor: null,
+          });
+          // The tuplet's rhythm is fixed (the slot's own duration/dotted), so a DIFFERENT requested
+          // duration is intentionally ignored — surface that for parity with the rest of the API.
+          const warnings =
+            duration !== slot.duration || dotted !== !!slot.dotted
+              ? [`Requested duration '${duration}'${dotted ? ' dotted' : ''} ignored; tuplet rhythm is fixed`]
+              : [];
+          setResult({
+            ok: true,
+            status: warnings.length ? 'warning' : 'info',
+            method: 'addNote',
+            message: `Set tuplet note to ${pitch}`,
+            details: { pitch, warnings },
+          });
+          return this;
+        }
+      }
+
       this.beginTransaction();
 
       try {
@@ -490,6 +579,35 @@ export const createEntryMethods = (
     },
 
     addRest(duration = 'quarter', dotted = false, options = { mode: 'overwrite' }) {
+      // Tuplet input (#242): entering a rest onto a RESERVED slot fills it as a notated rest
+      // (symmetric with addNote), keeping the slot's fixed rhythm. Other targets fall through.
+      const restSel = getSelection();
+      if (restSel.measureIndex !== null && restSel.eventId) {
+        const measure = getScore().staves[restSel.staffIndex]?.measures[restSel.measureIndex];
+        const slot = measure?.events.find((e) => e.id === restSel.eventId);
+        if (slot?.tuplet && measure && (slot.reserved || options.mode !== 'insert')) {
+          const restNote = { id: noteId(), pitch: null, isRest: true };
+          let selEventId = slot.id;
+          if (slot.reserved) {
+            const fill = buildReservedFill(measure, slot, restNote, restSel.measureIndex, restSel.staffIndex);
+            dispatch(fill.command);
+            selEventId = fill.eventId;
+          } else {
+            dispatch(new FillReservedSlotCommand(restSel.measureIndex, slot.id, restNote, restSel.staffIndex));
+          }
+          syncSelection({
+            staffIndex: restSel.staffIndex,
+            measureIndex: restSel.measureIndex,
+            eventId: selEventId,
+            noteId: restNote.id,
+            selectedNotes: [],
+            anchor: null,
+          });
+          setResult({ ok: true, status: 'info', method: 'addRest', message: 'Set tuplet note to a rest' });
+          return this;
+        }
+      }
+
       this.beginTransaction();
 
       try {
@@ -650,6 +768,21 @@ export const createEntryMethods = (
         }
       }
 
+      // Integrality guard (#237/#242): the ratio must tile an integer number of quants, so a
+      // caller can't mint a zero-length or non-tiling tuplet (e.g. inSpaceOf 0). The base is
+      // the first selected event's duration — the tuplet's unit.
+      const baseDuration = measure.events[eventIndex].duration;
+      if (!isValidTupletRatio(baseDuration, [numNotes, inSpaceOf])) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'makeTuplet',
+          message: `Invalid tuplet ratio ${numNotes}:${inSpaceOf}`,
+          code: 'INVALID_TUPLET_RATIO',
+        });
+        return this;
+      }
+
       dispatch(
         new ApplyTupletCommand(
           sel.measureIndex,
@@ -753,12 +886,34 @@ export const createEntryMethods = (
         return this;
       }
 
+      // Lane E: gate the turn-ON transition — a tie must connect to a same-pitch successor.
+      // Turning a tie OFF is always allowed (it's the repair path).
+      const resultingTied = !note.tied;
+      if (
+        resultingTied &&
+        (note.pitch === null ||
+          !hasTieTarget(staff!.measures, {
+            measureIndex: sel.measureIndex,
+            eventIndex: measure!.events.findIndex((e) => e.id === sel.eventId),
+            pitch: note.pitch,
+          }))
+      ) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'toggleTie',
+          message: 'No matching note to tie to',
+          code: 'NO_TIE_TARGET',
+        });
+        return this;
+      }
+
       dispatch(
         new UpdateNoteCommand(
           sel.measureIndex,
           sel.eventId,
           sel.noteId,
-          { tied: !note.tied },
+          { tied: resultingTied },
           sel.staffIndex
         )
       );
@@ -767,8 +922,8 @@ export const createEntryMethods = (
         ok: true,
         status: 'info',
         method: 'toggleTie',
-        message: `Tie ${!note.tied ? 'added' : 'removed'}`,
-        details: { tied: !note.tied, noteId: sel.noteId },
+        message: `Tie ${resultingTied ? 'added' : 'removed'}`,
+        details: { tied: resultingTied, noteId: sel.noteId },
       });
 
       return this;
@@ -799,6 +954,26 @@ export const createEntryMethods = (
           method: 'setTie',
           message: 'Note not found',
           code: 'NOTE_NOT_FOUND',
+        });
+        return this;
+      }
+
+      // Lane E: gate setting a tie ON — it must connect to a same-pitch successor.
+      if (
+        tied === true &&
+        (note.pitch === null ||
+          !hasTieTarget(staff!.measures, {
+            measureIndex: sel.measureIndex,
+            eventIndex: measure!.events.findIndex((e) => e.id === sel.eventId),
+            pitch: note.pitch,
+          }))
+      ) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'setTie',
+          message: 'No matching note to tie to',
+          code: 'NO_TIE_TARGET',
         });
         return this;
       }

@@ -10,7 +10,6 @@
 import { Measure, ScoreEvent } from '@/types';
 import { getNoteDuration, getBreakdownOfQuants } from '@/utils/core';
 import { eventId } from '@/utils/id';
-import { CONFIG } from '@/config';
 
 /**
  * Calculates the quant start position of a specific event within a measure.
@@ -92,11 +91,13 @@ export const getOverwritePlan = (
 
 /**
  * Calculates remaining capacity in a measure from a given point.
+ * @param maxQuants - Bar capacity in quants (from `getMeasureCapacity`); required so callers
+ *   can't silently assume a 4/4 (64-quant) bar (#242).
  */
 export const getRemainingCapacity = (
   measure: Measure,
   startQuant: number,
-  maxQuants: number = CONFIG.quantsPerMeasure
+  maxQuants: number
 ): number => {
   return Math.max(0, maxQuants - startQuant);
 };

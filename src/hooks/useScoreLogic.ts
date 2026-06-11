@@ -18,8 +18,7 @@
  */
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { TIME_SIGNATURES } from '@/constants';
-import { CONFIG } from '@/config';
+import { getMeasureCapacity } from '@/constants';
 import { useScoreEngine, useTransactionBatching, useSelection } from './score';
 import { useEditorTools } from './editor';
 import { useMeasureActions } from './useMeasureActions';
@@ -29,6 +28,8 @@ import { useInteraction } from './interaction';
 import { useTupletActions } from './useTupletActions';
 
 import { createDefaultScore, migrateScore, PreviewNote, Score } from '@/types';
+import type { RefusalSeverity } from '@/refusals';
+import { repairSelection } from '@/utils/selectionRepair';
 
 // Extracted score modules
 import { useDerivedSelection } from './score/useDerivedSelection';
@@ -144,6 +145,30 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
   } = useSelection({ score, scoreGetter: () => engine.getState() });
   const [previewNote, setPreviewNote] = useState<PreviewNote | null>(null);
 
+  // #242 Lane D: transient user-facing feedback (e.g. an overflow rejection). Carries a severity so
+  // the banner can render a gentle refusal (amber) rather than always a hard error (red). The nonce
+  // lets a repeated identical message re-trigger the banner and its auto-dismiss timer.
+  const [feedback, setFeedbackState] = useState<{
+    message: string;
+    severity: RefusalSeverity;
+    nonce: number;
+  } | null>(null);
+  const setFeedback = useCallback((message: string | null, severity: RefusalSeverity = 'error') => {
+    setFeedbackState((prev) =>
+      message === null ? null : { message, severity, nonce: (prev?.nonce ?? 0) + 1 }
+    );
+  }, []);
+
+  // #242 Lane G: after any structural score change (delete / reflow / tuplet-pack), prune selection
+  // coordinates that no longer resolve so later commands can't act on a phantom selection.
+  // repairSelection returns the SAME reference when nothing is stale, and this effect keys on
+  // `score` (not `selection`), so it never loops on its own write-back.
+  useEffect(() => {
+    const current = selectionEngine.getState();
+    const repaired = repairSelection(current, score);
+    if (repaired !== current) selectionEngine.setState(repaired);
+  }, [score, selectionEngine]);
+
   // --- COMPUTED VALUES ---
   // Fail-fast: throw for Error Boundary instead of logging and continuing
   if (!score || !score.staves) {
@@ -154,12 +179,10 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     );
   }
 
-  const currentQuantsPerMeasure = useMemo(() => {
-    if (score.timeSignature) {
-      return TIME_SIGNATURES[score.timeSignature as keyof typeof TIME_SIGNATURES] || 64;
-    }
-    return CONFIG.quantsPerMeasure;
-  }, [score.timeSignature]);
+  const currentQuantsPerMeasure = useMemo(
+    () => getMeasureCapacity(score.timeSignature ?? '4/4'),
+    [score.timeSignature]
+  );
 
   // --- SYNC TOOLBAR STATE ---
   // Uses extracted hook for cleaner separation
@@ -180,6 +203,7 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     clearSelection,
     setPreviewNote,
     dispatch,
+    setFeedback,
   });
 
   // Note Actions: add/delete notes, chords
@@ -204,6 +228,7 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     currentQuantsPerMeasure,
     tools,
     dispatch,
+    setFeedback,
   });
 
   // Tuplet Actions: apply/remove tuplets
@@ -342,5 +367,7 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     setPreviewNote,
     clearSelection,
     currentQuantsPerMeasure,
+    feedback,
+    setFeedback,
   };
 };

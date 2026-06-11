@@ -2,7 +2,7 @@
    real riffscore library (RiffScore, readonly + no toolbar); this file only styles the
    page, search/filter, cards, and the white "paper" stage each editor sits on. */
 
-:root { color-scheme: light dark; }
+:root { color-scheme: light dark; --accent: #1DA59C; /* teal — matches the riffscore score accent */ }
 * { box-sizing: border-box; }
 body { font: 14px/1.5 system-ui, sans-serif; margin: 0; background: #fafafa; color: #111; }
 
@@ -14,7 +14,7 @@ header h1 { font-size: 18px; margin: 0 0 8px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { font: inherit; font-size: 12px; padding: 4px 10px; border: 1px solid #ccd; background: #fff;
         color: #335; border-radius: 999px; cursor: pointer; }
-.chip.active { background: #335; color: #fff; border-color: #335; }
+.chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 #count { font-size: 12px; color: #666; white-space: nowrap; }
 
 main { padding: 16px 24px 64px; }
@@ -28,7 +28,7 @@ main { padding: 16px 24px 64px; }
 @media (min-width: 1280px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1800px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
-.card { margin: 0; padding: 16px; background: #fff; border: 1px solid #e3e3e3; border-radius: 10px; }
+.card { position: relative; margin: 0; padding: 16px; background: #fff; border: 1px solid #e3e3e3; border-radius: 10px; }
 .card[hidden], .feature-section[hidden] { display: none; }
 figcaption h3 { margin: 0; font-size: 15px; font-family: ui-monospace, monospace; }
 figcaption p { margin: 4px 0 8px; color: #444; }
@@ -40,17 +40,59 @@ ul.covers li { font-size: 11px; color: #355; background: #eef3ff; border: 1px so
 
 /* The live editor renders the light theme; keep it on a white "paper" surface so the score
    is readable whatever the page chrome does (the editor is readonly here, no interaction). */
-.stage { overflow-x: auto; padding: 10px 12px; margin-top: 12px; background: #ffffff; border-radius: 6px; }
+.stage { --stage-pad-x: 12px; position: relative; overflow-x: auto; padding: 10px var(--stage-pad-x); margin-top: 12px; background: #ffffff; border-radius: 6px; }
 .stage .RiffScore, .stage [data-riffscore-id] { background: transparent; }
 
-/* Readonly-mode workarounds pending a proper library fix (#253):
+/* Readonly-mode workarounds pending a proper library fix (#253). Scoped to NON-editing cards:
    - hide the editor's status/zoom footer (interactive-only chrome a static catalog doesn't need);
    - readonly applies pointer-events:none to the canvas, which disables its OWN horizontal
      scrollbar — so neutralize the editor's inner scroll and let the gallery .stage (a plain,
-     interactive scroll container) handle long scores instead. */
-.stage .riff-EditorFooter { display: none; }
-.stage .riff-ScoreEditor__viewport,
-.stage .riff-ScoreCanvas { overflow: visible; }
+     interactive scroll container) handle long scores instead.
+   An .editing card is interactive again, so its canvas regains its own scroll and these are off. */
+.stage:not(.editing) .riff-EditorFooter { display: none; }
+.stage:not(.editing) .riff-ScoreEditor__viewport,
+.stage:not(.editing) .riff-ScoreCanvas { overflow: visible; }
+
+/* ── Click-to-edit ────────────────────────────────────────────────────────────
+   One card is editable at a time. The editable card keeps its staff at the exact
+   readonly coordinates and floats the toolbar (up) and footer (down) OUT of flow,
+   so the grid never reflows; the card stacks above its neighbors. The score keeps
+   its width and scrolls inside the editor's own viewport (the #253 hacks above are
+   disabled for .editing, restoring that native scroll). The toggle is anchored to
+   the card corner, outside the inset toolbar, so it never covers a toolbar control. */
+.edit-toggle {
+  position: absolute; top: 12px; right: 12px; z-index: 1100;
+  font: inherit; font-size: 12px; line-height: 1; padding: 5px 11px;
+  border: 1px solid #ccd; border-radius: 999px;
+  background: #fff; color: #335; cursor: pointer;
+  opacity: 0; transition: opacity .12s;
+}
+/* Reveal on hover, while editing, and on keyboard focus (so a tabbing user never lands on an
+   invisible button) — :focus-within also covers touch, where there's no hover. */
+.card:hover .edit-toggle, .card.editing .edit-toggle, .card:focus-within .edit-toggle { opacity: 1; }
+.edit-toggle:hover { border-color: #99a; }
+.card.editing .edit-toggle { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Above sibling cards (so the floated toolbar/footer overlay neighbors) but BELOW the sticky
+   header (z-index:10), so scrolling while editing doesn't paint the card over the search bar. */
+.card.editing { z-index: 5; }
+.stage.editing { overflow: visible; }
+.stage.editing .riff-ScoreEditor { position: relative; }
+/* The editor sits inside the stage's horizontal padding, so float the chrome out by that
+   padding (negative inset) to span the full white "paper" — otherwise the toolbar/footer
+   read as narrower than the score area. The var keeps this in sync with .stage padding. */
+.stage.editing .riff-Toolbar {
+  position: absolute; bottom: 100%;
+  left: calc(-1 * var(--stage-pad-x)); right: calc(-1 * var(--stage-pad-x));
+  background: var(--riff-color-bg-panel, #fff);
+  border-radius: 6px 6px 0 0;
+}
+.stage.editing .riff-EditorFooter {
+  position: absolute; top: 100%;
+  left: calc(-1 * var(--stage-pad-x)); right: calc(-1 * var(--stage-pad-x));
+  background: var(--riff-color-bg-panel, #fff);
+  border-radius: 0 0 6px 6px;
+}
 
 .empty { color: #999; padding: 32px 0; }
 
@@ -59,10 +101,12 @@ ul.covers li { font-size: 11px; color: #355; background: #eef3ff; border: 1px so
   header { background: #16181cee; border-color: #2c2f36; }
   #q { background: #1f2228; border-color: #2c2f36; color: #e8e8e8; }
   .chip { background: #1f2228; border-color: #2c2f36; color: #aab; }
-  .chip.active { background: #4a6; color: #061; border-color: #4a6; }
+  /* .chip.active / .card.editing .edit-toggle use the shared teal --accent in both themes. */
   .card { background: #1f2228; border-color: #2c2f36; }
   figcaption p { color: #b9bcc2; }
   .feature-title { color: #aab; border-color: #2c2f36; }
   ul.covers li { color: #bcd; background: #1b2435; border-color: #2a3550; }
   .tag { background: #262b35; color: #c2cad6; border: 1px solid #3a4350; }
+  .edit-toggle { background: #1f2228; border-color: #2c2f36; color: #aab; }
+  /* The editing/active state uses the shared teal --accent in both themes (see base rules). */
 }

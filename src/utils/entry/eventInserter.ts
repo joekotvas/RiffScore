@@ -34,6 +34,9 @@ export interface InsertionContext {
   measureIndex: number;
   startQuant: number;
   mode: 'overwrite' | 'insert';
+  /** Bar capacity in quants (from `getMeasureCapacity`) — required so the planner can't
+   *  silently assume a 4/4 bar (#242). */
+  maxQuants: number;
 }
 
 /**
@@ -142,9 +145,9 @@ export function computeInsertPosition(
  * @returns Complete insertion plan
  */
 export function planInsertion(ctx: InsertionContext, noteQuants: number): InsertionPlan {
-  const { measure, staffIndex, measureIndex, startQuant, mode } = ctx;
+  const { measure, staffIndex, measureIndex, startQuant, mode, maxQuants } = ctx;
 
-  const capacity = getRemainingCapacity(measure, startQuant);
+  const capacity = getRemainingCapacity(measure, startQuant, maxQuants);
   const warnings: string[] = [];
   const info: string[] = [];
 

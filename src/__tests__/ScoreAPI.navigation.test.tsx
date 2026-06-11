@@ -182,6 +182,98 @@ describe('Navigation - Horizontal Boundaries', () => {
   });
 });
 
+describe('Navigation - tuplet-fill ghost stepping (#6)', () => {
+  beforeEach(() => {
+    Element.prototype.scrollTo = jest.fn();
+  });
+  afterEach(() => {
+    if (window.riffScore) {
+      window.riffScore.instances.clear();
+      window.riffScore.active = null;
+    }
+  });
+
+  test('move("right") steps onto then PAST the fill ghost (no backward jump to the first member)', () => {
+    render(<RiffScore id="nav-tuplet-ghost" />);
+    const api = getAPI('nav-tuplet-ghost');
+    const trip = (id: string, pitch: string, position: number) => ({
+      id,
+      duration: 'eighth',
+      dotted: false,
+      notes: [{ id: `${id}n`, pitch }],
+      tuplet: { ratio: [3, 2] as [number, number], groupSize: 3, position, baseDuration: 'eighth', id: 'T' },
+    });
+    act(() => {
+      api.loadScore({
+        title: 'T',
+        timeSignature: '4/4',
+        keySignature: 'C',
+        bpm: 120,
+        staves: [
+          { id: 's0', clef: 'treble', keySignature: 'C', measures: [{ id: 'm0', events: [trip('t0', 'C4', 0), trip('t1', 'E4', 1), trip('t2', 'G4', 2)] }] },
+        ],
+      });
+    });
+    // → [C, E, reserved]
+    act(() => {
+      api.select(0, 0, 2);
+      api.deleteSelected();
+      api.select(0, 0, 1); // the last real member (E)
+    });
+
+    act(() => api.move('right')); // onto the tuplet-fill ghost
+    expect(api.getSelection().eventId).toBeNull();
+
+    act(() => api.move('right')); // PAST the group — must NOT jump back to the first member (t0)
+    expect(api.getSelection().eventId).not.toBe('t0');
+  });
+
+  test('a persisted ghost is discarded when jump() moves the cursor to another (empty) bar', () => {
+    render(<RiffScore id="nav-ghost-stale" />);
+    const api = getAPI('nav-ghost-stale');
+    const trip = (id: string, pitch: string, position: number) => ({
+      id,
+      duration: 'eighth',
+      dotted: false,
+      notes: [{ id: `${id}n`, pitch }],
+      tuplet: { ratio: [3, 2] as [number, number], groupSize: 3, position, baseDuration: 'eighth', id: 'T' },
+    });
+    act(() => {
+      api.loadScore({
+        title: 'T',
+        timeSignature: '4/4',
+        keySignature: 'C',
+        bpm: 120,
+        staves: [
+          {
+            id: 's0',
+            clef: 'treble',
+            keySignature: 'C',
+            measures: [
+              { id: 'm0', events: [trip('t0', 'C4', 0), trip('t1', 'E4', 1), trip('t2', 'G4', 2)] },
+              { id: 'm1', events: [] }, // empty trailing bar — like the empties grand-staff padding creates
+            ],
+          },
+        ],
+      });
+    });
+    act(() => {
+      api.select(0, 0, 2);
+      api.deleteSelected(); // → m0 [C, E, reserved]
+      api.select(0, 0, 1); // last real member (E) in m0
+      api.move('right'); // onto m0's tuplet-fill ghost — ghostPreview now points at measure 0
+    });
+    expect(api.getSelection().eventId).toBeNull();
+
+    // jump to the empty last bar m1 (also eventId:null). The stale m0 ghost must NOT survive: a move
+    // from m1 has to act within m1, not navigate from the ghost's original bar (which would land in m0).
+    act(() => api.jump('end-score'));
+    expect(api.getSelection().measureIndex).toBe(1);
+    act(() => api.move('right'));
+    expect(api.getSelection().measureIndex).toBe(1); // with the stale-ghost bug this was 0
+  });
+});
+
 describe('Navigation - Vertical (Cross-Staff)', () => {
   afterEach(() => {
     if (window.riffScore) {

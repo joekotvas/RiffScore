@@ -1,6 +1,7 @@
 import { useCallback, RefObject } from 'react';
 import { Score, getActiveStaff } from '@/types';
 import { canAddEventToMeasure } from '@/utils/validation';
+import { getTupletRun } from '@/utils/tupletEdit';
 import { resolvePitch, createPreviewNote, arePreviewsEqual, PreviewNote } from '@/utils/entry';
 import { InputMode } from '../editor';
 import { HitZone } from '@/engines/layout/types';
@@ -116,34 +117,56 @@ export function useHoverPreview({
       let targetIndex = hit.index;
       let targetMode: 'APPEND' | 'INSERT' | 'CHORD' =
         hit.type === 'EVENT' ? 'CHORD' : hit.type === 'INSERT' ? 'INSERT' : 'APPEND';
+      // When the active note can't be placed at the hovered spot we DON'T suppress the ghost — we
+      // mark it 'blocked' so it renders greyed with an X (a clear "can't place here" signal) and the
+      // footer shows a matching status. (We never showed a transient error here: a tuplet becomes
+      // full right after a SUCCESSFUL insert while the cursor is still in the gap, so an error would
+      // false-fire on every success — a steady greyed ghost + status reads cleanly.)
+      let blocked: 'tuplet-full' | 'measure-full' | undefined;
 
       if (targetMode === 'INSERT' && targetIndex === measure.events.length) {
         targetMode = 'APPEND';
       }
 
+      const barHasRoom = canAddEventToMeasure(
+        measure.events,
+        activeDuration,
+        isDotted,
+        currentQuantsPerMeasure
+      );
+
       if (targetMode === 'APPEND') {
-        if (
-          !canAddEventToMeasure(measure.events, activeDuration, isDotted, currentQuantsPerMeasure)
-        ) {
+        if (!barHasRoom) {
           if (measureIndex === currentStaff.measures.length - 1) {
+            // Last bar overflows into a new one — that's allowed, not blocked.
             targetMeasureIndex = measureIndex + 1;
             targetIndex = 0;
           } else {
-            setPreviewNote(null);
-            return;
+            blocked = 'measure-full';
           }
-        } else {
-          if (measure.events.length > 0) {
-            targetMode = 'INSERT';
-            targetIndex = measure.events.length;
-          }
+        } else if (measure.events.length > 0) {
+          targetMode = 'INSERT';
+          targetIndex = measure.events.length;
         }
       } else if (targetMode === 'INSERT') {
-        if (
-          !canAddEventToMeasure(measure.events, activeDuration, isDotted, currentQuantsPerMeasure)
-        ) {
-          setPreviewNote(null);
-          return;
+        // Mirror the commit's decision order (useNoteEntry case C). An insert strictly BETWEEN two
+        // members of one tuplet group consumes a reserved slot — the bar total is unchanged — so it's
+        // valid even in an otherwise-full bar; only a FULL group (no reserved slot) blocks it. A
+        // measure-full verdict applies ONLY to inserts that aren't this in-tuplet slot-fill.
+        const prevEv = measure.events[targetIndex - 1];
+        const hereEv = measure.events[targetIndex];
+        const run =
+          prevEv?.tuplet && hereEv?.tuplet ? getTupletRun(measure.events, targetIndex - 1) : null;
+        const insideTupletRun = !!run && targetIndex > run.start && targetIndex <= run.end;
+
+        if (insideTupletRun) {
+          const groupHasFreeSlot = measure.events
+            .slice(run.start, run.end + 1)
+            .some((e) => e.reserved);
+          if (!groupHasFreeSlot) blocked = 'tuplet-full';
+          // else: a valid mid-insert that consumes the reserved slot — not blocked.
+        } else if (!barHasRoom) {
+          blocked = 'measure-full';
         }
       }
 
@@ -159,6 +182,7 @@ export function useHoverPreview({
         eventId: hit.type === 'EVENT' ? hit.eventId : undefined,
         isRest: inputMode === 'REST',
         source: 'hover',
+        blocked,
       });
 
       // Only update if preview actually changed to avoid flickering

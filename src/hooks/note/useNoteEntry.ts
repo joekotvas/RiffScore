@@ -10,13 +10,16 @@ import { useCallback, RefObject } from 'react';
 import { getAppendPreviewNote } from '@/utils/interaction';
 import { canAddEventToMeasure } from '@/utils/validation';
 import { playNote } from '@/engines/toneEngine';
-import { Score, getActiveStaff, Selection } from '@/types';
+import { Score, ScoreEvent, getActiveStaff, Selection } from '@/types';
 import { Command } from '@/commands/types';
 import { AddEventCommand } from '@/commands/AddEventCommand';
 import { AddNoteToEventCommand } from '@/commands/AddNoteToEventCommand';
 import { AddMeasureCommand } from '@/commands/MeasureCommands';
+import { FillReservedSlotCommand } from '@/commands/FillReservedSlotCommand';
+import { InsertTupletMemberCommand } from '@/commands/InsertTupletMemberCommand';
+import { getTupletRun } from '@/utils/tupletEdit';
 import { createNotePayload, createPreviewNote, PreviewNote } from '@/utils/entry';
-import { eventId as createEventId } from '@/utils/id';
+import { eventId as createEventId, noteId } from '@/utils/id';
 import { deriveAccidental } from '@/services/MusicService';
 import { InputMode } from '../editor';
 
@@ -177,17 +180,119 @@ export function useNoteEntry({
       const targetMeasure = { ...newMeasures[measureIndex] };
       if (!targetMeasure.events) targetMeasure.events = [];
 
-      // Determine placement
-      let insertIndex = targetMeasure.events.length;
-      let mode = 'APPEND';
+      // Effective placement: an explicit override wins, else the preview's own mode/index.
+      const effMode: 'APPEND' | 'INSERT' | 'CHORD' =
+        placementOverride?.mode ?? newNote.mode ?? 'APPEND';
+      const effIndex = placementOverride?.index ?? newNote.index ?? targetMeasure.events.length;
 
-      if (placementOverride) {
-        mode = placementOverride.mode;
-        insertIndex = placementOverride.index;
-      } else if (newNote.mode) {
-        mode = newNote.mode;
-        insertIndex = newNote.index ?? targetMeasure.events.length;
+      // --- Tuplet container edits (#242): a tuplet is a fixed-span container; entry never changes
+      // its rhythm, only fills/inserts/sets members. Resolve the placement target from the explicit
+      // placement / preview FIRST, falling back to the selection only when it's in this measure (the
+      // hover-to-place flow clears the selection so the ghost can render — gating on selection there
+      // let a CHORD commit fall through and chord-stack onto a blank reserved slot → "disappeared").
+      const intendedEventId =
+        placementOverride?.eventId ??
+        newNote.eventId ??
+        (selection.measureIndex === measureIndex ? selection.eventId : null);
+      const slot = intendedEventId
+        ? targetMeasure.events.find((e) => e.id === intendedEventId)
+        : undefined;
+
+      // A fixed-rhythm member payload (duration/dotted/tuplet are stamped by insertTupletMember).
+      const buildMember = () => {
+        const evId = createEventId();
+        const isRestMember = inputMode === 'REST';
+        const restId = `${evId}-rest`;
+        const payload = isRestMember
+          ? null
+          : createNotePayload({
+              pitch: newNote.pitch,
+              accidental: deriveAccidental(newNote.pitch),
+              tied: activeTie,
+            });
+        const member: ScoreEvent = {
+          id: evId,
+          duration: activeDuration,
+          dotted: isDotted,
+          isRest: isRestMember,
+          notes: isRestMember ? [{ id: restId, pitch: null, isRest: true }] : [payload!],
+        };
+        return { member, selNoteId: isRestMember ? restId : payload!.id, evId };
+      };
+
+      // (A) RESERVED free slot → INSERT a member (end-fill), consuming the slot. This container-aware
+      // insert subsumes the old in-place reserved fill, so the hover CHORD preview over freed space
+      // AND the keyboard ghost cursor at a tuplet's free space both commit through one path.
+      if (slot?.tuplet && slot.reserved) {
+        const slotIdx = targetMeasure.events.findIndex((e) => e.id === slot.id);
+        const run = getTupletRun(targetMeasure.events, slotIdx);
+        if (run) {
+          const realCount = targetMeasure.events
+            .slice(run.start, run.end + 1)
+            .filter((e) => !e.reserved).length;
+          const { member, selNoteId, evId } = buildMember();
+          dispatch(
+            new InsertTupletMemberCommand(measureIndex, slot.id, realCount, member, currentStaffIndex)
+          );
+          select(measureIndex, evId, selNoteId, currentStaffIndex);
+          setPreviewNote(null);
+          return;
+        }
       }
+
+      // (B) REAL member, overwrite/append → SET its pitch in place (keep the group; don't drop the
+      // tuplet). CHORD legitimately stacks a chord; INSERT is the between-members case in (C).
+      if (slot?.tuplet && !slot.reserved && effMode !== 'CHORD' && effMode !== 'INSERT') {
+        const noteToAdd =
+          inputMode === 'REST'
+            ? { id: noteId(), pitch: null, isRest: true }
+            : createNotePayload({
+                pitch: newNote.pitch,
+                accidental: deriveAccidental(newNote.pitch),
+                tied: activeTie,
+              });
+        dispatch(new FillReservedSlotCommand(measureIndex, slot.id, noteToAdd, currentStaffIndex));
+        select(measureIndex, slot.id, noteToAdd.id, currentStaffIndex);
+        setPreviewNote(null);
+        return;
+      }
+
+      // (C) INSERT strictly BETWEEN two members of the same tuplet group → insert into the fixed
+      // span (consume a reserved slot). A FULL group has no free space → reject (a triplet's span is
+      // fixed; you can't add a 4th member). The rejection is surfaced as a subtle footer status on
+      // hover (previewNote.blocked → useSelectionStatus), so commit just rejects silently here.
+      if (effMode === 'INSERT') {
+        const prev = targetMeasure.events[effIndex - 1];
+        const here = targetMeasure.events[effIndex];
+        // Resolve the group via the id-safe getTupletRun and require the insert point to lie strictly
+        // INSIDE one run — not at the seam between two adjacent id-less (legacy) groups, where the
+        // inline `prev.tuplet.id === here.tuplet.id` would be `undefined === undefined` → true.
+        const run = prev?.tuplet ? getTupletRun(targetMeasure.events, effIndex - 1) : null;
+        if (run && here?.tuplet && effIndex > run.start && effIndex <= run.end) {
+          const members = targetMeasure.events.slice(run.start, run.end + 1);
+          if (!members.some((e) => e.reserved)) {
+            setPreviewNote(null);
+            return;
+          }
+          const { member, selNoteId, evId } = buildMember();
+          dispatch(
+            new InsertTupletMemberCommand(
+              measureIndex,
+              prev.id,
+              effIndex - run.start,
+              member,
+              currentStaffIndex
+            )
+          );
+          select(measureIndex, evId, selNoteId, currentStaffIndex);
+          setPreviewNote(null);
+          return;
+        }
+      }
+
+      // Determine placement
+      const insertIndex = effIndex;
+      const mode: string = effMode;
 
       // Check capacity
       if (

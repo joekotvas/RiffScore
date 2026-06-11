@@ -24,7 +24,7 @@ interface RestProps {
 /**
  * Y-offset for each rest type, relative to baseY (top of staff).
  */
-const getRestY = (duration: string, baseY: number): number => {
+export const getRestY = (duration: string, baseY: number): number => {
   const lineHeight = CONFIG.lineHeight;
   const staffMiddle = baseY + lineHeight * 2;
 

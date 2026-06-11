@@ -8,6 +8,7 @@
 import { render, act } from '@testing-library/react';
 import { RiffScore } from '../RiffScore';
 import type { MusicEditorAPI } from '../api.types';
+import { sumQuants } from '../utils/tuplet';
 
 // Helper to get typed API
 const getAPI = (id: string): MusicEditorAPI => {
@@ -116,6 +117,32 @@ describe('ScoreAPI Entry Methods', () => {
         status: 'error',
         code: 'NESTED_TUPLET_NOT_SUPPORTED',
       });
+    });
+
+    test('rejects a non-tiling ratio with a structured error (#237/#242 guard)', () => {
+      render(<RiffScore id="tuplet-bad-ratio" />);
+      const api = getAPI('tuplet-bad-ratio');
+
+      act(() => {
+        api.select(0).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
+      });
+      act(() => {
+        api.select(0, 0, 0, 0);
+      });
+
+      // inSpaceOf 0 would mint zero-length tuplet members — must be rejected, not applied.
+      act(() => {
+        api.makeTuplet(3, 0);
+      });
+
+      expect(api.result).toMatchObject({
+        ok: false,
+        status: 'error',
+        code: 'INVALID_TUPLET_RATIO',
+      });
+      // The score is untouched: the events did not gain tuplet metadata.
+      const events = api.getScore().staves[0].measures[0].events;
+      expect(events.every((e) => e.tuplet === undefined)).toBe(true);
     });
 
     test('preserves tuplet properties during insert-mode overflow', () => {
@@ -236,29 +263,47 @@ describe('ScoreAPI Entry Methods', () => {
       });
     });
 
-    test('toggles tie on selected note', () => {
+    test('toggles tie on a note that has a same-pitch successor', () => {
       render(<RiffScore id="tie-toggle" />);
       const api = getAPI('tie-toggle');
 
+      // Two same-pitch notes so the first has a valid tie target (Lane E gate).
       act(() => {
-        api.select(0).addNote('C4', 'quarter');
+        api.select(0).addNote('C4', 'quarter').addNote('C4', 'quarter');
       });
 
-      // Toggle on - with advance cursor model, must move back to select inserted note
+      // Move back to the FIRST note (cursor advanced past both) and tie it.
       act(() => {
-        api.move('left').toggleTie();
+        api.move('left').move('left').toggleTie();
       });
 
       let score = api.getScore();
       expect(score.staves[0].measures[0].events[0].notes[0].tied).toBe(true);
 
-      // Toggle off - with advance cursor model, must move back to select inserted note
+      // Toggle off — selection stays on the same note after a tie toggle.
       act(() => {
-        api.move('left').toggleTie();
+        api.toggleTie();
       });
 
       score = api.getScore();
       expect(score.staves[0].measures[0].events[0].notes[0].tied).toBe(false);
+    });
+
+    test('rejects a tie with no same-pitch successor (NO_TIE_TARGET)', () => {
+      render(<RiffScore id="tie-toggle-no-target" />);
+      const api = getAPI('tie-toggle-no-target');
+
+      act(() => {
+        api.select(0).addNote('C4', 'quarter');
+      });
+
+      // The lone note has no successor → the tie must be refused and the model left untouched.
+      act(() => {
+        api.move('left').toggleTie();
+      });
+
+      expect(api.result).toMatchObject({ ok: false, status: 'error', code: 'NO_TIE_TARGET' });
+      expect(api.getScore().staves[0].measures[0].events[0].notes[0].tied).toBeFalsy();
     });
   });
 
@@ -278,27 +323,44 @@ describe('ScoreAPI Entry Methods', () => {
       });
     });
 
-    test('sets tie explicitly', () => {
+    test('sets tie explicitly on a note with a same-pitch successor', () => {
       render(<RiffScore id="tie-set" />);
       const api = getAPI('tie-set');
 
       act(() => {
-        api.select(0).addNote('C4', 'quarter');
+        api.select(0).addNote('C4', 'quarter').addNote('C4', 'quarter');
       });
 
       act(() => {
-        api.move('left').setTie(true);
+        api.move('left').move('left').setTie(true);
       });
 
       let score = api.getScore();
       expect(score.staves[0].measures[0].events[0].notes[0].tied).toBe(true);
 
       act(() => {
-        api.move('left').setTie(false);
+        api.setTie(false);
       });
 
       score = api.getScore();
       expect(score.staves[0].measures[0].events[0].notes[0].tied).toBe(false);
+    });
+
+    test('setTie(true) rejects when the successor is a different pitch (NO_TIE_TARGET)', () => {
+      render(<RiffScore id="tie-set-no-target" />);
+      const api = getAPI('tie-set-no-target');
+
+      act(() => {
+        api.select(0).addNote('D4', 'quarter').addNote('E4', 'quarter');
+      });
+
+      // First note is D4, its successor is E4 (different pitch) → reject.
+      act(() => {
+        api.move('left').move('left').setTie(true);
+      });
+
+      expect(api.result).toMatchObject({ ok: false, status: 'error', code: 'NO_TIE_TARGET' });
+      expect(api.getScore().staves[0].measures[0].events[0].notes[0].tied).toBeFalsy();
     });
   });
 
@@ -315,6 +377,120 @@ describe('ScoreAPI Entry Methods', () => {
 
       // Method should return this for chaining
       expect(result).toBe(api);
+    });
+  });
+
+  describe('capacity (#242): API insertion respects the real time signature', () => {
+    test('inserting a whole note into an empty 3/4 bar splits and ties across the barline', () => {
+      render(<RiffScore id="cap-3-4" />);
+      const api = getAPI('cap-3-4');
+
+      act(() => {
+        api.setTimeSignature('3/4');
+      });
+      act(() => {
+        api.select(0).addNote('C4', 'whole');
+      });
+
+      const measures = api.getScore().staves[0].measures;
+
+      // The 3/4 bar holds 48 quants — the whole note (64) must NOT create a 64-quant bar.
+      // (Before the fix, the API used a hardcoded 64 capacity and overfilled the bar.)
+      expect(sumQuants(measures[0].events).quants).toBe(48);
+      // The 16-quant remainder lands in the next measure...
+      expect(measures[1]).toBeDefined();
+      expect(sumQuants(measures[1].events).quants).toBe(16);
+      // ...tied from the head note in the first bar.
+      const head = measures[0].events[measures[0].events.length - 1];
+      expect(head.notes[0].tied).toBe(true);
+    });
+  });
+
+  describe('tuplet input (#242): fill reserved space', () => {
+    test('typing a pitch onto a reserved slot fills it at the slot rhythm', () => {
+      render(<RiffScore id="tup-fill" />);
+      const api = getAPI('tup-fill');
+
+      // Build an eighth-note triplet (3 eighths → makeTuplet).
+      act(() => {
+        api.select(0).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
+      });
+      act(() => {
+        api.select(0, 0, 0, 0).makeTuplet(3, 2);
+      });
+      // Delete the middle member → one reserved slot at the end.
+      act(() => {
+        api.select(0, 0, 1, 0).deleteSelected();
+      });
+      const reservedIdx = api
+        .getScore()
+        .staves[0].measures[0].events.findIndex((e) => e.reserved);
+      expect(reservedIdx).toBeGreaterThanOrEqual(0);
+
+      // Select the reserved slot and type a pitch → it fills (duration forced to the slot's).
+      act(() => {
+        api.select(0, 0, reservedIdx, 0).addNote('A4', 'whole'); // requested duration is ignored
+      });
+      const events = api.getScore().staves[0].measures[0].events;
+      expect(events.filter((e) => e.reserved)).toHaveLength(0); // slot filled
+      const filled = events.find((e) => e.notes.some((n) => n.pitch === 'A4'));
+      expect(filled).toBeDefined();
+      expect(filled!.duration).toBe('eighth'); // tuplet rhythm fixed, not the requested whole
+      expect(filled!.tuplet).toMatchObject({ groupSize: 3 }); // still part of the tuplet group
+    });
+
+    test('filling a NON-FIRST reserved slot packs to the front — no gap (#242 QA #8)', () => {
+      render(<RiffScore id="api-gap" />);
+      const api = getAPI('api-gap');
+      // A triplet with one real member + TWO reserved slots (two members deleted).
+      const reservedMember = (id: string, position: number) => ({
+        id,
+        duration: 'eighth',
+        dotted: false,
+        reserved: true,
+        isRest: true,
+        notes: [{ id: `${id}-rest`, pitch: null, isRest: true, reserved: true }],
+        tuplet: { ratio: [3, 2] as [number, number], groupSize: 3, position, baseDuration: 'eighth', id: 'G' },
+      });
+      act(() => {
+        api.loadScore({
+          title: 'T',
+          timeSignature: '4/4',
+          keySignature: 'C',
+          bpm: 120,
+          staves: [
+            {
+              id: 's0',
+              clef: 'treble',
+              keySignature: 'C',
+              measures: [
+                {
+                  id: 'm0',
+                  events: [
+                    {
+                      id: 'c',
+                      duration: 'eighth',
+                      dotted: false,
+                      notes: [{ id: 'cn', pitch: 'C4' }],
+                      tuplet: { ratio: [3, 2], groupSize: 3, position: 0, baseDuration: 'eighth', id: 'G' },
+                    },
+                    reservedMember('r1', 1),
+                    reservedMember('r2', 2),
+                  ],
+                },
+              ],
+            },
+          ],
+        });
+      });
+      act(() => {
+        api.select(0, 0, 2); // select the SECOND reserved slot (r2)
+        api.addNote('G4');
+      });
+      const events = api.getScore().staves[0].measures[0].events;
+      // The note must pack to the FIRST free position (no hole): [C4, G4, reserved], not [C4, RES, G4].
+      expect(events.map((e) => (e.reserved ? 'RES' : e.notes[0].pitch))).toEqual(['C4', 'G4', 'RES']);
+      expect(events.map((e) => e.tuplet?.position)).toEqual([0, 1, 2]);
     });
   });
 });

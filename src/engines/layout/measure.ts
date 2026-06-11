@@ -404,9 +404,13 @@ const processTupletGroup = (
       chordLayout,
     });
 
-    // Create hit zones
-    const adjustedStartX = Math.max(0, x - HIT_RADIUS + minOffset);
-    const adjustedEndX = x + HIT_RADIUS + maxOffset;
+    // Create hit zones. Tuplet members are compressed, so a full ±HIT_RADIUS EVENT zone would
+    // swallow the whole gap and leave no room for an INSERT zone between members (for sixteenth/
+    // quarter triplets none was generated at all — inserting between members was impossible). Use a
+    // notehead-sized EVENT zone so a usable INSERT zone always fits in the remaining gap. (#242)
+    const tupletHitRadius = Math.min(HIT_RADIUS, tupletWidth / 3);
+    const adjustedStartX = Math.max(0, x - tupletHitRadius + minOffset);
+    const adjustedEndX = x + tupletHitRadius + maxOffset;
 
     hitZones.push({
       startX: adjustedStartX,
@@ -416,11 +420,13 @@ const processTupletGroup = (
       eventId: tupletEvent.id,
     });
 
-    // Insert zone (if enough space)
-    if (tupletWidth > HIT_RADIUS * 2 + maxOffset) {
+    // Insert zone: the gap from this notehead to the next member. Always emitted when there's a
+    // few pixels of room, so "insert between members" is reliably targetable for every tuplet size.
+    const insertEndX = x + tupletWidth;
+    if (insertEndX - adjustedEndX > 2) {
       hitZones.push({
         startX: adjustedEndX,
-        endX: x + tupletWidth,
+        endX: insertEndX,
         index: evtIndex + 1,
         type: 'INSERT',
       });

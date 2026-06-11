@@ -207,27 +207,27 @@ describe('insertion utilities', () => {
 
     test('should return full capacity at start of measure', () => {
       const measure = createMeasure();
-      // Default CONFIG.quantsPerMeasure = 64 for 4/4
+      // 4/4 bar capacity = 64 quants (now passed explicitly — no default)
 
-      expect(getRemainingCapacity(measure, 0)).toBe(64);
+      expect(getRemainingCapacity(measure, 0, 64)).toBe(64);
     });
 
     test('should return remaining capacity from midpoint', () => {
       const measure = createMeasure();
 
-      expect(getRemainingCapacity(measure, 32)).toBe(32);
+      expect(getRemainingCapacity(measure, 32, 64)).toBe(32);
     });
 
     test('should return 0 when at capacity', () => {
       const measure = createMeasure();
 
-      expect(getRemainingCapacity(measure, 64)).toBe(0);
+      expect(getRemainingCapacity(measure, 64, 64)).toBe(0);
     });
 
     test('should return 0 when over capacity', () => {
       const measure = createMeasure();
 
-      expect(getRemainingCapacity(measure, 80)).toBe(0);
+      expect(getRemainingCapacity(measure, 80, 64)).toBe(0);
     });
 
     test('should respect custom maxQuants parameter', () => {

@@ -1,5 +1,6 @@
-import { NOTE_TYPES, KEY_SIGNATURES } from '@/constants';
+import { NOTE_TYPES, KEY_SIGNATURES, getMeasureCapacity } from '@/constants';
 import { DEFAULT_SCORE_METADATA } from '@/config';
+import { padMeasureForExport } from './exportNormalize';
 import {
   getActiveStaff,
   Score,
@@ -10,6 +11,7 @@ import {
   ScoreMetadata,
 } from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
+import { findTieTarget } from '@/utils/ties';
 import { Note } from 'tonal';
 import { canonicalizeKeySignature } from '@/utils/keyResolution';
 import { MeasureAccidentalState, keySignatureAltForLetter } from '@/utils/accidentalContext';
@@ -348,6 +350,9 @@ const renderEvent = (
   accidentalState: MeasureAccidentalState,
   measureKey: string,
   activeTies: Set<string>,
+  measures: Measure[],
+  measureIndex: number,
+  eventIndex: number,
   staffNumber?: number
 ): string => {
   let xml = '';
@@ -375,14 +380,24 @@ const renderEvent = (
   }
 
   if (isRestEvent(event)) {
-    // REST — DTD order: <rest/> <duration> <type> <dot> <time-modification> <staff>
+    // A rest can be a tuplet member — including a reserved trailing slot at position
+    // groupSize-1 (#242). Emit its bracket start/stop so the tuplet bracket stays balanced;
+    // without this, deleting a tuplet member yields a <tuplet start> with no matching stop.
+    let restTupletTag = '';
+    if (event.tuplet) {
+      if (event.tuplet.position === 0) restTupletTag = '<tuplet type="start" bracket="yes"/>';
+      else if (event.tuplet.position === event.tuplet.groupSize - 1)
+        restTupletTag = '<tuplet type="stop"/>';
+    }
+    const restNotations = restTupletTag ? `\n      <notations>${restTupletTag}</notations>` : '';
+    // REST — DTD order: <rest/> <duration> <type> <dot> <time-modification> <staff> <notations>
     xml += `
     <note>
       <rest/>
       <duration>${duration}</duration>
       <type>${xmlType}</type>
       ${event.dotted ? '<dot/>' : ''}
-      ${timeModTag}${staffTag}
+      ${timeModTag}${staffTag}${restNotations}
     </note>`;
     return xml;
   }
@@ -435,7 +450,11 @@ const renderEvent = (
       tiedNotations += '<tied type="stop"/>';
     }
 
-    if (note.tied) {
+    // Lane E: only START a tie when it resolves to a same-pitch successor in the model. Padding
+    // only appends trailing rests (never removes the real successor) and activeTies persists
+    // across measures, so gating the START here guarantees every start gets a matching stop —
+    // no orphaned/unbalanced <tie> from a deleted/rested/last-note target.
+    if (note.tied && findTieTarget(measures, { measureIndex, eventIndex, pitch: pitchKey })) {
       tieTags += '<tie type="start"/>';
       tiedNotations += '<tied type="start"/>';
       activeTies.add(pitchKey);
@@ -513,6 +532,7 @@ const measureDivisionSum = (events: ScoreEvent[], divisions: number): number =>
 export const generateMusicXML = (score: Score): string => {
   const staves = score.staves || [getActiveStaff(score)];
   const timeSig = score.timeSignature || '4/4';
+  const measureCapacity = getMeasureCapacity(timeSig);
 
   // Per-score <divisions>: derived from tuplet content so every duration is an
   // exact integer number of divisions (no floor/truncation of tuplet rhythm).
@@ -643,11 +663,14 @@ export const generateMusicXML = (score: Score): string => {
     // next staff starts at the same time position (proper grand-staff layout).
     staves.forEach((staff: Staff, staffIndex: number) => {
       const measure: Measure | undefined = staff.measures[mIndex];
-      const events = measure?.events ?? [];
+      // Pad an under-full bar with trailing rests for valid output (#242); never mutates state.
+      const events = measure ? padMeasureForExport(measure, measureCapacity) : [];
 
       if (staffIndex > 0) {
-        // Rewind to the start of the measure for the next staff.
-        const prevEvents = staves[staffIndex - 1].measures[mIndex]?.events ?? [];
+        // Rewind to the start of the measure for the next staff. Pad the previous staff's bar
+        // the same way so the <backup> duration matches the padded measure (grand-staff align).
+        const prevMeasure = staves[staffIndex - 1].measures[mIndex];
+        const prevEvents = prevMeasure ? padMeasureForExport(prevMeasure, measureCapacity) : [];
         const backup = measureDivisionSum(prevEvents, divisions);
         if (backup > 0) {
           xml += `
@@ -669,7 +692,7 @@ export const generateMusicXML = (score: Score): string => {
       // Track local quant position within measure (for chord placement, top staff only).
       let localQuant = 0;
 
-      events.forEach((event: ScoreEvent) => {
+      events.forEach((event: ScoreEvent, eventIndex: number) => {
         // Insert harmony element before note if chord exists at this position
         // (chords annotate the top staff's timeline only).
         if (staffIndex === 0) {
@@ -679,7 +702,17 @@ export const generateMusicXML = (score: Score): string => {
           }
         }
 
-        xml += renderEvent(event, divisions, accidentalState, measureKey, activeTies, staffNumber);
+        xml += renderEvent(
+          event,
+          divisions,
+          accidentalState,
+          measureKey,
+          activeTies,
+          staff.measures,
+          mIndex,
+          eventIndex,
+          staffNumber
+        );
 
         // Advance quant position for chord placement tracking
         localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);

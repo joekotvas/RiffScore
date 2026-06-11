@@ -1,40 +1,15 @@
-/**
- * Options for creating a preview note.
- */
-export interface PreviewNoteOptions {
-  /** Target measure index */
-  measureIndex: number;
-  /** Target staff index */
-  staffIndex: number;
-  /** Pitch to preview (e.g., 'C4') */
-  pitch: string;
-  /** Duration value (e.g., 'quarter', 'eighth') */
-  duration: string;
-  /** Whether the note is dotted */
-  dotted: boolean;
-  /** Preview mode: 'APPEND', 'INSERT', or 'CHORD' */
-  mode: 'APPEND' | 'INSERT' | 'CHORD';
-  /** Index for INSERT mode or event index for CHORD mode */
-  index: number;
-  /** Event ID for CHORD mode */
-  eventId?: string;
-  /** Whether this is a rest preview */
-  isRest?: boolean;
-  /** Source of the preview: 'hover' or 'keyboard' */
-  source?: 'hover' | 'keyboard' | 'mouse';
-}
+// PreviewNote has a single canonical definition in '@/types'; re-export it so callers can keep
+// importing it from here (#12 — there used to be a second, drift-prone copy in this file).
+import type { PreviewNote } from '@/types';
+export type { PreviewNote };
 
 /**
- * A preview note object used for visual feedback during note entry.
+ * Inputs to {@link createPreviewNote}: the preview's fields minus the computed quant positions
+ * (`quant`/`visualQuant`), with `isRest` optional (it defaults to false).
  */
-export interface PreviewNote extends PreviewNoteOptions {
-  /** Quantized position (usually 0 for previews) */
-  quant: number;
-  /** Visual quant position */
-  visualQuant: number;
-  /** Whether this is a rest preview (mandatory) */
-  isRest: boolean;
-}
+export type PreviewNoteOptions = Omit<PreviewNote, 'quant' | 'visualQuant' | 'isRest'> & {
+  isRest?: boolean;
+};
 
 /**
  * Creates a preview note object for visual feedback during note entry.
@@ -76,6 +51,7 @@ export function createPreviewNote(options: PreviewNoteOptions): PreviewNote {
     eventId: options.eventId,
     isRest: options.isRest ?? false,
     source: options.source ?? 'hover',
+    ...(options.blocked ? { blocked: options.blocked } : {}),
   };
 }
 
@@ -102,6 +78,8 @@ export function arePreviewsEqual(prev: PreviewNote | null, next: PreviewNote): b
     prev.index === next.index &&
     prev.isRest === next.isRest &&
     prev.duration === next.duration &&
-    prev.dotted === next.dotted
+    prev.dotted === next.dotted &&
+    prev.blocked === next.blocked &&
+    prev.eventId === next.eventId
   );
 }

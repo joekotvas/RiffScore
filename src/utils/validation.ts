@@ -1,8 +1,9 @@
 import { Note } from 'tonal';
 import { logger, LogLevel } from './debug';
-import { CONFIG } from '@/config';
 import { getNoteDuration, calculateTotalQuants } from './core';
-import { ScoreEvent } from '@/types';
+import { sumQuants, quantsEqual } from './tuplet';
+import { getMeasureCapacity } from '@/constants';
+import { Measure, Score, ScoreEvent } from '@/types';
 
 /**
  * Checks if a pitch string is a valid scientific pitch notation (e.g., "C4", "Bb3").
@@ -81,14 +82,15 @@ export const clampBpm = (bpm: number | string, min = 30, max = 300): number => {
  * @param events - List of existing events in the measure
  * @param duration - Duration type of the new event
  * @param dotted - Whether the new event is dotted
- * @param maxQuants - Maximum quants allowed in the measure
+ * @param maxQuants - Bar capacity in quants (from `getMeasureCapacity`); required so the
+ *   check can never silently assume 4/4 (#242).
  * @returns True if it fits, False otherwise
  */
 export const canAddEventToMeasure = (
   events: ScoreEvent[],
   duration: string,
   dotted: boolean,
-  maxQuants: number = CONFIG.quantsPerMeasure
+  maxQuants: number
 ): boolean => {
   const currentTotal = calculateTotalQuants(events);
   const newDur = getNoteDuration(duration, dotted, undefined);
@@ -100,14 +102,15 @@ export const canAddEventToMeasure = (
  * @param events - List of events in the measure
  * @param eventId - ID of the event being modified
  * @param targetDuration - The new duration to check
- * @param maxQuants - Maximum quants allowed in the measure
+ * @param maxQuants - Bar capacity in quants (from `getMeasureCapacity`); required (#242).
  * @returns True if valid, False otherwise
  */
 export const canModifyEventDuration = (
   events: ScoreEvent[],
   eventId: string,
   targetDuration: string,
-  maxQuants: number = CONFIG.quantsPerMeasure
+  maxQuants: number,
+  targetDotted?: boolean
 ): boolean => {
   const eventIndex = events.findIndex((e: ScoreEvent) => e.id === eventId);
   if (eventIndex === -1) return true; // Defensive: If event doesn't exist, we can't strict check
@@ -120,8 +123,12 @@ export const canModifyEventDuration = (
     return acc + getNoteDuration(e.duration, e.dotted, e.tuplet);
   }, 0);
 
-  // Calculate new duration for THIS event
-  const newEventQuants = getNoteDuration(targetDuration, currentEvent.dotted, currentEvent.tuplet);
+  // New duration for THIS event. Use the TARGET dotted state when the caller changes it in the same
+  // operation (setDuration sets duration AND dotted together); otherwise keep the event's current
+  // dotted (a plain duration change). Previously this always used currentEvent.dotted, so a
+  // duration+dot change could be mis-judged.
+  const dotted = targetDotted ?? currentEvent.dotted;
+  const newEventQuants = getNoteDuration(targetDuration, dotted, currentEvent.tuplet);
 
   return otherEventsQuants + newEventQuants <= maxQuants;
 };
@@ -130,13 +137,13 @@ export const canModifyEventDuration = (
  * Checks if toggling an event's dotted status would cause the measure to overflow.
  * @param events - List of events in the measure
  * @param eventId - ID of the event being modified
- * @param maxQuants - Maximum quants allowed in the measure
+ * @param maxQuants - Bar capacity in quants (from `getMeasureCapacity`); required (#242).
  * @returns True if valid, False otherwise
  */
 export const canToggleEventDot = (
   events: ScoreEvent[],
   eventId: string,
-  maxQuants: number = CONFIG.quantsPerMeasure
+  maxQuants: number
 ): boolean => {
   const eventIndex = events.findIndex((e: ScoreEvent) => e.id === eventId);
   if (eventIndex === -1) return true;
@@ -157,4 +164,77 @@ export const canToggleEventDot = (
   );
 
   return otherEventsQuants + newEventQuants <= maxQuants;
+};
+
+// --- Structural invariants (#242) ---
+
+export interface MeasureValidation {
+  valid: boolean;
+  /** Why the measure is invalid (undefined when valid). */
+  reason?: 'overfull' | 'incomplete-tuplet';
+  /** Quants currently in the measure (complete tuplet groups counted atomically, so exact). */
+  quants: number;
+  /** Bar capacity the measure was checked against. */
+  capacity: number;
+}
+
+/**
+ * Measure-integrity invariant (#242): a measure must not exceed its bar capacity and must not
+ * contain an incomplete tuplet group. Under-full measures are valid — the model renders the
+ * unfilled remainder as an implicit rest (materializing trailing rests is Lane C). Uses atomic
+ * tuplet accounting (`sumQuants`) so a legitimately full tuplet bar — e.g. an eighth septuplet
+ * — reads as exactly capacity rather than a float-drifted near-miss.
+ */
+export const validateMeasure = (measure: Measure, capacity: number): MeasureValidation => {
+  const { quants, partialTuplet } = sumQuants(measure.events);
+  if (partialTuplet) return { valid: false, reason: 'incomplete-tuplet', quants, capacity };
+  if (quants > capacity && !quantsEqual(quants, capacity)) {
+    return { valid: false, reason: 'overfull', quants, capacity };
+  }
+  return { valid: true, quants, capacity };
+};
+
+export interface ScoreValidationError {
+  staffIndex: number;
+  /** Measure index, or -1 for a staff-level (grand-staff parity) error. */
+  measureIndex: number;
+  reason: string;
+}
+
+export interface ScoreValidation {
+  valid: boolean;
+  errors: ScoreValidationError[];
+}
+
+/**
+ * Validates structural invariants across a whole score (#242): every measure satisfies
+ * {@link validateMeasure}, and all staves share the same measure count (grand-staff parity).
+ * Returns every violation instead of throwing, so callers can report or repair (fail-soft).
+ */
+export const validateScore = (score: Score): ScoreValidation => {
+  const errors: ScoreValidationError[] = [];
+  const capacity = getMeasureCapacity(score.timeSignature);
+
+  const expectedCount = score.staves[0]?.measures.length ?? 0;
+  score.staves.forEach((staff, staffIndex) => {
+    if (staff.measures.length !== expectedCount) {
+      errors.push({
+        staffIndex,
+        measureIndex: -1,
+        reason: `staff has ${staff.measures.length} measures, expected ${expectedCount} (grand-staff parity)`,
+      });
+    }
+    staff.measures.forEach((measure, measureIndex) => {
+      const result = validateMeasure(measure, capacity);
+      if (!result.valid) {
+        errors.push({
+          staffIndex,
+          measureIndex,
+          reason: `${result.reason} (${result.quants}/${result.capacity} quants)`,
+        });
+      }
+    });
+  });
+
+  return { valid: errors.length === 0, errors };
 };

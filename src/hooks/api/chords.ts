@@ -13,6 +13,7 @@ import { AddChordCommand, UpdateChordCommand, RemoveChordCommand } from '@/comma
 import { ChordPosition } from '@/commands/chord/AddChordCommand';
 import { parseChord, getValidChordQuants, isValidChordPosition } from '@/services/ChordService';
 import { getNoteDuration } from '@/utils/core';
+import { refuse } from '@/refusals';
 import { findChordById, findChordAt, findChordIndex } from '@/utils/chord/queries';
 
 /**
@@ -823,12 +824,11 @@ export const createChordMethods = (
       // TODO: Wire to config state management when available
       // For now, explicitly return NOT_IMPLEMENTED to be clear this is a stub
       setResult({
-        ok: false,
-        status: 'warning',
         method: 'setChordDisplay',
-        message: 'setChordDisplay is not yet implemented - config state integration required',
-        code: 'NOT_IMPLEMENTED',
-        details: { displayConfig },
+        ...refuse('NOT_IMPLEMENTED', {
+          message: 'setChordDisplay is not yet implemented - config state integration required',
+          details: { displayConfig },
+        }),
       });
       return this;
     },
@@ -852,12 +852,11 @@ export const createChordMethods = (
       // TODO: Wire to config state management when available
       // For now, explicitly return NOT_IMPLEMENTED to be clear this is a stub
       setResult({
-        ok: false,
-        status: 'warning',
         method: 'setChordPlayback',
-        message: 'setChordPlayback is not yet implemented - config state integration required',
-        code: 'NOT_IMPLEMENTED',
-        details: { playbackConfig },
+        ...refuse('NOT_IMPLEMENTED', {
+          message: 'setChordPlayback is not yet implemented - config state integration required',
+          details: { playbackConfig },
+        }),
       });
       return this;
     },
