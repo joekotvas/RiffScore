@@ -34,7 +34,19 @@ export const createNavigationMethods = (
   return {
     move(direction) {
       const sel = selectionRef.current;
-      if (sel.eventId) ghostPreview = null;
+      // Drop the persisted ghost unless the selection is STILL sitting on it. It's stale if the
+      // cursor is now on a real event (eventId set), or if an intervening jump()/select() moved the
+      // cursor to a different bar that merely also has eventId:null (e.g. an empty measure — common
+      // after grand-staff padding). Validating the ghost's own coordinates here covers every
+      // navigation entry point, so move() can't navigate from a stale bar. (#6 follow-up)
+      if (
+        sel.eventId ||
+        (ghostPreview &&
+          (ghostPreview.measureIndex !== sel.measureIndex ||
+            ghostPreview.staffIndex !== sel.staffIndex))
+      ) {
+        ghostPreview = null;
+      }
       const score = getScore();
       const staff = score.staves[sel.staffIndex];
       if (!staff) {
