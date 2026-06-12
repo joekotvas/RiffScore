@@ -863,9 +863,14 @@ export const createEntryMethods = (
       // closed, but pre-checking lets the API report honestly instead of a no-op ok:true.
       const { groupSize, position } = event.tuplet;
       const groupStart = eventIndex - position;
-      const candidate = measure.events.map((e, i) =>
-        i >= groupStart && i < groupStart + groupSize ? { ...e, tuplet: undefined } : e
-      );
+      // Mirror RemoveTupletCommand EXACTLY: real members de-tuplet, reserved slots are DROPPED (their
+      // freed space collapses). Keeping reserved slots here over-counted the bar and falsely rejected
+      // valid removals (e.g. a triplet of two eighths + one reserved slot → exactly fits on removal).
+      const candidate = measure.events.flatMap((e, i) => {
+        if (i < groupStart || i >= groupStart + groupSize) return [e];
+        if (e.reserved) return [];
+        return [{ ...e, tuplet: undefined }];
+      });
       if (!measure.isPickup && sumQuants(candidate).quants > getMeasureCapacity(getScore().timeSignature)) {
         setResult({
           ok: false,

@@ -444,6 +444,39 @@ describe('ScoreAPI Entry Methods', () => {
       expect(restored.isRest).toBe(true);
       expect(restored.notes.some((n) => n.pitch === 'C4')).toBe(false);
     });
+
+    test('unmakeTuplet precheck drops reserved slots — does not falsely reject a valid removal (Codex P2)', () => {
+      render(<RiffScore id="unmake-reserved" />);
+      const api = getAPI('unmake-reserved');
+      const etrip = (id: string, pitch: string, pos: number) => ({
+        id, duration: 'eighth', dotted: false,
+        notes: [{ id: `${id}n`, pitch }],
+        tuplet: { ratio: [3, 2] as [number, number], groupSize: 3, position: pos, baseDuration: 'eighth', id: 'T' },
+      });
+      const eighth = (id: string, pitch: string) => ({ id, duration: 'eighth', dotted: false, notes: [{ id: `${id}n`, pitch }] });
+      const reservedSlot = {
+        id: 'tr', duration: 'eighth', dotted: false, reserved: true, isRest: true,
+        tuplet: { ratio: [3, 2] as [number, number], groupSize: 3, position: 2, baseDuration: 'eighth', id: 'T' },
+        notes: [{ id: 'tr-rest', pitch: null, isRest: true, reserved: true }],
+      };
+      act(() => {
+        api.loadScore({
+          title: 'T', timeSignature: '4/4', keySignature: 'C', bpm: 120,
+          staves: [{ id: 's0', clef: 'treble', keySignature: 'C', measures: [{ id: 'm0', events: [
+            etrip('t0', 'C4', 0), etrip('t1', 'D4', 1), reservedSlot, // triplet: 2 real + 1 reserved (16q)
+            eighth('a', 'E4'), eighth('b', 'F4'), eighth('c', 'G4'),
+            eighth('d', 'A4'), eighth('e', 'B4'), eighth('f', 'C5'),  // + 6 eighths (48q) = 64q full
+          ] }] }],
+        });
+        api.select(0, 0, 0, 0); // a triplet member
+        api.unmakeTuplet();
+      });
+      // Removing leaves 2 eighths + 6 eighths = 64q (exactly full) — must SUCCEED, not falsely reject.
+      expect(api.result.ok).toBe(true);
+      const events = api.getScore().staves[0].measures[0].events;
+      expect(events.some((e) => e.tuplet)).toBe(false);
+      expect(events.some((e) => e.reserved)).toBe(false); // reserved slot collapsed
+    });
   });
 
   describe('tuplet input (#242): fill reserved space', () => {
