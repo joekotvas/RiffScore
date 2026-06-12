@@ -251,35 +251,36 @@ export const reflowScore = (measures: Measure[], newTimeSignature: string): Meas
       commitMeasure(isFillingPickup);
       if (isFillingPickup) isFillingPickup = false;
 
-      // 2. Handle the overflow (remainder)
-      const remainingQuants = eventDuration - available;
-      if (remainingQuants > 0) {
-        const remainderParts = getBreakdownOfQuants(remainingQuants);
+      // 2. Handle the overflow (remainder). Re-bar in BAR-SIZED chunks: a single note value can
+      // exceed a whole bar of the new meter (e.g. a half note reflowed to 3/8) — breaking the entire
+      // remainder down at once then placing the fragments would dump an over-capacity fragment into a
+      // bar (overfull) and fire the pre-commit on an empty buffer (a spurious empty bar). Instead fill
+      // each fresh bar up to maxQuants and split-and-tie at every bar line.
+      let remaining = eventDuration - available;
+      while (remaining > 0) {
+        const chunk = Math.min(remaining, maxQuants);
+        const isFinalChunk = chunk === remaining;
+        const parts = getBreakdownOfQuants(chunk);
 
-        remainderParts.forEach((part, partIndex) => {
-          // Every fragment but the last ties to the next fragment of the same split note; the LAST
-          // fragment carries each note's ORIGINAL onward tie, PER-NOTE (not broadcast from notes[0],
-          // which silently dropped per-note chord-tie granularity). repairTies later clears the last
-          // fragment's tie if that onward target didn't survive re-barring.
-          const isLastFragment = partIndex === remainderParts.length - 1;
-          const newEvent = {
+        parts.forEach((part, partIndex) => {
+          // Every fragment but the very last ties onward to its continuation; the LAST fragment of the
+          // FINAL chunk carries each note's ORIGINAL onward tie, PER-NOTE. repairTies later clears it
+          // if that onward target didn't survive re-barring.
+          const isLastFragment = isFinalChunk && partIndex === parts.length - 1;
+          currentMeasureEvents.push({
             ...event,
             id: eventId(),
             duration: part.duration,
             dotted: part.dotted,
             notes: event.notes.map((n) => ({ ...n, tied: isLastFragment ? !!n.tied : true })),
-          };
-
-          // Handle edge case: If a single note is massive (larger than a full measure),
-          // strict logic would require a recursive split.
-          // For now, we assume standard notes fit within 'maxQuants' or simply overflow.
-          if (currentMeasureQuants + part.quants > maxQuants) {
-            commitMeasure(false);
-          }
-
-          currentMeasureEvents.push(newEvent);
+          });
           currentMeasureQuants += part.quants;
         });
+
+        remaining -= chunk;
+        // The bar is now full to maxQuants; close it and continue with a fresh one. The final
+        // (under-full) chunk stays buffered for the next event or the cleanup commit.
+        if (remaining > 0) commitMeasure(false);
       }
     }
     i++;
