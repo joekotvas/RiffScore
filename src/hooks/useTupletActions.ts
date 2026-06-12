@@ -3,7 +3,9 @@ import { ApplyTupletCommand } from '@/commands/TupletCommands';
 import { RemoveTupletCommand } from '@/commands/RemoveTupletCommand';
 import { Command } from '@/commands/types';
 import { Score, Selection, ScoreEvent } from '@/types';
-import { isUniformTupletSelection } from '@/utils/tuplet';
+import { isUniformTupletSelection, sumQuants } from '@/utils/tuplet';
+import { eventsWithoutTuplet } from '@/utils/tupletEdit';
+import { getMeasureCapacity } from '@/constants';
 
 /**
  * Hook providing tuplet manipulation actions.
@@ -103,6 +105,15 @@ export const useTupletActions = (
     const event = measure.events[eventIndex];
     if (!event.tuplet) {
       console.warn('Selected event is not part of a tuplet');
+      return false;
+    }
+
+    // Precheck (mirrors RemoveTupletCommand's fail-closed guard via the shared helper): if restoring
+    // the members' full durations would overflow the bar, don't dispatch a doomed command — that
+    // would no-op yet still land a dead entry on the undo stack.
+    const candidate = eventsWithoutTuplet(measure.events, eventIndex);
+    if (sumQuants(candidate).quants > getMeasureCapacity(currentScore.timeSignature)) {
+      console.warn('Cannot remove tuplet: the notes’ full duration would overflow the measure');
       return false;
     }
 

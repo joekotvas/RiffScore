@@ -3,6 +3,7 @@ import { Score, ScoreEvent } from '@/types';
 import { updateMeasure } from '@/utils/commandHelpers';
 import { getMeasureCapacity } from '@/constants';
 import { sumQuants } from '@/utils/tuplet';
+import { eventsWithoutTuplet } from '@/utils/tupletEdit';
 
 /**
  * Command to remove tuplet metadata from a group of events.
@@ -24,27 +25,16 @@ export class RemoveTupletCommand implements Command {
     const capacity = getMeasureCapacity(score.timeSignature);
     return updateMeasure(score, this.staffIndex, this.measureIndex, (measure) => {
       const events = measure.events;
-      const targetEvent = events[this.eventIndex];
+      if (!events[this.eventIndex]?.tuplet) return false;
 
-      if (!targetEvent?.tuplet) return false;
-
-      const { groupSize, position } = targetEvent.tuplet;
-      const startIndex = this.eventIndex - position;
-      const groupEnd = startIndex + groupSize;
-
-      // Real members de-tuplet (restore their plain duration); reserved slots are a tuplet-only
-      // construct, so they're DROPPED — the freed space collapses (matching the model's
-      // "delete shifts left" rule), rather than leaving an orphaned reserved rest in plain space.
-      const newEvents = events.flatMap((e, idx) => {
-        if (idx < startIndex || idx >= groupEnd) return [e];
-        if (e.reserved) return [];
-        return [{ ...e, tuplet: undefined }];
-      });
+      // Real members de-tuplet, reserved slots collapse — shared with the API/UI prechecks.
+      const newEvents = eventsWithoutTuplet(events, this.eventIndex);
 
       // Fail closed: stripping the tuplet restores each real member's full (nominal) duration. If
       // that would overflow the measure, leave the score untouched rather than silently create an
-      // invalid overfull bar (the API pre-checks and reports the refusal).
-      if (!measure.isPickup && sumQuants(newEvents).quants > capacity) return false;
+      // invalid overfull bar (the call sites pre-check and report the refusal). Pickups are validated
+      // at full-bar capacity too (validateMeasure has no pickup exemption), so guard them the same.
+      if (sumQuants(newEvents).quants > capacity) return false;
 
       this.prevEvents = events;
       measure.events = newEvents;

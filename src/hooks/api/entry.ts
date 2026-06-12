@@ -15,7 +15,7 @@ import { DeleteEventCommand } from '@/commands/DeleteEventCommand';
 import { FillReservedSlotCommand } from '@/commands/FillReservedSlotCommand';
 import { InsertTupletMemberCommand } from '@/commands/InsertTupletMemberCommand';
 import { InsertEventCommand } from '@/commands/InsertEventCommand';
-import { getTupletRun } from '@/utils/tupletEdit';
+import { getTupletRun, eventsWithoutTuplet } from '@/utils/tupletEdit';
 import { ApplyTupletCommand } from '@/commands/TupletCommands';
 import { RemoveTupletCommand } from '@/commands/RemoveTupletCommand';
 import { UpdateNoteCommand } from '@/commands/UpdateNoteCommand';
@@ -861,17 +861,11 @@ export const createEntryMethods = (
       // so it overflows the bar if the freed space was since filled. Refuse rather than silently
       // create an overfull, invalid bar (#242 "overflow is never silent"). The command also fails
       // closed, but pre-checking lets the API report honestly instead of a no-op ok:true.
-      const { groupSize, position } = event.tuplet;
-      const groupStart = eventIndex - position;
-      // Mirror RemoveTupletCommand EXACTLY: real members de-tuplet, reserved slots are DROPPED (their
-      // freed space collapses). Keeping reserved slots here over-counted the bar and falsely rejected
-      // valid removals (e.g. a triplet of two eighths + one reserved slot → exactly fits on removal).
-      const candidate = measure.events.flatMap((e, i) => {
-        if (i < groupStart || i >= groupStart + groupSize) return [e];
-        if (e.reserved) return [];
-        return [{ ...e, tuplet: undefined }];
-      });
-      if (!measure.isPickup && sumQuants(candidate).quants > getMeasureCapacity(getScore().timeSignature)) {
+      // Shares the exact removal logic with RemoveTupletCommand (real members de-tuplet, reserved
+      // slots dropped) so the precheck can't disagree with the command. Pickups are validated at
+      // full-bar capacity too — guard them the same (no isPickup exemption).
+      const candidate = eventsWithoutTuplet(measure.events, eventIndex);
+      if (sumQuants(candidate).quants > getMeasureCapacity(getScore().timeSignature)) {
         setResult({
           ok: false,
           status: 'error',

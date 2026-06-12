@@ -57,6 +57,27 @@ export const getTupletRun = (
 };
 
 /**
+ * The measure's events after removing the tuplet group that contains `eventIndex`: real members
+ * de-tuplet (their plain duration is restored), and reserved slots are DROPPED — the freed space
+ * collapses (matching "delete shifts left"), never leaving an orphaned reserved rest in plain space.
+ * Returns the original array unchanged if the event isn't a tuplet member.
+ *
+ * Single source for RemoveTupletCommand + the un-make capacity prechecks (API + UI) so they can't
+ * disagree on group bounds / reserved handling / a corrupt `position`.
+ */
+export const eventsWithoutTuplet = (events: ScoreEvent[], eventIndex: number): ScoreEvent[] => {
+  const tuplet = events[eventIndex]?.tuplet;
+  if (!tuplet) return events;
+  const start = eventIndex - (tuplet.position ?? 0);
+  const end = start + tuplet.groupSize;
+  return events.flatMap((e, i) => {
+    if (i < start || i >= end) return [e];
+    if (e.reserved) return [];
+    return [{ ...e, tuplet: undefined }];
+  });
+};
+
+/**
  * A reserved placeholder slot carrying `template`'s duration/dotted/tuplet (so it occupies the
  * deleted member's footprint and keeps the group's span exact). `reservedId` is supplied by the
  * caller so it stays stable across undo→redo (redo re-runs execute).

@@ -36,6 +36,27 @@ describe('#1 RemoveTupletCommand never silently overfills', () => {
     expect(validateMeasure(m0(after), cap).valid).toBe(true);
   });
 
+  it('fails closed on overflow even in a PICKUP bar (pickups are validated at full capacity)', () => {
+    const cap = getMeasureCapacity('2/4'); // 32
+    const s = createDefaultScore();
+    s.timeSignature = '2/4';
+    s.staves = [
+      {
+        ...s.staves[0],
+        measures: [
+          { id: 'm0', isPickup: true, events: [ev('a', 'eighth'), ev('b', 'eighth'), ev('c', 'eighth'), ev('q', 'quarter')] },
+        ],
+      },
+    ];
+    const applied = new ApplyTupletCommand(0, 0, 3, [3, 2]).execute(s); // triplet 16q + quarter 16q = 32q (valid pickup)
+    expect(validateMeasure(applied.staves[0].measures[0], cap).valid).toBe(true);
+    const before = applied.staves[0].measures[0].events;
+    const after = new RemoveTupletCommand(0, 0).execute(applied);
+    // Restoring → 3 eighths (24) + quarter (16) = 40 > 32 → must fail closed even on a pickup.
+    expect(after.staves[0].measures[0].events).toBe(before);
+    expect(validateMeasure(after.staves[0].measures[0], cap).valid).toBe(true);
+  });
+
   it('still removes a tuplet when there IS room', () => {
     const cap = getMeasureCapacity('4/4'); // 64
     let s = scoreWith([ev('a', 'eighth'), ev('b', 'eighth'), ev('c', 'eighth')], '4/4');
