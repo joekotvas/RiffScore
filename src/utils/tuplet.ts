@@ -45,6 +45,19 @@ export const isValidTupletRatio = (baseDuration: string, ratio: [number, number]
 export const quantsEqual = (a: number, b: number): boolean => Math.abs(a - b) <= QUANT_EPSILON;
 
 /**
+ * Whether a selected run can form a COHERENT tuplet: every member must share one duration (and dot),
+ * because the group is stamped with a SINGLE `baseDuration` (taken from the first member) and is
+ * rendered/accounted against it. A mixed selection (e.g. quarter + eighth + eighth) mints a group
+ * whose member footprints don't sum to an integer → a permanently `incomplete-tuplet`-invalid bar.
+ * Nested tuplets are rejected separately by the callers.
+ */
+export const isUniformTupletSelection = (events: ScoreEvent[]): boolean => {
+  if (events.length === 0) return false;
+  const { duration, dotted } = events[0];
+  return events.every((e) => e.duration === duration && !!e.dotted === !!dotted);
+};
+
+/**
  * Total quant length of an event list. A COMPLETE tuplet group is accounted by its members'
  * footprint rounded to the nearest integer (eliminating IEEE-754 drift; correct for uniform
  * and for dotted/mixed members alike). Consecutive events sharing a `tuplet.id` form a group;

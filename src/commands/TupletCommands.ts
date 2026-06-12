@@ -1,7 +1,7 @@
 import { Command } from './types';
 import { Score } from '@/types';
 import { tupletId as createTupletId } from '@/utils/id';
-import { isValidTupletRatio } from '@/utils/tuplet';
+import { isValidTupletRatio, isUniformTupletSelection } from '@/utils/tuplet';
 
 /**
  * Command to apply tuplet metadata to a group of consecutive events.
@@ -45,6 +45,13 @@ export class ApplyTupletCommand implements Command {
     const baseDuration = newEvents[this.startEventIndex].duration;
     if (!isValidTupletRatio(baseDuration, this.ratio)) {
       return score; // Invalid tuplet ratio — leave the score untouched
+    }
+
+    // Members must be uniform: a single baseDuration is stamped on the whole group, so a mixed-
+    // duration selection would mint an incoherent, permanently-invalid group. Fail closed.
+    const groupMembers = newEvents.slice(this.startEventIndex, this.startEventIndex + this.groupSize);
+    if (!isUniformTupletSelection(groupMembers)) {
+      return score;
     }
 
     // Store previous states for undo

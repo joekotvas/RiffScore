@@ -59,6 +59,7 @@ export type RefusalCode =
   | 'INSUFFICIENT_EVENTS'
   | 'NESTED_TUPLET_NOT_SUPPORTED'
   | 'INVALID_TUPLET_RATIO'
+  | 'NON_UNIFORM_TUPLET'
   | 'NOT_A_TUPLET'
   // --- ties ---
   | 'NO_TIE_TARGET'
@@ -156,6 +157,7 @@ export const REFUSALS: Record<RefusalCode, RefusalSpec> = {
   INSUFFICIENT_EVENTS: { severity: 'error', message: s('Not enough events for a tuplet') },
   NESTED_TUPLET_NOT_SUPPORTED: { severity: 'error', message: s('Target events already contain a tuplet') },
   INVALID_TUPLET_RATIO: { severity: 'error', message: s('Invalid tuplet ratio') },
+  NON_UNIFORM_TUPLET: { severity: 'error', message: s('Select notes of the same duration to form a tuplet') },
   NOT_A_TUPLET: { severity: 'warning', message: s('Selected event is not part of a tuplet') },
 
   // --- ties ---

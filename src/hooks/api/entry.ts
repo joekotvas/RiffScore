@@ -30,7 +30,7 @@ import {
   createRestsForRange,
 } from '@/utils/entry/insertion';
 import { getBreakdownOfQuants, getNoteDuration } from '@/utils/core';
-import { isValidTupletRatio } from '@/utils/tuplet';
+import { isValidTupletRatio, isUniformTupletSelection, sumQuants } from '@/utils/tuplet';
 import { hasTieTarget } from '@/utils/ties';
 import { getMeasureCapacity } from '@/constants';
 
@@ -783,6 +783,19 @@ export const createEntryMethods = (
         return this;
       }
 
+      // Members must share one duration: the group is stamped with a single baseDuration, so a
+      // mixed selection would mint an incoherent, permanently-invalid group. Refuse with feedback.
+      if (!isUniformTupletSelection(measure.events.slice(eventIndex, eventIndex + numNotes))) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'makeTuplet',
+          message: 'Select notes of the same duration to form a tuplet',
+          code: 'NON_UNIFORM_TUPLET',
+        });
+        return this;
+      }
+
       dispatch(
         new ApplyTupletCommand(
           sel.measureIndex,
@@ -840,6 +853,26 @@ export const createEntryMethods = (
           method: 'unmakeTuplet',
           message: 'Selected event is not part of a tuplet',
           code: 'NOT_A_TUPLET',
+        });
+        return this;
+      }
+
+      // Removing a tuplet restores each member's FULL nominal duration (members shrink when grouped),
+      // so it overflows the bar if the freed space was since filled. Refuse rather than silently
+      // create an overfull, invalid bar (#242 "overflow is never silent"). The command also fails
+      // closed, but pre-checking lets the API report honestly instead of a no-op ok:true.
+      const { groupSize, position } = event.tuplet;
+      const groupStart = eventIndex - position;
+      const candidate = measure.events.map((e, i) =>
+        i >= groupStart && i < groupStart + groupSize ? { ...e, tuplet: undefined } : e
+      );
+      if (!measure.isPickup && sumQuants(candidate).quants > getMeasureCapacity(getScore().timeSignature)) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'unmakeTuplet',
+          message: 'Cannot remove tuplet: the notes’ full duration would overflow the measure',
+          code: 'DURATION_OVERFLOW',
         });
         return this;
       }

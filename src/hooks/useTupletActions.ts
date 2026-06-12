@@ -3,6 +3,7 @@ import { ApplyTupletCommand } from '@/commands/TupletCommands';
 import { RemoveTupletCommand } from '@/commands/RemoveTupletCommand';
 import { Command } from '@/commands/types';
 import { Score, Selection, ScoreEvent } from '@/types';
+import { isUniformTupletSelection } from '@/utils/tuplet';
 
 /**
  * Hook providing tuplet manipulation actions.
@@ -133,8 +134,12 @@ export const useTupletActions = (
       const eventIndex = measure.events.findIndex((e: ScoreEvent) => e.id === selection.eventId);
       if (eventIndex === -1) return false;
 
-      // Check if we have enough consecutive events
-      return eventIndex + groupSize <= measure.events.length;
+      // Enough consecutive events…
+      if (eventIndex + groupSize > measure.events.length) return false;
+
+      // …and they must be uniform — a single baseDuration is stamped on the group, so a mixed
+      // selection would mint an incoherent, permanently-invalid tuplet. Don't offer it.
+      return isUniformTupletSelection(measure.events.slice(eventIndex, eventIndex + groupSize));
     },
     [selection, scoreRef]
   );

@@ -1,6 +1,8 @@
 import { Command } from './types';
 import { Score } from '@/types';
 import { updateMeasure } from '@/utils/commandHelpers';
+import { getMeasureCapacity } from '@/constants';
+import { sumQuants } from '@/utils/tuplet';
 
 /**
  * Command to remove tuplet metadata from a group of events.
@@ -20,6 +22,7 @@ export class RemoveTupletCommand implements Command {
   ) {}
 
   execute(score: Score): Score {
+    const capacity = getMeasureCapacity(score.timeSignature);
     return updateMeasure(score, this.staffIndex, this.measureIndex, (measure) => {
       const events = measure.events;
       const targetEvent = events[this.eventIndex];
@@ -29,20 +32,26 @@ export class RemoveTupletCommand implements Command {
       const { groupSize, position } = targetEvent.tuplet;
       const startIndex = this.eventIndex - position;
 
-      this.previousStates = [];
       const newEvents = [...events];
-
       for (let i = 0; i < groupSize; i++) {
         const idx = startIndex + i;
         if (idx < 0 || idx >= newEvents.length) continue;
+        newEvents[idx] = { ...newEvents[idx], tuplet: undefined };
+      }
 
-        const event = newEvents[idx];
+      // Fail closed: stripping the tuplet restores each member's full (nominal) duration, EXPANDING
+      // the bar's footprint. If that would overflow the measure, leave the score untouched rather
+      // than silently create an invalid overfull bar (the API pre-checks and reports the refusal).
+      if (!measure.isPickup && sumQuants(newEvents).quants > capacity) return false;
+
+      this.previousStates = [];
+      for (let i = 0; i < groupSize; i++) {
+        const idx = startIndex + i;
+        if (idx < 0 || idx >= events.length) continue;
         this.previousStates.push({
-          eventId: event.id,
-          tuplet: event.tuplet ? { ...event.tuplet } : undefined,
+          eventId: events[idx].id,
+          tuplet: events[idx].tuplet ? { ...events[idx].tuplet } : undefined,
         });
-
-        newEvents[idx] = { ...event, tuplet: undefined };
       }
 
       measure.events = newEvents;
