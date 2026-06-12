@@ -160,11 +160,14 @@ export const useModifiers = ({
         });
 
         if (skipped > 0) {
+          // Intentional tone split: this human-facing banner uses a gentle 'warning' (and its own
+          // count-pluralized wording), NOT the API's REFUSALS.DURATION_OVERFLOW severity ('error').
+          // The API result is for scripts; the banner is a soft "didn't fit" nudge. (#20)
           setFeedback(
             applied === 0
               ? "Can't lengthen the note — not enough room left in the measure"
               : `Lengthened ${applied}; ${skipped} didn't fit the measure`,
-            'warning' // a gentle "didn't fit" notice, not a hard error
+            'warning'
           );
         } else if (applied > 0) {
           setFeedback(null);
@@ -235,11 +238,12 @@ export const useModifiers = ({
     });
 
     if (skipped > 0) {
+      // Intentional tone split — gentle banner 'warning', not the API DURATION_OVERFLOW 'error'. (#20)
       setFeedback(
         applied === 0
           ? "Can't add a dot — not enough room left in the measure"
           : `Dotted ${applied}; ${skipped} didn't fit the measure`,
-        'warning' // a gentle "didn't fit" notice, not a hard error
+        'warning'
       );
     } else if (applied > 0) {
       setFeedback(null);
