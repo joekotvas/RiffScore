@@ -8,6 +8,7 @@
  */
 
 import { calculateTotalQuants, getNoteDuration } from '../core';
+import { quantsEqual } from '../tuplet';
 import { getMidi } from '@/services/MusicService';
 import { CONFIG } from '@/config';
 import {
@@ -447,7 +448,11 @@ export const calculateVerticalNavigation = (
       } else {
         // No event at this quant - show ghost cursor with adjusted duration
         const totalQuants = calculateTotalQuants(targetMeasure.events);
-        const availableQuants = currentQuantsPerMeasure - totalQuants;
+        // Snap to 0 when the bar is full within tuplet FP drift (parity with getStops' quantsEqual):
+        // a complete tuplet's member sum can read 63.9999 not 64, falsely leaving a sliver of space.
+        const availableQuants = quantsEqual(totalQuants, currentQuantsPerMeasure)
+          ? 0
+          : currentQuantsPerMeasure - totalQuants;
         const adjusted = getAdjustedDuration(availableQuants, activeDuration, isDotted);
 
         if (adjusted) {
@@ -535,7 +540,10 @@ export const calculateVerticalNavigation = (
     } else {
       // No event - show ghost cursor with adjusted duration
       const totalQuants = calculateTotalQuants(cycleMeasure.events);
-      const availableQuants = currentQuantsPerMeasure - totalQuants;
+      // Snap to 0 when full within tuplet FP drift (parity with getStops' quantsEqual).
+      const availableQuants = quantsEqual(totalQuants, currentQuantsPerMeasure)
+        ? 0
+        : currentQuantsPerMeasure - totalQuants;
       const adjusted = getAdjustedDuration(availableQuants, activeDuration, isDotted);
 
       if (adjusted) {
