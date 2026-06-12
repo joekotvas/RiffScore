@@ -5,6 +5,7 @@ import { BookOpen, HelpCircle } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { useScoreContext } from '@/context/ScoreContext';
 import { Melody, getActiveStaff } from '@/types';
+import type { RefusalSeverity } from '@/refusals';
 import { InstrumentType } from '@/engines/toneEngine';
 
 // Hooks & Commands
@@ -55,6 +56,8 @@ interface ToolbarProps {
   bpm: number;
   onBpmChange: (bpm: number) => void;
   errorMsg: string | null;
+  /** Tone for the feedback banner; defaults to 'error'. Lets gentle refusals render amber, not red. */
+  feedbackSeverity?: RefusalSeverity;
   onToggleHelp: () => void;
   onEscape?: () => void;
 
@@ -94,6 +97,7 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
       bpm,
       onBpmChange,
       errorMsg,
+      feedbackSeverity = 'error',
       onToggleHelp,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       midiStatus = { connected: false, deviceName: null, error: null },
@@ -395,8 +399,15 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
           />
         </div>
 
-        {/* Error Message */}
-        {errorMsg && <div className="riff-Toolbar__error">{errorMsg}</div>}
+        {/* Transient feedback banner (tone by severity) */}
+        {errorMsg && (
+          <div
+            className={`riff-Toolbar__error riff-Toolbar__error--${feedbackSeverity}`}
+            role={feedbackSeverity === 'error' ? 'alert' : 'status'}
+          >
+            {errorMsg}
+          </div>
+        )}
 
         {/* Score Setup Dialog */}
         {scoreSetup.isOpen && (

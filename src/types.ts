@@ -53,6 +53,7 @@ export interface Note {
   accidentalDisplay?: AccidentalDisplay;
   tied?: boolean; // Tied to next note
   isRest?: boolean; // True for rest notes (pitchless)
+  reserved?: boolean; // Reserved tuplet placeholder slot (see ScoreEvent.reserved)
 }
 
 // ========== EVENT ==========
@@ -63,6 +64,14 @@ export interface ScoreEvent {
   dotted: boolean;
   notes: Note[]; // Multiple notes = chord
   isRest?: boolean;
+  /**
+   * Reserved trailing tuplet slot (#242): unused space inside a tuplet whose span is conserved
+   * after a delete. Always also `isRest: true` and pitch-less, so it counts toward the group's
+   * footprint (Lane 0/A see a complete group) and exports/plays as a rest — but it renders
+   * BLANK (no glyph) and is overwritten by input. A real rest (from explicit entry / note→rest)
+   * is NOT reserved.
+   */
+  reserved?: boolean;
   chord?: string | null; // Chord symbol (e.g., "G", "C", "D7")
   tuplet?: {
     ratio: [number, number]; // e.g., [3, 2] for triplet (3 notes in space of 2)
@@ -475,6 +484,15 @@ export const getActiveStaff = (score: Score, staffIndex: number = 0): Staff => {
 };
 
 /**
+ * Strict staff lookup for MUTATION / validation paths (#242 Lane G): returns undefined for an
+ * out-of-range staff instead of silently retargeting staff 0. Use this anywhere a wrong staff
+ * index must NOT be masked (selection resolution, transpose). getActiveStaff stays the forgiving
+ * reader for the many render/export call sites that legitimately want a fallback.
+ */
+export const getValidStaff = (score: Score, staffIndex: number): Staff | undefined =>
+  score.staves[staffIndex];
+
+/**
  * Maps a legacy absolute (global) quant position to a measure-local
  * { measure, quant } pair using the engine's nominal convention:
  * `measure = floor(global / nominal)`, `quant = global % nominal`.
@@ -795,6 +813,19 @@ export interface PreviewNote {
   isRest: boolean;
   /** How the ghost cursor was triggered */
   source?: 'keyboard' | 'mouse' | 'hover';
+  /**
+   * Target event id when the ghost cursor sits over an existing event's slot — a CHORD preview over
+   * a note, or a tuplet-fill ghost over a reserved free slot. Commit reads this to fill that slot
+   * (vs creating a new event). Undefined for plain APPEND/INSERT ghosts.
+   */
+  eventId?: string;
+  /**
+   * When set, the hover position can't accept the input. The ghost still renders — but greyed with
+   * an X (a clear "can't place here" signal) — and the footer shows a matching status.
+   *   - 'tuplet-full'  → the insert gap of a complete tuplet (its span is fixed).
+   *   - 'measure-full' → no room left in the bar for the active duration.
+   */
+  blocked?: 'tuplet-full' | 'measure-full';
 }
 
 // ========== NAVIGATION RESULT TYPES ==========

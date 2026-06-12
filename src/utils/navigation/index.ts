@@ -8,6 +8,7 @@
  * @see transposition.ts - Pitch transposition utilities
  * @see horizontal.ts - Left/right keyboard navigation
  * @see vertical.ts - Up/down keyboard navigation (chord/staff)
+ * @see stops.ts - Unified navigable-position model (notes, tuplet free space, measure free space)
  */
 
 export * from './previewNote';
@@ -15,3 +16,4 @@ export * from './crossStaff';
 export * from './transposition';
 export * from './horizontal';
 export * from './vertical';
+export * from './stops';

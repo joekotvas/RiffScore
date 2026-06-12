@@ -1,8 +1,10 @@
 import { useCallback, RefObject } from 'react';
 import { canModifyEventDuration, canToggleEventDot } from '@/utils/validation';
+import { hasTieTarget } from '@/utils/ties';
 
 import { playNote } from '@/engines/toneEngine';
 import { Score, getActiveStaff, Selection, Note as ScoreNote, ScoreEvent } from '@/types';
+import type { RefusalSeverity } from '@/refusals';
 import { Command } from '@/commands/types';
 import { UpdateEventCommand } from '@/commands/UpdateEventCommand';
 import { UpdateNoteCommand } from '@/commands/UpdateNoteCommand';
@@ -23,6 +25,8 @@ interface UseModifiersProps {
     activeAccidental: 'flat' | 'natural' | 'sharp' | null;
   };
   dispatch: (command: Command) => void;
+  /** Surface a transient user-facing message (e.g. an overflow rejection), or clear it with null. */
+  setFeedback: (message: string | null, severity?: RefusalSeverity) => void;
 }
 
 interface UseModifiersReturn {
@@ -121,30 +125,26 @@ export const useModifiers = ({
   currentQuantsPerMeasure,
   tools,
   dispatch,
+  setFeedback,
 }: UseModifiersProps): UseModifiersReturn => {
   const handleDurationChange = useCallback(
     (newDuration: string, applyToSelection = false) => {
       // Always update the active tool state
       tools.handleDurationChange(newDuration);
 
-      // If requested, try to apply to selection
+      // If requested, try to apply to selection. #242 Lane D: a change that would overflow the bar
+      // is REJECTED with feedback — never silently dropped.
       if (applyToSelection) {
         const targets = getEventTargets(selection);
 
-        // Iterate and apply if valid
+        let applied = 0;
+        let skipped = 0;
         targets.forEach((target) => {
           const staff =
             scoreRef.current.staves[target.staffIndex] || getActiveStaff(scoreRef.current);
           const measure = staff.measures[target.measureIndex];
-          if (
-            measure &&
-            canModifyEventDuration(
-              measure.events,
-              target.eventId,
-              newDuration,
-              currentQuantsPerMeasure
-            )
-          ) {
+          if (!measure) return;
+          if (canModifyEventDuration(measure.events, target.eventId, newDuration, currentQuantsPerMeasure)) {
             dispatch(
               new UpdateEventCommand(
                 target.measureIndex,
@@ -153,11 +153,28 @@ export const useModifiers = ({
                 target.staffIndex
               )
             );
+            applied += 1;
+          } else {
+            skipped += 1;
           }
         });
+
+        if (skipped > 0) {
+          // Intentional tone split: this human-facing banner uses a gentle 'warning' (and its own
+          // count-pluralized wording), NOT the API's REFUSALS.DURATION_OVERFLOW severity ('error').
+          // The API result is for scripts; the banner is a soft "didn't fit" nudge. (#20)
+          setFeedback(
+            applied === 0
+              ? "Can't lengthen the note — not enough room left in the measure"
+              : `Lengthened ${applied}; ${skipped} didn't fit the measure`,
+            'warning'
+          );
+        } else if (applied > 0) {
+          setFeedback(null);
+        }
       }
     },
-    [selection, tools, dispatch, scoreRef, currentQuantsPerMeasure]
+    [selection, tools, dispatch, scoreRef, currentQuantsPerMeasure, setFeedback]
   );
 
   const handleDotToggle = useCallback(() => {
@@ -191,13 +208,16 @@ export const useModifiers = ({
     // We can't set directly, but we can try to sync if mismatched (optional)
     // tools.isDotted is local.
 
-    // 3. Apply to all targets
+    // 3. Apply to all targets. #242 Lane D: adding a dot that would overflow the bar is rejected
+    // with feedback rather than silently skipped (removing a dot always fits).
+    let applied = 0;
+    let skipped = 0;
     targets.forEach((target) => {
       const staff = score.staves[target.staffIndex] || getActiveStaff(score);
       const measure = staff.measures[target.measureIndex];
       const event = measure?.events.find((e: ScoreEvent) => e.id === target.eventId);
 
-      if (event) {
+      if (event && measure) {
         // Skip if already in target state
         if (!!event.dotted === targetState) return;
 
@@ -210,13 +230,28 @@ export const useModifiers = ({
               target.staffIndex
             )
           );
+          applied += 1;
+        } else {
+          skipped += 1;
         }
       }
     });
 
+    if (skipped > 0) {
+      // Intentional tone split — gentle banner 'warning', not the API DURATION_OVERFLOW 'error'. (#20)
+      setFeedback(
+        applied === 0
+          ? "Can't add a dot — not enough room left in the measure"
+          : `Dotted ${applied}; ${skipped} didn't fit the measure`,
+        'warning'
+      );
+    } else if (applied > 0) {
+      setFeedback(null);
+    }
+
     // Sync tool UI (approximate)
     if (tools.isDotted !== targetState) tools.handleDotToggle();
-  }, [selection, tools, dispatch, scoreRef, currentQuantsPerMeasure]);
+  }, [selection, tools, dispatch, scoreRef, currentQuantsPerMeasure, setFeedback]);
 
   const handleAccidentalToggle = useCallback(
     (type: 'flat' | 'natural' | 'sharp' | null) => {
@@ -336,10 +371,33 @@ export const useModifiers = ({
     const hasAnyTied = noteObjects.some((n) => n.tied);
     const targetState = !hasAnyTied;
 
-    // 3. Apply to all targets
-    targets.forEach((target) => {
-      // We just dispatch. Note updates don't require measure-level validation usually (unless changing pitch/duration invalidates something else?)
-      // Ties don't affect duration. Safe.
+    // 3. Apply. Turning a tie OFF is always safe. Turning ON is gated per-target (Lane E): a tie
+    //    must connect to a same-pitch successor, so only resolvable targets get tied; if none
+    //    resolve we dispatch nothing (the keyboard can't create a dangling tie). Partial turn-ON
+    //    ties just the resolvable subset.
+    const toApply = targetState
+      ? targets.filter((target) => {
+          const staff = score.staves[target.staffIndex] || getActiveStaff(score);
+          const measure = staff.measures[target.measureIndex];
+          if (!measure) return false;
+          const eventIndex = measure.events.findIndex((e: ScoreEvent) => e.id === target.eventId);
+          const note = measure.events[eventIndex]?.notes.find((n: ScoreNote) => n.id === target.noteId);
+          return (
+            eventIndex >= 0 &&
+            note != null &&
+            note.pitch != null &&
+            hasTieTarget(staff.measures, {
+              measureIndex: target.measureIndex,
+              eventIndex,
+              pitch: note.pitch,
+            })
+          );
+        })
+      : targets;
+
+    if (toApply.length === 0) return;
+
+    toApply.forEach((target) => {
       dispatch(
         new UpdateNoteCommand(
           target.measureIndex,
@@ -351,7 +409,7 @@ export const useModifiers = ({
       );
     });
 
-    // Sync tool UI
+    // Sync tool UI to the state we actually applied
     if (tools.activeTie !== targetState) tools.handleTieToggle();
   }, [selection, tools, dispatch, scoreRef]);
 

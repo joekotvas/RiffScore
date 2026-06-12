@@ -73,9 +73,14 @@ const Accidental = ({
     ? `${ACCIDENTALS.parenthesisLeft}${symbol}${ACCIDENTALS.parenthesisRight}`
     : symbol;
 
+  // The parentheses widen the glyph symmetrically (textAnchor="middle"), pushing the
+  // right paren toward the notehead. Nudge the whole group left so the parenthesized
+  // accidental keeps the same breathing room from the notehead as a bare one.
+  const renderX = parenthesized ? x - LAYOUT.ACCIDENTAL.PARENTHESIS_PAD : x;
+
   return (
     <text
-      x={x}
+      x={renderX}
       y={y}
       fontSize={fontSize}
       fontFamily={BRAVURA_FONT}
@@ -117,14 +122,24 @@ const LedgerLines = ({
   y,
   baseY,
   color,
+  duration,
 }: {
   x: number;
   y: number;
   baseY: number;
   color: string;
+  duration?: string;
 }) => {
   const lines = [];
   const relativeY = y - baseY;
+
+  // The whole-note head is appreciably wider than the black/half heads, so the default
+  // ledger half-width barely clears it. Widen the ledger for whole notes so it peeks past
+  // the notehead on both sides, as engraving convention requires.
+  const ext =
+    duration === 'whole'
+      ? LAYOUT.LEDGER_LINE_EXTENSION + LAYOUT.LEDGER_LINE_WHOLE_EXTRA
+      : LAYOUT.LEDGER_LINE_EXTENSION;
 
   // Lines above staff
   if (relativeY < 0) {
@@ -132,9 +147,9 @@ const LedgerLines = ({
       lines.push(
         <line
           key={`ledger-${i}`}
-          x1={x - LAYOUT.LEDGER_LINE_EXTENSION}
+          x1={x - ext}
           y1={baseY + i}
-          x2={x + LAYOUT.LEDGER_LINE_EXTENSION}
+          x2={x + ext}
           y2={baseY + i}
           stroke={color}
           strokeWidth={LAYOUT.LINE_STROKE_WIDTH}
@@ -149,9 +164,9 @@ const LedgerLines = ({
       lines.push(
         <line
           key={`ledger-${i}`}
-          x1={x - LAYOUT.LEDGER_LINE_EXTENSION}
+          x1={x - ext}
           y1={baseY + i}
-          x2={x + LAYOUT.LEDGER_LINE_EXTENSION}
+          x2={x + ext}
           y2={baseY + i}
           stroke={color}
           strokeWidth={LAYOUT.LINE_STROKE_WIDTH}
@@ -290,7 +305,7 @@ const Note: React.FC<NoteProps> = React.memo(
         onMouseLeave={handlers?.onMouseLeave}
       >
         {/* 1. Ledger Lines (behind everything) */}
-        <LedgerLines x={noteX} y={noteY} baseY={baseY} color={color} />
+        <LedgerLines x={noteX} y={noteY} baseY={baseY} color={color} duration={duration} />
 
         {/* 2. Accidental */}
         {accidentalGlyph && (

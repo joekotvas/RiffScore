@@ -22,6 +22,7 @@
   --riff-color-primary: #1da59c; /* teal accent */
   --riff-color-primary-hover: #17877f;
   --riff-color-danger: #ef4444;
+  --riff-color-warning: #b45309; /* amber700 — gentle refusals / "didn't fit" notices */
   --riff-color-success: #22c55e;
   --riff-color-muted: hsla(215, 20%, 65%, 1); /* slate400 */
 

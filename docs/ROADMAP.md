@@ -1,6 +1,6 @@
 # RiffScore Roadmap
 
-> **Generated:** 2026-06-04 · **Living document** · reflects state through **v1.0.0-alpha.14**: M1 (truth-in-advertising) shipped in **alpha.13**; M2's first item **#239 (transpose spelling)** shipped in **alpha.14**.
+> **Generated:** 2026-06-12 · **Living document** · reflects state through **v1.0.0-alpha.15**: M1 (truth-in-advertising) shipped in **alpha.13**; M2's **#239 (transpose spelling)** shipped in **alpha.14**; M2's **#242 (interactive correctness / structural invariants)** and the **#252 visual-regression harness** shipped in **alpha.15**.
 > Grounded in the 2026-06 correctness audit ([CORRECTNESS_AUDIT_2026-06.md](audit/CORRECTNESS_AUDIT_2026-06.md),
 > [AUDIT_QA_2026-06.md](audit/AUDIT_QA_2026-06.md)) and re-sequenced per the audit's
 > own second-pass QA. Every load-bearing claim below was independently fact-checked
@@ -96,11 +96,14 @@ prioritizes this over deep export fidelity.
   `spellPitchInKey` (in-key spelling wins, naturals preferred, out-of-key tie broken
   by direction — kills the `E♭→F♭→G𝄫…` explosion); added the key-aware spelling tests
   (incl. minor keys). Lossless undo (C3) unaffected.
-- **#242 Structural invariants at the model boundary** — capacity validation, tie
-  validity, selection repair on staff removal, chordTrack re-anchoring on
-  add/delete/reflow, `loadScore` validation; resolve the fail-fast vs fail-soft
-  contradiction (#209). **The architectural backbone.** Large enough to warrant its own
-  planning pass (likely parallel lanes) before coding.
+- ✅ **#242 Structural invariants at the model boundary** *(shipped v1.0.0-alpha.15)* —
+  capacity SSOT + measure/score validation, tie validity (`findTieTarget`), shift-left
+  delete, tuplet-as-fixed-span container, selection repair + `loadScore` validation,
+  chordTrack re-anchoring on add/delete (reflow re-anchor is orphan-drop only → **#255**),
+  never-silent overflow, plus the interactive tuplet-editing UX (insert-between, keyboard
+  step-through + ghost, blocked cursor) and reflow×tuplet integrity (**#256**). Shipped
+  across parallel lanes (0/A/C/D/E/F/G) + two adversarial QA passes. The fail-fast vs
+  fail-soft unification (#209) is partially advanced via the refusal registry.
   - **Mandatory dependency on #237 (guard, not full migration):** tuplet durations are
     non-integer on today's grid (eighth-triplet = 5.333…), and `getBreakdownOfQuants`
     silently drops the fractional remainder. Capacity math and note-position re-anchoring
@@ -179,18 +182,32 @@ dynamics (#20/#21), slurs (#19), lyrics (#30), repeats (#28), inline key/time ch
 ## Critical path
 
 ```
-M1 (truth) ✅  →  M2 (#239 ✅ → #242)  →  M3 (export/engraving)  →  (M4 decision)  →  M5
+M1 (truth) ✅  →  M2 (#239 ✅ → #242 ✅)  →  M3 (export/engraving)  →  (M4 decision)  →  M5
 ```
 
-**M2 is the long pole.** Start with **#239** (clean, self-contained, half-done), then give
-**#242 a dedicated planning pass** before touching it. M4 (page view) and M5 (chord
-theory) are largely independent of each other once M2 lands and can run in parallel.
+**M2 is shipped** (#239 in alpha.14, #242 in alpha.15) — it was the long pole. **M3
+(export/engraving) is next.** M4 (page view) and M5 (chord theory) are largely independent
+of each other and can run in parallel. M2 left tracked follow-ups: #255 (chord reflow
+re-anchoring), #263, #264, #261, and the partials #246/#254/#237.
 
 ## Cross-cutting — testing & CI (continuous, not a phase)
 
-- Pull a **thin real-browser geometry smoke** (Playwright) in early — the seam
-  (`window.riffScore`) exists, and it catches the rendered-geometry regressions unit
-  tests miss across M2–M4.
+- **Visual / engraving regression harness (#252)** — a curated set of **native `Score`
+  fixtures** rendered two ways. **Lane B (priority): real-browser pixel verification** —
+  render to actual pixels via the `window.riffScore` seam and image-diff approved
+  baselines (browser pinned, SMuFL font loaded, baselines approved in CI not locally);
+  this is the lane that actually *shows* a score is correct (jsdom can't — no fonts/layout),
+  and is the structured form of the long-planned thin Playwright geometry smoke. **Lane A
+  (supporting, every commit): a fast jsdom geometry net** — a *hybrid* of structured-fact
+  snapshots + targeted oracle assertions (the `RenderingDetailed.test.tsx` house style),
+  in the existing CI with no new dependency; verified high-fidelity because layout is
+  computed in JS (no DOM/font measurement). Deliberately **decoupled from import** (#10/#11),
+  which gives a *semantic* oracle, not a visual baseline (a Lane-B *corpus amplifier*,
+  never a prerequisite). **Runs parallel to M2.** · **Status:** ✅ shipped (v1.0.0-alpha.15) —
+  Lane A (59-fixture fact snapshots + oracles) and the gallery are green in the normal
+  suite; Lane B Playwright harness runs in CI against **committed linux baselines** (seeded
+  via the "Visual regression (Lane B)" dispatch). Both lanes verified to catch a seeded
+  regression. See [VISUAL_TESTING.md](VISUAL_TESTING.md).
 - Add **MusicXML 4.0 XSD validation** to CI (with M3 / #246).
 - Ongoing: unit-coverage (#17), E2E harness (#15), hit-detection test robustness
   (#211/#210), keep the theory/geometry oracles green.
@@ -199,7 +216,7 @@ theory) are largely independent of each other once M2 lands and can run in paral
 
 | Item | Depends on | Note |
 |---|---|---|
-| #242 (invariants) | #237 *guard* (not full migration) | Tuplet capacity/anchoring math needs the integrality guard; ship it inside #242. |
+| #242 (invariants) | ✅ done (alpha.15) | Shipped with the #237 integrality guard inside it (capacity/anchoring math); full ×LCM migration still deferred. |
 | #237 (full ×LCM migration) | — (`SCHEMA_VERSION` now at **2**) | Deferred until tuplet-heavy editing demonstrates a concrete bug. Use base ≥ 210, not 105; its migration bumps `SCHEMA_VERSION` to 3. |
 | #245 dotted/secondary beams | — | No #237 dependency; lands in M3. |
 | #245 tuplet beaming | #237 | Beat-boundary `% beatQuants` is unreliable with non-integer tuplet quants; deferred with #237. |

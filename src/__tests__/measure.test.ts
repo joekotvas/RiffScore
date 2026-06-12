@@ -106,6 +106,31 @@ describe('measure.ts', () => {
         expect(types).toContain('APPEND');
       });
 
+      test('generates a usable INSERT zone between tuplet members for every duration (#242)', () => {
+        // Before the fix, the ±HIT_RADIUS EVENT zone swallowed the gap and no INSERT zone was
+        // emitted for compressed tuplets (none at all for quarter/sixteenth triplets), making
+        // "insert between members" impossible by mouse.
+        for (const duration of ['quarter', 'eighth', 'sixteenth']) {
+          const tuplet = (position: number) => ({
+            ratio: [3, 2],
+            groupSize: 3,
+            position,
+            baseDuration: duration,
+            id: 'T',
+          });
+          const events = [
+            createEvent('a', duration, [createNote('an', 'C4')], { tuplet: tuplet(0) }),
+            createEvent('b', duration, [createNote('bn', 'E4')], { tuplet: tuplet(1) }),
+            createEvent('c', duration, [createNote('cn', 'G4')], { tuplet: tuplet(2) }),
+          ];
+          const layout = calculateMeasureLayout(events);
+          // An INSERT zone targeting index 1 = "between member 0 and member 1", with real width.
+          const between = layout.hitZones.find((z) => z.type === 'INSERT' && z.index === 1);
+          expect(between).toBeDefined();
+          expect((between!.endX - between!.startX)).toBeGreaterThan(4); // hittable, not a sliver
+        }
+      });
+
       test('should include chordLayout in processed events', () => {
         const events = [createEvent('e1', 'quarter', [createNote('n1', 'C4')])];
         const layout = calculateMeasureLayout(events);

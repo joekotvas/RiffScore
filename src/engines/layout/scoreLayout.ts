@@ -241,21 +241,25 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
         scoreKeySignature
       );
 
+      const beamGroups = calculateBeamingGroups(
+        measure.events,
+        relativeLayout.eventPositions,
+        staffClef,
+        scoreTimeSignature
+      );
+
       const measureLayout: MeasureLayoutV2 = {
         x: currentMeasureX,
         y: staffY,
         width,
         events: {},
-        beamGroups: calculateBeamingGroups(
-          measure.events,
-          relativeLayout.eventPositions,
-          staffClef,
-          scoreTimeSignature
-        ),
+        beamGroups,
+        // Pass the beams so a beamed tuplet's bracket can run parallel to its beam.
         tupletGroups: calculateTupletBrackets(
           relativeLayout.processedEvents,
           relativeLayout.eventPositions,
-          staffClef
+          staffClef,
+          beamGroups
         ),
         legacyLayout: relativeLayout,
       };

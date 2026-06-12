@@ -6,9 +6,11 @@
  *
  * @tested src/__tests__/core.test.ts
  */
-import { NOTE_TYPES, TIME_SIGNATURES } from '@/constants';
+import { NOTE_TYPES, getMeasureCapacity } from '@/constants';
 import { Measure, ScoreEvent } from '@/types';
 import { measureId, eventId } from '@/utils/id';
+import { hasTieTarget } from '@/utils/ties';
+import { getTupletRun } from '@/utils/tupletEdit';
 
 // --- Constants ---
 
@@ -88,14 +90,16 @@ export const getBreakdownOfQuants = (quants: number) => {
 // --- Reflow Logic Helpers ---
 
 /**
- * Flattens all measures into a single array of events and resets ties.
- * Ties are reset because reflow changes bar lines, requiring tie recalculation.
+ * Flattens all measures into a single event stream, cloning events/notes. Authored ties are
+ * PRESERVED (Lane E) — reflow keeps the user's ties and a final repairTies pass clears only those
+ * whose same-pitch neighbor is no longer adjacent after re-barring (the blanket tied:false reset
+ * here used to destroy every user tie on any time-signature change).
  */
 const flattenMeasures = (measures: Measure[]): ScoreEvent[] => {
   return measures.flatMap((m) =>
     m.events.map((e) => ({
       ...e,
-      notes: e.notes.map((n) => ({ ...n, tied: false })),
+      notes: e.notes.map((n) => ({ ...n })),
     }))
   );
 };
@@ -121,6 +125,42 @@ const createSplitEvents = (sourceEvent: ScoreEvent, availableQuants: number): Sc
 };
 
 /**
+ * The integral quant footprint of a tuplet group's members. A group's span is always an integral
+ * number of quants (the tuplet invariant), so rounding the summed member durations recovers the
+ * exact footprint without IEEE-754 drift. Shared by reflow and the fit guard so they agree.
+ */
+const tupletFootprint = (members: ScoreEvent[]): number =>
+  Math.round(members.reduce((sum, m) => sum + getNoteDuration(m.duration, m.dotted, m.tuplet), 0));
+
+/**
+ * Whether every tuplet group fits within a single bar of `timeSignature`. Reflow treats a group as
+ * atomic (never split), so a group whose footprint exceeds a whole bar has NO valid placement — the
+ * caller refuses the change rather than emit an overfull, invalid bar (#256).
+ */
+export const tupletsFitTimeSignature = (
+  staves: { measures: Measure[] }[],
+  timeSignature: string
+): boolean => {
+  const capacity = getMeasureCapacity(timeSignature);
+  for (const staff of staves) {
+    for (const measure of staff.measures) {
+      let i = 0;
+      while (i < measure.events.length) {
+        const run = measure.events[i].tuplet ? getTupletRun(measure.events, i) : null;
+        if (run) {
+          const members = measure.events.slice(run.start, run.end + 1);
+          if (tupletFootprint(members) > capacity) return false;
+          i = run.end + 1;
+        } else {
+          i += 1;
+        }
+      }
+    }
+  }
+  return true;
+};
+
+/**
  * Reflows the score based on a new time signature.
  * Redistributes events into measures, splitting and tying notes across bar lines.
  *
@@ -128,7 +168,9 @@ const createSplitEvents = (sourceEvent: ScoreEvent, availableQuants: number): Sc
  * @param newTimeSignature - New time signature string (e.g., '4/4')
  */
 export const reflowScore = (measures: Measure[], newTimeSignature: string): Measure[] => {
-  const maxQuants = TIME_SIGNATURES[newTimeSignature as keyof typeof TIME_SIGNATURES] || 64;
+  // Capacity comes from the single source of truth (derives any n/d, not just the fast-path table),
+  // so reflow can never disagree with the validators about how many quants fill a bar.
+  const maxQuants = getMeasureCapacity(newTimeSignature);
   const isPickup = measures.length > 0 && measures[0].isPickup;
 
   // 1. Flatten events to a single stream
@@ -152,22 +194,53 @@ export const reflowScore = (measures: Measure[], newTimeSignature: string): Meas
 
   // 3. Calculate Pickup Constraints
   // If we have a pickup, the first measure has a custom capacity (min of actual content or maxQuants)
-  const pickupTarget = isPickup ? Math.min(calculateTotalQuants(measures[0].events), maxQuants) : 0;
+  // Round to the integral quant scale the atomic-tuplet branch uses (footprint is Math.round'd), so a
+  // pickup tuplet isn't seen as "doesn't fit" by sub-quant IEEE-754 drift and pushed to the next bar.
+  const pickupTarget = isPickup
+    ? Math.min(Math.round(calculateTotalQuants(measures[0].events)), maxQuants)
+    : 0;
 
   let isFillingPickup = isPickup;
 
-  // 4. Distribute Events
-  allEvents.forEach((event) => {
-    const eventDuration = getNoteDuration(event.duration, event.dotted, event.tuplet);
+  // 4. Distribute Events.
+  //   - A TUPLET GROUP is an atomic, indivisible unit (#256): its whole run is placed in the current
+  //     bar if it fits, else pushed to the next bar — never split (splitting it via getBreakdownOfQuants
+  //     emitted plain fragments still carrying the tuplet object → an incoherent, invalid group).
+  //   - A plain event splits-and-ties across the bar line as before.
+  let i = 0;
+  while (i < allEvents.length) {
+    const event = allEvents[i];
     const currentMax = isFillingPickup ? pickupTarget : maxQuants;
-    const available = currentMax - currentMeasureQuants;
+    // Never negative: an atomic tuplet larger than the bar can leave currentMeasureQuants > currentMax;
+    // a negative `available` would inflate the NEXT plain event's split remainder (eventDuration -
+    // available), dropping/adding quants. Clamp so the overfull bar stays contained.
+    const available = Math.max(0, currentMax - currentMeasureQuants);
+
+    if (event.tuplet) {
+      const run = getTupletRun(allEvents, i);
+      const members = run ? allEvents.slice(run.start, run.end + 1) : [event];
+      const footprint = tupletFootprint(members);
+
+      // Doesn't fit the remaining space → close the current (possibly under-full) bar and start a
+      // fresh one. (A group larger than a whole bar still lands in its own bar rather than looping.)
+      if (footprint > available && currentMeasureEvents.length > 0) {
+        commitMeasure(isFillingPickup);
+        if (isFillingPickup) isFillingPickup = false;
+      }
+      currentMeasureEvents.push(...members);
+      currentMeasureQuants += footprint;
+      i = run ? run.end + 1 : i + 1;
+      continue;
+    }
+
+    const eventDuration = getNoteDuration(event.duration, event.dotted, event.tuplet);
 
     // A. Event fits in current measure
     if (eventDuration <= available) {
       currentMeasureEvents.push(event);
       currentMeasureQuants += eventDuration;
     }
-    // B. Event does not fit -> Split needed
+    // B. Event does not fit -> split-and-tie across the bar line
     else {
       // 1. Fill the remaining space in current measure
       if (available > 0) {
@@ -178,35 +251,40 @@ export const reflowScore = (measures: Measure[], newTimeSignature: string): Meas
       commitMeasure(isFillingPickup);
       if (isFillingPickup) isFillingPickup = false;
 
-      // 2. Handle the overflow (remainder)
-      const remainingQuants = eventDuration - available;
-      if (remainingQuants > 0) {
-        const remainderParts = getBreakdownOfQuants(remainingQuants);
+      // 2. Handle the overflow (remainder). Re-bar in BAR-SIZED chunks: a single note value can
+      // exceed a whole bar of the new meter (e.g. a half note reflowed to 3/8) — breaking the entire
+      // remainder down at once then placing the fragments would dump an over-capacity fragment into a
+      // bar (overfull) and fire the pre-commit on an empty buffer (a spurious empty bar). Instead fill
+      // each fresh bar up to maxQuants and split-and-tie at every bar line.
+      let remaining = eventDuration - available;
+      while (remaining > 0) {
+        const chunk = Math.min(remaining, maxQuants);
+        const isFinalChunk = chunk === remaining;
+        const parts = getBreakdownOfQuants(chunk);
 
-        remainderParts.forEach((part) => {
-          const newEvent = {
+        parts.forEach((part, partIndex) => {
+          // Every fragment but the very last ties onward to its continuation; the LAST fragment of the
+          // FINAL chunk carries each note's ORIGINAL onward tie, PER-NOTE. repairTies later clears it
+          // if that onward target didn't survive re-barring.
+          const isLastFragment = isFinalChunk && partIndex === parts.length - 1;
+          currentMeasureEvents.push({
             ...event,
             id: eventId(),
             duration: part.duration,
             dotted: part.dotted,
-            // Remainder inherits the *original* tie status of the event
-            // (If the original note was tied to a following note, this remainder keeps that connection)
-            notes: event.notes.map((n) => ({ ...n, tied: event.notes[0].tied })),
-          };
-
-          // Handle edge case: If a single note is massive (larger than a full measure),
-          // strict logic would require a recursive split.
-          // For now, we assume standard notes fit within 'maxQuants' or simply overflow.
-          if (currentMeasureQuants + part.quants > maxQuants) {
-            commitMeasure(false);
-          }
-
-          currentMeasureEvents.push(newEvent);
+            notes: event.notes.map((n) => ({ ...n, tied: isLastFragment ? !!n.tied : true })),
+          });
           currentMeasureQuants += part.quants;
         });
+
+        remaining -= chunk;
+        // The bar is now full to maxQuants; close it and continue with a fresh one. The final
+        // (under-full) chunk stays buffered for the next event or the cleanup commit.
+        if (remaining > 0) commitMeasure(false);
       }
     }
-  });
+    i++;
+  }
 
   // 5. Cleanup
   if (currentMeasureEvents.length > 0) {
@@ -218,8 +296,30 @@ export const reflowScore = (measures: Measure[], newTimeSignature: string): Meas
     newMeasures.push({ id: measureId(), events: [], isPickup });
   }
 
-  return newMeasures;
+  // Lane E: drop ties whose same-pitch neighbor no longer sits immediately after them post-rebar.
+  return repairTies(newMeasures);
 };
+
+/**
+ * Clears ties that no longer resolve to a same-pitch successor (Lane E). Run after reflow re-bars
+ * the stream: a user tie survives iff its neighbor is still immediately adjacent; split-internal
+ * fragment ties always resolve and are kept. This ONLY clears ties — it never invents one — so two
+ * coincidentally-adjacent same-pitch notes the user never tied stay untied.
+ */
+export const repairTies = (measures: Measure[]): Measure[] =>
+  measures.map((measure, measureIndex) => ({
+    ...measure,
+    events: measure.events.map((event, eventIndex) => ({
+      ...event,
+      notes: event.notes.map((note) =>
+        note.tied &&
+        (note.pitch === null ||
+          !hasTieTarget(measures, { measureIndex, eventIndex, pitch: note.pitch }))
+          ? { ...note, tied: false }
+          : note
+      ),
+    })),
+  }));
 
 // --- Type Guards & Helpers ---
 
@@ -227,6 +327,13 @@ export const isRestEvent = (event: ScoreEvent): boolean => !!event.isRest;
 
 export const isNoteEvent = (event: ScoreEvent): boolean =>
   !isRestEvent(event) && (event.notes?.length ?? 0) > 0;
+
+/**
+ * A reserved tuplet placeholder slot (#242): occupies its footprint and plays/exports as a
+ * rest, but renders blank and is overwritten by input. It IS a rest (`isRestEvent` is true);
+ * this only distinguishes it from a notated rest the user entered.
+ */
+export const isReservedSlot = (event: ScoreEvent): boolean => event.reserved === true;
 
 /**
  * Safe accessor for the first note ID of an event.

@@ -1,17 +1,19 @@
 import { Command } from './types';
-import { Score } from '@/types';
+import { Score, ScoreEvent } from '@/types';
 import { updateMeasure } from '@/utils/commandHelpers';
+import { getMeasureCapacity } from '@/constants';
+import { sumQuants } from '@/utils/tuplet';
+import { eventsWithoutTuplet } from '@/utils/tupletEdit';
 
 /**
  * Command to remove tuplet metadata from a group of events.
- * Converts tuplet notes back to regular notes.
+ * Converts tuplet notes back to regular notes; the group's reserved (free-space) slots collapse.
  */
 export class RemoveTupletCommand implements Command {
   public readonly type = 'REMOVE_TUPLET';
-  private previousStates: Array<{
-    eventId: string;
-    tuplet?: { ratio: [number, number]; groupSize: number; position: number };
-  }> = [];
+  // Snapshot of the measure's events before execute — a whole-array undo is exact regardless of how
+  // many reserved slots were dropped (which would otherwise shift indices).
+  private prevEvents: ScoreEvent[] | null = null;
 
   constructor(
     private measureIndex: number,
@@ -20,48 +22,30 @@ export class RemoveTupletCommand implements Command {
   ) {}
 
   execute(score: Score): Score {
+    const capacity = getMeasureCapacity(score.timeSignature);
     return updateMeasure(score, this.staffIndex, this.measureIndex, (measure) => {
       const events = measure.events;
-      const targetEvent = events[this.eventIndex];
+      if (!events[this.eventIndex]?.tuplet) return false;
 
-      if (!targetEvent?.tuplet) return false;
+      // Real members de-tuplet, reserved slots collapse — shared with the API/UI prechecks.
+      const newEvents = eventsWithoutTuplet(events, this.eventIndex);
 
-      const { groupSize, position } = targetEvent.tuplet;
-      const startIndex = this.eventIndex - position;
+      // Fail closed: stripping the tuplet restores each real member's full (nominal) duration. If
+      // that would overflow the measure, leave the score untouched rather than silently create an
+      // invalid overfull bar (the call sites pre-check and report the refusal). Pickups are validated
+      // at full-bar capacity too (validateMeasure has no pickup exemption), so guard them the same.
+      if (sumQuants(newEvents).quants > capacity) return false;
 
-      this.previousStates = [];
-      const newEvents = [...events];
-
-      for (let i = 0; i < groupSize; i++) {
-        const idx = startIndex + i;
-        if (idx < 0 || idx >= newEvents.length) continue;
-
-        const event = newEvents[idx];
-        this.previousStates.push({
-          eventId: event.id,
-          tuplet: event.tuplet ? { ...event.tuplet } : undefined,
-        });
-
-        newEvents[idx] = { ...event, tuplet: undefined };
-      }
-
+      this.prevEvents = events;
       measure.events = newEvents;
       return true;
     });
   }
 
   undo(score: Score): Score {
+    if (!this.prevEvents) return score;
     return updateMeasure(score, this.staffIndex, this.measureIndex, (measure) => {
-      const newEvents = [...measure.events];
-
-      this.previousStates.forEach(({ eventId, tuplet }) => {
-        const eventIndex = newEvents.findIndex((e) => e.id === eventId);
-        if (eventIndex !== -1) {
-          newEvents[eventIndex] = { ...newEvents[eventIndex], tuplet };
-        }
-      });
-
-      measure.events = newEvents;
+      measure.events = this.prevEvents as ScoreEvent[];
       return true;
     });
   }

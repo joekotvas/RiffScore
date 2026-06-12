@@ -9,6 +9,7 @@
 
 import { useMemo } from 'react';
 import { Selection, Score, ScoreEvent, getActiveStaff } from '@/types';
+import { hasTieTarget } from '@/utils/ties';
 
 /**
  * Return type for derived selection metadata
@@ -97,13 +98,18 @@ export const useDerivedSelection = (
     ) => {
       const staff = score.staves[staffIndex] || getActiveStaff(score);
       const measure = staff.measures[measureIndex];
-      const event = measure?.events.find((e: ScoreEvent) => e.id === eventId);
+      const eventIndex = measure?.events.findIndex((e: ScoreEvent) => e.id === eventId) ?? -1;
+      const event = eventIndex >= 0 ? measure!.events[eventIndex] : undefined;
       if (event) {
+        // Lane E: report a note as tied only when its tie actually RESOLVES (renders) — a forward
+        // flag whose target was deleted/rested must not light the tie button.
+        const rendersTie = (n: { pitch: string | null; tied?: boolean }) =>
+          !!n.tied && n.pitch != null && hasTieTarget(staff.measures, { measureIndex, eventIndex, pitch: n.pitch });
         if (noteId) {
           const note = event.notes.find((n) => n.id === noteId);
-          if (note) ties.add(!!note.tied);
+          if (note) ties.add(rendersTie(note));
         } else {
-          event.notes.forEach((n) => ties.add(!!n.tied));
+          event.notes.forEach((n) => ties.add(rendersTie(n)));
         }
       }
     };

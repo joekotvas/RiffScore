@@ -1,6 +1,6 @@
 {
   "name": "riffscore",
-  "version": "1.0.0-alpha.14",
+  "version": "1.0.0-alpha.15",
   "description": "An intuitive, embeddable sheet music editor for React",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -30,6 +30,9 @@
     "format:check": "prettier --check src/",
     "demo:dev": "cd demo && npm run dev",
     "demo:build": "cd demo && npm run build",
+    "visual:gallery": "node scripts/build-gallery.mjs",
+    "visual:pixel": "playwright test",
+    "visual:pixel:update": "playwright test --update-snapshots",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
@@ -42,6 +45,7 @@
     "tone": "^15.1.22"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@size-limit/preset-small-lib": "^12.0.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",

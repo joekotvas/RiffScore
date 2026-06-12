@@ -1,10 +1,12 @@
 import { MusicEditorAPI } from '@/api.types';
-import { Score } from '@/types';
+import { Score, migrateScore } from '@/types';
 import { APIContext } from './types';
 import { LoadScoreCommand } from '@/commands';
+import { validateScore } from '@/utils/validation';
 import { generateABC } from '@/exporters/abcExporter';
 import { generateMusicXML } from '@/exporters/musicXmlExporter';
 import { generateStaves } from '@/utils/generateScore';
+import { refuse } from '@/refusals';
 
 /**
  * IO method names provided by this factory
@@ -29,14 +31,43 @@ export const createIOMethods = (
     loadScore(newScore) {
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
       const { dispatch } = ctx;
+
+      // #209 / Lane G: don't claim success on structurally malformed input — the dispatch would
+      // otherwise no-op (invalid state) while loadScore still reported ok:true.
+      if (!newScore || !Array.isArray(newScore.staves) || newScore.staves.length === 0) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'loadScore',
+          message: 'Cannot load score: missing or empty staves',
+          code: 'INVALID_SCORE',
+        });
+        return this;
+      }
+
       dispatch(new LoadScoreCommand(newScore));
-      setResult({
-        ok: true,
-        status: 'info',
-        method: 'loadScore',
-        message: 'Score loaded',
-        details: { title: newScore.title, measures: newScore.staves[0]?.measures.length },
-      });
+
+      // Surface content-validity problems (over-full / incomplete-tuplet bars, grand-staff parity)
+      // as a NON-blocking warning: the score still loads (so it can be fixed) but the caller is told.
+      const validation = validateScore(migrateScore(newScore));
+      setResult(
+        validation.valid
+          ? {
+              ok: true,
+              status: 'info',
+              method: 'loadScore',
+              message: 'Score loaded',
+              details: { title: newScore.title, measures: newScore.staves[0]?.measures.length },
+            }
+          : {
+              ok: true,
+              status: 'warning',
+              method: 'loadScore',
+              message: `Score loaded with ${validation.errors.length} validation issue(s)`,
+              code: 'SCORE_VALIDATION_WARNINGS',
+              details: { title: newScore.title, errors: validation.errors },
+            }
+      );
       return this;
     },
 
@@ -51,6 +82,7 @@ export const createIOMethods = (
         staves,
         title: 'New Score',
         bpm: 120, // Reset BPM to default
+        chordTrack: [], // fresh staves have no events — drop the old chords (#242)
       };
 
       dispatch(new LoadScoreCommand(newScore));
@@ -79,12 +111,11 @@ export const createIOMethods = (
         } else if (format === 'musicxml') {
           output = generateMusicXML(score);
         } else {
+          // A hard failure (the export did not happen), distinct from the lenient NOT_IMPLEMENTED
+          // stubs — so it keeps error severity / ok:false.
           setResult({
-            ok: false,
-            status: 'error',
             method: 'export',
-            message: `Export format '${format}' not yet implemented`,
-            code: 'NOT_IMPLEMENTED',
+            ...refuse('EXPORT_NOT_IMPLEMENTED', { messageCtx: { format } }),
           });
           return ''; // Fail-safe: return empty string
         }

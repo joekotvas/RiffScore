@@ -56,6 +56,46 @@ describe('ScoreAPI Modification & IO Methods', () => {
       expect(current.title).toBe('New Score');
       expect(current.staves[0].clef).toBe('bass');
     });
+
+    test('rejects structurally malformed input instead of reporting success (#209)', () => {
+      render(<RiffScore id="load-bad" />);
+      const api = getAPI('load-bad');
+      const beforeTitle = api.getScore().title;
+
+      act(() => {
+        api.loadScore({ title: 'No staves' } as unknown as Score);
+      });
+
+      expect(api.result).toMatchObject({ ok: false, status: 'error', code: 'INVALID_SCORE' });
+      // The score is left untouched (the malformed load did not replace it).
+      expect(api.getScore().title).toBe(beforeTitle);
+    });
+  });
+
+  describe('setDuration overflow (#242 Lane D)', () => {
+    test('rejects an overflowing duration change instead of producing an over-full bar', () => {
+      render(<RiffScore id="dur-overflow" />);
+      const api = getAPI('dur-overflow');
+
+      // Fill a 4/4 bar with four quarters.
+      act(() => {
+        api
+          .select(0)
+          .addNote('C4', 'quarter')
+          .addNote('C4', 'quarter')
+          .addNote('C4', 'quarter')
+          .addNote('C4', 'quarter');
+      });
+
+      // Select the first quarter and try to make it a whole note — it can't fit.
+      act(() => {
+        api.move('left').move('left').move('left').move('left').setDuration('whole');
+      });
+
+      expect(api.result).toMatchObject({ ok: false, status: 'error', code: 'DURATION_OVERFLOW' });
+      // The event is left unchanged (no over-full bar created).
+      expect(api.getScore().staves[0].measures[0].events[0].duration).toBe('quarter');
+    });
   });
 
   describe('IO: export', () => {
@@ -294,6 +334,18 @@ describe('ScoreAPI Modification & IO Methods', () => {
       note = api.getScore().staves[0].measures[0].events[0].notes[0];
       expect(note.pitch).toBe('D4');
     });
+
+    test('reports NO_SELECTION on a no-op (nothing selected), matching transpose() (#242 QA)', () => {
+      render(<RiffScore id="transpose-noop" />);
+      const api = getAPI('transpose-noop');
+
+      // Fresh instance, nothing selected → a no-op must report failure, not ok:true.
+      act(() => {
+        api.transposeDiatonic(2);
+      });
+
+      expect(api.result).toMatchObject({ ok: false, status: 'error', code: 'NO_SELECTION' });
+    });
   });
 
   describe('Modification: updateEvent', () => {
@@ -321,6 +373,31 @@ describe('ScoreAPI Modification & IO Methods', () => {
 
       const event = api.getScore().staves[0].measures[0].events[0];
       expect(event.duration).toBe('half');
+    });
+
+    test('rejects a duration change that would overflow the measure (#242 QA)', () => {
+      render(<RiffScore id="update-event-overflow" />);
+      const api = getAPI('update-event-overflow');
+
+      // Fill a 4/4 bar with four quarters, then try to widen the first to a whole via the escape hatch.
+      act(() => {
+        api
+          .select(0)
+          .addNote('C4', 'quarter')
+          .addNote('C4', 'quarter')
+          .addNote('C4', 'quarter')
+          .addNote('C4', 'quarter');
+      });
+      act(() => {
+        api.select(0, 0, 0); // select the first quarter
+      });
+      act(() => {
+        api.updateEvent({ duration: 'whole' } as unknown as Parameters<typeof api.updateEvent>[0]);
+      });
+
+      expect(api.result).toMatchObject({ ok: false, status: 'error', code: 'DURATION_OVERFLOW' });
+      // Escape hatch still upholds the never-silently-overfull invariant — event unchanged.
+      expect(api.getScore().staves[0].measures[0].events[0].duration).toBe('quarter');
     });
   });
 
@@ -548,6 +625,41 @@ describe('ScoreAPI Modification & IO Methods', () => {
       // Data usually lost unless implementation preserves it (unlikely for "SetSingleStaff")
       const eventsC3 = score.staves[1].measures[0].events.filter((e) => !e.isRest);
       expect(eventsC3.length).toBe(0); // Expect data loss
+    });
+  });
+
+  describe('deep-QA regressions (#14, #19, #21)', () => {
+    test('#14 deleteSelected with no selection reports a failure (consistent with NO_SELECTION)', () => {
+      render(<RiffScore id="dq-del" />);
+      const api = getAPI('dq-del');
+      act(() => api.deselectAll());
+      api.deleteSelected();
+      const r = api.result;
+      expect(r.ok).toBe(false);
+      expect(r.status).toBe('error');
+      expect(r.code).toBe('NO_SELECTION');
+    });
+
+    test('#19 setTimeSignature to the current value is a no-op that does not pollute undo', () => {
+      render(<RiffScore id="dq-ts" />);
+      const api = getAPI('dq-ts');
+      act(() => api.setTimeSignature('3/4')); // a real change
+      const canUndoAfterReal = api.getScore().timeSignature;
+      expect(canUndoAfterReal).toBe('3/4');
+      act(() => api.setTimeSignature('3/4')); // unchanged → no-op
+      // undo once should revert the ONE real change back to the default, proving the no-op didn't
+      // push a second command.
+      act(() => api.undo());
+      expect(api.getScore().timeSignature).not.toBe('3/4');
+    });
+
+    test('#21 transposeDiatonic with a null-measure selection reports a failure (no false ok)', () => {
+      render(<RiffScore id="dq-tr" />);
+      const api = getAPI('dq-tr');
+      act(() => api.deselectAll());
+      api.transposeDiatonic(1);
+      expect(api.result.ok).toBe(false);
+      expect(api.result.code).toBe('NO_SELECTION');
     });
   });
 });

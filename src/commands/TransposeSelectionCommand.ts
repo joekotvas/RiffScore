@@ -1,5 +1,5 @@
 import { Command } from './types';
-import { Score, getActiveStaff, Selection, Staff, ScoreEvent, Note } from '@/types';
+import { Score, getValidStaff, Selection, Staff, ScoreEvent, Note } from '@/types';
 import { movePitchVisual } from '@/services/MusicService';
 import { PIANO_RANGE } from '@/constants';
 import { NoteSnapshot, snapshotNotes, restoreNoteSnapshots } from './transposeSnapshot';
@@ -83,8 +83,10 @@ export class TransposeSelectionCommand implements Command {
     // execute() reads measures from getActiveStaff() but writes them back to
     // newStaves[staffIndex]; mirror that write target so undo restores exactly
     // the notes execute() changed.
-    const activeStaff = getActiveStaff(score, staffIndex);
-    const measure = activeStaff.measures[this.selection.measureIndex];
+    // Strict staff resolution (#242 Lane G): a stale/out-of-range staffIndex must NOT silently
+    // retarget staff 0 and transpose the wrong notes — it yields no targets instead.
+    const activeStaff = getValidStaff(score, staffIndex);
+    const measure = activeStaff?.measures[this.selection.measureIndex];
     if (!measure) return targets;
 
     // Case 1: specific note
@@ -127,7 +129,8 @@ export class TransposeSelectionCommand implements Command {
     if (this.selection.measureIndex === null) return score;
 
     const staffIndex = this.selection.staffIndex ?? 0;
-    const activeStaff = getActiveStaff(score, staffIndex);
+    const activeStaff = getValidStaff(score, staffIndex);
+    if (!activeStaff) return score; // out-of-range staff → no-op (don't retarget staff 0)
     // Key-aware transposition uses the key signature, not clef
     const keySig = activeStaff.keySignature || this.keySignature || 'C';
 

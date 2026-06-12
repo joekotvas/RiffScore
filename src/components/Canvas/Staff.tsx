@@ -9,6 +9,7 @@ import {
 } from '@/engines/layout';
 import { StaffLayout } from '@/engines/layout/types';
 import { isNoteSelected } from '@/utils/selection';
+import { findTieTarget } from '@/utils/ties';
 import Measure from './Measure';
 import Tie from './Tie';
 import ScoreHeader from './ScoreHeader';
@@ -109,10 +110,23 @@ const Staff: React.FC<StaffProps> = ({
   const isFirstSystem = systemIndex === 0;
   const { measuresX } = calculateSystemPreamble(keySignature, { isFirstSystem });
 
-  // Calculate measure positions and render
-  // stretchFactor is passed from parent (ScoreCanvas) which computes it
-  // using max measure widths across all staves for grand staff alignment
-  let currentX = measuresX;
+  // Calculate measure positions and render.
+  // stretchFactor is passed from parent (ScoreCanvas) which computes it using max measure widths
+  // across all staves for grand staff alignment. Pre-compute each measure's stretched width and
+  // cumulative start-x in a plain pass so the render map only READS positions — reassigning an
+  // accumulator inside .map trips the React Compiler immutability rule (react-hooks/immutability).
+  const stretchedWidths = measures.map((measure, index) => {
+    const actualMeasureIndex = measureIndices?.[index] ?? index;
+    const width =
+      staffLayout?.measures[actualMeasureIndex]?.width ??
+      calculateMeasureWidth(measure.events, measure.isPickup);
+    return width * stretchFactor;
+  });
+  const measureStartXs: number[] = [];
+  for (let i = 0, x = measuresX; i < stretchedWidths.length; i++) {
+    measureStartXs.push(x);
+    x += stretchedWidths[i];
+  }
 
   const measureComponents = measures.map((measure, index: number) => {
     // Use actual measure index if provided (page view), otherwise use array index
@@ -123,8 +137,8 @@ const Staff: React.FC<StaffProps> = ({
     const measureLayoutV2 = staffLayout?.measures[actualMeasureIndex];
     const legacyLayout = measureLayoutV2?.legacyLayout;
 
-    const width = measureLayoutV2?.width ?? calculateMeasureWidth(measure.events, measure.isPickup);
     const forcedPositions = legacyLayout?.eventPositions;
+    const stretchedWidth = stretchedWidths[index];
 
     // Only show preview note if it belongs to this staff
     // We create a DERIVED InteractionState for this scope
@@ -138,13 +152,10 @@ const Staff: React.FC<StaffProps> = ({
       previewNote: staffPreviewNote,
     };
 
-    // Apply stretch factor to measure width for justified systems
-    const stretchedWidth = width * stretchFactor;
-
-    const component = (
+    return (
       <Measure
         key={measure.id}
-        startX={currentX}
+        startX={measureStartXs[index]}
         measureIndex={actualMeasureIndex}
         measureData={measure}
         isLast={index === measures.length - 1 && isLastSystem}
@@ -164,12 +175,7 @@ const Staff: React.FC<StaffProps> = ({
         interaction={scopedInteraction}
       />
     );
-    currentX += stretchedWidth;
-    return component;
   });
-
-  // Calculate total width for this staff
-  currentX += 50;
 
   // Render ties between notes
   const renderTies = () => {
@@ -206,8 +212,6 @@ const Staff: React.FC<StaffProps> = ({
 
     allNotes.forEach((note) => {
       if (note.tied) {
-        let nextNote = null;
-
         // Check Selection using global staffIndex
         const eventId = measures[note.measureIndex]?.events[note.eventIndex]?.id;
         const isSelected = isNoteSelected(interaction.selection, {
@@ -221,27 +225,26 @@ const Staff: React.FC<StaffProps> = ({
         // Important: Use theme.score.note as default instead of hardcoded 'black'
         const tieColor = isSelected ? theme.accent : theme.score.note;
 
-        let targetMIndex = note.measureIndex;
-        let targetEIndex = note.eventIndex + 1;
-
-        // Handle measure overflow
-        if (targetEIndex >= measures[targetMIndex].events.length) {
-          targetMIndex++;
-          targetEIndex = 0;
-        }
-
-        // Check if valid event exists
-        if (targetMIndex < measures.length && targetEIndex < measures[targetMIndex].events.length) {
-          nextNote = allNotes.find(
-            (n) =>
-              n.measureIndex === targetMIndex &&
-              n.eventIndex === targetEIndex &&
-              n.pitch === note.pitch
-          );
-        }
+        // Lane E: a tie resolves to the same-pitch note in the immediate next event (cross-barline
+        // aware; rests and reserved slots are never targets) via the canonical findTieTarget.
+        const target = findTieTarget(measures, {
+          measureIndex: note.measureIndex,
+          eventIndex: note.eventIndex,
+          pitch: note.pitch,
+        });
+        const nextNote = target
+          ? allNotes.find(
+              (n) =>
+                n.measureIndex === target.measureIndex &&
+                n.eventIndex === target.eventIndex &&
+                n.pitch === note.pitch
+            )
+          : null;
 
         const direction = getOffsetForPitch(note.pitch, clef) > 24 ? 'down' : 'up';
 
+        // Render a tie ONLY when it resolves — no hanging stub. A tied flag whose target was
+        // deleted or turned into a rest draws nothing (and reconnects if the target returns).
         if (nextNote) {
           ties.push(
             <Tie
@@ -250,19 +253,6 @@ const Staff: React.FC<StaffProps> = ({
               startY={note.y}
               endX={nextNote.x}
               endY={nextNote.y}
-              direction={direction}
-              color={tieColor}
-            />
-          );
-        } else {
-          // Hanging Tie
-          ties.push(
-            <Tie
-              key={`tie-hanging-${note.id}`}
-              startX={note.x + 10}
-              startY={note.y}
-              endX={note.x + 35}
-              endY={note.y}
               direction={direction}
               color={tieColor}
             />

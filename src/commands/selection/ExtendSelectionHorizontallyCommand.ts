@@ -366,64 +366,75 @@ export class ExtendSelectionHorizontallyCommand implements SelectionCommand {
     const measure = staff.measures[measureIndex];
     if (!measure) return null;
 
+    // Skip reserved tuplet slots — they are free space, never a selectable extension target.
+    const realIdx = (events: typeof measure.events, from: number, dir: 1 | -1): number => {
+      let j = from;
+      while (j >= 0 && j < events.length && events[j].reserved) j += dir;
+      return j;
+    };
+
     if (direction === 'right') {
-      // Try next event in same measure
-      if (eventIndex + 1 < measure.events.length) {
-        const nextEvent = measure.events[eventIndex + 1];
-        // Calculate cumulative quant up to the NEXT event (so include current event)
-        const cumQuant = calculateCumulativeQuant(measure.events, eventIndex + 1);
+      // Try next (non-reserved) event in same measure
+      const j = realIdx(measure.events, eventIndex + 1, 1);
+      if (j < measure.events.length) {
+        const nextEvent = measure.events[j];
+        const cumQuant = calculateCumulativeQuant(measure.events, j);
 
         return {
           staffIndex,
           measureIndex,
-          eventIndex: eventIndex + 1,
+          eventIndex: j,
           eventId: nextEvent.id,
           noteId: nextEvent.notes?.[0]?.id ?? '',
           globalPosition: measureIndex * MEASURE_POSITION_MULTIPLIER + cumQuant,
         };
       }
-      // Try first event in next measure
+      // Try first (non-reserved) event in next measure
       if (measureIndex + 1 < staff.measures.length) {
         const nextMeasure = staff.measures[measureIndex + 1];
-        if (nextMeasure.events.length > 0) {
-          const firstEvent = nextMeasure.events[0];
+        const k = realIdx(nextMeasure.events, 0, 1);
+        if (k < nextMeasure.events.length) {
+          const firstEvent = nextMeasure.events[k];
           return {
             staffIndex,
             measureIndex: measureIndex + 1,
-            eventIndex: 0,
+            eventIndex: k,
             eventId: firstEvent.id,
             noteId: firstEvent.notes?.[0]?.id ?? '',
-            globalPosition: (measureIndex + 1) * MEASURE_POSITION_MULTIPLIER,
+            globalPosition:
+              (measureIndex + 1) * MEASURE_POSITION_MULTIPLIER +
+              calculateCumulativeQuant(nextMeasure.events, k),
           };
         }
       }
     } else {
-      // Try previous event in same measure
-      if (eventIndex > 0) {
-        const prevEvent = measure.events[eventIndex - 1];
-        const cumQuant = calculateCumulativeQuant(measure.events, eventIndex - 1);
+      // Try previous (non-reserved) event in same measure
+      const j = realIdx(measure.events, eventIndex - 1, -1);
+      if (j >= 0) {
+        const prevEvent = measure.events[j];
+        const cumQuant = calculateCumulativeQuant(measure.events, j);
 
         return {
           staffIndex,
           measureIndex,
-          eventIndex: eventIndex - 1,
+          eventIndex: j,
           eventId: prevEvent.id,
           noteId: prevEvent.notes?.[0]?.id ?? '',
           globalPosition: measureIndex * MEASURE_POSITION_MULTIPLIER + cumQuant,
         };
       }
-      // Try last event in previous measure
+      // Try last (non-reserved) event in previous measure
       if (measureIndex > 0) {
         const prevMeasure = staff.measures[measureIndex - 1];
-        if (prevMeasure.events.length > 0) {
-          const lastEventIndex = prevMeasure.events.length - 1;
-          const lastEvent = prevMeasure.events[lastEventIndex];
-          const cumQuant = calculateCumulativeQuant(prevMeasure.events, lastEventIndex);
+        const k = realIdx(prevMeasure.events, prevMeasure.events.length - 1, -1);
+        if (k >= 0) {
+          const lastEvent = prevMeasure.events[k];
+          const cumQuant = calculateCumulativeQuant(prevMeasure.events, k);
 
           return {
             staffIndex,
             measureIndex: measureIndex - 1,
-            eventIndex: lastEventIndex,
+            eventIndex: k,
             eventId: lastEvent.id,
             noteId: lastEvent.notes?.[0]?.id ?? '',
             globalPosition: (measureIndex - 1) * MEASURE_POSITION_MULTIPLIER + cumQuant,

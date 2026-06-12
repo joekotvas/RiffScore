@@ -1,4 +1,4 @@
-import { ScoreEvent, TupletBracketGroup } from './types';
+import { ScoreEvent, TupletBracketGroup, BeamGroup } from './types';
 import { getNoteDuration } from '@/utils/core';
 import { getOffsetForPitch } from './positioning';
 import { CONFIG } from '@/config';
@@ -60,7 +60,8 @@ export const getTupletGroup = (events: ScoreEvent[], startIndex: number): ScoreE
 export const calculateTupletBrackets = (
   events: ScoreEvent[],
   eventPositions: Record<string, number>,
-  clef: string = 'treble'
+  clef: string = 'treble',
+  beamGroups: BeamGroup[] = []
 ): TupletBracketGroup[] => {
   const brackets: TupletBracketGroup[] = [];
 
@@ -77,28 +78,26 @@ export const calculateTupletBrackets = (
     const minNoteY = Math.min(...noteYs);
     const maxNoteY = Math.max(...noteYs);
 
-    // 2. Stems
-    // We need to know stem direction and length to know where the stem tip is.
-    // We can approximate or re-calculate.
-    // If we have chordLayout, use it.
-    const chordDir = event.chordLayout?.direction || 'down'; // Default down?
-
-    // Standard stem length from centralized config
-    const stemLen = STEM.LENGTHS.default;
+    // 2. Stem tip. A tuplet can span mixed values that form SEPARATE beams (or beamed +
+    // unbeamed notes), so we resolve each event's real stem tip individually:
+    //  - If the event belongs to a beam, its stem tip sits ON that beam's line at the
+    //    event's x (so the bracket tracks the actual beamed stems, whatever their slope).
+    //  - Otherwise (unbeamed: quarters, lone eighths) use the default stem length.
+    const chordDir = event.chordLayout?.direction || 'down';
+    const beam = beamGroups.find((b) => b.ids.includes(event.id));
 
     let topY = minNoteY;
     let bottomY = maxNoteY;
 
-    if (chordDir === 'up') {
-      // Stem goes up from highest note (minY)
-      // Actually stem goes up from the note on the right?
-      // For single stem, it goes up from the notehead.
-      // Stem tip Y = minNoteY - stemLen
-      topY = Math.min(topY, minNoteY - stemLen);
+    if (beam && beam.endX !== beam.startX) {
+      const beamSlope = (beam.endY - beam.startY) / (beam.endX - beam.startX);
+      const beamY = beam.startY + beamSlope * ((eventPositions[event.id] ?? 0) - beam.startX);
+      if (beam.direction === 'up') topY = Math.min(topY, beamY);
+      else bottomY = Math.max(bottomY, beamY);
     } else {
-      // Stem goes down from lowest note (maxY)
-      // Stem tip Y = maxNoteY + stemLen
-      bottomY = Math.max(bottomY, maxNoteY + stemLen);
+      const stemLen = STEM.LENGTHS.default;
+      if (chordDir === 'up') topY = Math.min(topY, minNoteY - stemLen);
+      else bottomY = Math.max(bottomY, maxNoteY + stemLen);
     }
 
     return { topY, bottomY };
@@ -166,14 +165,16 @@ export const calculateTupletBrackets = (
         };
       });
 
-      // Initial guess: Line between first and last limit
-      // Add some padding
-      let y1 = limits[0].y + (direction === 'up' ? -TUPLET.PADDING : TUPLET.PADDING);
-      let y2 =
-        limits[limits.length - 1].y + (direction === 'up' ? -TUPLET.PADDING : TUPLET.PADDING);
-
-      // Calculate slope m
-      let m = (y2 - y1) / (endX - startX);
+      // Slope from the FIRST and LAST stem tips at their REAL x, so the bracket line is
+      // collinear with the line through those tips: for a single beam that line IS the beam
+      // (bracket runs parallel to it); for mixed/separate beams it tracks the outer contour.
+      // y1/y2 are then extrapolated out to the bracket ends (startX/endX) along that slope.
+      const first = limits[0];
+      const last = limits[limits.length - 1];
+      const padOff = direction === 'up' ? -TUPLET.PADDING : TUPLET.PADDING;
+      let m = last.x === first.x ? 0 : (last.y - first.y) / (last.x - first.x);
+      let y1 = first.y + m * (startX - first.x) + padOff;
+      let y2 = first.y + m * (endX - first.x) + padOff;
 
       // Limit slope (max angle from constant)
       if (Math.abs(m) > TUPLET.MAX_SLOPE) {

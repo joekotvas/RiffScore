@@ -6,7 +6,9 @@ module.exports = {
     '^.+\\.(ts|tsx)$': 'ts-jest',
   },
   testMatch: ['**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)'],
-  testPathIgnorePatterns: ['/node_modules/', '/.claude/', '/__tests__/helpers/', '/__tests__/fixtures/', 'setupTests.ts'],
+  // '/e2e/' keeps Playwright specs (which import @playwright/test) out of the Jest run;
+  // they match the generic *.spec glob but belong to Lane B (npm run visual:pixel).
+  testPathIgnorePatterns: ['/node_modules/', '/.claude/', '/__tests__/helpers/', '/__tests__/fixtures/', '/e2e/', 'setupTests.ts'],
   // Never let git worktrees created under .claude/worktrees (e.g. by parallel agent
   // runs) pollute test/module collection with duplicate copies of the suite.
   modulePathIgnorePatterns: ['/.claude/'],

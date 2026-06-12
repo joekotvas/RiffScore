@@ -1,5 +1,6 @@
-import { NOTE_TYPES, KEY_SIGNATURES } from '@/constants';
+import { NOTE_TYPES, KEY_SIGNATURES, getMeasureCapacity } from '@/constants';
 import { DEFAULT_SCORE_METADATA } from '@/config';
+import { padMeasureForExport } from './exportNormalize';
 import {
   getActiveStaff,
   Score,
@@ -11,6 +12,7 @@ import {
   ScoreMetadata,
 } from '@/types';
 import { isRestEvent, getNoteDuration } from '@/utils/core';
+import { hasTieTarget } from '@/utils/ties';
 import { Note as TonalNote } from 'tonal';
 import { canonicalizeKeySignature } from '@/utils/keyResolution';
 import { MeasureAccidentalState, keySignatureAltForLetter } from '@/utils/accidentalContext';
@@ -192,7 +194,8 @@ export const generateABC = (score: Score, bpm: number): string => {
       // are cancelled with '='; reset for every new measure.
       const accidentalState = new MeasureAccidentalState();
 
-      measure.events.forEach((event: ScoreEvent) => {
+      // Pad an under-full bar with trailing rests for valid output (#242); never mutates state.
+      padMeasureForExport(measure, getMeasureCapacity(timeSig)).forEach((event: ScoreEvent, eventIndex: number) => {
         // Calculate Duration
         let durationString = '';
         const base = NOTE_TYPES[event.duration]?.abcDuration || '';
@@ -283,14 +286,21 @@ export const generateABC = (score: Score, bpm: number): string => {
           // Ties: in ABC the hyphen follows the complete note token (pitch +
           // duration), e.g. C2- or [CEG]2-. A single-note event is tied when its
           // note is tied; a chord event is tied when any of its notes is tied.
+          // Lane E: emit the tie hyphen only when a tied note actually resolves to a same-pitch
+          // successor. ABC has one tie token per event, so partial chord ties flatten to a single
+          // '-' (an accepted ABC-spec limitation, not a regression).
+          const tieResolves = (n: Note) =>
+            !!n.tied &&
+            n.pitch != null &&
+            hasTieTarget(staff.measures, { measureIndex, eventIndex, pitch: n.pitch });
           if (event.notes.length > 1) {
             const chordContent = event.notes.map(formatNote).join('');
-            const tie = event.notes.some((n) => n.tied) ? '-' : '';
+            const tie = event.notes.some(tieResolves) ? '-' : '';
             abc += `${prefix}[${chordContent}]${durationString}${tie} `;
           } else {
             const note = event.notes[0];
             const noteContent = formatNote(note);
-            const tie = note?.tied ? '-' : '';
+            const tie = note && tieResolves(note) ? '-' : '';
             abc += `${prefix}${noteContent}${durationString}${tie} `;
           }
         }

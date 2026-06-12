@@ -19,9 +19,12 @@ import {
   UpdateNoteCommand,
   SetBpmCommand,
 } from '@/commands';
-import { parseDuration, clampBpm } from '@/utils/validation';
+import { parseDuration, clampBpm, canModifyEventDuration } from '@/utils/validation';
+import { tupletsFitTimeSignature } from '@/utils/core';
+import { refuse } from '@/refusals';
 import { foldAccidentalIntoPitch, deriveAccidental } from '@/services/MusicService';
-import { Note, Score } from '@/types';
+import { Note, Score, getValidStaff } from '@/types';
+import { getMeasureCapacity } from '@/constants';
 
 /**
  * Modification method names provided by this factory
@@ -139,16 +142,37 @@ export const createModificationMethods = (
 
       const sel = selectionRef.current;
 
-      // Multi-selection: update each unique event
+      // #242 Lane D: never silently produce an over-full bar. The API path previously dispatched
+      // unconditionally (fail-open), yielding a measure that validateMeasure now flags as invalid.
+      const maxQuants = getMeasureCapacity(scoreRef.current.timeSignature ?? '4/4');
+      const fitsInMeasure = (staffIndex: number, measureIndex: number, eventId: string): boolean => {
+        const measure = getValidStaff(scoreRef.current, staffIndex)?.measures[measureIndex];
+        return !measure || canModifyEventDuration(measure.events, eventId, validDuration, maxQuants, dotted);
+      };
+
+      // Multi-selection: update each unique event (atomic — reject all if ANY would overflow).
       if (sel.selectedNotes && sel.selectedNotes.length > 0) {
+        const uniqueEvents = Array.from(
+          new Map(
+            sel.selectedNotes.map((n) => [`${n.staffIndex}-${n.measureIndex}-${n.eventId}`, n])
+          ).values()
+        );
+        const overflowing = uniqueEvents.filter(
+          (n) => !fitsInMeasure(n.staffIndex, n.measureIndex, n.eventId)
+        );
+        if (overflowing.length > 0) {
+          setResult({
+            method: 'setDuration',
+            ...refuse('DURATION_OVERFLOW', {
+              messageCtx: { duration, dotted },
+              details: { duration, dotted, overflow: overflowing.length },
+            }),
+          });
+          return this;
+        }
+
         ctx.history.begin();
-
-        const processedEvents = new Set<string>();
-        sel.selectedNotes.forEach((note) => {
-          const eventKey = `${note.staffIndex}-${note.measureIndex}-${note.eventId}`;
-          if (processedEvents.has(eventKey)) return;
-          processedEvents.add(eventKey);
-
+        uniqueEvents.forEach((note) => {
           dispatch(
             new UpdateEventCommand(
               note.measureIndex,
@@ -158,14 +182,13 @@ export const createModificationMethods = (
             )
           );
         });
-
         ctx.history.commit();
         setResult({
           ok: true,
           status: 'info',
           method: 'setDuration',
-          message: `Duration set to ${duration} (dotted: ${dotted}) for ${processedEvents.size} events`,
-          details: { duration, dotted, count: processedEvents.size },
+          message: `Duration set to ${duration} (dotted: ${dotted}) for ${uniqueEvents.length} events`,
+          details: { duration, dotted, count: uniqueEvents.length },
         });
         return this;
       }
@@ -178,6 +201,17 @@ export const createModificationMethods = (
           method: 'setDuration',
           message: 'No event selected',
           code: 'NO_SELECTION',
+        });
+        return this;
+      }
+
+      if (!fitsInMeasure(sel.staffIndex, sel.measureIndex, sel.eventId)) {
+        setResult({
+          method: 'setDuration',
+          ...refuse('DURATION_OVERFLOW', {
+            messageCtx: { duration, dotted },
+            details: { duration, dotted, eventId: sel.eventId },
+          }),
         });
         return this;
       }
@@ -226,6 +260,19 @@ export const createModificationMethods = (
     transposeDiatonic(steps) {
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
       const sel = selectionRef.current;
+      // Report a no-op as failure, matching transpose() and TransposeSelectionCommand.execute, which
+      // bails on measureIndex === null regardless of selectedNotes. (The old `&& selectedNotes empty`
+      // let a null-measure selection through to a silent no-op falsely reported as success.)
+      if (sel.measureIndex === null) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'transposeDiatonic',
+          message: 'No selection',
+          code: 'NO_SELECTION',
+        });
+        return this;
+      }
       dispatch(new TransposeSelectionCommand(sel, steps));
       setResult({
         ok: true,
@@ -241,6 +288,24 @@ export const createModificationMethods = (
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
       const sel = selectionRef.current;
       if (sel.eventId && sel.measureIndex !== null) {
+        // Escape hatch for arbitrary event props, but still uphold the never-silently-overfull
+        // invariant (#242 Lane D): a duration/dotted change that wouldn't fit the bar is rejected.
+        if ('duration' in props || 'dotted' in props) {
+          const measure = getValidStaff(scoreRef.current, sel.staffIndex)?.measures[sel.measureIndex];
+          const event = measure?.events.find((e) => e.id === sel.eventId);
+          if (measure && event) {
+            const targetDuration = props.duration ?? event.duration;
+            const targetDotted = 'dotted' in props ? !!props.dotted : event.dotted;
+            const maxQuants = getMeasureCapacity(scoreRef.current.timeSignature ?? '4/4');
+            if (!canModifyEventDuration(measure.events, sel.eventId, targetDuration, maxQuants, targetDotted)) {
+              setResult({
+                method: 'updateEvent',
+                ...refuse('DURATION_OVERFLOW', { details: { props } }),
+              });
+              return this;
+            }
+          }
+        }
         dispatch(new UpdateEventCommand(sel.measureIndex, sel.eventId, props, sel.staffIndex));
         setResult({
           ok: true,
@@ -320,12 +385,11 @@ export const createModificationMethods = (
           details: { eventId: sel.eventId },
         });
       } else {
+        // Consistent with the registry (NO_SELECTION = error) and every other NO_SELECTION site —
+        // nothing was deleted, so report it as a failure rather than a misleading ok:true warning.
         setResult({
-          ok: true,
-          status: 'warning',
           method: 'deleteSelected',
-          message: 'Nothing selected to delete',
-          code: 'NO_SELECTION',
+          ...refuse('NO_SELECTION', { message: 'Nothing selected to delete' }),
         });
       }
       return this;
@@ -346,6 +410,30 @@ export const createModificationMethods = (
 
     setTimeSignature(sig) {
       /** @tested src/__tests__/ScoreAPI.modification.test.tsx */
+      // No-op when unchanged — don't dispatch a command that would pollute the undo stack (mirrors
+      // the UI path and setMeasurePickup).
+      if (sig === ctx.getScore().timeSignature) {
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'setTimeSignature',
+          message: `Time signature already ${sig}`,
+          details: { signature: sig },
+        });
+        return this;
+      }
+      // A tuplet group is atomic; if one can't fit a whole bar of the new meter, reflow has no valid
+      // placement — refuse rather than corrupt the score into an overfull bar. (#256)
+      if (!tupletsFitTimeSignature(ctx.getScore().staves, sig)) {
+        setResult({
+          method: 'setTimeSignature',
+          ...refuse('TUPLET_EXCEEDS_BAR', {
+            messageCtx: { signature: sig },
+            details: { signature: sig },
+          }),
+        });
+        return this;
+      }
       dispatch(new SetTimeSignatureCommand(sig));
       setResult({
         ok: true,

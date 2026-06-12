@@ -7,9 +7,17 @@
  * @tested src/__tests__/services/ChordService.test.ts
  */
 
-import type { Measure, Score } from '@/types';
-import { getNoteDuration } from '@/utils/core';
-import { TIME_SIGNATURES } from '@/constants';
+import type { ChordSymbol, Measure, Score } from '@/types';
+import { getNoteDuration, isReservedSlot } from '@/utils/core';
+import { getMeasureCapacity } from '@/constants';
+
+/**
+ * Snap a running quant sum to a fine grid to kill IEEE-754 drift from accumulating tuplet-member
+ * durations (e.g. 16/3 + 16/3 + 16/3), while preserving genuine fractional tuplet anchors. The
+ * anchor grid and the position probe both go through this so a chord just after a tuplet isn't
+ * dropped as orphaned over a sub-nanoquant mismatch.
+ */
+const quantizeAnchor = (q: number): number => Math.round(q * 1000) / 1000;
 
 // ============================================================================
 // MEASURE CAPACITY (TILING)
@@ -45,7 +53,7 @@ export const getMeasureSpan = (measure: Measure): number => {
  * @returns Measure capacity in quants
  */
 export const getMeasureQuantCapacity = (timeSignature: string): number =>
-  TIME_SIGNATURES[timeSignature] ?? 64;
+  getMeasureCapacity(timeSignature);
 
 // ============================================================================
 // VALID POSITION CALCULATION
@@ -73,8 +81,10 @@ export const getValidChordQuants = (score: Score): Map<number, Set<number>> => {
       const measureQuants = validPositions.get(measureIndex)!;
 
       for (const event of measure.events) {
-        // All events (notes and rests) are valid chord anchor points
-        measureQuants.add(localQuant);
+        // All events (notes and notated rests) are valid chord anchor points — but NOT a
+        // reserved tuplet slot (#242): it draws nothing, so a chord must not float over it.
+        // It still advances localQuant (it occupies its footprint).
+        if (!isReservedSlot(event)) measureQuants.add(quantizeAnchor(localQuant));
         localQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
       }
     }
@@ -92,7 +102,7 @@ export const isValidChordPosition = (
   quant: number
 ): boolean => {
   const measureQuants = validPositions.get(measure);
-  return measureQuants?.has(quant) ?? false;
+  return measureQuants?.has(quantizeAnchor(quant)) ?? false;
 };
 
 // ============================================================================
@@ -131,4 +141,37 @@ export const removeOrphanedChords = (score: Score, orphanedIds: string[]): Score
     ...score,
     chordTrack: score.chordTrack.filter((chord) => !orphanedIds.includes(chord.id)),
   };
+};
+
+// ============================================================================
+// STRUCTURAL RE-ANCHORING (#242)
+// ============================================================================
+
+/**
+ * Re-anchor chords when a measure is INSERTED at `insertedIndex`: every chord at or after that
+ * bar moves one bar later so the harmony stays over the same music. Anchors are measure-local,
+ * so this is an exact index shift — no global-quant round-trip needed.
+ */
+export const shiftChordsForInsertedMeasure = (
+  chordTrack: ChordSymbol[] | undefined,
+  insertedIndex: number
+): ChordSymbol[] | undefined => {
+  if (!chordTrack?.length) return chordTrack;
+  return chordTrack.map((chord) =>
+    chord.measure >= insertedIndex ? { ...chord, measure: chord.measure + 1 } : chord
+  );
+};
+
+/**
+ * Re-anchor chords when the measure at `deletedIndex` is REMOVED: chords anchored in that bar
+ * are dropped (their anchor is gone); chords after it move one bar earlier.
+ */
+export const shiftChordsForDeletedMeasure = (
+  chordTrack: ChordSymbol[] | undefined,
+  deletedIndex: number
+): ChordSymbol[] | undefined => {
+  if (!chordTrack?.length) return chordTrack;
+  return chordTrack
+    .filter((chord) => chord.measure !== deletedIndex)
+    .map((chord) => (chord.measure > deletedIndex ? { ...chord, measure: chord.measure - 1 } : chord));
 };

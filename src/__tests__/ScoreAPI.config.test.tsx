@@ -111,6 +111,22 @@ describe('ScoreAPI Configuration & State', () => {
       expect(score.staves[0].measures).toHaveLength(3);
     });
 
+    test('clears the chord track on reset (#242 — fresh staves have no chords)', () => {
+      render(<RiffScore id="reset-chords" />);
+      const api = getAPI('reset-chords');
+
+      act(() => {
+        api.select(0).addNote('C4', 'quarter').addChord({ measure: 0, quant: 0 }, 'C');
+      });
+      expect(api.getScore().chordTrack?.length).toBeGreaterThan(0);
+
+      act(() => {
+        api.reset('grand', 2);
+      });
+      // Old chords must not survive onto the fresh (empty) staves.
+      expect(api.getScore().chordTrack ?? []).toEqual([]);
+    });
+
     test('resets to a single tenor staff (StaffTemplate parity with setClef)', () => {
       render(<RiffScore id="reset-tenor" />);
       const api = getAPI('reset-tenor');

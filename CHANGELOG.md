@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0-alpha.15] - 2026-06-12
+
+Interactive correctness (roadmap M2, #242) — the editor now enforces structural invariants where
+edits enter the model, so tuplets, ties, deletes, and time-signature changes can't silently corrupt a
+bar. Tuplets become fully editable (insert between members, keyboard step-through, fill freed slots),
+refusals are clear instead of silent, and reflow keeps tuplets and grand staves intact (#256). Adds a
+unified status/refusal vocabulary shared by the API and UI, a two-lane visual/engraving regression
+harness (#252), and the fixes from two adversarial QA passes plus three Codex reviews.
+
+### For musicians
+- **Tuplets are fully editable** — insert a note between two members, step through them by keyboard,
+  and drop a note into a tuplet's free space (a freed slot now renders correctly).
+- **Make/Unmake tuplet never corrupts a bar** — a mixed-duration selection is refused, and removing a
+  tuplet that wouldn't fit is refused (was a silent overfill), pickups included.
+- **The cursor tells the truth** — where a note can't be placed (full tuplet/bar) the ghost greys out
+  with an "X" and the footer explains why, instead of vanishing; it never lands on blank tuplet space.
+- **Predictable, safe editing** — deleting a note shifts the measure left (no surprise rests),
+  selection re-anchors sensibly, and a duration/dot or time-signature change that won't fit is refused
+  with a gentle status (not a pulsing-red error). Adding a note onto a rest converts the rest.
+- **Time-signature changes stay intact** — tuplets aren't split into broken fragments, grand staves
+  stay aligned, oversized notes re-bar cleanly, and reflowed scores export valid MusicXML/ABC.
+
+### For developers
+- **Structural invariants at the boundary (#242)** — capacity SSOT (`getMeasureCapacity`) +
+  measure/score validation; tuplet completeness/integrality guard; tuplet-as-fixed-span container;
+  shift-left delete; tie-validity SSOT (`findTieTarget`); selection repair + `loadScore` validation;
+  chordTrack re-anchoring across structural edits; "overflow is never silent" reject-with-feedback.
+- **Reflow × tuplet (#256)** — reflow treats a tuplet group as atomic (never split), re-bars oversized
+  notes in bar-sized chunks, equalises grand-staff measure counts, and refuses an unfittable change.
+- **Status / refusal unification** — one `RefusalCode` registry (`src/refusals.ts`) backs the API
+  `Result`, footer status, ghost, and the (now severity-aware) transient banner; `Result.code`/`status`
+  are compile-checked. One canonical `PreviewNote` type.
+- **API & navigation** — `move()` steps through a tuplet-fill ghost (and discards a stale one when
+  navigation leaves its bar); `selectAtQuant` uses tuplet footprint; result codes/severities are
+  single-sourced; reserved tuplet slots are never a selection/landing target.
+- **Visual / engraving regression harness (#252)** — a two-lane Playwright suite renders 59 fixtures
+  through the live library against committed linux pixel baselines, plus five engraving fixes.
+- **Quality** — two deep multi-agent QA passes + three Codex reviews drove 23 confirmed fixes
+  (tuplet guards, reserved-slot SSOT via shared `eventsWithoutTuplet`, measure-undo on desynced grand
+  staves, getTupletRun robustness, a11y roles), each double-checked and regression-tested.
+
 ## [1.0.0-alpha.14] - 2026-06-05
 
 Key-aware transpose spelling (roadmap M2, #239) — chromatic and arrow-key

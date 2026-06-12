@@ -5,6 +5,11 @@
  * what changes need to be made without actually dispatching commands,
  * making them easy to test and reason about.
  *
+ * NOTE: not yet wired to a caller — this is the intended foundation for the surface-agnostic
+ * insertion planner described in docs/migration/plan-unified-events.md (mouse/keyboard/MIDI/API +
+ * paste). Kept (not deleted) as that documented roadmap's extension point; `maxQuants` is already
+ * threaded through `InsertionContext` so the planner can't assume 4/4 (#242) when it's adopted.
+ *
  * @module utils/entry/eventInserter
  */
 
@@ -34,6 +39,9 @@ export interface InsertionContext {
   measureIndex: number;
   startQuant: number;
   mode: 'overwrite' | 'insert';
+  /** Bar capacity in quants (from `getMeasureCapacity`) — required so the planner can't
+   *  silently assume a 4/4 bar (#242). */
+  maxQuants: number;
 }
 
 /**
@@ -142,9 +150,9 @@ export function computeInsertPosition(
  * @returns Complete insertion plan
  */
 export function planInsertion(ctx: InsertionContext, noteQuants: number): InsertionPlan {
-  const { measure, staffIndex, measureIndex, startQuant, mode } = ctx;
+  const { measure, staffIndex, measureIndex, startQuant, mode, maxQuants } = ctx;
 
-  const capacity = getRemainingCapacity(measure, startQuant);
+  const capacity = getRemainingCapacity(measure, startQuant, maxQuants);
   const warnings: string[] = [];
   const info: string[] = [];
 
