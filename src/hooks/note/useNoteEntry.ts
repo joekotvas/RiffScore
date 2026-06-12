@@ -177,6 +177,24 @@ export function useNoteEntry({
       const currentStaffData = getActiveStaff(currentScore, currentStaffIndex);
 
       const newMeasures = [...currentStaffData.measures];
+
+      // A preview can target ONE PAST THE END — a full last bar whose APPEND overflowed into a fresh
+      // bar (useHoverPreview bumps measureIndex+1). That measure doesn't exist yet: the capacity check
+      // on the empty phantom would pass and the dispatched command would then no-op, silently losing
+      // the note (Enter hit this; click auto-created). Create the bar, then retarget it.
+      if (!newMeasures[measureIndex]) {
+        if (measureIndex === currentStaffData.measures.length) {
+          dispatch(new AddMeasureCommand());
+          addNoteToMeasureCallback(
+            measureIndex,
+            { ...newNote, staffIndex: currentStaffIndex },
+            false,
+            { mode: 'APPEND', index: 0 }
+          );
+        }
+        return;
+      }
+
       const targetMeasure = { ...newMeasures[measureIndex] };
       if (!targetMeasure.events) targetMeasure.events = [];
 

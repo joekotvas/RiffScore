@@ -4,7 +4,7 @@
  *   #1 — RemoveTupletCommand must not silently overfill the bar.
  *   #2 — ApplyTupletCommand must reject a non-uniform (mixed-duration) selection.
  */
-import { ApplyTupletCommand, RemoveTupletCommand } from '@/commands';
+import { ApplyTupletCommand, RemoveTupletCommand, DeleteEventCommand } from '@/commands';
 import { sumQuants } from '@/utils/tuplet';
 import { validateMeasure } from '@/utils/validation';
 import { getMeasureCapacity } from '@/constants';
@@ -59,5 +59,27 @@ describe('#2 ApplyTupletCommand rejects a non-uniform selection', () => {
     const after = new ApplyTupletCommand(0, 0, 3, [3, 2]).execute(s);
     expect(m0(after).events.every((e) => e.tuplet?.id)).toBe(true);
     expect(sumQuants(m0(after).events).partialTuplet).toBe(false);
+  });
+});
+
+describe('#7 RemoveTupletCommand drops reserved slots (no orphan rest)', () => {
+  it('collapses a freed slot instead of leaving a reserved rest in plain space', () => {
+    // Build an eighth-triplet, then delete the middle member → a reserved slot remains.
+    let s = scoreWith([ev('a', 'eighth'), ev('b', 'eighth'), ev('c', 'eighth')], '4/4');
+    s = new ApplyTupletCommand(0, 0, 3, [3, 2]).execute(s);
+    s = new DeleteEventCommand(0, 'b', 0).execute(s);
+    expect(m0(s).events.some((e) => e.reserved)).toBe(true); // reserved slot present
+
+    const before = m0(s).events;
+    const removeCmd = new RemoveTupletCommand(0, 0);
+    s = removeCmd.execute(s);
+    // No tuplet metadata AND no orphaned reserved rest left behind.
+    expect(m0(s).events.some((e) => e.tuplet)).toBe(false);
+    expect(m0(s).events.some((e) => e.reserved)).toBe(false);
+    expect(m0(s).events.every((e) => !e.reserved && e.notes.every((n) => n.pitch !== null))).toBe(true);
+
+    // undo restores the prior state exactly (reserved slot back).
+    const undone = removeCmd.undo(s);
+    expect(m0(undone).events).toEqual(before);
   });
 });

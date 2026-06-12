@@ -1,19 +1,18 @@
 import { Command } from './types';
-import { Score } from '@/types';
+import { Score, ScoreEvent } from '@/types';
 import { updateMeasure } from '@/utils/commandHelpers';
 import { getMeasureCapacity } from '@/constants';
 import { sumQuants } from '@/utils/tuplet';
 
 /**
  * Command to remove tuplet metadata from a group of events.
- * Converts tuplet notes back to regular notes.
+ * Converts tuplet notes back to regular notes; the group's reserved (free-space) slots collapse.
  */
 export class RemoveTupletCommand implements Command {
   public readonly type = 'REMOVE_TUPLET';
-  private previousStates: Array<{
-    eventId: string;
-    tuplet?: { ratio: [number, number]; groupSize: number; position: number };
-  }> = [];
+  // Snapshot of the measure's events before execute — a whole-array undo is exact regardless of how
+  // many reserved slots were dropped (which would otherwise shift indices).
+  private prevEvents: ScoreEvent[] | null = null;
 
   constructor(
     private measureIndex: number,
@@ -31,46 +30,32 @@ export class RemoveTupletCommand implements Command {
 
       const { groupSize, position } = targetEvent.tuplet;
       const startIndex = this.eventIndex - position;
+      const groupEnd = startIndex + groupSize;
 
-      const newEvents = [...events];
-      for (let i = 0; i < groupSize; i++) {
-        const idx = startIndex + i;
-        if (idx < 0 || idx >= newEvents.length) continue;
-        newEvents[idx] = { ...newEvents[idx], tuplet: undefined };
-      }
+      // Real members de-tuplet (restore their plain duration); reserved slots are a tuplet-only
+      // construct, so they're DROPPED — the freed space collapses (matching the model's
+      // "delete shifts left" rule), rather than leaving an orphaned reserved rest in plain space.
+      const newEvents = events.flatMap((e, idx) => {
+        if (idx < startIndex || idx >= groupEnd) return [e];
+        if (e.reserved) return [];
+        return [{ ...e, tuplet: undefined }];
+      });
 
-      // Fail closed: stripping the tuplet restores each member's full (nominal) duration, EXPANDING
-      // the bar's footprint. If that would overflow the measure, leave the score untouched rather
-      // than silently create an invalid overfull bar (the API pre-checks and reports the refusal).
+      // Fail closed: stripping the tuplet restores each real member's full (nominal) duration. If
+      // that would overflow the measure, leave the score untouched rather than silently create an
+      // invalid overfull bar (the API pre-checks and reports the refusal).
       if (!measure.isPickup && sumQuants(newEvents).quants > capacity) return false;
 
-      this.previousStates = [];
-      for (let i = 0; i < groupSize; i++) {
-        const idx = startIndex + i;
-        if (idx < 0 || idx >= events.length) continue;
-        this.previousStates.push({
-          eventId: events[idx].id,
-          tuplet: events[idx].tuplet ? { ...events[idx].tuplet } : undefined,
-        });
-      }
-
+      this.prevEvents = events;
       measure.events = newEvents;
       return true;
     });
   }
 
   undo(score: Score): Score {
+    if (!this.prevEvents) return score;
     return updateMeasure(score, this.staffIndex, this.measureIndex, (measure) => {
-      const newEvents = [...measure.events];
-
-      this.previousStates.forEach(({ eventId, tuplet }) => {
-        const eventIndex = newEvents.findIndex((e) => e.id === eventId);
-        if (eventIndex !== -1) {
-          newEvents[eventIndex] = { ...newEvents[eventIndex], tuplet };
-        }
-      });
-
-      measure.events = newEvents;
+      measure.events = this.prevEvents as ScoreEvent[];
       return true;
     });
   }

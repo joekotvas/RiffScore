@@ -82,8 +82,9 @@ export const calculateCrossStaffSelection = (
     const start = targetQuant;
     const end = targetQuant + duration;
 
-    // Check overlap: if currentQuantStart falls within [start, end)
-    if (currentQuantStart >= start && currentQuantStart < end) {
+    // Check overlap: if currentQuantStart falls within [start, end). Skip reserved slots (blank free
+    // space) so the cursor never lands on a placeholder.
+    if (!e.reserved && currentQuantStart >= start && currentQuantStart < end) {
       targetEvent = e;
       break;
     }
@@ -237,7 +238,8 @@ export const calculateVerticalNavigation = (
           const start = targetQuant;
           const end = targetQuant + duration;
 
-          if (currentQuantStart >= start && currentQuantStart < end) {
+          // Skip reserved slots (blank free space) — never a landing target.
+          if (!e.reserved && currentQuantStart >= start && currentQuantStart < end) {
             targetEvent = e;
             break;
           }
@@ -421,7 +423,9 @@ export const calculateVerticalNavigation = (
         const start = targetQuant;
         const end = targetQuant + duration;
 
-        if (currentQuantStart >= start && currentQuantStart < end) {
+        // A reserved slot is blank free space — never a landing target. If the aligned quant falls in
+        // one, skip it so we fall through to the no-event/ghost-cursor branch below.
+        if (!e.reserved && currentQuantStart >= start && currentQuantStart < end) {
           targetEvent = e;
           break;
         }

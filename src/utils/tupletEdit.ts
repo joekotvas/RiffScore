@@ -51,7 +51,9 @@ export const getTupletRun = (
       break;
     }
   }
-  return { start, end };
+  // eventIndex is a guaranteed tuplet member, so the run must contain it. Clamp against a corrupt
+  // position/groupSize that would otherwise yield a degenerate run excluding it (e.g. {start, start-1}).
+  return { start: Math.min(start, eventIndex), end: Math.max(end, eventIndex) };
 };
 
 /**
