@@ -406,6 +406,46 @@ describe('ScoreAPI Entry Methods', () => {
     });
   });
 
+  describe('deep-QA regressions (#3, #4)', () => {
+    test('#3 selectAtQuant uses tuplet footprint — selects the right event in a bar with a triplet', () => {
+      render(<RiffScore id="saq-tuplet" />);
+      const api = getAPI('saq-tuplet');
+      // [eighth-triplet C/D/E (16q total)] then a quarter F (16q) in 4/4.
+      act(() => {
+        api.select(0).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
+        api.select(0, 0, 0, 0).makeTuplet(3, 2);
+        api.select(0, 0, 3, 0).addNote('F4', 'quarter');
+      });
+      // The quarter starts at quant 16 (after the 16q triplet). With the old nominal-duration walk
+      // (3×8=24) selectAtQuant(0, 16) would mis-map; now it must land on the quarter (F4).
+      act(() => api.selectAtQuant(0, 16));
+      const sel = api.getSelection();
+      const ev = api.getScore().staves[0].measures[0].events.find((e) => e.id === sel.eventId);
+      expect(ev?.notes[0].pitch).toBe('F4');
+    });
+
+    test('#4 addTone onto a rest PROMOTES it to a note (no swallowed note / malformed event)', () => {
+      render(<RiffScore id="tone-on-rest" />);
+      const api = getAPI('tone-on-rest');
+      act(() => {
+        api.setInputMode('rest');
+        api.select(0).addRest('quarter'); // a rest event
+        api.select(0, 0, 0, 0);
+        api.addTone('C4'); // add a tone onto the rest
+      });
+      const ev = api.getScore().staves[0].measures[0].events[0];
+      expect(ev.isRest).toBeFalsy(); // promoted — not a rest with a hidden note
+      expect(ev.notes.some((n) => n.pitch === 'C4')).toBe(true);
+      expect(ev.notes.every((n) => n.pitch !== null)).toBe(true); // no null-pitch placeholder left
+
+      // undo restores the rest exactly
+      act(() => api.undo());
+      const restored = api.getScore().staves[0].measures[0].events[0];
+      expect(restored.isRest).toBe(true);
+      expect(restored.notes.some((n) => n.pitch === 'C4')).toBe(false);
+    });
+  });
+
   describe('tuplet input (#242): fill reserved space', () => {
     test('typing a pitch onto a reserved slot fills it at the slot rhythm', () => {
       render(<RiffScore id="tup-fill" />);

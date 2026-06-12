@@ -314,14 +314,17 @@ export const createNavigationMethods = (
 
       const measure = staff.measures[measureIndex];
 
-      // Walk events to find event at quant position
+      // Walk events to find event at quant position. Use the tuplet ratio (footprint quants) so the
+      // quant axis matches every other walker (getStops, chord anchors); a plain nominal duration
+      // mis-maps every position after a tuplet. Skip reserved placeholder slots — they draw nothing,
+      // so a quant inside a tuplet's free space must not select the blank slot.
       let currentQuant = 0;
       let found = false;
       for (let i = 0; i < measure.events.length; i++) {
         const event = measure.events[i];
-        const eventDuration = getNoteDuration(event.duration, event.dotted);
+        const eventDuration = getNoteDuration(event.duration, event.dotted, event.tuplet);
 
-        if (currentQuant <= quant && quant < currentQuant + eventDuration) {
+        if (!event.reserved && currentQuant <= quant && quant < currentQuant + eventDuration) {
           // Found the event at this quant position
           selectionEngine.dispatch(
             new SelectEventCommand({
