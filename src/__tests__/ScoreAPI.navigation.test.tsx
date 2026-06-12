@@ -290,6 +290,31 @@ describe('Navigation - tuplet-fill ghost stepping (#6)', () => {
     const landed = events.find((e) => e.id === sel.eventId);
     expect(landed?.reserved).toBeFalsy(); // landed on a real member, not the blank slot
   });
+
+  test('#265 Left from an append ghost past an incomplete tuplet lands on a real member, not the reserved slot', () => {
+    render(<RiffScore id="nav-append-left-reserved" />);
+    const api = getAPI('nav-append-left-reserved');
+    act(() => {
+      // [C-trip, E-trip, reserved] (16q) in 4/4 — followed by ~48q of free space.
+      api.select(0).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
+      api.select(0, 0, 0, 0).makeTuplet(3, 2);
+      api.select(0, 0, 1, 0).deleteSelected(); // delete middle → trailing reserved slot
+    });
+    const events = api.getScore().staves[0].measures[0].events;
+    expect(events.some((e) => e.reserved)).toBe(true);
+
+    // Step right to the append ghost (past the tuplet), then Left — must NOT land on the reserved slot.
+    act(() => {
+      api.select(0, 0, 0, 0); // first real member
+      api.move('right'); // onto the fill ghost
+      api.move('right'); // onto the append ghost in the bar's free space
+      api.move('left'); // back — should land on a real member, never the blank reserved slot
+    });
+    const sel = api.getSelection();
+    const landed = api.getScore().staves[0].measures[0].events.find((e) => e.id === sel.eventId);
+    // Either a ghost (eventId null) or a real event — but never the reserved placeholder.
+    expect(landed?.reserved).toBeFalsy();
+  });
 });
 
 describe('Navigation - Vertical (Cross-Staff)', () => {

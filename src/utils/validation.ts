@@ -117,6 +117,18 @@ export const canModifyEventDuration = (
 
   const currentEvent = events[eventIndex];
 
+  // A tuplet member's rhythm is container-fixed (#242 fixed-span): changing a single member's
+  // duration/dot breaks the group's uniformity → a non-integral footprint → an `incomplete-tuplet`
+  // invalid bar, even though the scalar total still fits. Reject the rhythm change (unmake the tuplet
+  // first). A no-op (same duration + dot) is harmless and allowed.
+  if (
+    currentEvent.tuplet &&
+    (targetDuration !== currentEvent.duration ||
+      (targetDotted ?? currentEvent.dotted) !== !!currentEvent.dotted)
+  ) {
+    return false;
+  }
+
   // Calculate total of ALL OTHER events
   const otherEventsQuants = events.reduce((acc: number, e: ScoreEvent, idx: number) => {
     if (idx === eventIndex) return acc;
@@ -149,6 +161,10 @@ export const canToggleEventDot = (
   if (eventIndex === -1) return true;
 
   const currentEvent = events[eventIndex];
+
+  // A tuplet member's rhythm is container-fixed (#242) — toggling one member's dot breaks group
+  // uniformity/integrality. Reject it (unmake the tuplet first).
+  if (currentEvent.tuplet) return false;
 
   // Calculate total of ALL OTHER events
   const otherEventsQuants = events.reduce((acc: number, e: ScoreEvent, idx: number) => {

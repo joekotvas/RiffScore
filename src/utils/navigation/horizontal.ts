@@ -375,9 +375,15 @@ const handleGhostNavigation = (
       let eventQuant = 0;
       let targetEvent: ScoreEvent | null = null;
 
-      // Find event ending at or containing the ghost quant
+      // Find event ending at or containing the ghost quant. Skip reserved slots — they're blank free
+      // space (surfaced only as fill ghosts), never a Left-step landing target; a trailing reserved
+      // slot ending exactly at the append ghost's quant would otherwise be selected (#265 Codex P2).
       for (const e of measure.events) {
         const dur = getNoteDuration(e.duration, e.dotted, e.tuplet);
+        if (e.reserved) {
+          eventQuant += dur;
+          continue;
+        }
         if (eventQuant + dur <= ghostQuant) targetEvent = e;
         else if (eventQuant < ghostQuant && ghostQuant < eventQuant + dur) {
           targetEvent = e;
