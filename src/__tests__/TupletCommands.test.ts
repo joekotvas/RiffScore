@@ -84,10 +84,11 @@ describe('Tuplet Commands', () => {
     });
 
     test('should handle quintuplet (5:4 ratio)', () => {
-      // Add one more event for quintuplet
+      // Add one more event for quintuplet — same duration as the others: a tuplet group must be
+      // uniform (the group is stamped with a single baseDuration), else it's an incoherent group.
       baseScore.staves[0].measures[0].events.push({
         id: 'e5',
-        duration: 'eighth',
+        duration: 'quarter',
         dotted: false,
         notes: [{ id: 'n5', pitch: 'G4' }],
       });

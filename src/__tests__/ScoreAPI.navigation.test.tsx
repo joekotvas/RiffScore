@@ -272,6 +272,24 @@ describe('Navigation - tuplet-fill ghost stepping (#6)', () => {
     act(() => api.move('right'));
     expect(api.getSelection().measureIndex).toBe(1); // with the stale-ghost bug this was 0
   });
+
+  test('#9 jump("end-measure") lands on the last REAL member, not a trailing reserved slot', () => {
+    render(<RiffScore id="nav-jump-reserved" />);
+    const api = getAPI('nav-jump-reserved');
+    act(() => {
+      api.select(0).addNote('C4', 'eighth').addNote('D4', 'eighth').addNote('E4', 'eighth');
+      api.select(0, 0, 0, 0).makeTuplet(3, 2);
+      api.select(0, 0, 1, 0).deleteSelected(); // delete middle → trailing reserved slot
+    });
+    const events = api.getScore().staves[0].measures[0].events;
+    const reservedIdx = events.findIndex((e) => e.reserved);
+    expect(reservedIdx).toBeGreaterThanOrEqual(0); // there IS a trailing reserved slot
+
+    act(() => api.jump('end-measure'));
+    const sel = api.getSelection();
+    const landed = events.find((e) => e.id === sel.eventId);
+    expect(landed?.reserved).toBeFalsy(); // landed on a real member, not the blank slot
+  });
 });
 
 describe('Navigation - Vertical (Cross-Staff)', () => {

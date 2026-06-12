@@ -162,7 +162,9 @@ export const getLinearizedNotes = (score: Score): NoteContext[] => {
   score.staves.forEach((staff, staffInd) => {
     staff.measures.forEach((measure, measureInd) => {
       measure.events.forEach((event) => {
-        if (event.notes && event.notes.length > 0) {
+        // Skip reserved tuplet slots — they're blank free space, never a selectable target. Including
+        // them put the placeholder into a range selection, so destructive ops then hit empty space.
+        if (event.notes && event.notes.length > 0 && !event.reserved) {
           event.notes.forEach((note) => {
             notes.push({
               staffIndex: staffInd,

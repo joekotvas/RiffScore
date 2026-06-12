@@ -48,26 +48,16 @@ export class AddMeasureCommand implements Command {
   }
 
   undo(score: Score): Score {
+    // Remove each staff's added bar by its RECORDED id, not the shared insertedIndex: on a desynced
+    // grand staff, splice() clamped the insert to a shorter staff's end, so the added bar isn't at
+    // insertedIndex there — an index-based removal would orphan it (under-delete).
     const newStaves = score.staves.map((staff, index) => {
+      const addedId = this.addedMeasureIds[index];
+      if (!addedId) return staff;
+      const idx = staff.measures.findIndex((m) => m.id === addedId);
+      if (idx === -1) return staff;
       const newMeasures = [...staff.measures];
-      if (newMeasures.length === 0) {
-        return { ...staff, measures: newMeasures };
-      }
-
-      // Check if execute() was called (addedMeasureIds would be populated)
-      const wasExecuted = this.addedMeasureIds.length > 0;
-
-      if (wasExecuted) {
-        // Normal case: remove at recorded index if IDs match
-        if (
-          this.insertedIndex >= 0 &&
-          this.insertedIndex < newMeasures.length &&
-          this.addedMeasureIds[index] &&
-          newMeasures[this.insertedIndex].id === this.addedMeasureIds[index]
-        ) {
-          newMeasures.splice(this.insertedIndex, 1);
-        }
-      }
+      newMeasures.splice(idx, 1);
       return { ...staff, measures: newMeasures };
     });
 
@@ -95,10 +85,12 @@ export class DeleteMeasureCommand implements Command {
     this.deletedMeasures = [];
     this.previousChordTrack = score.chordTrack;
 
-    const newStaves = score.staves.map((staff) => {
+    const newStaves = score.staves.map((staff, index) => {
       const newMeasures = [...staff.measures];
       if (targetIndex < newMeasures.length) {
-        this.deletedMeasures.push(newMeasures[targetIndex]);
+        // Index-aligned by staff (was .push, which misaligned the staff→measure map when a shorter
+        // staff had no bar at targetIndex — undo then restored the wrong measure to the wrong staff).
+        this.deletedMeasures[index] = newMeasures[targetIndex];
         newMeasures.splice(targetIndex, 1);
       }
       return { ...staff, measures: newMeasures };

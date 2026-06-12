@@ -627,4 +627,39 @@ describe('ScoreAPI Modification & IO Methods', () => {
       expect(eventsC3.length).toBe(0); // Expect data loss
     });
   });
+
+  describe('deep-QA regressions (#14, #19, #21)', () => {
+    test('#14 deleteSelected with no selection reports a failure (consistent with NO_SELECTION)', () => {
+      render(<RiffScore id="dq-del" />);
+      const api = getAPI('dq-del');
+      act(() => api.deselectAll());
+      api.deleteSelected();
+      const r = api.result;
+      expect(r.ok).toBe(false);
+      expect(r.status).toBe('error');
+      expect(r.code).toBe('NO_SELECTION');
+    });
+
+    test('#19 setTimeSignature to the current value is a no-op that does not pollute undo', () => {
+      render(<RiffScore id="dq-ts" />);
+      const api = getAPI('dq-ts');
+      act(() => api.setTimeSignature('3/4')); // a real change
+      const canUndoAfterReal = api.getScore().timeSignature;
+      expect(canUndoAfterReal).toBe('3/4');
+      act(() => api.setTimeSignature('3/4')); // unchanged → no-op
+      // undo once should revert the ONE real change back to the default, proving the no-op didn't
+      // push a second command.
+      act(() => api.undo());
+      expect(api.getScore().timeSignature).not.toBe('3/4');
+    });
+
+    test('#21 transposeDiatonic with a null-measure selection reports a failure (no false ok)', () => {
+      render(<RiffScore id="dq-tr" />);
+      const api = getAPI('dq-tr');
+      act(() => api.deselectAll());
+      api.transposeDiatonic(1);
+      expect(api.result.ok).toBe(false);
+      expect(api.result.code).toBe('NO_SELECTION');
+    });
+  });
 });

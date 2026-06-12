@@ -3,6 +3,9 @@ import { ApplyTupletCommand } from '@/commands/TupletCommands';
 import { RemoveTupletCommand } from '@/commands/RemoveTupletCommand';
 import { Command } from '@/commands/types';
 import { Score, Selection, ScoreEvent } from '@/types';
+import { isUniformTupletSelection, sumQuants } from '@/utils/tuplet';
+import { eventsWithoutTuplet } from '@/utils/tupletEdit';
+import { getMeasureCapacity } from '@/constants';
 
 /**
  * Hook providing tuplet manipulation actions.
@@ -105,6 +108,15 @@ export const useTupletActions = (
       return false;
     }
 
+    // Precheck (mirrors RemoveTupletCommand's fail-closed guard via the shared helper): if restoring
+    // the members' full durations would overflow the bar, don't dispatch a doomed command — that
+    // would no-op yet still land a dead entry on the undo stack.
+    const candidate = eventsWithoutTuplet(measure.events, eventIndex);
+    if (sumQuants(candidate).quants > getMeasureCapacity(currentScore.timeSignature)) {
+      console.warn('Cannot remove tuplet: the notes’ full duration would overflow the measure');
+      return false;
+    }
+
     // Remove the tuplet
     dispatch(new RemoveTupletCommand(selection.measureIndex, eventIndex, staffIndex));
 
@@ -133,8 +145,12 @@ export const useTupletActions = (
       const eventIndex = measure.events.findIndex((e: ScoreEvent) => e.id === selection.eventId);
       if (eventIndex === -1) return false;
 
-      // Check if we have enough consecutive events
-      return eventIndex + groupSize <= measure.events.length;
+      // Enough consecutive events…
+      if (eventIndex + groupSize > measure.events.length) return false;
+
+      // …and they must be uniform — a single baseDuration is stamped on the group, so a mixed
+      // selection would mint an incoherent, permanently-invalid tuplet. Don't offer it.
+      return isUniformTupletSelection(measure.events.slice(eventIndex, eventIndex + groupSize));
     },
     [selection, scoreRef]
   );

@@ -51,7 +51,30 @@ export const getTupletRun = (
       break;
     }
   }
-  return { start, end };
+  // eventIndex is a guaranteed tuplet member, so the run must contain it. Clamp against a corrupt
+  // position/groupSize that would otherwise yield a degenerate run excluding it (e.g. {start, start-1}).
+  return { start: Math.min(start, eventIndex), end: Math.max(end, eventIndex) };
+};
+
+/**
+ * The measure's events after removing the tuplet group that contains `eventIndex`: real members
+ * de-tuplet (their plain duration is restored), and reserved slots are DROPPED — the freed space
+ * collapses (matching "delete shifts left"), never leaving an orphaned reserved rest in plain space.
+ * Returns the original array unchanged if the event isn't a tuplet member.
+ *
+ * Single source for RemoveTupletCommand + the un-make capacity prechecks (API + UI) so they can't
+ * disagree on group bounds / reserved handling / a corrupt `position`.
+ */
+export const eventsWithoutTuplet = (events: ScoreEvent[], eventIndex: number): ScoreEvent[] => {
+  const tuplet = events[eventIndex]?.tuplet;
+  if (!tuplet) return events;
+  const start = eventIndex - (tuplet.position ?? 0);
+  const end = start + tuplet.groupSize;
+  return events.flatMap((e, i) => {
+    if (i < start || i >= end) return [e];
+    if (e.reserved) return [];
+    return [{ ...e, tuplet: undefined }];
+  });
 };
 
 /**

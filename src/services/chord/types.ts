@@ -7,6 +7,7 @@
  */
 
 import type { ChordDisplayConfig } from '@/types';
+import type { RefusalCode } from '@/refusals';
 
 // ============================================================================
 // PARSE RESULT TYPES
@@ -27,11 +28,13 @@ export interface ChordComponents {
   bass: string | null; // 'E' for C/E, null otherwise
 }
 
-export type ChordErrorCode =
-  | 'CHORD_EMPTY'
-  | 'CHORD_INVALID_ROOT'
-  | 'CHORD_INVALID_QUALITY'
-  | 'CHORD_INVALID_BASS';
+// Derived from the unified RefusalCode vocabulary (Result.code is narrowed to it, and chords.ts emits
+// `code: parseResult.code`), so the two can't drift — Extract resolves to `never` for any name not in
+// RefusalCode, surfacing as a compile error where the parser returns it.
+export type ChordErrorCode = Extract<
+  RefusalCode,
+  'CHORD_EMPTY' | 'CHORD_INVALID_ROOT' | 'CHORD_INVALID_QUALITY' | 'CHORD_INVALID_BASS'
+>;
 
 // ============================================================================
 // NOTATION TYPES

@@ -15,7 +15,11 @@ import { createRestsForRange } from '@/utils/entry/insertion';
 
 export const padMeasureForExport = (measure: Measure, capacity: number): ScoreEvent[] => {
   const events = measure.events;
-  if (measure.isPickup || events.length === 0) return events;
+  if (measure.isPickup) return events; // genuinely short — leave as-is
+  // An empty (non-pickup) bar — e.g. one the grand-staff parity padding adds after a reflow — must
+  // export as a full-bar rest, not a content-free measure (which is invalid MusicXML/ABC). The
+  // renderer materializes its own whole-bar rest, but exporters go through here, so do it here too.
+  if (events.length === 0) return createRestsForRange(capacity);
 
   const { quants, partialTuplet } = sumQuants(events);
   if (partialTuplet) return events; // mid-edit / broken bar — don't fabricate rests

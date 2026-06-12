@@ -47,8 +47,16 @@ describe('padMeasureForExport', () => {
     expect(padMeasureForExport(measure([note('a', 'quarter')], true), 64)).toHaveLength(1);
   });
 
-  it('leaves an empty bar untouched (whole-rest handled elsewhere)', () => {
-    expect(padMeasureForExport(measure([]), 64)).toHaveLength(0);
+  it('materializes an empty (non-pickup) bar as a full-bar rest (e.g. grand-staff parity padding)', () => {
+    const padded = padMeasureForExport(measure([]), 64);
+    expect(padded.length).toBeGreaterThan(0);
+    expect(padded.every((e) => e.isRest)).toBe(true);
+    // exporters consume footprint quants — the rest(s) must fill the whole bar, not leave it empty.
+    expect(sumQuants(padded).quants).toBe(64);
+  });
+
+  it('leaves an empty pickup bar untouched (genuinely short)', () => {
+    expect(padMeasureForExport(measure([], true), 64)).toHaveLength(0);
   });
 });
 

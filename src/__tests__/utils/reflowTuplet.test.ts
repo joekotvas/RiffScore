@@ -94,6 +94,22 @@ describe('reflowScore keeps tuplets atomic (#256)', () => {
     expect(Math.round(after)).toBe(Math.round(before)); // total duration conserved (no inflation)
   });
 
+  it('re-bars a note larger than the new bar without an overfull or spurious-empty bar (#5)', () => {
+    // A whole note (64q) reflowed to 3/8 (cap 24): the remainder must re-bar in bar-sized chunks,
+    // never dumping a 32q half-note fragment into a 24q bar (overfull) + an empty bar before it.
+    const cap = getMeasureCapacity('3/8'); // 24
+    const before = [{ id: 'm0', events: [{ id: 'w', duration: 'whole', dotted: false, notes: [{ id: 'wn', pitch: 'C4' }] }] }] as Measure[];
+    const out = reflowScore(before, '3/8');
+    out.forEach((m) => {
+      expect(m.events.length).toBeGreaterThan(0); // no spurious empty interior bar
+      expect(sumQuants(m.events).quants).toBeLessThanOrEqual(cap); // no overfull bar
+      expect(validateMeasure(m, cap).valid).toBe(true);
+    });
+    // total duration conserved (whole = 64q)
+    const total = out.reduce((s, m) => s + sumQuants(m.events).quants, 0);
+    expect(total).toBe(64);
+  });
+
   it('plain (non-tuplet) notes still split-and-tie across the bar line', () => {
     // 4/4 [quarter, half] → 2/4: the half straddles the bar line and splits into two tied quarters.
     const m: Measure[] = [

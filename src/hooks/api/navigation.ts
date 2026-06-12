@@ -5,6 +5,7 @@ import { getFirstNoteId, getNoteDuration } from '@/utils/core';
 import { calculateVerticalNavigation } from '@/utils/navigation/vertical';
 import { calculateNextSelection } from '@/utils/navigation/horizontal';
 import { SelectEventCommand } from '@/commands/selection';
+import { refuse } from '@/refusals';
 
 /**
  * Navigation method names provided by this factory
@@ -69,11 +70,8 @@ export const createNavigationMethods = (
 
         if (!navResult) {
           setResult({
-            ok: true,
-            status: 'info',
             method: 'move',
-            message: `Cannot move ${direction} (boundary)`,
-            code: 'BOUNDARY_REACHED',
+            ...refuse('BOUNDARY_REACHED', { message: `Cannot move ${direction} (boundary)` }),
           });
           return this;
         }
@@ -165,12 +163,11 @@ export const createNavigationMethods = (
             },
           });
         } else {
+          // Single-sourced severity (info) via the registry — the vertical case used to emit
+          // 'warning', contradicting the horizontal case and the registry. (#13)
           setResult({
-            ok: true,
-            status: 'warning',
             method: 'move',
-            message: `Cannot move ${direction} (boundary reached)`,
-            code: 'BOUNDARY_REACHED',
+            ...refuse('BOUNDARY_REACHED', { message: `Cannot move ${direction} (boundary reached)` }),
           });
         }
       }
@@ -195,22 +192,32 @@ export const createNavigationMethods = (
       let targetMeasureIndex: number;
       let targetEventIndex: number;
 
+      // Reserved tuplet slots are blank free space (packed at a group's end) — never a jump target.
+      const firstRealIndex = (events: typeof measures[number]['events']) => {
+        const idx = events.findIndex((e) => !e.reserved);
+        return idx < 0 ? 0 : idx;
+      };
+      const lastRealIndex = (events: typeof measures[number]['events']) => {
+        for (let i = events.length - 1; i >= 0; i--) if (!events[i].reserved) return i;
+        return 0;
+      };
+
       switch (target) {
         case 'start-score':
           targetMeasureIndex = 0;
-          targetEventIndex = 0;
+          targetEventIndex = firstRealIndex(measures[0].events);
           break;
         case 'end-score':
           targetMeasureIndex = measures.length - 1;
-          targetEventIndex = Math.max(0, measures[targetMeasureIndex].events.length - 1);
+          targetEventIndex = lastRealIndex(measures[targetMeasureIndex].events);
           break;
         case 'start-measure':
           targetMeasureIndex = sel.measureIndex ?? 0;
-          targetEventIndex = 0;
+          targetEventIndex = firstRealIndex(measures[targetMeasureIndex]?.events ?? []);
           break;
         case 'end-measure':
           targetMeasureIndex = sel.measureIndex ?? 0;
-          targetEventIndex = Math.max(0, measures[targetMeasureIndex]?.events.length - 1);
+          targetEventIndex = lastRealIndex(measures[targetMeasureIndex]?.events ?? []);
           break;
         default:
           setResult({
@@ -314,14 +321,17 @@ export const createNavigationMethods = (
 
       const measure = staff.measures[measureIndex];
 
-      // Walk events to find event at quant position
+      // Walk events to find event at quant position. Use the tuplet ratio (footprint quants) so the
+      // quant axis matches every other walker (getStops, chord anchors); a plain nominal duration
+      // mis-maps every position after a tuplet. Skip reserved placeholder slots — they draw nothing,
+      // so a quant inside a tuplet's free space must not select the blank slot.
       let currentQuant = 0;
       let found = false;
       for (let i = 0; i < measure.events.length; i++) {
         const event = measure.events[i];
-        const eventDuration = getNoteDuration(event.duration, event.dotted);
+        const eventDuration = getNoteDuration(event.duration, event.dotted, event.tuplet);
 
-        if (currentQuant <= quant && quant < currentQuant + eventDuration) {
+        if (!event.reserved && currentQuant <= quant && quant < currentQuant + eventDuration) {
           // Found the event at this quant position
           selectionEngine.dispatch(
             new SelectEventCommand({

@@ -5,6 +5,11 @@
  * what changes need to be made without actually dispatching commands,
  * making them easy to test and reason about.
  *
+ * NOTE: not yet wired to a caller — this is the intended foundation for the surface-agnostic
+ * insertion planner described in docs/migration/plan-unified-events.md (mouse/keyboard/MIDI/API +
+ * paste). Kept (not deleted) as that documented roadmap's extension point; `maxQuants` is already
+ * threaded through `InsertionContext` so the planner can't assume 4/4 (#242) when it's adopted.
+ *
  * @module utils/entry/eventInserter
  */
 

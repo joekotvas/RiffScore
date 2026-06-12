@@ -401,7 +401,10 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
 
         {/* Transient feedback banner (tone by severity) */}
         {errorMsg && (
-          <div className={`riff-Toolbar__error riff-Toolbar__error--${feedbackSeverity}`} role="status">
+          <div
+            className={`riff-Toolbar__error riff-Toolbar__error--${feedbackSeverity}`}
+            role={feedbackSeverity === 'error' ? 'alert' : 'status'}
+          >
             {errorMsg}
           </div>
         )}
