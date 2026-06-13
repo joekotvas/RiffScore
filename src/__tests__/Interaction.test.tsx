@@ -229,6 +229,59 @@ describe('ScoreEditor Interactions', () => {
     });
   });
 
+  test('Undo does NOT clobber a selection the user made after the delete (#257 / Codex P2)', async () => {
+    const score = createDefaultScore();
+    render(
+      <ThemeProvider>
+        <ScoreEditor label="Interaction Test" initialData={score} />
+      </ThemeProvider>
+    );
+
+    // Add note A in measure 0 and note B in measure 1.
+    const m0 = screen.getByTestId('measure-hit-area-0-0');
+    fireEvent.mouseMove(m0, { clientX: 50, clientY: 110 });
+    await screen.findByTestId('ghost-note');
+    fireEvent.click(m0, { clientX: 50, clientY: 110 });
+
+    const m1 = screen.getByTestId('measure-hit-area-1-0');
+    fireEvent.mouseMove(m1, { clientX: 50, clientY: 110 });
+    await screen.findByTestId('ghost-note');
+    fireEvent.click(m1, { clientX: 50, clientY: 110 });
+
+    const chords = screen.getAllByTestId(/^chord-[^t]/);
+    expect(chords).toHaveLength(2);
+    const idA = chords[0].getAttribute('data-testid')!; // measure 0
+    const idB = chords[1].getAttribute('data-testid')!; // measure 1
+
+    const container = screen.getByTestId('score-canvas-container');
+    fireEvent.focus(container);
+    fireEvent.mouseEnter(container);
+
+    // Select A, delete it (empties measure 0 → stashes A's coord).
+    fireEvent.click(screen.getByTestId(idA));
+    await waitFor(() => expect(screen.getByTestId(idA)).toHaveAttribute('data-selected', 'true'));
+    fireEvent.keyDown(window, { key: 'Backspace', code: 'Backspace', keyCode: 8 });
+    await waitFor(() => expect(screen.queryByTestId(idA)).toBeNull());
+
+    // The user moves on: select B.
+    fireEvent.click(screen.getByTestId(idB));
+    await waitFor(() => expect(screen.getByTestId(idB)).toHaveAttribute('data-selected', 'true'));
+
+    // Undo restores A — the user's selection (B) must NOT be clobbered. Crucially this also DROPS
+    // the stash (the user moved on), which the next assertion proves.
+    fireEvent.keyDown(window, { key: 'z', code: 'KeyZ', metaKey: true });
+    await waitFor(() => expect(screen.queryByTestId(idA)).not.toBeNull());
+    expect(screen.getByTestId(idB)).toHaveAttribute('data-selected', 'true');
+    expect(screen.getByTestId(idA)).not.toHaveAttribute('data-selected', 'true');
+
+    // Sentinel for the clear (Codex P2): a SECOND undo removes B and empties the selection — a score
+    // change with no selection. If the stash had survived the first undo, the now-restored A would be
+    // spuriously re-selected here. With the stash cleared, A stays unselected.
+    fireEvent.keyDown(window, { key: 'z', code: 'KeyZ', metaKey: true });
+    await waitFor(() => expect(screen.queryByTestId(idB)).toBeNull());
+    expect(screen.getByTestId(idA)).not.toHaveAttribute('data-selected', 'true');
+  });
+
   test('Cursor auto-advances after APPENDing a note', async () => {
     const score = createDefaultScore();
     render(

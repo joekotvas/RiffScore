@@ -182,7 +182,13 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     const pending = selectionEngine.getPendingRestore();
     if (!pending) return;
     const current = selectionEngine.getState();
-    if (current.eventId !== null) return; // user moved on — leave their selection alone
+    if (current.eventId !== null) {
+      // The user moved on to a real selection — drop the stash entirely. Merely returning would
+      // leave it alive, so a LATER score change with an empty selection could re-resolve the (now
+      // re-materialized) event and spuriously re-select it (Codex P2 on #266).
+      selectionEngine.clearPendingRestore();
+      return;
+    }
     if (!resolveTarget(score, pending).ok) return; // not yet re-materialized (or never will be)
 
     const coord = {
