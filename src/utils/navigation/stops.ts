@@ -15,7 +15,7 @@
  *
  * @see src/utils/navigation/horizontal.ts (consumes these for step-through + ghost cursors)
  */
-import { ScoreEvent, Measure } from '@/types';
+import { ScoreEvent, Measure, PreviewNote } from '@/types';
 import { getNoteDuration, getFirstNoteId, calculateTotalQuants } from '../core';
 import { getTupletRun } from '../tupletEdit';
 import { quantsEqual } from '../tuplet';
@@ -99,3 +99,51 @@ export const getStops = (measure: Measure, capacity: number): NavStop[] => {
 
   return stops;
 };
+
+/**
+ * The tuplet-fill stop whose free space contains `quant`, or null. A fill stop's free space spans
+ * from the stop itself to the next stop (the group's end), so an aligned quant landing anywhere in
+ * an incomplete tuplet's reserved region resolves to its single fill ghost. Used by cross-staff
+ * vertical navigation so it surfaces the same fill ghost the horizontal stops model does (#264),
+ * rather than landing on a blank reserved slot or jumping to events[0].
+ */
+export const findTupletFillAtQuant = (
+  measure: Measure,
+  capacity: number,
+  quant: number
+): Extract<NavStop, { kind: 'tupletFill' }> | null => {
+  const stops = getStops(measure, capacity);
+  for (let i = 0; i < stops.length; i++) {
+    const s = stops[i];
+    if (s.kind !== 'tupletFill') continue;
+    const upper = stops[i + 1]?.quant ?? capacity;
+    if (quant >= s.quant && quant < upper) return s;
+  }
+  return null;
+};
+
+/**
+ * Build a tuplet-fill ghost previewNote — a CHORD-mode preview anchored to the group's reserved slot
+ * (`eventId`), so committing it routes through the container-aware fill (useNoteEntry case A). Shared
+ * SSOT for the fill ghost so horizontal step-through and cross-staff vertical navigation stay in
+ * lockstep (#6 / #264).
+ */
+export const buildTupletFillPreview = (
+  measureIndex: number,
+  staffIndex: number,
+  stop: Extract<NavStop, { kind: 'tupletFill' }>,
+  pitch: string,
+  isRest: boolean
+): PreviewNote => ({
+  measureIndex,
+  staffIndex,
+  quant: stop.quant,
+  visualQuant: stop.quant,
+  pitch,
+  duration: stop.baseDuration,
+  dotted: false,
+  mode: 'CHORD',
+  index: stop.reservedIndex,
+  eventId: stop.reservedId,
+  isRest,
+});

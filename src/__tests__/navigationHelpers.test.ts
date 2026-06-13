@@ -14,6 +14,7 @@ import {
   selectNoteInEventByDirection,
   getAdjustedDuration,
   calculateVerticalNavigation,
+  calculateCrossStaffSelection,
 } from '@/utils/interaction';
 
 describe('Navigation Helper Functions', () => {
@@ -271,6 +272,113 @@ describe('calculateVerticalNavigation', () => {
       expect(result?.selection?.eventId).toBeNull();
       expect(result?.previewNote).toBeDefined();
       expect(result?.previewNote?.staffIndex).toBe(1);
+    });
+  });
+
+  // #264 — cross-staff nav into an incomplete tuplet's free (reserved) space must surface a
+  // tuplet-fill ghost (parity with horizontal #6), not land on a blank reserved slot or jump to
+  // events[0]. Bass has a quarter-triplet [C3, E3, reserved]: members occupy quants 0–10.67,
+  // 10.67–21.33, and the reserved free space is [21.33, 32). The treble source's 3rd event starts at
+  // quant 24, which aligns into that free space.
+  describe('#264 cross-staff tuplet-fill ghost', () => {
+    const trip = (id: string, pitch: string | null, position: number, reserved = false) => ({
+      id,
+      duration: 'quarter',
+      dotted: false,
+      isRest: reserved,
+      reserved,
+      notes: reserved ? [{ id: `${id}n`, pitch: null, isRest: true }] : [{ id: `${id}n`, pitch }],
+      tuplet: { ratio: [3, 2] as [number, number], groupSize: 3, position, baseDuration: 'quarter', id: 'BT' },
+    });
+    const bassTupletStaff = {
+      id: 'bass-tuplet',
+      clef: 'bass' as const,
+      keySignature: 'C',
+      measures: [
+        { id: 'mb', events: [trip('bt0', 'C3', 0), trip('bt1', 'E3', 1), trip('btr', null, 2, true)] },
+      ],
+    };
+    // 3rd event ('st2') starts at quant 24 (16 + 8), inside the bass tuplet's reserved free space.
+    const sourceTrebleStaff = {
+      id: 'treble-src',
+      clef: 'treble' as const,
+      keySignature: 'C',
+      measures: [
+        {
+          id: 'mt',
+          events: [
+            { id: 'st0', duration: 'quarter', dotted: false, notes: [{ id: 'st0n', pitch: 'C5' }] },
+            { id: 'st1', duration: 'eighth', dotted: false, notes: [{ id: 'st1n', pitch: 'D5' }] },
+            { id: 'st2', duration: 'quarter', dotted: false, notes: [{ id: 'st2n', pitch: 'E5' }] },
+          ],
+        },
+      ],
+    };
+
+    test('calculateCrossStaffSelection returns a fill ghost when the aligned quant is in tuplet free space', () => {
+      const score = createScore([sourceTrebleStaff, bassTupletStaff]);
+      const selection = { staffIndex: 0, measureIndex: 0, eventId: 'st2', noteId: 'st2n' };
+
+      const result = calculateCrossStaffSelection(score, selection, 'down', 'quarter', false);
+
+      expect(result?.selection?.staffIndex).toBe(1);
+      expect(result?.selection?.eventId).toBeNull(); // a ghost, not a landed event
+      expect(result?.selection?.measureIndex).toBeNull();
+      expect(result?.previewNote?.mode).toBe('CHORD');
+      expect(result?.previewNote?.eventId).toBe('btr'); // anchored to the reserved slot
+    });
+
+    test('calculateVerticalNavigation (selected note) returns a fill ghost, not events[0]', () => {
+      const score = createScore([sourceTrebleStaff, bassTupletStaff]);
+      const selection = { staffIndex: 0, measureIndex: 0, eventId: 'st2', noteId: 'st2n' };
+
+      const result = calculateVerticalNavigation(score, selection, 'down', 'quarter', false, null);
+
+      expect(result?.selection?.eventId).toBeNull();
+      expect(result?.previewNote?.mode).toBe('CHORD');
+      expect(result?.previewNote?.eventId).toBe('btr');
+    });
+
+    test('staff-cycle wrap (Cmd+Down from the last staff) into tuplet free space returns a fill ghost, not a blank slot', () => {
+      // The tuplet is on the TOP staff; the source note is on the BOTTOM staff. Cmd+Down from the
+      // bottom staff has no lower staff, so it WRAPS (cycles) to the top staff. That cycle path uses
+      // findEventAtQuantPosition (not reserved-aware), so without the fix it would LAND on the blank
+      // reserved slot — the exact thing #264 prevents. It must return a fill ghost instead.
+      const topTuplet = { ...bassTupletStaff, id: 'top-tuplet', clef: 'treble' as const };
+      const bottomSource = { ...sourceTrebleStaff, id: 'bottom-src', clef: 'bass' as const };
+      const score = createScore([topTuplet, bottomSource]);
+      const selection = { staffIndex: 1, measureIndex: 0, eventId: 'st2', noteId: 'st2n' };
+
+      const result = calculateVerticalNavigation(score, selection, 'down', 'quarter', false, null);
+
+      expect(result?.selection?.staffIndex).toBe(0);
+      expect(result?.selection?.eventId).toBeNull(); // a ghost, never the blank reserved slot
+      expect(result?.previewNote?.mode).toBe('CHORD');
+      expect(result?.previewNote?.eventId).toBe('btr');
+    });
+
+    test('calculateVerticalNavigation (ghost cursor) returns a fill ghost, not events[0]', () => {
+      const score = createScore([sourceTrebleStaff, bassTupletStaff]);
+      const selection = { staffIndex: 0, measureIndex: null, eventId: null, noteId: null };
+      const previewNote = {
+        measureIndex: 0,
+        staffIndex: 0,
+        quant: 24, // aligns into the bass tuplet's reserved free space
+        visualQuant: 24,
+        pitch: 'E5',
+        duration: 'quarter',
+        dotted: false,
+        mode: 'APPEND' as const,
+        index: 2,
+        isRest: false,
+      };
+
+      const result = calculateVerticalNavigation(score, selection, 'down', 'quarter', false, previewNote);
+
+      // Before the fix this selected bt0 (events[0]); now it's a fill ghost anchored to the slot.
+      expect(result?.selection?.eventId).toBeNull();
+      expect(result?.previewNote?.mode).toBe('CHORD');
+      expect(result?.previewNote?.eventId).toBe('btr');
     });
   });
 

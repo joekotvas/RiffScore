@@ -36,6 +36,7 @@ import { useNoteDelete } from './useNoteDelete';
 import { useNotePitch } from './useNotePitch';
 import { PreviewNote } from '@/utils/entry';
 import { HitZone } from '@/engines/layout/types';
+import type { SelectionEngine } from '@/engines/SelectionEngine';
 
 /**
  * Props for the useNoteActions composition hook.
@@ -86,6 +87,9 @@ export interface UseNoteActionsProps {
 
   /** Current input mode (NOTE or REST) */
   inputMode: InputMode;
+
+  /** Selection engine — used by delete to stash a pre-delete coord for undo re-anchoring (#257) */
+  selectionEngine: SelectionEngine;
 }
 
 /**
@@ -222,6 +226,7 @@ export const useNoteActions = ({
   currentQuantsPerMeasure,
   dispatch,
   inputMode,
+  selectionEngine,
 }: UseNoteActionsProps): UseNoteActionsReturn => {
   // --- READ: Hover preview for ghost note display ---
   const { handleMeasureHover } = useHoverPreview({
@@ -255,6 +260,7 @@ export const useNoteActions = ({
     select,
     dispatch,
     scoreRef,
+    selectionEngine,
   });
 
   // --- UPDATE: Pitch modification ---

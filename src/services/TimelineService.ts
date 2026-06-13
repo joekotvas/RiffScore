@@ -1,5 +1,6 @@
 import { TIME_SIGNATURES } from '@/constants';
 import { getNoteDuration } from '@/utils/core';
+import { findTieTarget } from '@/utils/ties';
 import { getFrequency } from './MusicService';
 import { getActiveStaff, Score, Staff, Measure, ScoreEvent, Note } from '@/types';
 
@@ -113,31 +114,47 @@ export const createTimeline = (score: Score, bpm: number): TimelineEvent[] => {
       return a.time - b.time;
     });
 
-    // Merge Ties (Linear Pass)
+    // Merge Ties (Linear Pass) — route connectivity through the tie SSOT (`findTieTarget`) instead
+    // of a float time-adjacency heuristic, so playback can never disagree with render/export/reflow
+    // about what a tie connects to (#261). A tie merges only when the SSOT resolves the chain's TAIL
+    // note to the literal coordinates of the next same-pitch event — a rest / reserved slot / wrong
+    // pitch between them breaks the chain exactly as it does everywhere else.
     if (rawEvents.length > 0) {
       let current = rawEvents[0];
+      // The last note absorbed into `current` — tie lookahead resolves from the chain's tail, not its
+      // head, so multi-note chains (C tied→C tied→C) extend across every link.
+      let tail = current;
 
       for (let i = 1; i < rawEvents.length; i++) {
         const next = rawEvents[i];
 
-        // Check connectivity
-        // Must be same pitch (guaranteed by sort usually, but check)
-        // Must be 'tied' flag on current
-        // Must be adjacent in time (within small epsilon float tolerance)
+        const target = tail.tied
+          ? findTieTarget(staff.measures, {
+              measureIndex: tail.measureIndex,
+              eventIndex: tail.eventIndex,
+              pitch: current.pitch,
+            })
+          : null;
         const isConnected =
-          current.tied &&
+          !!target &&
           next.pitch === current.pitch &&
-          Math.abs(next.time - (current.time + current.duration)) < 0.001;
+          target.measureIndex === next.measureIndex &&
+          target.eventIndex === next.eventIndex;
 
         if (isConnected) {
-          // Merge: Extend duration
-          current.duration += next.duration;
-          // Inherit tie status from next (if this chain continues)
-          current.tied = next.tied;
+          // Merge: extend the sounding span to the tied-to note's true grid END, then advance the
+          // tail so the chain can continue. Computing from `next.time + next.duration` (rather than
+          // `+= next.duration`) keeps the merged note aligned to the global grid even when the tie
+          // crosses a barline out of an under-full measure — there the events aren't time-contiguous,
+          // so a naive sum would both swallow the gap and lose the tied-to note's real onset. For a
+          // well-formed contiguous tie the two are identical.
+          current.duration = next.time + next.duration - current.time;
+          tail = next;
         } else {
           // Push finished event
           addEventToTimeline(current);
           current = next;
+          tail = next;
         }
       }
       // Push final event

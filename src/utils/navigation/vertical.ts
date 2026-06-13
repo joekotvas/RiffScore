@@ -10,6 +10,7 @@
 import { calculateTotalQuants, getNoteDuration } from '../core';
 import { quantsEqual } from '../tuplet';
 import { getMidi } from '@/services/MusicService';
+import { getMeasureCapacity } from '@/constants';
 import { CONFIG } from '@/config';
 import {
   Note,
@@ -22,6 +23,7 @@ import {
 import { getAppendPreviewNote, getDefaultPitchForClef } from './previewNote';
 import { findEventAtQuantPosition, selectNoteInEventByDirection } from './crossStaff';
 import { getAdjustedDuration } from './horizontal';
+import { findTupletFillAtQuant, buildTupletFillPreview } from './stops';
 
 /**
  * Calculates cross-staff selection based on quant alignment.
@@ -108,25 +110,33 @@ export const calculateCrossStaffSelection = (
     };
   } else {
     // No event found at this time (Gap or Empty Measure)
-    // Fallback to "Append Position" using consistent logic
-
     // Determine Pitch: Default to a "middle" note for the staff clef.
     const clef = targetStaff.clef || 'treble';
     const defaultPitch = getDefaultPitchForClef(clef);
 
-    const previewNote = getAppendPreviewNote(
+    // If the aligned quant falls in an incomplete tuplet's free (reserved) space, surface a
+    // tuplet-fill ghost (parity with horizontal #6) so the cursor sits on the fillable slot and
+    // Enter fills it cross-staff — rather than dropping to a plain APPEND ghost (#264).
+    const fill = findTupletFillAtQuant(
       targetMeasure,
-      measureIndex,
-      targetStaffIndex,
-      activeDuration,
-      isDotted,
-      defaultPitch
+      getMeasureCapacity(score.timeSignature),
+      currentQuantStart
     );
+    const previewNote = fill
+      ? buildTupletFillPreview(measureIndex, targetStaffIndex, fill, defaultPitch, false)
+      : getAppendPreviewNote(
+          targetMeasure,
+          measureIndex,
+          targetStaffIndex,
+          activeDuration,
+          isDotted,
+          defaultPitch
+        );
 
     return {
       selection: {
         staffIndex: targetStaffIndex,
-        measureIndex,
+        measureIndex: fill ? null : measureIndex,
         eventId: null,
         noteId: null,
         selectedNotes: [],
@@ -259,7 +269,38 @@ export const calculateVerticalNavigation = (
             },
             previewNote: null,
           };
-        } else if (targetMeasure.events.length > 0) {
+        }
+
+        // The aligned quant lands in an incomplete tuplet's free (reserved) space — surface a
+        // tuplet-fill ghost so the cursor sits on the fillable slot and Enter fills it cross-staff,
+        // rather than jumping to events[0] (the first real event) and editing that instead (#264).
+        const ghostFill = findTupletFillAtQuant(
+          targetMeasure,
+          currentQuantsPerMeasure,
+          currentQuantStart
+        );
+        if (ghostFill) {
+          const fillPitch = getDefaultPitchForClef(targetStaff.clef || 'treble');
+          return {
+            selection: {
+              staffIndex: targetStaffIndex,
+              measureIndex: null,
+              eventId: null,
+              noteId: null,
+              selectedNotes: [],
+              anchor: null,
+            },
+            previewNote: buildTupletFillPreview(
+              ghostMeasureIndex,
+              targetStaffIndex,
+              ghostFill,
+              fillPitch,
+              previewNote.isRest ?? false
+            ),
+          };
+        }
+
+        if (targetMeasure.events.length > 0) {
           // No overlapping event, but measure has events - select first event
           const firstEvent = targetMeasure.events[0];
           return {
@@ -313,6 +354,29 @@ export const calculateVerticalNavigation = (
     // Cycle ghost cursor to opposite staff if measure exists and we're not already there
     if (cycleMeasure && cycleStaffIndex !== ghostStaffIndex) {
       const defaultPitch = getDefaultPitchForClef(cycleStaff.clef || 'treble');
+
+      // If the ghost's quant lands in the cycle target's tuplet free space, offer a fill ghost there
+      // (parity with the cross-staff fill ghost #264) rather than a plain APPEND ghost.
+      const cycleFill = findTupletFillAtQuant(cycleMeasure, currentQuantsPerMeasure, currentQuantStart);
+      if (cycleFill) {
+        return {
+          selection: {
+            staffIndex: cycleStaffIndex,
+            measureIndex: null,
+            eventId: null,
+            noteId: null,
+            selectedNotes: [],
+            anchor: null,
+          },
+          previewNote: buildTupletFillPreview(
+            ghostMeasureIndex,
+            cycleStaffIndex,
+            cycleFill,
+            defaultPitch,
+            previewNote.isRest ?? false
+          ),
+        };
+      }
 
       return {
         selection: {
@@ -446,6 +510,25 @@ export const calculateVerticalNavigation = (
           previewNote: null,
         };
       } else {
+        // If the aligned quant falls in an incomplete tuplet's free (reserved) space, surface a
+        // tuplet-fill ghost (parity with horizontal #6) so Enter fills the slot cross-staff, instead
+        // of a plain APPEND ghost over the bar's trailing space (#264).
+        const fill = findTupletFillAtQuant(targetMeasure, currentQuantsPerMeasure, currentQuantStart);
+        if (fill) {
+          const fillPitch = getDefaultPitchForClef(targetStaff.clef || 'treble');
+          return {
+            selection: {
+              staffIndex: targetStaffIndex,
+              measureIndex: null,
+              eventId: null,
+              noteId: null,
+              selectedNotes: [],
+              anchor: null,
+            },
+            previewNote: buildTupletFillPreview(measureIndex, targetStaffIndex, fill, fillPitch, false),
+          };
+        }
+
         // No event at this quant - show ghost cursor with adjusted duration
         const totalQuants = calculateTotalQuants(targetMeasure.events);
         // Snap to 0 when the bar is full within tuplet FP drift (parity with getStops' quantsEqual):
@@ -522,10 +605,35 @@ export const calculateVerticalNavigation = (
   const cycleMeasure = cycleStaff?.measures[measureIndex];
 
   if (cycleMeasure) {
-    // Find event at current quant in cycle target
+    // If the aligned quant lands in an incomplete tuplet's free (reserved) space, surface a fill
+    // ghost — `findEventAtQuantPosition` below is NOT reserved-aware (unlike the cross-staff overlap
+    // walks), so without this the cycle path would LAND on a blank reserved slot, the exact thing
+    // #264 set out to prevent. Checked before the event lookup so it always wins for reserved space.
+    const cycleFill = findTupletFillAtQuant(cycleMeasure, currentQuantsPerMeasure, currentQuantStart);
+    if (cycleFill) {
+      return {
+        selection: {
+          staffIndex: cycleStaffIndex,
+          measureIndex: null,
+          eventId: null,
+          noteId: null,
+          selectedNotes: [],
+          anchor: null,
+        },
+        previewNote: buildTupletFillPreview(
+          measureIndex,
+          cycleStaffIndex,
+          cycleFill,
+          getDefaultPitchForClef(cycleStaff.clef || 'treble'),
+          false
+        ),
+      };
+    }
+
+    // Find event at current quant in cycle target (never land on a reserved slot — see above).
     const cycleEvent = findEventAtQuantPosition(cycleMeasure, currentQuantStart);
 
-    if (cycleEvent) {
+    if (cycleEvent && !cycleEvent.reserved) {
       return {
         selection: {
           staffIndex: cycleStaffIndex,

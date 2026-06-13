@@ -189,6 +189,46 @@ describe('ScoreEditor Interactions', () => {
     const remainingChords = screen.queryAllByTestId(/^chord-[^t]/);
     expect(remainingChords).toHaveLength(0);
   });
+
+  test('Undo of a delete that emptied the selection restores the selection (#257)', async () => {
+    const score = createDefaultScore();
+    render(
+      <ThemeProvider>
+        <ScoreEditor label="Interaction Test" initialData={score} />
+      </ThemeProvider>
+    );
+
+    const hitArea = screen.getByTestId('measure-hit-area-0-0');
+
+    // Add a single note, then select it (the only event in the measure).
+    fireEvent.mouseMove(hitArea, { clientX: 50, clientY: 110 });
+    await screen.findByTestId('ghost-note');
+    fireEvent.click(hitArea, { clientX: 50, clientY: 110 });
+
+    const noteGroup = screen.getAllByTestId(/^chord-[^t]/)[0];
+    fireEvent.click(noteGroup);
+    await waitFor(() => expect(noteGroup).toHaveAttribute('data-selected', 'true'));
+
+    const container = screen.getByTestId('score-canvas-container');
+    fireEvent.focus(container);
+    fireEvent.mouseEnter(container);
+
+    // Delete → measure empties, selection clears to null.
+    fireEvent.keyDown(window, { key: 'Backspace', code: 'Backspace', keyCode: 8 });
+    await waitFor(() => {
+      expect(screen.queryAllByTestId(/^chord-[^t]/)).toHaveLength(0);
+    });
+
+    // Undo (Cmd+Z) → the event is restored AND re-selected (#257). Without the fix the restored
+    // chord would render unselected (data-selected !== 'true').
+    fireEvent.keyDown(window, { key: 'z', code: 'KeyZ', metaKey: true });
+    await waitFor(() => {
+      const restored = screen.queryAllByTestId(/^chord-[^t]/);
+      expect(restored).toHaveLength(1);
+      expect(restored[0]).toHaveAttribute('data-selected', 'true');
+    });
+  });
+
   test('Cursor auto-advances after APPENDing a note', async () => {
     const score = createDefaultScore();
     render(
