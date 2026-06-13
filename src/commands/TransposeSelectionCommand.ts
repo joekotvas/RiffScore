@@ -225,6 +225,11 @@ export class TransposeSelectionCommand implements Command {
         const sIdx = parseInt(sIdxStr, 10);
         const mIdx = parseInt(mIdxStr, 10);
 
+        // Skip a selectedNotes entry whose staff no longer exists (stale grand-staff selection after a
+        // single-staff downgrade) — the spread below would otherwise throw on undefined and drop the
+        // whole transpose (#242 Lane G parity; the Case 1/2 paths above already use getValidStaff).
+        if (!getValidStaff(score, sIdx)) return;
+
         // Ensure we have a working copy of the staff
         if (!staffMap.has(sIdx)) {
           staffMap.set(sIdx, {

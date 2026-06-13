@@ -189,22 +189,28 @@ export const calculateVerticalNavigation = (
   if (chordTrackFocused && direction === 'down' && selectedChordId) {
     const selectedChord = score.chordTrack?.find((c) => c.id === selectedChordId);
     if (selectedChord) {
-      const targetMeasureIndex = Math.floor(selectedChord.quant / currentQuantsPerMeasure);
-      const localQuant = selectedChord.quant % currentQuantsPerMeasure;
+      // ChordSymbol.{measure,quant} is MEASURE-LOCAL — use the fields directly. (The old
+      // Math.floor(quant/qpm) decomposition treated quant as a global offset and ignored
+      // chord.measure, landing in the wrong bar / stranding the user on the chord track.)
+      const targetMeasureIndex = selectedChord.measure;
+      const localQuant = selectedChord.quant;
       const topStaff = score.staves[0];
       const targetMeasure = topStaff?.measures[targetMeasureIndex];
 
       if (targetMeasure) {
-        // Find event at this quant
+        // Land on the event that STARTS at this quant — a note OR a notated rest (symmetric with the
+        // UP-to-chord path, which admits rests; a chord can sit over a rest, so descending must be
+        // able to return to it). Never land on a blank reserved tuplet slot. quantsEqual tolerates a
+        // chord anchored on a fractional tuplet-member quant.
         let currentQuant = 0;
         for (const event of targetMeasure.events) {
-          if (currentQuant === localQuant && !event.isRest && event.notes?.length > 0) {
+          if (quantsEqual(currentQuant, localQuant) && !event.reserved) {
             return {
               selection: {
                 staffIndex: 0,
                 measureIndex: targetMeasureIndex,
                 eventId: event.id,
-                noteId: event.notes[0].id,
+                noteId: event.notes?.[0]?.id ?? null,
                 selectedNotes: [],
                 anchor: null,
               },
@@ -220,8 +226,10 @@ export const calculateVerticalNavigation = (
     return null;
   }
 
-  // If on chord track and going UP, no action (already at top)
-  if (chordTrackFocused && direction === 'up') {
+  // If GENUINELY on the chord track and going UP, no action (already at top). Gate on selectedChordId
+  // too so a dangling chordTrackFocused:true with no chord (e.g. after the focused chord was removed)
+  // can't silently swallow Cmd+Up for note navigation (#QA defense-in-depth).
+  if (chordTrackFocused && selectedChordId && direction === 'up') {
     return null;
   }
 

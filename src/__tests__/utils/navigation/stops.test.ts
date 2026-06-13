@@ -3,9 +3,10 @@
  * an incomplete tuplet contributes ONE `tupletFill` ghost stop (reserved slots are never their own
  * stop); a bar with room contributes a trailing `append` stop.
  */
-import { getStops } from '@/utils/navigation/stops';
+import { getStops, findTupletFillAtQuant } from '@/utils/navigation/stops';
 import { Measure, ScoreEvent } from '@/types';
 import { getMeasureCapacity } from '@/constants';
+import { getNoteDuration } from '@/utils/core';
 
 const cap = getMeasureCapacity('4/4');
 const note = (id: string, duration: string, pitch = 'C4'): ScoreEvent => ({
@@ -65,5 +66,20 @@ describe('getStops', () => {
 
   it('an empty bar is just an append stop', () => {
     expect(kinds(getStops(measure([]), cap))).toEqual(['append']);
+  });
+
+  it('emits stops in quant order even when a reserved slot is non-trailing (#264 QA)', () => {
+    // Loaded/malformed ordering [real, reserved, real] — normal editing packs reserved to the end,
+    // but loadScore accepts any order. The fill ghost must sort between the two real members so its
+    // free-space range can't span (and shadow) the second real member.
+    const m = measure([trip('a', 'C4', 0), trip('r', null, 1, true), trip('b', 'E4', 2)]);
+    const stops = getStops(m, cap);
+    expect(kinds(stops)).toEqual(['note', 'tupletFill', 'note', 'append']);
+    const quants = stops.map((s) => s.quant);
+    expect(quants).toEqual([...quants].sort((x, y) => x - y)); // strictly ascending
+
+    const memberQ = getNoteDuration('eighth', false, { ratio: [3, 2] });
+    expect(findTupletFillAtQuant(m, cap, memberQ)).not.toBeNull(); // inside the reserved region
+    expect(findTupletFillAtQuant(m, cap, memberQ * 2)).toBeNull(); // the 2nd real member — NOT shadowed
   });
 });

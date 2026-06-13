@@ -182,10 +182,12 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     const pending = selectionEngine.getPendingRestore();
     if (!pending) return;
     const current = selectionEngine.getState();
-    if (current.eventId !== null) {
-      // The user moved on to a real selection — drop the stash entirely. Merely returning would
-      // leave it alive, so a LATER score change with an empty selection could re-resolve the (now
-      // re-materialized) event and spuriously re-select it (Codex P2 on #266).
+    // "Moved on" = the user established ANY real selection since the delete — a note (eventId) OR the
+    // chord track (chordTrackFocused/chordId, both of which leave eventId null). Drop the stash so it
+    // can't later clobber that deliberate selection. (Merely returning would leave it alive to
+    // re-resolve on a future empty-selection score change — Codex P2 on #266; the chord-track case is
+    // the QA follow-up.)
+    if (current.eventId !== null || current.chordTrackFocused || current.chordId) {
       selectionEngine.clearPendingRestore();
       return;
     }
@@ -197,11 +199,15 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
       eventId: pending.eventId,
       noteId: pending.noteId,
     };
+    // Build a fully coherent single-note selection — clear chord fields explicitly rather than
+    // spreading them, so the restored note can't coexist with a stale chord focus.
     selectionEngine.setState({
       ...current,
       ...coord,
       selectedNotes: [coord],
       anchor: coord,
+      chordId: null,
+      chordTrackFocused: false,
     });
     selectionEngine.clearPendingRestore();
   }, [score, selectionEngine]);

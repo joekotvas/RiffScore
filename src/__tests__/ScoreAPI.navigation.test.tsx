@@ -559,6 +559,42 @@ describe('Navigation - selectById', () => {
   });
 });
 
+describe('Navigation - select() bounds (#QA)', () => {
+  afterEach(() => {
+    if (window.riffScore) {
+      window.riffScore.instances.clear();
+      window.riffScore.active = null;
+    }
+  });
+
+  test('out-of-range eventIndex on a non-empty measure reports EVENT_NOT_FOUND (not a false ok)', () => {
+    render(<RiffScore id="select-oob-event" config={configWithStaves(createSingleStaffStaves())} />);
+    const api = getAPI('select-oob-event');
+
+    api.select(0, 0, 99); // measure 0 has 2 events
+    expect(api.result.ok).toBe(false);
+    expect(api.result.code).toBe('EVENT_NOT_FOUND');
+  });
+
+  test('out-of-range noteIndex reports NOTE_NOT_FOUND', () => {
+    render(<RiffScore id="select-oob-note" config={configWithStaves(createSingleStaffStaves())} />);
+    const api = getAPI('select-oob-note');
+
+    api.select(0, 0, 0, 5); // event 0 exists, note index 5 does not
+    expect(api.result.ok).toBe(false);
+    expect(api.result.code).toBe('NOTE_NOT_FOUND');
+  });
+
+  test('a valid event index still selects (ok)', () => {
+    render(<RiffScore id="select-valid" config={configWithStaves(createSingleStaffStaves())} />);
+    const api = getAPI('select-valid');
+
+    api.select(0, 0, 1);
+    expect(api.result.ok).toBe(true);
+    expect(api.getSelection().eventId).toBe('e2');
+  });
+});
+
 describe('Navigation - jump() Edge Cases', () => {
   afterEach(() => {
     if (window.riffScore) {

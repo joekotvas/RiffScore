@@ -206,6 +206,7 @@ export const createChordMethods = (
         syncSelection({
           ...sel,
           chordId: null,
+          chordTrackFocused: false, // drop focus with the id so vertical nav isn't left swallowed (#QA)
         });
       }
 
@@ -381,6 +382,7 @@ export const createChordMethods = (
       syncSelection({
         ...sel,
         chordId: null,
+        chordTrackFocused: false, // leaving the chord drops track focus (coherent no-chord state) (#QA)
       });
 
       setResult({
@@ -798,6 +800,7 @@ export const createChordMethods = (
       syncSelection({
         ...sel,
         chordId: newChordId,
+        chordTrackFocused: newChordId !== null, // an emptied track drops focus (#QA)
       });
 
       setResult({

@@ -282,6 +282,32 @@ export const createNavigationMethods = (
         return this;
       }
 
+      // Bounds-check the event/note so an out-of-range index reports a failure instead of a false ok
+      // + silent append-to-end (mirrors selectAtQuant/selectById). An EMPTY measure with the default
+      // eventIndex 0 is allowed — that's a measure/append-position selection, not an error.
+      const targetMeasure = staff.measures[measureIndex];
+      const targetEvent = targetMeasure.events[eventIndex];
+      if (targetMeasure.events.length > 0 && !targetEvent) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'select',
+          message: `Event index ${eventIndex} not found in measure ${measureIndex}`,
+          code: 'EVENT_NOT_FOUND',
+        });
+        return this;
+      }
+      if (targetEvent && noteIndex !== 0 && !targetEvent.notes[noteIndex]) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'select',
+          message: `Note index ${noteIndex} not found in measure ${measureIndex}`,
+          code: 'NOTE_NOT_FOUND',
+        });
+        return this;
+      }
+
       // Use SelectEventCommand for proper selection
       selectionEngine.dispatch(
         new SelectEventCommand({

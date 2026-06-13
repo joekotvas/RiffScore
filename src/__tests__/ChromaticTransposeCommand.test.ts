@@ -193,4 +193,35 @@ describe('ChromaticTransposeCommand', () => {
       }
     });
   });
+
+  describe('out-of-range staffIndex hardening (#242 Lane G parity / #QA)', () => {
+    // Collapse the default grand staff to a single staff so a selection still carrying staffIndex:1
+    // is stale/out-of-range — the realistic state after a grand→single downgrade.
+    const single = (pitch = 'C4'): Score => {
+      const score = createScoreWithNote(pitch);
+      return { ...score, staves: [score.staves[0]] };
+    };
+
+    test('Case 1: a stale out-of-range staffIndex no-ops (no phantom staff, note unchanged)', () => {
+      const score = single('C4');
+      const selection = { measureIndex: 0, staffIndex: 1, eventId: 'e1', noteId: 'n1', selectedNotes: [] };
+      const result = new ChromaticTransposeCommand(selection, 2).execute(score);
+      expect(result.staves).toHaveLength(1); // did NOT create a phantom staves[1]
+      expect(result.staves[0].measures[0].events[0].notes[0].pitch).toBe('C4'); // real note untouched
+    });
+
+    test('Case 0: a multi-note entry on an out-of-range staff is skipped, not thrown', () => {
+      const score = single('C4');
+      const selection = {
+        measureIndex: 0,
+        staffIndex: 0,
+        eventId: 'e1',
+        noteId: 'n1',
+        selectedNotes: [{ staffIndex: 1, measureIndex: 0, eventId: 'e1', noteId: 'n1' }],
+      };
+      expect(() => new ChromaticTransposeCommand(selection, 2).execute(score)).not.toThrow();
+      const result = new ChromaticTransposeCommand(selection, 2).execute(score);
+      expect(result.staves).toHaveLength(1);
+    });
+  });
 });
