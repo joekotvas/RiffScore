@@ -378,13 +378,15 @@ export const visualFixtures: VisualFixture[] = [
     eighthBar(['C5', 'B4', 'A4', 'G4', 'F4', 'E4', 'D4', 'C4']),
   ]),
 
-  // --- Tuplets (extended stress set) ---------------------------------------------------
+  // --- Tuplets (extended set) ----------------------------------------------------------
   // Appended (not spliced into the Tuplets block above) so existing fixtures keep their fixed ids;
   // the gallery groups by `feature`, so these still render under "Tuplets". These put the tuplet
   // LAYOUT engine through its paces: bracket placement/angle, beam interaction, stem-direction
   // conflicts, brackets over rests/chords/ties/ledgers, adjacent groups, half-bar groups, compound
-  // meters, and (tagged `stress`) the non-triplet ratios the engine doesn't fully support yet
-  // (#245/#237) — included on purpose so the limits are visible, not blessed.
+  // meters, and the non-triplet ratios. The `stress` tag marks the non-triplet/edge cases that the
+  // #245 caveat once excluded; the gallery review + tupletFixtureOracles.test.ts verified they render
+  // correctly, so they're now blessed (committed pixel baselines). #237 (internal quant precision) is
+  // orthogonal and still open.
   treble('tuplet-sixteenth-triplet', 'Tuplets', 'Four sixteenth-note triplets — fast groups with a primary + secondary beam under one bracket each.', ['sixteenth triplet', 'secondary beam under bracket', 'four adjacent groups'], ['tuplet', 'triplet', 'sixteenth', 'beam'], [
     measure([...tupg('sixteenth', ['C5', 'D5', 'E5']), ...tupg('sixteenth', ['F5', 'E5', 'D5']), ...tupg('sixteenth', ['C5', 'D5', 'E5']), ...tupg('sixteenth', ['F5', 'G5', 'A5']), rest('half')]),
   ]),
