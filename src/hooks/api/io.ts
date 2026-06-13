@@ -46,6 +46,9 @@ export const createIOMethods = (
       }
 
       dispatch(new LoadScoreCommand(newScore));
+      // A wholesale replace invalidates any pending undo-restore stash — its coord belongs to the
+      // old score, and a loaded score may reuse authored ids that would spuriously resolve (#257).
+      ctx.selectionEngine.clearPendingRestore();
 
       // Surface content-validity problems (over-full / incomplete-tuplet bars, grand-staff parity)
       // as a NON-blocking warning: the score still loads (so it can be fixed) but the caller is told.
@@ -86,6 +89,7 @@ export const createIOMethods = (
       };
 
       dispatch(new LoadScoreCommand(newScore));
+      ctx.selectionEngine.clearPendingRestore(); // wholesale replace invalidates the stash (#257)
       setResult({
         ok: true,
         status: 'info',

@@ -176,6 +176,32 @@ export function useNoteEntry({
         newNote.staffIndex !== undefined ? newNote.staffIndex : selection.staffIndex;
       const currentStaffData = getActiveStaff(currentScore, currentStaffIndex);
 
+      // (#263) Phantom target past the last existing bar. A hover/keyboard APPEND ghost past the end
+      // of a FULL last bar targets `measureIndex + 1` — a bar that doesn't exist yet. Committing a
+      // plain AddEventCommand there silently no-ops against the missing measure (the note is lost),
+      // because the phantom's empty event list passes the capacity check below and never reaches the
+      // capacity-fail auto-advance path. Create the bar first, then place into it.
+      //
+      // Reached by the keyboard Enter commit, whose preview targets the phantom `measureIndex + 1`
+      // bar (useHoverPreview). The mouse-click path also passes shouldAutoAdvance=true but commits
+      // against the in-bounds last-bar index (useMeasureInteraction), so it instead takes the
+      // capacity-fail auto-advance branch below. Gated on `shouldAutoAdvance` so it does NOT fire for
+      // the auto-advance RECURSION, which intentionally re-enters with `shouldAutoAdvance = false` and
+      // an out-of-range index that resolves against the freshly dispatched engine measure (scoreRef
+      // is still stale on that synchronous re-entry) — that path must fall through to the normal
+      // dispatch. Running before the tuplet/slot branches also means a stale selection on a tuplet
+      // member can't be overwritten.
+      if (measureIndex >= currentStaffData.measures.length && shouldAutoAdvance) {
+        dispatch(new AddMeasureCommand());
+        addNoteToMeasureCallback(
+          measureIndex,
+          { ...newNote, staffIndex: currentStaffIndex },
+          false,
+          { mode: 'APPEND', index: 0 }
+        );
+        return;
+      }
+
       const newMeasures = [...currentStaffData.measures];
       const targetMeasure = { ...newMeasures[measureIndex] };
       if (!targetMeasure.events) targetMeasure.events = [];

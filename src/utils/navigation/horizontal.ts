@@ -24,7 +24,7 @@ import {
   createGhostCursorResult,
 } from './previewNote';
 import { notesToAudioNotes } from './transposition';
-import { getStops, NavStop } from './stops';
+import { getStops, NavStop, buildTupletFillPreview } from './stops';
 import { getTupletRun } from '../tupletEdit';
 
 // --- Constants ---
@@ -110,19 +110,7 @@ const buildTupletFillGhost = (
   isRest: boolean
 ): HorizontalNavigationResult => ({
   selection: { staffIndex, measureIndex: null, eventId: null, noteId: null },
-  previewNote: {
-    measureIndex,
-    staffIndex,
-    quant: stop.quant,
-    visualQuant: stop.quant,
-    pitch,
-    duration: stop.baseDuration,
-    dotted: false,
-    mode: 'CHORD',
-    index: stop.reservedIndex,
-    eventId: stop.reservedId,
-    isRest,
-  },
+  previewNote: buildTupletFillPreview(measureIndex, staffIndex, stop, pitch, isRest),
   audio: null,
   shouldCreateMeasure: false,
 });
