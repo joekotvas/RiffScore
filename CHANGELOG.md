@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0-alpha.16] - 2026-06-13
+
+Closes the loop on the M2 interactive-correctness work — the four deferred follow-ups (#261, #263,
+#264, #257) — then hardens the branch with a multi-dimension adversarial QA pass before release.
+Also formalizes the tuplet layout engine's verified breadth into the visual corpus. Shaped by a deep
+QA audit (24 findings triaged) and four Codex reviews.
+
+### For musicians
+- **Enter no longer drops a note** appended just past the end of a full last bar — it creates the
+  next bar and places it, matching what a mouse click already did (#263).
+- **Cross-staff cursor finds tuplet space** — moving up/down into a triplet's free space lands on a
+  fillable ghost ready for the next note, instead of jumping to the first note of the bar or onto a
+  blank slot (#264).
+- **Undo restores your place** — undoing a delete that emptied a bar puts the cursor back on the
+  recovered note; and if you'd moved on to a chord symbol, undo keeps the chord selected.
+- **Deleting re-anchors the cursor** — deleting one note of a chord, or one of several notes in a bar
+  (by click or arrow keys), now moves the cursor to a neighbor instead of clearing the selection.
+- **Playback matches the notation** — a tie sounds only when it actually connects to the next note,
+  so ties across tuplets and ties interrupted by a rest play correctly (#261).
+- **Chord-track navigation is reliable** — returning from the chord track (Cmd+Down) lands in the
+  chord's real bar and can land on a rest, instead of jumping to the wrong measure or getting stuck.
+
+### For developers
+- **#261** — `TimelineService` tie resolution now routes through the `findTieTarget` SSOT (was a
+  private float-adjacency heuristic), with tail-tracking for multi-note chains and grid-correct merged
+  durations; playback can no longer disagree with render/export about what a tie connects to.
+- **#263** — `addNoteToMeasure` gained a phantom-target guard (create-then-place), gated so the
+  existing capacity-fail auto-advance recursion is untouched.
+- **#264** — cross-staff vertical navigation surfaces a tuplet-fill ghost via the shared stops SSOT;
+  the staff-cycle path no longer lands on a reserved slot.
+- **#257** — selection is restored on undo of an emptying delete (a single-slot pending-restore stash,
+  cleared once the user moves on, chord-track-aware).
+- **Pre-release QA hardening** — transpose commands no longer corrupt the model on a stale
+  `staffIndex`; `ToggleRestCommand` no longer grows its undo snapshot on redo; `select()` reports
+  `EVENT_/NOTE_NOT_FOUND` for out-of-range indices; `chordTrackFocused` is paired with `chordId`
+  everywhere it's cleared.
+- **Tuplet layout verified + locked** — 25 new visual fixtures (non-triplet ratios, 16th/quarter
+  bases, mid-bar, beat-spanning, rest/chord-inside, compound meter, non-uniform members) with
+  render-free oracles and seeded pixel baselines; **#245** re-scoped (rendering verified — #237's
+  internal quant precision stays open).
+- Filed pre-existing findings for follow-up: capacity-SSOT across playback/layout (#254), chord
+  re-anchor/pickup timing (#255), tuplet-fill selection (#268), export tie-over-rest (#269), page-view
+  ties (#270), and others (#271, #272).
+
 ## [1.0.0-alpha.15] - 2026-06-12
 
 Interactive correctness (roadmap M2, #242) — the editor now enforces structural invariants where
