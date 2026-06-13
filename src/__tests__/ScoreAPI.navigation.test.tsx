@@ -593,6 +593,28 @@ describe('Navigation - select() bounds (#QA)', () => {
     expect(api.result.ok).toBe(true);
     expect(api.getSelection().eventId).toBe('e2');
   });
+
+  // The empty-measure carve-out is ONLY for the default append cursor (eventIndex 0).
+  const emptyMeasureStaves = (): Staff[] => [
+    { id: 'treble-staff', clef: 'treble', keySignature: 'C', measures: [{ id: 'm-empty', events: [] }] },
+  ];
+
+  test('explicit nonzero eventIndex on an EMPTY measure still reports EVENT_NOT_FOUND (Codex P2)', () => {
+    render(<RiffScore id="select-empty-explicit" config={configWithStaves(emptyMeasureStaves())} />);
+    const api = getAPI('select-empty-explicit');
+
+    api.select(0, 0, 99);
+    expect(api.result.ok).toBe(false);
+    expect(api.result.code).toBe('EVENT_NOT_FOUND');
+  });
+
+  test('default eventIndex 0 on an EMPTY measure is still ok (append-position selection)', () => {
+    render(<RiffScore id="select-empty-default" config={configWithStaves(emptyMeasureStaves())} />);
+    const api = getAPI('select-empty-default');
+
+    api.select(0); // default staffIndex/eventIndex/noteIndex = 0
+    expect(api.result.ok).toBe(true);
+  });
 });
 
 describe('Navigation - jump() Edge Cases', () => {
