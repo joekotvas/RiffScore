@@ -162,4 +162,25 @@ describe('Grand Staff Bass Clef Transposition', () => {
     score = engine.getState();
     expect(getActiveStaff(score, 1).measures[0].events[0].notes[0].pitch).toBe('G3');
   });
+
+  it('does not throw / create a phantom staff for a stale out-of-range staffIndex (Case 0, #267 Codex P2)', () => {
+    // Single-staff score, but a multi-note selection still carries a staffIndex:1 entry (the state
+    // after a grand→single downgrade). The earlier selectedNotes pass must skip it, not throw.
+    const base = createDefaultScore();
+    const single = { ...base, staves: [base.staves[0]] };
+    const eventId = single.staves[0].measures[0].events[0]?.id ?? 'none';
+    const selection = {
+      staffIndex: 0,
+      measureIndex: 0,
+      eventId,
+      noteId: null,
+      selectedNotes: [{ staffIndex: 1, measureIndex: 0, eventId, noteId: null }],
+    };
+
+    let result = single;
+    expect(() => {
+      result = new TransposeSelectionCommand(selection, 1, 'C').execute(single);
+    }).not.toThrow();
+    expect(result.staves).toHaveLength(1); // no phantom staves[1]
+  });
 });
