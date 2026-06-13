@@ -30,7 +30,6 @@ const ev = (id: string, pitches: string[]): ScoreEvent => ({
 describe('useNoteDelete', () => {
   let mockDispatch: jest.Mock;
   let mockSelect: jest.Mock;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockSelectionEngine: any;
 
   beforeEach(() => {

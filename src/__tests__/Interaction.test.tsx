@@ -270,7 +270,7 @@ describe('ScoreEditor Interactions', () => {
     // Undo restores A — the user's selection (B) must NOT be clobbered. Crucially this also DROPS
     // the stash (the user moved on), which the next assertion proves.
     fireEvent.keyDown(window, { key: 'z', code: 'KeyZ', metaKey: true });
-    await waitFor(() => expect(screen.queryByTestId(idA)).not.toBeNull());
+    await screen.findByTestId(idA);
     expect(screen.getByTestId(idB)).toHaveAttribute('data-selected', 'true');
     expect(screen.getByTestId(idA)).not.toHaveAttribute('data-selected', 'true');
 
