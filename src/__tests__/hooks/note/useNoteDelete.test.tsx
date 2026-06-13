@@ -112,10 +112,17 @@ describe('useNoteDelete', () => {
       expect(mockSelectionEngine.stashPendingRestore).not.toHaveBeenCalled();
     });
 
-    it('deletes events when noteId is missing in selectedNotes', () => {
+    it('deletes events (DeleteEventCommand) for selectedNotes entries missing a noteId', () => {
+      // Two entries (a TRUE multi-selection) so it stays in the multi-delete branch — a single entry
+      // now intentionally falls through to the re-anchor path (see "single selection deletion").
       const selection: Selection = {
         ...createDefaultSelection(),
-        selectedNotes: [{ staffIndex: 0, measureIndex: 0, eventId: 'e1', noteId: null }],
+        measureIndex: 0,
+        eventId: 'e1',
+        selectedNotes: [
+          { staffIndex: 0, measureIndex: 0, eventId: 'e1', noteId: null },
+          { staffIndex: 0, measureIndex: 0, eventId: 'e2', noteId: null },
+        ],
       };
 
       const { result } = renderHook(() =>
@@ -126,7 +133,7 @@ describe('useNoteDelete', () => {
         result.current.deleteSelected();
       });
 
-      expect(DeleteEventCommand).toHaveBeenCalledTimes(1);
+      expect(DeleteEventCommand).toHaveBeenCalledTimes(2);
       expect(DeleteNoteCommand).not.toHaveBeenCalled();
     });
   });
@@ -195,6 +202,46 @@ describe('useNoteDelete', () => {
       act(() => result.current.deleteSelected());
 
       expect(mockSelect).toHaveBeenCalledWith(0, 'e2', 'e2n0', 0);
+    });
+
+    it('re-anchors a single-note (click-shape) selection to a neighbor — selectedNotes length 1 (#QA)', () => {
+      // A click/arrow-nav populates selectedNotes with ONE entry == the primary. That must still
+      // re-anchor to the surviving neighbor (M2 intent), NOT route to the multi-branch and clear.
+      const selection: Selection = {
+        ...createDefaultSelection(),
+        measureIndex: 0,
+        eventId: 'e1',
+        noteId: 'e1n0',
+        staffIndex: 0,
+        selectedNotes: [{ staffIndex: 0, measureIndex: 0, eventId: 'e1', noteId: 'e1n0' }],
+      };
+      const scoreRef = refTo(scoreWith([ev('e1', ['C4']), ev('e2', ['D4'])]));
+
+      const { result } = renderHook(() =>
+        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef })
+      );
+      act(() => result.current.deleteSelected());
+
+      expect(mockSelect).toHaveBeenCalledWith(0, 'e2', 'e2n0', 0);
+    });
+
+    it('re-anchors to a chord sibling when click-deleting one note of a chord — selectedNotes length 1 (#QA)', () => {
+      const selection: Selection = {
+        ...createDefaultSelection(),
+        measureIndex: 0,
+        eventId: 'e1',
+        noteId: 'e1n0',
+        staffIndex: 0,
+        selectedNotes: [{ staffIndex: 0, measureIndex: 0, eventId: 'e1', noteId: 'e1n0' }],
+      };
+      const scoreRef = refTo(scoreWith([ev('e1', ['C4', 'E4', 'G4'])]));
+
+      const { result } = renderHook(() =>
+        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef })
+      );
+      act(() => result.current.deleteSelected());
+
+      expect(mockSelect).toHaveBeenCalledWith(0, 'e1', 'e1n1', 0);
     });
 
     it('selects the previous event when deleting the last event', () => {

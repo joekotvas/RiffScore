@@ -282,6 +282,35 @@ export const createNavigationMethods = (
         return this;
       }
 
+      // Bounds-check the event/note so an out-of-range index reports a failure instead of a false ok
+      // + silent append-to-end (mirrors selectAtQuant/selectById). The ONLY carve-out is the default
+      // append cursor — eventIndex 0 on an EMPTY measure (a measure/append-position selection). An
+      // explicit nonzero index that resolves to nothing is still EVENT_NOT_FOUND, even in an empty bar
+      // (Codex P2 on #267).
+      const targetMeasure = staff.measures[measureIndex];
+      const targetEvent = targetMeasure.events[eventIndex];
+      const isEmptyMeasureAppendCursor = targetMeasure.events.length === 0 && eventIndex === 0;
+      if (!targetEvent && !isEmptyMeasureAppendCursor) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'select',
+          message: `Event index ${eventIndex} not found in measure ${measureIndex}`,
+          code: 'EVENT_NOT_FOUND',
+        });
+        return this;
+      }
+      if (targetEvent && noteIndex !== 0 && !targetEvent.notes[noteIndex]) {
+        setResult({
+          ok: false,
+          status: 'error',
+          method: 'select',
+          message: `Note index ${noteIndex} not found in measure ${measureIndex}`,
+          code: 'NOTE_NOT_FOUND',
+        });
+        return this;
+      }
+
       // Use SelectEventCommand for proper selection
       selectionEngine.dispatch(
         new SelectEventCommand({

@@ -97,6 +97,12 @@ export const getStops = (measure: Measure, capacity: number): NavStop[] => {
     stops.push({ kind: 'append', quant: total });
   }
 
+  // Emit in quant order (the contract above). A group's single `tupletFill` ghost is pushed AFTER
+  // its real members, so a reserved slot that isn't trailing (only reachable via loaded/malformed
+  // data — normal editing packs reserved to the end) would otherwise leave the array quant-unordered,
+  // making `findTupletFillAtQuant`'s next-stop upper bound span a real member and shadow it (#264 QA).
+  stops.sort((a, b) => a.quant - b.quant);
+
   return stops;
 };
 

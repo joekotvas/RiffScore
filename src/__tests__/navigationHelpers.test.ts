@@ -520,4 +520,32 @@ describe('calculateVerticalNavigation', () => {
       expect(result?.selection?.noteId).toBe('cn2');
     });
   });
+
+  // #QA — descending from the chord track must use the chord's MEASURE-LOCAL coords (not quant-as-
+  // global), and must be able to land on a rest (symmetric with the rest-admitting UP path).
+  describe('chord-track DOWN navigation', () => {
+    const twoBarStaff = {
+      id: 'staff-0',
+      clef: 'treble' as const,
+      keySignature: 'C',
+      measures: [
+        { id: 'm0', events: [{ id: 'e0', duration: 'quarter', dotted: false, notes: [{ id: 'e0n', pitch: 'C4' }] }] },
+        { id: 'm1', events: [{ id: 'e1', duration: 'quarter', dotted: false, isRest: true, notes: [] }] },
+      ],
+    };
+    const scoreWithChord = {
+      ...createScore([twoBarStaff]),
+      chordTrack: [{ id: 'ch1', measure: 1, quant: 0, symbol: 'G' }],
+    };
+
+    test('descends to the chord’s own (non-zero) measure and lands on a rest', () => {
+      const selection = { staffIndex: 0, measureIndex: null, eventId: null, noteId: null };
+      // args: ..., previewNote=null, qpm=64, chordTrackFocused=true, selectedChordId='ch1'
+      const result = calculateVerticalNavigation(scoreWithChord, selection, 'down', 'quarter', false, null, 64, true, 'ch1');
+
+      expect(result?.leavingChordTrack).toBe(true);
+      expect(result?.selection?.measureIndex).toBe(1); // chord.measure — NOT floor(quant/qpm)=0
+      expect(result?.selection?.eventId).toBe('e1'); // the rest in measure 1 (rest is a valid landing)
+    });
+  });
 });

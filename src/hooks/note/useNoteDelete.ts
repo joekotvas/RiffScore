@@ -70,8 +70,7 @@ export function useNoteDelete({
     // Stash the pre-delete primary coord before clearing the selection to null (#257), so the next
     // undo that re-materializes that exact event/note (ids are stable across undo) re-selects it —
     // the Lane G repair effect only prunes, never re-anchors. EventIds are unique, so the stash can
-    // only resolve by undoing this delete; it can't fire on an unrelated edit. Used by both the
-    // multi-selection clear and the single no-neighbor clear below.
+    // only resolve by undoing this delete; it can't fire on an unrelated edit.
     const stashClearedSelection = () => {
       if (selection.measureIndex !== null && selection.eventId) {
         selectionEngine.stashPendingRestore({
@@ -83,8 +82,13 @@ export function useNoteDelete({
       }
     };
 
-    // 1. Delete Multi-Selection
-    if (selection.selectedNotes && selection.selectedNotes.length > 0) {
+    // 1. Delete a TRUE multi-selection (more than one note). A single-note selection — which a click
+    // or arrow-key nav produces (SetSelectionCommand/NavigateCommand populate selectedNotes with one
+    // entry == the primary) — deliberately falls through to the single-selection path below so it
+    // re-anchors to a surviving neighbor / chord sibling (the M2 UX intent) instead of clearing to
+    // null. A genuine multi-delete clears (which survivor to anchor is ambiguous) and is left
+    // unstashed: it dispatches N separate history entries, so one undo would only restore the last.
+    if (selection.selectedNotes && selection.selectedNotes.length > 1) {
       const notesToDelete = [...selection.selectedNotes];
       notesToDelete.forEach((note) => {
         if (note.noteId) {
@@ -96,12 +100,6 @@ export function useNoteDelete({
           dispatch(new DeleteEventCommand(note.measureIndex, note.eventId, note.staffIndex));
         }
       });
-      // Clear selection after delete. Only stash for a single-note selection (a click populates
-      // selectedNotes with one entry == the primary): a true multi-note delete dispatches N separate
-      // history entries, so one undo restores only the last and a primary-coord stash would re-select
-      // partially or mis-fire on a later undo (#257 review). Re-anchoring a multi-delete undo is out
-      // of #257 scope — leave it unstashed.
-      if (notesToDelete.length === 1) stashClearedSelection();
       select(null, null, null, selection.staffIndex);
       return;
     }
