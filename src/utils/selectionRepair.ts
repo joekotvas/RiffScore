@@ -124,5 +124,9 @@ export const repairSelection = (selection: Selection, score: Score): Selection =
     anchor: anchorStale ? null : selection.anchor,
     verticalAnchors: verticalChanged ? prunedVertical : selection.verticalAnchors,
     chordId: chordStale ? null : selection.chordId,
+    // Drop chord-track focus alongside the chord id — leaving chordTrackFocused:true with chordId:null
+    // is the incoherent state createDefaultSelection never produces, and vertical.ts reads the flag
+    // alone (swallowing Cmd+Up) (#QA).
+    chordTrackFocused: chordStale ? false : selection.chordTrackFocused,
   };
 };

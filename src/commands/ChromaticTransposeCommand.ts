@@ -9,7 +9,7 @@
  */
 
 import { Command } from './types';
-import { Score, getActiveStaff, Selection, Staff, ScoreEvent, Note as NoteType } from '@/types';
+import { Score, getValidStaff, Selection, Staff, ScoreEvent, Note as NoteType } from '@/types';
 import { Note, Interval } from 'tonal';
 import { PIANO_RANGE } from '@/constants';
 import { getMidi } from '@/services/MusicService';
@@ -79,8 +79,10 @@ export class ChromaticTransposeCommand implements Command {
     }
 
     const staffIndex = this.selection.staffIndex ?? 0;
-    const activeStaff = getActiveStaff(score, staffIndex);
-    const measure = activeStaff.measures[this.selection.measureIndex];
+    // getValidStaff (not getActiveStaff) so a stale out-of-range staffIndex resolves to undefined and
+    // no-ops, rather than silently retargeting staff 0 (#242 Lane G — parity with the diatonic sibling).
+    const activeStaff = getValidStaff(score, staffIndex);
+    const measure = activeStaff?.measures[this.selection.measureIndex];
     if (!measure) return targets;
 
     // Case 1: specific note
@@ -189,6 +191,11 @@ export class ChromaticTransposeCommand implements Command {
         // different key signatures (grand staff) spells each note in its own key.
         const keySig = score.staves[sIdx]?.keySignature || this.keySignature || 'C';
 
+        // Skip a selectedNotes entry whose staff no longer exists (e.g. a stale grand-staff selection
+        // after a single-staff downgrade) — `[...newStaves[sIdx].measures]` would otherwise throw on
+        // undefined, dropping the WHOLE transpose into the dispatch catch (#242 Lane G parity).
+        if (!getValidStaff(score, sIdx)) return;
+
         if (!staffMap.has(sIdx)) {
           staffMap.set(sIdx, {
             ...newStaves[sIdx],
@@ -248,7 +255,8 @@ export class ChromaticTransposeCommand implements Command {
     }
 
     // Case 1: Transpose specific note
-    const activeStaff = getActiveStaff(score, staffIndex);
+    const activeStaff = getValidStaff(score, staffIndex);
+    if (!activeStaff) return score; // out-of-range staff -> no-op (don't retarget staff 0)
     const keySig = activeStaff.keySignature || this.keySignature || 'C';
     const newMeasures = [...activeStaff.measures];
 

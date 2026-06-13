@@ -17,8 +17,14 @@
  * must be valid so `migrateScore` synthesizes nothing.
  *
  * COVERAGE CAVEAT: only what RiffScore renders CORRECTLY today. Known-buggy/incomplete output
- * is excluded so we don't bless it: cross-measure ties (#249); non-triplet tuplets and
- * secondary/partial beams (#245) until the #237 rhythm-grid work lands.
+ * is excluded so we don't bless it: cross-measure ties (#249).
+ *
+ * Non-triplet tuplets (duplet/quintuplet/sextuplet/septuplet/quadruplet) and edge cases
+ * (16th/quarter bases, mid-bar, beat-spanning, rest/chord inside, compound meter, stems-down,
+ * non-uniform members) ARE now included — the gallery review + render-free oracles
+ * (tupletFixtureOracles.test.ts) verified the layout engine draws the correct bracket number and
+ * beams around interior rests (#245 re-scoped to RENDERING-done). #237 (exact internal tuplet
+ * quant precision) is orthogonal and still open — it doesn't affect the rendered layout here.
  */
 
 import type { Score, ScoreEvent, Note, Staff } from '@/types';
@@ -64,6 +70,26 @@ const chord = (duration: string, pitches: string[], extra: Partial<ScoreEvent> =
   ev(duration, pitches.map((p) => note(p)), extra);
 const trip = (duration: string, notes: Note[], position: number, extra: Partial<ScoreEvent> = {}) =>
   ev(duration, notes, { tuplet: { ratio: [3, 2], groupSize: 3, position }, ...extra });
+
+/**
+ * A COMPLETE tuplet group: one event per member, positions auto-assigned 0..n-1, groupSize = the
+ * member count. `ratio` is [actual notes, in space of N]; defaults to a triplet. Each member is a
+ * pitch string, a pitch array (chord), a `Note` (to carry tied/accidental), or null (a rest member).
+ * Used by the extended tuplet stress fixtures to exercise the layout engine across ratios/contents.
+ */
+const tupg = (
+  duration: string,
+  members: Array<string | string[] | Note | null>,
+  ratio: [number, number] = [3, 2]
+): ScoreEvent[] =>
+  members.map((m, position) => {
+    const notes: Note[] =
+      m === null ? [] : Array.isArray(m) ? m.map((p) => note(p)) : typeof m === 'string' ? [note(m)] : [m];
+    return ev(duration, notes, {
+      tuplet: { ratio, groupSize: members.length, position },
+      ...(m === null ? { isRest: true } : {}),
+    });
+  });
 
 type Measure = Staff['measures'][number];
 const measure = (events: ScoreEvent[], extra: { isPickup?: boolean } = {}): Measure => ({
@@ -350,6 +376,108 @@ export const visualFixtures: VisualFixture[] = [
     measure([ev('whole', [note('C4')])]),
     measure([q('C4'), q('D4'), q('E4'), q('F4')]),
     eighthBar(['C5', 'B4', 'A4', 'G4', 'F4', 'E4', 'D4', 'C4']),
+  ]),
+
+  // --- Tuplets (extended set) ----------------------------------------------------------
+  // Appended (not spliced into the Tuplets block above) so existing fixtures keep their fixed ids;
+  // the gallery groups by `feature`, so these still render under "Tuplets". These put the tuplet
+  // LAYOUT engine through its paces: bracket placement/angle, beam interaction, stem-direction
+  // conflicts, brackets over rests/chords/ties/ledgers, adjacent groups, half-bar groups, compound
+  // meters, and the non-triplet ratios. The `stress` tag marks the non-triplet/edge cases that the
+  // #245 caveat once excluded; the gallery review + tupletFixtureOracles.test.ts verified they render
+  // correctly, so they're now blessed (committed pixel baselines). #237 (internal quant precision) is
+  // orthogonal and still open.
+  treble('tuplet-sixteenth-triplet', 'Tuplets', 'Four sixteenth-note triplets — fast groups with a primary + secondary beam under one bracket each.', ['sixteenth triplet', 'secondary beam under bracket', 'four adjacent groups'], ['tuplet', 'triplet', 'sixteenth', 'beam'], [
+    measure([...tupg('sixteenth', ['C5', 'D5', 'E5']), ...tupg('sixteenth', ['F5', 'E5', 'D5']), ...tupg('sixteenth', ['C5', 'D5', 'E5']), ...tupg('sixteenth', ['F5', 'G5', 'A5']), rest('half')]),
+  ]),
+  treble('tuplet-two-eighth-triplets', 'Tuplets', 'Two back-to-back eighth-note triplets — adjacent brackets must not collide or merge.', ['two adjacent triplets', 'independent brackets'], ['tuplet', 'triplet', 'adjacent'], [
+    measure([...tupg('eighth', ['C4', 'D4', 'E4']), ...tupg('eighth', ['F4', 'G4', 'A4']), rest('half')]),
+  ]),
+  treble('tuplet-adjacent-to-eighths', 'Tuplets', 'An eighth triplet immediately followed by a plain beamed eighth group — tuplet vs non-tuplet beam-group boundary.', ['triplet beside a normal beam group', 'beam-group boundary'], ['tuplet', 'triplet', 'beam', 'mixed'], [
+    measure([...tupg('eighth', ['C4', 'D4', 'E4']), e('F4'), e('G4'), e('A4'), e('B4'), rest('quarter')]),
+  ]),
+  treble('tuplet-chords', 'Tuplets', 'An eighth-note triplet of chords — shared stems within the group, bracket clears the chord stack.', ['triplet of chords', 'bracket over chords'], ['tuplet', 'triplet', 'chord'], [
+    measure([...tupg('eighth', [['C4', 'E4'], ['D4', 'F4'], ['E4', 'G4']]), rest('half'), rest('quarter')]),
+  ]),
+  treble('tuplet-accidentals', 'Tuplets', 'A triplet whose members carry accidentals — spacing must absorb the glyphs without skewing the bracket.', ['accidentals inside a tuplet', 'bracket spacing with accidentals'], ['tuplet', 'triplet', 'accidentals'], [
+    measure([...tupg('eighth', ['F#4', 'Ab4', 'B4']), q('C5'), rest('half')]),
+  ]),
+  treble('tuplet-tie-within', 'Tuplets', 'A tie between two members of one triplet (slur-vs-tie + bracket coexistence).', ['tie inside a tuplet', 'tie under the bracket'], ['tuplet', 'triplet', 'tie'], [
+    measure([
+      ev('eighth', [note('C4', { tied: true })], { tuplet: { ratio: [3, 2], groupSize: 3, position: 0 } }),
+      ev('eighth', [note('C4')], { tuplet: { ratio: [3, 2], groupSize: 3, position: 1 } }),
+      ev('eighth', [note('E4')], { tuplet: { ratio: [3, 2], groupSize: 3, position: 2 } }),
+      q('F4'),
+      rest('half'),
+    ]),
+  ]),
+  treble('tuplet-ledger-high', 'Tuplets', 'A triplet high above the staff — bracket sits clear above the ledger lines.', ['triplet on ledger lines', 'bracket above ledgers'], ['tuplet', 'triplet', 'ledger'], [
+    measure([...tupg('eighth', ['A5', 'C6', 'E6']), q('G5'), rest('half')]),
+  ]),
+  treble('tuplet-mixed-stems', 'Tuplets', 'A triplet straddling the middle line — members want opposite stem directions; the group must pick one.', ['stem-direction conflict within a group', 'forced common stem'], ['tuplet', 'triplet', 'stems'], [
+    measure([...tupg('eighth', ['G4', 'B4', 'D5']), q('C5'), rest('half')]),
+  ]),
+  treble('tuplet-half-triplet', 'Tuplets', 'A half-note triplet filling the whole bar — a wide unbeamed bracket spanning three stems.', ['half-note triplet', 'full-bar bracket', 'unbeamed contour'], ['tuplet', 'triplet', 'half', 'unbeamed'], [
+    measure([...tupg('half', ['C4', 'E4', 'G4'])]),
+  ]),
+  treble('tuplet-two-quarter-triplets', 'Tuplets', 'Two quarter-note triplets filling the bar — two wide unbeamed brackets side by side.', ['two unbeamed triplets', 'side-by-side brackets'], ['tuplet', 'triplet', 'quarter', 'unbeamed'], [
+    measure([...tupg('quarter', ['C4', 'D4', 'E4']), ...tupg('quarter', ['F4', 'G4', 'A4'])]),
+  ]),
+  treble('tuplet-triplets-6-8', 'Tuplets', 'Three eighth-note triplets in 6/8 — triplet subdivision against a compound (dotted-quarter) pulse.', ['triplet against compound pulse', '6/8 with triplets'], ['tuplet', 'triplet', 'compound-meter', '6/8'], [
+    measure([...tupg('eighth', ['C4', 'D4', 'E4']), ...tupg('eighth', ['F4', 'G4', 'A4']), ...tupg('eighth', ['B4', 'C5', 'D5'])]),
+  ], '6/8'),
+  treble('tuplet-duplet-6-8', 'Tuplets', 'A duplet (2 in the space of 3) in 6/8 — the classic compound-meter borrowed division. Non-triplet ratio (#245).', ['duplet 2:3', 'compound-meter borrowing'], ['tuplet', 'duplet', 'compound-meter', '6/8', 'stress'], [
+    measure([...tupg('eighth', ['C5', 'A4'], [2, 3]), rest('quarter', { dotted: true })]),
+  ], '6/8'),
+  treble('tuplet-quintuplet', 'Tuplets', 'An eighth-note quintuplet (5 in the space of 4). STRESS: non-triplet ratio the engine does not fully support yet (#245/#237).', ['quintuplet 5:4', 'reads "5"'], ['tuplet', 'quintuplet', 'stress', 'wip'], [
+    measure([...tupg('eighth', ['C4', 'D4', 'E4', 'F4', 'G4'], [5, 4]), rest('half')]),
+  ]),
+  treble('tuplet-sextuplet', 'Tuplets', 'An eighth-note sextuplet (6 in the space of 4). STRESS: non-triplet ratio (#245/#237).', ['sextuplet 6:4', 'reads "6"'], ['tuplet', 'sextuplet', 'stress', 'wip'], [
+    measure([...tupg('eighth', ['C4', 'D4', 'E4', 'F4', 'G4', 'A4'], [6, 4]), rest('half')]),
+  ]),
+  treble('tuplet-septuplet', 'Tuplets', 'An eighth-note septuplet (7 in the space of 4). STRESS: non-triplet ratio (#245/#237).', ['septuplet 7:4', 'reads "7"'], ['tuplet', 'septuplet', 'stress', 'wip'], [
+    measure([...tupg('eighth', ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4'], [7, 4]), rest('half')]),
+  ]),
+
+  // --- Tuplets (edge-case probes) ------------------------------------------------------
+  // The corners NOT covered by the stress set above: non-triplet ratios on OTHER bases
+  // (16th/quarter), mid-bar / beat-spanning placement, rests & chords INSIDE a non-triplet group,
+  // a deeper compound-meter division (4:3), and a non-uniform (mixed-duration) tuplet — the case
+  // most likely to collide with the model's uniform-member assumption (cf. isUniformTupletSelection).
+  treble('tuplet-quintuplet-sixteenth', 'Tuplets', 'A sixteenth-note quintuplet (5:4) — quintuplet number over a primary + secondary beam. EDGE: non-triplet on a 16th base (#245/#237).', ['16th quintuplet', 'secondary beam under "5"'], ['tuplet', 'quintuplet', 'sixteenth', 'stress', 'edge'], [
+    measure([...tupg('sixteenth', ['C5', 'D5', 'E5', 'F5', 'G5'], [5, 4]), rest('half'), rest('quarter')]),
+  ]),
+  treble('tuplet-quintuplet-quarter', 'Tuplets', 'A quarter-note quintuplet (5:4) filling the whole bar — an unbeamed quintuplet, wide bracket over five stems. EDGE (#245/#237).', ['quarter quintuplet', 'unbeamed, full-bar bracket'], ['tuplet', 'quintuplet', 'quarter', 'unbeamed', 'stress', 'edge'], [
+    measure([...tupg('quarter', ['C4', 'D4', 'E4', 'F4', 'G4'], [5, 4])]),
+  ]),
+  treble('tuplet-sextuplet-sixteenth', 'Tuplets', 'A sixteenth-note sextuplet (6:4) — tests secondary-beam grouping (3+3 vs 2+2+2) under "6". EDGE (#245/#237).', ['16th sextuplet', 'secondary-beam grouping'], ['tuplet', 'sextuplet', 'sixteenth', 'stress', 'edge'], [
+    measure([...tupg('sixteenth', ['C5', 'D5', 'E5', 'F5', 'G5', 'A5'], [6, 4]), rest('half'), rest('quarter')]),
+  ]),
+  treble('tuplet-midbar-quintuplet', 'Tuplets', 'A quarter note then an eighth quintuplet — the group starts on beat 2, not the barline. EDGE: non-bar-start placement.', ['quintuplet starting mid-bar', 'bracket offset from barline'], ['tuplet', 'quintuplet', 'placement', 'stress', 'edge'], [
+    measure([q('C4'), ...tupg('eighth', ['D4', 'E4', 'F4', 'G4', 'A4'], [5, 4]), rest('quarter')]),
+  ]),
+  treble('tuplet-beat-spanning-triplet', 'Tuplets', 'An eighth, then an eighth triplet starting on the "and" — the triplet straddles the beat-1/2 boundary.', ['triplet crossing a beat boundary', 'off-beat tuplet start'], ['tuplet', 'triplet', 'placement', 'beam', 'edge'], [
+    measure([e('C4'), ...tupg('eighth', ['D4', 'E4', 'F4']), e('G4'), rest('half')]),
+  ]),
+  treble('tuplet-quintuplet-with-rest', 'Tuplets', 'A quintuplet with a rest as its middle member — bracket spans the rest. EDGE: rest inside a non-triplet group.', ['rest inside a quintuplet', 'bracket over a rest member'], ['tuplet', 'quintuplet', 'rest', 'stress', 'edge'], [
+    measure([...tupg('eighth', ['C4', 'D4', null, 'F4', 'G4'], [5, 4]), rest('half')]),
+  ]),
+  treble('tuplet-quintuplet-chords', 'Tuplets', 'A quintuplet of chords — shared stems within a non-triplet group. EDGE (#245/#237).', ['chords inside a quintuplet', 'bracket over chord stacks'], ['tuplet', 'quintuplet', 'chord', 'stress', 'edge'], [
+    measure([...tupg('eighth', [['C4', 'E4'], ['D4', 'F4'], ['E4', 'G4'], ['F4', 'A4'], ['G4', 'B4']], [5, 4]), rest('half')]),
+  ]),
+  treble('tuplet-quadruplet-6-8', 'Tuplets', 'A quadruplet (4 in the space of 3) in 6/8 — a deeper compound-meter borrowed division. EDGE: 4:3 ratio (#245).', ['quadruplet 4:3', 'compound-meter borrowing'], ['tuplet', 'quadruplet', 'compound-meter', '6/8', 'stress', 'edge'], [
+    measure([...tupg('eighth', ['C4', 'D4', 'E4', 'F4'], [4, 3]), rest('quarter', { dotted: true })]),
+  ], '6/8'),
+  treble('tuplet-quintuplet-stems-down', 'Tuplets', 'A high quintuplet (stems down, beam + bracket below). EDGE: non-triplet stem-direction / bracket placement.', ['quintuplet stems down', 'bracket below'], ['tuplet', 'quintuplet', 'stems-down', 'stress', 'edge'], [
+    measure([...tupg('eighth', ['A5', 'G5', 'F5', 'E5', 'D5'], [5, 4]), rest('half')]),
+  ]),
+  treble('tuplet-mixed-duration-triplet', 'Tuplets', 'A quarter+eighth triplet ("3" over two notes of unequal length). EDGE: a NON-UNIFORM tuplet — most likely to collide with the uniform-member assumption.', ['mixed-duration triplet', 'quarter + eighth under "3"', 'non-uniform members'], ['tuplet', 'triplet', 'mixed-duration', 'stress', 'edge'], [
+    measure([
+      ev('quarter', [note('C4')], { tuplet: { ratio: [3, 2], groupSize: 2, position: 0 } }),
+      ev('eighth', [note('E4')], { tuplet: { ratio: [3, 2], groupSize: 2, position: 1 } }),
+      q('F4'),
+      rest('half'),
+    ]),
   ]),
 ];
 

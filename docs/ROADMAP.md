@@ -1,6 +1,6 @@
 # RiffScore Roadmap
 
-> **Generated:** 2026-06-12 · **Living document** · reflects state through **v1.0.0-alpha.15**: M1 (truth-in-advertising) shipped in **alpha.13**; M2's **#239 (transpose spelling)** shipped in **alpha.14**; M2's **#242 (interactive correctness / structural invariants)** and the **#252 visual-regression harness** shipped in **alpha.15**.
+> **Generated:** 2026-06-13 · **Living document** · reflects state through **v1.0.0-alpha.16**: M1 (truth-in-advertising) shipped in **alpha.13**; M2's **#239 (transpose spelling)** shipped in **alpha.14**; M2's **#242 (interactive correctness / structural invariants)** and the **#252 visual-regression harness** shipped in **alpha.15**; M2's deferred follow-ups **#261/#263/#264/#257** + pre-release QA hardening shipped in **alpha.16** (which also re-scoped **#245**).
 > Grounded in the 2026-06 correctness audit ([CORRECTNESS_AUDIT_2026-06.md](audit/CORRECTNESS_AUDIT_2026-06.md),
 > [AUDIT_QA_2026-06.md](audit/AUDIT_QA_2026-06.md)) and re-sequenced per the audit's
 > own second-pass QA. Every load-bearing claim below was independently fact-checked
@@ -185,10 +185,12 @@ dynamics (#20/#21), slurs (#19), lyrics (#30), repeats (#28), inline key/time ch
 M1 (truth) ✅  →  M2 (#239 ✅ → #242 ✅)  →  M3 (export/engraving)  →  (M4 decision)  →  M5
 ```
 
-**M2 is shipped** (#239 in alpha.14, #242 in alpha.15) — it was the long pole. **M3
-(export/engraving) is next.** M4 (page view) and M5 (chord theory) are largely independent
-of each other and can run in parallel. M2 left tracked follow-ups: #255 (chord reflow
-re-anchoring), #263, #264, #261, and the partials #246/#254/#237.
+**M2 is shipped** (#239 in alpha.14, #242 in alpha.15) — it was the long pole. Its deferred
+follow-ups **#261, #263, #264, #257 shipped in alpha.16** (close-the-loop), which also re-scoped
+**#245** (tuplet rendering verified). **M3 (export/engraving) is next.** M4 (page view) and M5 (chord
+theory) are largely independent of each other and can run in parallel. Remaining M2-adjacent
+follow-ups: #255 (chord reflow re-anchoring / pickup playback), the capacity SSOT #254, and the
+partials #246/#237 — plus QA-pass items #268–#272.
 
 ## Cross-cutting — testing & CI (continuous, not a phase)
 

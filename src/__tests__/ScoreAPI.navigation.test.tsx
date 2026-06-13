@@ -559,6 +559,64 @@ describe('Navigation - selectById', () => {
   });
 });
 
+describe('Navigation - select() bounds (#QA)', () => {
+  afterEach(() => {
+    if (window.riffScore) {
+      window.riffScore.instances.clear();
+      window.riffScore.active = null;
+    }
+  });
+
+  test('out-of-range eventIndex on a non-empty measure reports EVENT_NOT_FOUND (not a false ok)', () => {
+    render(<RiffScore id="select-oob-event" config={configWithStaves(createSingleStaffStaves())} />);
+    const api = getAPI('select-oob-event');
+
+    api.select(0, 0, 99); // measure 0 has 2 events
+    expect(api.result.ok).toBe(false);
+    expect(api.result.code).toBe('EVENT_NOT_FOUND');
+  });
+
+  test('out-of-range noteIndex reports NOTE_NOT_FOUND', () => {
+    render(<RiffScore id="select-oob-note" config={configWithStaves(createSingleStaffStaves())} />);
+    const api = getAPI('select-oob-note');
+
+    api.select(0, 0, 0, 5); // event 0 exists, note index 5 does not
+    expect(api.result.ok).toBe(false);
+    expect(api.result.code).toBe('NOTE_NOT_FOUND');
+  });
+
+  test('a valid event index still selects (ok)', () => {
+    render(<RiffScore id="select-valid" config={configWithStaves(createSingleStaffStaves())} />);
+    const api = getAPI('select-valid');
+
+    api.select(0, 0, 1);
+    expect(api.result.ok).toBe(true);
+    expect(api.getSelection().eventId).toBe('e2');
+  });
+
+  // The empty-measure carve-out is ONLY for the default append cursor (eventIndex 0).
+  const emptyMeasureStaves = (): Staff[] => [
+    { id: 'treble-staff', clef: 'treble', keySignature: 'C', measures: [{ id: 'm-empty', events: [] }] },
+  ];
+
+  test('explicit nonzero eventIndex on an EMPTY measure still reports EVENT_NOT_FOUND (Codex P2)', () => {
+    render(<RiffScore id="select-empty-explicit" config={configWithStaves(emptyMeasureStaves())} />);
+    const api = getAPI('select-empty-explicit');
+
+    api.select(0, 0, 99);
+    expect(api.result.ok).toBe(false);
+    expect(api.result.code).toBe('EVENT_NOT_FOUND');
+  });
+
+  test('default eventIndex 0 on an EMPTY measure is still ok (append-position selection)', () => {
+    render(<RiffScore id="select-empty-default" config={configWithStaves(emptyMeasureStaves())} />);
+    const api = getAPI('select-empty-default');
+
+    api.select(0); // default staffIndex/eventIndex/noteIndex = 0
+    expect(api.result.ok).toBe(true);
+  });
+});
+
 describe('Navigation - jump() Edge Cases', () => {
   afterEach(() => {
     if (window.riffScore) {

@@ -21,6 +21,34 @@ import { visualFixtures, visualFeatures, type VisualFixture } from '@/__tests__/
 
 const SCALE = 0.75;
 
+// Persist the filter controls (search query + active feature chip) across refreshes — handy when
+// iterating on one section. localStorage is origin-scoped (works over http://localhost; guarded for
+// file:// where it can throw). editingId is intentionally NOT persisted (it would silently re-mount
+// a live editor on load).
+const FILTER_KEY = 'riffscore-gallery:filter';
+const loadFilter = (): { query: string; feature: string } => {
+  try {
+    const raw = localStorage.getItem(FILTER_KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as { query?: unknown; feature?: unknown };
+      return {
+        query: typeof p.query === 'string' ? p.query : '',
+        feature: typeof p.feature === 'string' ? p.feature : 'all',
+      };
+    }
+  } catch {
+    /* no/blocked storage — fall through to defaults */
+  }
+  return { query: '', feature: 'all' };
+};
+const saveFilter = (query: string, feature: string): void => {
+  try {
+    localStorage.setItem(FILTER_KEY, JSON.stringify({ query, feature }));
+  } catch {
+    /* ignore */
+  }
+};
+
 const matches = (fx: VisualFixture, query: string, feature: string): boolean => {
   if (feature !== 'all' && fx.feature !== feature) return false;
   if (!query) return true;
@@ -84,12 +112,23 @@ function FixtureCard({
 }
 
 function Gallery() {
-  const [query, setQuery] = useState('');
-  const [feature, setFeature] = useState('all');
+  const features = useMemo(() => visualFeatures(), []);
+  // Restore the persisted filter once on mount. A stored feature that no longer exists (corpus
+  // changed) falls back to 'all' so the view isn't stuck showing nothing.
+  const restored = useMemo(() => {
+    const f = loadFilter();
+    return { query: f.query, feature: f.feature === 'all' || features.includes(f.feature) ? f.feature : 'all' };
+  }, [features]);
+  const [query, setQuery] = useState(restored.query);
+  const [feature, setFeature] = useState(restored.feature);
   // Single active editor: at most one card is editable at a time. Clicking "Edit" on another
   // card locks the previous one (keyboard/MIDI/playback then route unambiguously).
   const [editingId, setEditingId] = useState<string | null>(null);
-  const features = useMemo(() => visualFeatures(), []);
+
+  // Persist the filter on change so a refresh lands back on the same view.
+  useEffect(() => {
+    saveFilter(query, feature);
+  }, [query, feature]);
   const q = query.trim().toLowerCase();
   const handleToggle = useCallback(
     (name: string) => setEditingId((cur) => (cur === name ? null : name)),

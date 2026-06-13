@@ -3,6 +3,7 @@ import { Score, Selection, getValidStaff } from '@/types';
 import { Command } from '@/commands/types';
 import { DeleteNoteCommand } from '@/commands/DeleteNoteCommand';
 import { DeleteEventCommand } from '@/commands/DeleteEventCommand';
+import type { SelectionEngine } from '@/engines/SelectionEngine';
 
 /**
  * Props for the useNoteDelete hook.
@@ -21,6 +22,8 @@ export interface UseNoteDeleteProps {
   dispatch: (command: Command) => void;
   /** Live score ref — used to pick the post-delete re-anchor target (#242 Lane G) */
   scoreRef: RefObject<Score>;
+  /** Selection engine — stashes the pre-delete coord when a delete empties the selection (#257) */
+  selectionEngine: SelectionEngine;
 }
 
 /**
@@ -61,10 +64,31 @@ export function useNoteDelete({
   select,
   dispatch,
   scoreRef,
+  selectionEngine,
 }: UseNoteDeleteProps): UseNoteDeleteReturn {
   const deleteSelected = useCallback(() => {
-    // 1. Delete Multi-Selection
-    if (selection.selectedNotes && selection.selectedNotes.length > 0) {
+    // Stash the pre-delete primary coord before clearing the selection to null (#257), so the next
+    // undo that re-materializes that exact event/note (ids are stable across undo) re-selects it —
+    // the Lane G repair effect only prunes, never re-anchors. EventIds are unique, so the stash can
+    // only resolve by undoing this delete; it can't fire on an unrelated edit.
+    const stashClearedSelection = () => {
+      if (selection.measureIndex !== null && selection.eventId) {
+        selectionEngine.stashPendingRestore({
+          staffIndex: selection.staffIndex,
+          measureIndex: selection.measureIndex,
+          eventId: selection.eventId,
+          noteId: selection.noteId,
+        });
+      }
+    };
+
+    // 1. Delete a TRUE multi-selection (more than one note). A single-note selection — which a click
+    // or arrow-key nav produces (SetSelectionCommand/NavigateCommand populate selectedNotes with one
+    // entry == the primary) — deliberately falls through to the single-selection path below so it
+    // re-anchors to a surviving neighbor / chord sibling (the M2 UX intent) instead of clearing to
+    // null. A genuine multi-delete clears (which survivor to anchor is ambiguous) and is left
+    // unstashed: it dispatches N separate history entries, so one undo would only restore the last.
+    if (selection.selectedNotes && selection.selectedNotes.length > 1) {
       const notesToDelete = [...selection.selectedNotes];
       notesToDelete.forEach((note) => {
         if (note.noteId) {
@@ -76,7 +100,6 @@ export function useNoteDelete({
           dispatch(new DeleteEventCommand(note.measureIndex, note.eventId, note.staffIndex));
         }
       });
-      // Clear selection after delete
       select(null, null, null, selection.staffIndex);
       return;
     }
@@ -127,11 +150,13 @@ export function useNoteDelete({
     }
 
     if (reanchorEventId === null) {
+      // No surviving neighbor — the selection clears to null. Stash so an undo re-selects it (#257).
+      stashClearedSelection();
       select(null, null, null, selection.staffIndex);
     } else {
       select(selection.measureIndex, reanchorEventId, reanchorNoteId, selection.staffIndex);
     }
-  }, [selection, dispatch, select, scoreRef]);
+  }, [selection, dispatch, select, scoreRef, selectionEngine]);
 
   return { deleteSelected };
 }

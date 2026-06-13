@@ -168,6 +168,10 @@ export class TransposeSelectionCommand implements Command {
 
       this.selection.selectedNotes.forEach((sn) => {
         const sIndex = sn.staffIndex;
+        // Skip a stale out-of-range staffIndex BEFORE the deref below — this earlier pass would
+        // otherwise throw on `[...undefined.measures]` before the guard in the notesByMeasure loop is
+        // reached (Codex P2 on #267; the chromatic sibling has no such early pass).
+        if (!getValidStaff(score, sIndex)) return;
         let currentStaff = staffMap.get(sIndex);
         if (!currentStaff) {
           // First time touching this staff, copy it from newStaves (which starts as shallow copy of score.staves)
@@ -224,6 +228,11 @@ export class TransposeSelectionCommand implements Command {
         const [sIdxStr, mIdxStr] = key.split('-');
         const sIdx = parseInt(sIdxStr, 10);
         const mIdx = parseInt(mIdxStr, 10);
+
+        // Skip a selectedNotes entry whose staff no longer exists (stale grand-staff selection after a
+        // single-staff downgrade) — the spread below would otherwise throw on undefined and drop the
+        // whole transpose (#242 Lane G parity; the Case 1/2 paths above already use getValidStaff).
+        if (!getValidStaff(score, sIdx)) return;
 
         // Ensure we have a working copy of the staff
         if (!staffMap.has(sIdx)) {

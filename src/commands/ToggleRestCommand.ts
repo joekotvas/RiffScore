@@ -61,6 +61,11 @@ export class ToggleRestCommand implements Command {
   constructor(private selection: Selection) {}
 
   execute(score: Score): Score {
+    // Reset the snapshot so re-execution (redo reuses this same command instance) re-captures the
+    // pre-image fresh instead of appending — otherwise the array doubles on every redo (#QA). Mirrors
+    // ApplyTupletCommand.execute().
+    this.previousStates = [];
+
     // Collect unique events from selection
     const eventMap = new Map<
       string,

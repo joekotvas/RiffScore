@@ -16,6 +16,7 @@ import type { Selection, Score } from '../types';
 import { createDefaultSelection } from '../types';
 import type { SelectionCommand } from '../commands/selection/types';
 import { SetSelectionCommand } from '../commands/selection/SetSelectionCommand';
+import type { TargetCoord } from '../utils/selectionRepair';
 
 type SelectionListener = (selection: Selection) => void;
 
@@ -23,6 +24,14 @@ export class SelectionEngine {
   private state: Selection;
   private listeners: Set<SelectionListener> = new Set();
   private scoreRef: () => Score;
+  /**
+   * A selection coordinate cleared by a delete that emptied the selection (no surviving neighbor),
+   * held so the next undo that re-materializes it can re-select it (#257). Selection lives OUTSIDE
+   * undo history by design, so the engine remembers this one coordinate rather than snapshotting the
+   * whole selection per command. EventIds are unique, so this only resolves by undoing that exact
+   * delete — it can't fire spuriously on an unrelated edit.
+   */
+  private pendingRestore: TargetCoord | null = null;
 
   /**
    * Create a SelectionEngine
@@ -125,6 +134,24 @@ export class SelectionEngine {
         })
       );
     }
+  }
+
+  /**
+   * Stash a coordinate to re-select if a later undo restores it (#257). Overwrites any prior stash
+   * (single-slot, last-delete-wins).
+   */
+  public stashPendingRestore(coord: TargetCoord): void {
+    this.pendingRestore = coord;
+  }
+
+  /** The pending re-select coordinate, or null. */
+  public getPendingRestore(): TargetCoord | null {
+    return this.pendingRestore;
+  }
+
+  /** Drop the pending re-select coordinate (after it's been honored, or is no longer wanted). */
+  public clearPendingRestore(): void {
+    this.pendingRestore = null;
   }
 
   private notifyListeners(): void {

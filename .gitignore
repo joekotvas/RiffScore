@@ -36,8 +36,9 @@ demo/.next
 demo/node_modules
 dist
 
-# Claude Code local session data / agent worktrees
+# Claude Code / Codex local session data / agent worktrees
 .claude/
+.codex/
 
 # Visual regression harness (#252)
 # - the gallery is a generated artifact (render surface), never committed

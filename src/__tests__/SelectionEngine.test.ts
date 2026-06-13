@@ -186,4 +186,37 @@ describe('SelectionEngine', () => {
       expect(engine.getState().eventId).toBe('event-1');
     });
   });
+
+  // #257: a delete that empties the selection stashes its pre-delete coord here; the next undo that
+  // re-materializes it re-selects it. The engine is dumb storage — the resolve check lives in the
+  // useScoreLogic restore effect.
+  describe('pending restore stash (#257)', () => {
+    const coord = { staffIndex: 0, measureIndex: 1, eventId: 'e1', noteId: 'n1' };
+
+    test('starts empty', () => {
+      engine = new SelectionEngine();
+      expect(engine.getPendingRestore()).toBeNull();
+    });
+
+    test('stash then get returns the coord', () => {
+      engine = new SelectionEngine();
+      engine.stashPendingRestore(coord);
+      expect(engine.getPendingRestore()).toEqual(coord);
+    });
+
+    test('clear drops the coord', () => {
+      engine = new SelectionEngine();
+      engine.stashPendingRestore(coord);
+      engine.clearPendingRestore();
+      expect(engine.getPendingRestore()).toBeNull();
+    });
+
+    test('stash is single-slot (last write wins)', () => {
+      engine = new SelectionEngine();
+      engine.stashPendingRestore(coord);
+      const coord2 = { staffIndex: 1, measureIndex: 2, eventId: 'e2', noteId: null };
+      engine.stashPendingRestore(coord2);
+      expect(engine.getPendingRestore()).toEqual(coord2);
+    });
+  });
 });

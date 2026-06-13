@@ -29,7 +29,7 @@ import { useTupletActions } from './useTupletActions';
 
 import { createDefaultScore, migrateScore, PreviewNote, Score } from '@/types';
 import type { RefusalSeverity } from '@/refusals';
-import { repairSelection } from '@/utils/selectionRepair';
+import { repairSelection, resolveTarget } from '@/utils/selectionRepair';
 
 // Extracted score modules
 import { useDerivedSelection } from './score/useDerivedSelection';
@@ -169,6 +169,49 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     if (repaired !== current) selectionEngine.setState(repaired);
   }, [score, selectionEngine]);
 
+  // #257: a delete that emptied the selection stashed its pre-delete coord. When a later undo
+  // re-materializes that exact event (ids are stable across undo), re-select it — the repair effect
+  // above only prunes, never re-anchors, so without this the restored event sits unselected. Keyed on
+  // `score` like the repair effect; runs after the prune so it sets the final, live coordinate.
+  //
+  // Only honor the stash while the selection is STILL empty (the delete left it so): if the user
+  // deliberately selected something in the meantime, don't clobber it — and a fresh single selection
+  // is built (primary + selectedNotes + anchor all on the restored note) so the state stays coherent
+  // rather than a primary that disagrees with a stale selectedNotes/anchor (#257 review).
+  useEffect(() => {
+    const pending = selectionEngine.getPendingRestore();
+    if (!pending) return;
+    const current = selectionEngine.getState();
+    // "Moved on" = the user established ANY real selection since the delete — a note (eventId) OR the
+    // chord track (chordTrackFocused/chordId, both of which leave eventId null). Drop the stash so it
+    // can't later clobber that deliberate selection. (Merely returning would leave it alive to
+    // re-resolve on a future empty-selection score change — Codex P2 on #266; the chord-track case is
+    // the QA follow-up.)
+    if (current.eventId !== null || current.chordTrackFocused || current.chordId) {
+      selectionEngine.clearPendingRestore();
+      return;
+    }
+    if (!resolveTarget(score, pending).ok) return; // not yet re-materialized (or never will be)
+
+    const coord = {
+      staffIndex: pending.staffIndex,
+      measureIndex: pending.measureIndex,
+      eventId: pending.eventId,
+      noteId: pending.noteId,
+    };
+    // Build a fully coherent single-note selection — clear chord fields explicitly rather than
+    // spreading them, so the restored note can't coexist with a stale chord focus.
+    selectionEngine.setState({
+      ...current,
+      ...coord,
+      selectedNotes: [coord],
+      anchor: coord,
+      chordId: null,
+      chordTrackFocused: false,
+    });
+    selectionEngine.clearPendingRestore();
+  }, [score, selectionEngine]);
+
   // --- COMPUTED VALUES ---
   // Fail-fast: throw for Error Boundary instead of logging and continuing
   if (!score || !score.staves) {
@@ -219,6 +262,7 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
     currentQuantsPerMeasure,
     dispatch,
     inputMode,
+    selectionEngine,
   });
 
   // Modifiers: duration, dots, accidentals, ties
