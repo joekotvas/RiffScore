@@ -136,8 +136,21 @@ export const calculateBeamingGroups = (
       finalizeGroup();
     }
 
+    const eventEndQuant = currentQuant + durationQuants;
+    // Do not start the deferred tuplet-beaming work here: tuplets can carry
+    // fractional beat positions on the current quant grid, so the #245
+    // no-dependency fix only splits plain flagged events that overrun a beat.
+    const crossesPlainBeatBoundary =
+      !event.tuplet &&
+      Math.floor((eventEndQuant - 1e-9) / beatQuants) !== Math.floor(currentQuant / beatQuants);
+    if (crossesPlainBeatBoundary) {
+      finalizeGroup();
+      currentQuant = eventEndQuant;
+      return;
+    }
+
     currentGroup.push(event);
-    currentQuant += durationQuants;
+    currentQuant = eventEndQuant;
   });
 
   finalizeGroup();

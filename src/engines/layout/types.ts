@@ -57,7 +57,7 @@ export interface BeamGroup {
   endY: number;
   direction: 'up' | 'down';
   type: string;
-  segments?: BeamSegment[];
+  segments: BeamSegment[];
 }
 
 export interface BeamSegment {

@@ -63,6 +63,7 @@ const collectTupletDivisors = (score: Score): number[] => {
   const staves = score.staves || [getActiveStaff(score)];
   for (const staff of staves) {
     for (const measure of staff.measures) {
+      if (!measure) continue;
       for (const event of measure.events) {
         if (event.tuplet) {
           const actual = event.tuplet.ratio[0];
@@ -185,7 +186,6 @@ const exportMetadataToXML = (metadata: ScoreMetadata): string => {
  */
 const CHORD_KIND_MAP: Record<string, string> = {
   '': 'major',
-  '7sus4': 'suspended-fourth',
   maj13: 'major-13th',
   maj11: 'major-11th',
   maj9: 'major-ninth',
@@ -256,9 +256,11 @@ const parseChordForMusicXML = (
   // Find the matching kind (try longer suffixes first)
   const sortedKinds = Object.keys(CHORD_KIND_MAP).sort((a, b) => b.length - a.length);
   let kind = 'major';
+  let matchedSuffix = '';
   for (const suffix of sortedKinds) {
     if (suffix && qualityKey.startsWith(suffix)) {
       kind = CHORD_KIND_MAP[suffix];
+      matchedSuffix = suffix;
       break;
     }
   }
@@ -268,13 +270,16 @@ const parseChordForMusicXML = (
   }
 
   const degrees: MusicXmlDegree[] = [];
-  for (const match of qualityKey.matchAll(/add(9|11|13)|([#b])([59]|11|13)/g)) {
+  const residualQuality = qualityKey.slice(matchedSuffix.length);
+  for (const match of residualQuality.matchAll(/add(9|11|13)|sus([24])|([#b])([59]|11|13)/g)) {
     if (match[1]) {
       degrees.push({ value: Number(match[1]), alter: 0, type: 'add' });
+    } else if (match[2]) {
+      degrees.push({ value: Number(match[2]), alter: 0, type: 'add' });
     } else {
       degrees.push({
-        value: Number(match[3]),
-        alter: match[2] === '#' ? 1 : -1,
+        value: Number(match[4]),
+        alter: match[3] === '#' ? 1 : -1,
         type: 'alter',
       });
     }
@@ -406,6 +411,7 @@ const renderEvent = (
   measures: Measure[],
   measureIndex: number,
   eventIndex: number,
+  measureSpanQuants: number,
   staffNumber?: number
 ): string => {
   let xml = '';
@@ -422,8 +428,7 @@ const renderEvent = (
   let timeModTag = '';
   if (event.tuplet) {
     const [actual, normal] = event.tuplet.ratio;
-    const normalType =
-      NOTE_TYPES[event.tuplet.baseDuration ?? event.duration]?.xmlType ?? xmlType;
+    const normalType = NOTE_TYPES[event.tuplet.baseDuration ?? event.duration]?.xmlType ?? xmlType;
     timeModTag = `
       <time-modification>
         <actual-notes>${actual}</actual-notes>
@@ -443,10 +448,13 @@ const renderEvent = (
         restTupletTag = '<tuplet type="stop"/>';
     }
     const restNotations = restTupletTag ? `\n      <notations>${restTupletTag}</notations>` : '';
+    const isMeasureRest =
+      !event.tuplet && duration === measureSpanDivisions(measureSpanQuants, divisions);
+    const restTag = isMeasureRest ? '<rest measure="yes"/>' : '<rest/>';
     // REST — DTD order: <rest/> <duration> <type> <dot> <time-modification> <staff> <notations>
     xml += `
     <note>
-      <rest/>
+      ${restTag}
       <duration>${duration}</duration>
       <type>${xmlType}</type>
       ${event.dotted ? '<dot/>' : ''}
@@ -582,11 +590,17 @@ const renderEvent = (
 const measureDivisionSum = (events: ScoreEvent[], divisions: number): number =>
   events.reduce((sum, event) => sum + eventDivisions(event, divisions), 0);
 
-const measureCapacityDivisions = (measureCapacity: number, divisions: number): number =>
-  Math.round((measureCapacity / BASE_DIVISIONS_PER_QUARTER) * divisions);
+const measureQuantSum = (events: ScoreEvent[]): number =>
+  events.reduce(
+    (sum, event) => sum + getNoteDuration(event.duration, event.dotted, event.tuplet),
+    0
+  );
+
+const measureSpanDivisions = (measureSpanQuants: number, divisions: number): number =>
+  Math.round((measureSpanQuants / BASE_DIVISIONS_PER_QUARTER) * divisions);
 
 const renderFullMeasureRest = (
-  measureCapacity: number,
+  measureSpanQuants: number,
   divisions: number,
   staffNumber?: number
 ): string => {
@@ -594,7 +608,7 @@ const renderFullMeasureRest = (
   return `
     <note>
       <rest measure="yes"/>
-      <duration>${measureCapacityDivisions(measureCapacity, divisions)}</duration>${staffTag}
+      <duration>${measureSpanDivisions(measureSpanQuants, divisions)}</duration>${staffTag}
     </note>`;
 };
 
@@ -626,6 +640,13 @@ export const generateMusicXML = (score: Score): string => {
   const hasPickup = staves[0]?.measures[0]?.isPickup === true;
   const measureNumberFor = (mIndex: number): number => (hasPickup ? mIndex : mIndex + 1);
   const isImplicit = (mIndex: number): boolean => hasPickup && mIndex === 0;
+  const measureSpanQuantsFor = (mIndex: number): number => {
+    if (!isImplicit(mIndex)) return measureCapacity;
+
+    const firstMeasure = staves[0]?.measures[mIndex];
+    const pickupSpan = firstMeasure ? measureQuantSum(firstMeasure.events) : 0;
+    return pickupSpan > 0 ? pickupSpan : measureCapacity;
+  };
 
   // Use metadata with fallback to defaults, then fall back to legacy title field
   const metadata: ScoreMetadata = score.metadata ?? {
@@ -697,6 +718,7 @@ export const generateMusicXML = (score: Score): string => {
   for (let mIndex = 0; mIndex < measureCount; mIndex++) {
     const number = measureNumberFor(mIndex);
     const implicitAttr = isImplicit(mIndex) ? ' implicit="yes"' : '';
+    const measureSpanQuants = measureSpanQuantsFor(mIndex);
     xml += `\n    <measure number="${number}"${implicitAttr}>`;
 
     // Attributes appear on the first measure (pickup or first full measure).
@@ -742,7 +764,10 @@ export const generateMusicXML = (score: Score): string => {
         // the same way so the <backup> duration matches the padded measure (grand-staff align).
         const prevMeasure = staves[staffIndex - 1].measures[mIndex];
         const prevEvents = prevMeasure ? padMeasureForExport(prevMeasure, measureCapacity) : [];
-        const backup = measureDivisionSum(prevEvents, divisions);
+        const backup =
+          prevMeasure && prevEvents.length > 0
+            ? measureDivisionSum(prevEvents, divisions)
+            : measureSpanDivisions(measureSpanQuants, divisions);
         if (backup > 0) {
           xml += `
     <backup>
@@ -760,8 +785,8 @@ export const generateMusicXML = (score: Score): string => {
       const activeTies = activeTiesByStaff[staffIndex];
       const staffNumber = isGrandStaff ? staffIndex + 1 : undefined;
 
-      if ((!measure || measure.events.length === 0) && !measure?.isPickup) {
-        xml += renderFullMeasureRest(measureCapacity, divisions, staffNumber);
+      if (!measure || measure.events.length === 0) {
+        xml += renderFullMeasureRest(measureSpanQuants, divisions, staffNumber);
         return;
       }
 
@@ -787,6 +812,7 @@ export const generateMusicXML = (score: Score): string => {
           staff.measures,
           mIndex,
           eventIndex,
+          measureSpanQuants,
           staffNumber
         );
 

@@ -245,6 +245,20 @@ describe('4/4 regression (behavior must be identical to before #241)', () => {
     expect(secondary!.startX).toBeGreaterThan(primary!.startX);
   });
 
+  test('mixed values do not beam across a quarter-beat boundary', () => {
+    const events: ScoreEvent[] = [
+      { id: 'e1', duration: 'eighth', dotted: false, notes: [{ id: 'n1', pitch: 'C4' }] },
+      { id: 's1', duration: 'sixteenth', dotted: false, notes: [{ id: 'n2', pitch: 'D4' }] },
+      { id: 'e2', duration: 'eighth', dotted: false, notes: [{ id: 'n3', pitch: 'E4' }] },
+      { id: 's2', duration: 'sixteenth', dotted: false, notes: [{ id: 'n4', pitch: 'F4' }] },
+    ];
+    const groups = groupIds(events, '4/4');
+
+    // e2 starts inside beat 1 but overruns the quarter boundary; it must not
+    // glue the first beat's beam group to the next beat.
+    expect(groups).toEqual([['e1', 's1']]);
+  });
+
   test('quarter note breaks the beam (no group spanning the rest of the beat)', () => {
     const events: ScoreEvent[] = [
       { id: 'e1', duration: 'eighth', dotted: false, notes: [{ id: 'n1', pitch: 'C4' }] },

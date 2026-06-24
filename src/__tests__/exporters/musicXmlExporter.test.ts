@@ -10,6 +10,7 @@ import {
   parseMusicXml,
   checkDurationSums,
   allDurationsIntegral,
+  validateMusicXmlStructure,
 } from '../fixtures/musicXmlStructure';
 
 /**
@@ -249,6 +250,26 @@ describe('MusicXML Chord Symbol Export', () => {
     expect(altered).toContain('<degree-value>9</degree-value>');
     expect(altered).toContain('<degree-alter>-1</degree-alter>');
     expect(altered).toContain('<degree-type>alter</degree-type>');
+  });
+
+  it('does not duplicate degrees already represented by the matched chord kind', () => {
+    const xml = generateMusicXML(
+      createScoreWithChords([{ id: 'chord-1', measure: 0, quant: 0, symbol: 'Bm7b5' }])
+    );
+
+    expect(xml).toContain('<kind>half-diminished</kind>');
+    expect(xml).not.toContain('<degree-value>5</degree-value>');
+  });
+
+  it('preserves the dominant seventh meaning in 7sus4 chords', () => {
+    const xml = generateMusicXML(
+      createScoreWithChords([{ id: 'chord-1', measure: 0, quant: 0, symbol: 'C7sus4' }])
+    );
+
+    expect(xml).toContain('<kind>dominant</kind>');
+    expect(xml).toContain('<degree-value>4</degree-value>');
+    expect(xml).toContain('<degree-alter>0</degree-alter>');
+    expect(xml).toContain('<degree-type>add</degree-type>');
   });
 
   it('exports minor seventh chord correctly', () => {
@@ -845,7 +866,44 @@ describe('MusicXML Grand-Staff Export (one part, <staves>/<backup>)', () => {
 
     expect(xml).toContain('<rest measure="yes"/>');
     expect(xml).toContain('<staff>2</staff>');
-    expect(xml).toMatch(new RegExp(`<rest measure="yes"/>\\s*<duration>${divisions * 4}</duration>`));
+    expect(xml).toMatch(
+      new RegExp(`<rest measure="yes"/>\\s*<duration>${divisions * 4}</duration>`)
+    );
+  });
+
+  it('marks authored whole-bar rests as measure rests so structural validation accepts them', () => {
+    const score: Score = {
+      title: 'Authored Rest',
+      timeSignature: '4/4',
+      keySignature: 'C',
+      bpm: 120,
+      staves: [
+        {
+          id: 'staff-1',
+          clef: 'treble',
+          keySignature: 'C',
+          measures: [
+            {
+              id: 'm1',
+              events: [
+                {
+                  id: 'rest-1',
+                  duration: 'whole',
+                  dotted: false,
+                  isRest: true,
+                  notes: [{ id: 'rest-note-1', pitch: null, isRest: true }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const xml = generateMusicXML(score);
+    const issues = validateMusicXmlStructure(xml);
+
+    expect(xml).toContain('<rest measure="yes"/>');
+    expect(issues).toEqual([]);
   });
 
   it('the <backup> appears between the staff-1 note and the staff-2 note', () => {
@@ -918,9 +976,7 @@ describe('MusicXML Grand-Staff Export (one part, <staves>/<backup>)', () => {
     // Combined: 8 quarter notes => sum is 2 * (divisions*4).
     const divisions = parsed.parts[0].measures[0].divisions;
     const measure = parsed.parts[0].measures[0];
-    const total = measure.notes
-      .filter((n) => !n.isChord)
-      .reduce((s, n) => s + n.duration, 0);
+    const total = measure.notes.filter((n) => !n.isChord).reduce((s, n) => s + n.duration, 0);
     expect(total).toBe(2 * divisions * 4);
     expect(allDurationsIntegral(parsed)).toBe(true);
   });
@@ -1058,7 +1114,12 @@ describe('MusicXML Pickup / Anacrusis Export (implicit measure 0)', () => {
               id: 'm0-t',
               isPickup: true,
               events: [
-                { id: 'pt', duration: 'quarter', dotted: false, notes: [{ id: 'ptn', pitch: 'G4' }] },
+                {
+                  id: 'pt',
+                  duration: 'quarter',
+                  dotted: false,
+                  notes: [{ id: 'ptn', pitch: 'G4' }],
+                },
               ],
             },
             {
@@ -1078,7 +1139,12 @@ describe('MusicXML Pickup / Anacrusis Export (implicit measure 0)', () => {
               id: 'm0-b',
               isPickup: true,
               events: [
-                { id: 'pb', duration: 'quarter', dotted: false, notes: [{ id: 'pbn', pitch: 'G2' }] },
+                {
+                  id: 'pb',
+                  duration: 'quarter',
+                  dotted: false,
+                  notes: [{ id: 'pbn', pitch: 'G2' }],
+                },
               ],
             },
             {
@@ -1101,4 +1167,81 @@ describe('MusicXML Pickup / Anacrusis Export (implicit measure 0)', () => {
     // One backup per measure (pickup + full) => two backups.
     expect(xml.match(/<backup>/g)).toHaveLength(2);
   });
+
+  it.each(['missing', 'empty'] as const)(
+    'emits pickup-length measure rests for %s lower-staff pickup measures',
+    (lowerPickupShape) => {
+      const lowerFullMeasure = {
+        id: 'm1-b',
+        events: [
+          {
+            id: 'fb',
+            duration: 'whole',
+            dotted: false,
+            notes: [{ id: 'fbn', pitch: 'C3' }],
+          },
+        ],
+      };
+      const lowerMeasures = [] as Score['staves'][0]['measures'];
+      if (lowerPickupShape === 'empty') {
+        lowerMeasures[0] = { id: 'm0-b', isPickup: true, events: [] };
+      }
+      lowerMeasures[1] = lowerFullMeasure;
+      const score: Score = {
+        title: 'Pickup Grand Empty Lower',
+        timeSignature: '4/4',
+        keySignature: 'C',
+        bpm: 120,
+        staves: [
+          {
+            id: 'staff-treble',
+            clef: 'treble',
+            keySignature: 'C',
+            measures: [
+              {
+                id: 'm0-t',
+                isPickup: true,
+                events: [
+                  {
+                    id: 'pt',
+                    duration: 'quarter',
+                    dotted: false,
+                    notes: [{ id: 'ptn', pitch: 'G4' }],
+                  },
+                ],
+              },
+              {
+                id: 'm1-t',
+                events: [
+                  {
+                    id: 'ft',
+                    duration: 'whole',
+                    dotted: false,
+                    notes: [{ id: 'ftn', pitch: 'C4' }],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'staff-bass',
+            clef: 'bass',
+            keySignature: 'C',
+            measures: lowerMeasures,
+          },
+        ],
+      };
+      const xml = generateMusicXML(score);
+      const parsed = parseMusicXml(xml);
+      const pickup = parsed.parts[0].measures[0];
+      const lowerRest = pickup.notes.find((note) => note.isRest && note.staff === 2);
+
+      expect(pickup.isImplicit).toBe(true);
+      expect(lowerRest).toBeDefined();
+      expect(lowerRest?.restMeasure).toBe(true);
+      expect(lowerRest?.duration).toBe(pickup.divisions);
+      expect(pickup.backups[0]?.duration).toBe(pickup.divisions);
+      expect(validateMusicXmlStructure(xml)).toEqual([]);
+    }
+  );
 });
