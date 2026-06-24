@@ -16,6 +16,8 @@ import { hasTieTarget } from '@/utils/ties';
 import { Note as TonalNote } from 'tonal';
 import { canonicalizeKeySignature } from '@/utils/keyResolution';
 import { MeasureAccidentalState, keySignatureAltForLetter } from '@/utils/accidentalContext';
+import { quantizeChordAnchor } from '@/services/chord/ChordQuants';
+import { sumQuants } from '@/utils/tuplet';
 
 /**
  * Convert an internal key string ('C', 'G', 'Bb', 'F#', 'Em', 'Dm') to a valid
@@ -86,9 +88,29 @@ const buildChordLookup = (
     if (!lookup.has(chord.measure)) {
       lookup.set(chord.measure, new Map<number, string>());
     }
-    lookup.get(chord.measure)!.set(chord.quant, chord.symbol);
+    lookup.get(chord.measure)!.set(quantizeChordAnchor(chord.quant), chord.symbol);
   }
   return lookup;
+};
+
+const gcd = (a: number, b: number): number => (b === 0 ? Math.abs(a) : gcd(b, a % b));
+
+const meterForQuants = (quants: number): string | null => {
+  if (!Number.isFinite(quants) || quants <= 0) return null;
+
+  // Internal quants use 64 per whole note. Reduce the occupied pickup span to
+  // the ABC M:n/d meter fraction; e.g. 16 quants -> M:1/4, 24 -> M:3/8.
+  const numerator = Math.round(quants);
+  if (Math.abs(numerator - quants) > 1e-6) return null;
+  const divisor = gcd(numerator, NOTE_TYPES.whole.duration);
+  return `${numerator / divisor}/${NOTE_TYPES.whole.duration / divisor}`;
+};
+
+const pickupMeterForMeasure = (measure: Measure): string | null => {
+  if (!measure.isPickup) return null;
+  const { quants, partialTuplet } = sumQuants(measure.events);
+  if (partialTuplet) return null;
+  return meterForQuants(quants);
 };
 
 // ABC notation pitch mapping - Algorithmic
@@ -189,10 +211,20 @@ export const generateABC = (score: Score, bpm: number): string => {
     staff.measures.forEach((measure: Measure, measureIndex: number) => {
       // Track local quant position within the measure
       let localQuant = 0;
+      const isPickup = measure.isPickup === true && measureIndex === 0;
+      const pickupMeter = isPickup ? pickupMeterForMeasure(measure) : null;
+      const shouldRestoreMeter =
+        measureIndex === 1 && staff.measures[0]?.isPickup === true && pickupMeterForMeasure(staff.measures[0]) != null;
 
       // Measure-local accidental ledger: accidentals persist to the barline and
       // are cancelled with '='; reset for every new measure.
       const accidentalState = new MeasureAccidentalState();
+
+      if (pickupMeter) {
+        abc += `[M:${pickupMeter}]`;
+      } else if (shouldRestoreMeter) {
+        abc += `[M:${timeSig}]`;
+      }
 
       // Pad an under-full bar with trailing rests for valid output (#242); never mutates state.
       padMeasureForExport(measure, getMeasureCapacity(timeSig)).forEach((event: ScoreEvent, eventIndex: number) => {
@@ -236,7 +268,7 @@ export const generateABC = (score: Score, bpm: number): string => {
         // Add chord annotation if present at this position (first staff only)
         if (includeChords) {
           const measureChords = chordLookup.get(measureIndex);
-          const chordSymbol = measureChords?.get(localQuant);
+          const chordSymbol = measureChords?.get(quantizeChordAnchor(localQuant));
           if (chordSymbol) {
             prefix += `"${chordSymbol}"`;
           }
