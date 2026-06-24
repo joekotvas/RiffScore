@@ -7,6 +7,23 @@
 
 > ⚠️ **Read alongside [AUDIT_QA_2026-06.md](./AUDIT_QA_2026-06.md).** An independent QA re-verified these findings: ~70% validated, ~20% need nuance, ~6% overstated, **1 wrong** (`midi-enharmonic-sharp-only` — the example is backwards; `Note.fromMidi(61)='Db4'`). The "109" total is inflated by **~7 duplicate findings** that should be merged. Before executing, apply the QA's four overrides: (1) `note.accidental` should be **repurposed** as a display-policy override, not deleted; (2) the Phase 1C quant multiplier must be **≥210** (×105 is non-integer for dotted-64ths) and requires a `schemaVersion` pulled forward; (3) **interactive/API correctness should precede deep export fidelity** (no import path exists); (4) several severities re-graded. See the QA's "Corrections To Make" list.
 
+> 🔁 **M3 reconciliation (PR #295 "export & engraving fidelity" — pending, NOT yet merged to `dev`).** Every status tag below describes **alpha.16**. The unreleased M3 branch resolves several of them. This block records the exact deltas to apply **when #295 merges** — it deliberately does **not** pre-flip the tags, because on `dev` (this doc's base) those findings are still LIVE until M3 lands. **Merge order: #295 first, then this doc PR (#294)**, so the post-M3 line citations resolve.
+>
+> **Flip to ✅ FIXED on merge:**
+> - *Mixed-duration within-beat beaming* (Beaming `📌 #245`, finding "Mixed-duration runs within a beat are never beamed") — M3 drops the duration-change break and adds per-level `BeamSegment`s + beamlets (`beaming.ts processBeamGroup`; `Beam.tsx` now typed). Dotted/sub-beat half of #245 done; **tuplet half stays #245/#237.**
+> - *MusicXML `<harmony>` extension degradation* (MusicXML / Completeness-critique `🔴 LIVE`) — `CHORD_KIND_MAP` expanded 11→21 + `<degree>` emission (`musicXmlExporter.ts:187`, `:225`+). **Export layer only.**
+> - *Empty grand-staff staff rest, #246 rest-half* (MusicXML `⚪`/tracked) — `renderFullMeasureRest` emits `<rest measure="yes"/>` (`musicXmlExporter.ts:602`, `:789`). **The XSD-in-CI half of #246 stays OPEN.**
+> - *`Beam.tsx` `@ts-nocheck`* (AUDIT_QA cluster 9 `🔴 LIVE`) — removed; `Beam.tsx` is now typed (`interface BeamProps`).
+> - **Additive M3 wins (record as FIXED):** MusicXML `<mode>` for minor keys (`musicXmlExporter.ts:731`); cross-**measure** key/stretch-aware tie endpoint X (#249); shared `quantizeChordAnchor` in both exporters.
+>
+> **Must STAY LIVE / partial — M3 does NOT close these:**
+> - **Chord normalization & voicing (cluster 7, `🔴 LIVE`)** — M3's `<degree>` is export-only; `ChordParser.normalizeChordSymbol` (Cmaj9→C9 on screen) and `ChordVoicing` (slash bass dropped in playback) are untouched. *Do not let the export flip make cluster 7 look closed.*
+> - Mean-Y stem direction (`beaming.ts:204-205`), `MAX_SLOPE=1.0` (`:259`), beamed-over-rests (`:125`), tuplet-membership beaming (#245 tuplet half / #237).
+> - Cross-**system** tie arc / `Tie.tsx` split-arc (#270); internal float-tuplet grid + `verticalStack` exact-equality (#237); over-wide-measure compression (#174); compound-meter tempo; chord accidental/dot column (cluster 10).
+> - **Official MusicXML 4.0 XSD-in-CI** (audit Phase 2 gate) — *not delivered* by M3; M3 substitutes a deterministic structural validator for the corruption class.
+>
+> **Stale `file:line` citations to re-anchor on merge (M3 shifted these):** `musicXmlExporter.ts` `<alter>` "422-426" → **~487**; `CHORD_KIND_MAP` "185-196" → **187** (now 21 kinds); `<mode>` new at **731**; `renderFullMeasureRest` **602/789**. `abcExporter.ts` `MeasureAccidentalState` "193-279" → **~221+**; `(p:q:r` tuplet "245-250" → **282**; tie-hyphen "286-289" → **~319-330**. `beaming.ts` mean-Y "194-196" → **204-205**; `MAX_SLOPE` clamp → **259-261**; rests-break → **125**. `Beam.tsx:1 @ts-nocheck` — line removed (assertion now false).
+
 ---
 
 ## 1. Honest Reliability Assessment
