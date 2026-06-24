@@ -211,6 +211,40 @@ describe('4/4 regression (behavior must be identical to before #241)', () => {
     expect(groups).toEqual([['e1', 'e2', 'e3', 'e4']]);
   });
 
+  test('mixed eighth + sixteenths share a primary beam with a shorter secondary beam (#245)', () => {
+    const events: ScoreEvent[] = [
+      { id: 'e1', duration: 'eighth', dotted: false, notes: [{ id: 'n1', pitch: 'C4' }] },
+      { id: 'e2', duration: 'sixteenth', dotted: false, notes: [{ id: 'n2', pitch: 'D4' }] },
+      { id: 'e3', duration: 'sixteenth', dotted: false, notes: [{ id: 'n3', pitch: 'E4' }] },
+    ];
+    const [group] = calculateBeamingGroups(events, makePositions(events), 'treble', '4/4');
+
+    expect(group.ids).toEqual(['e1', 'e2', 'e3']);
+    const primary = group.segments?.filter((segment) => segment.level === 1) ?? [];
+    const secondary = group.segments?.filter((segment) => segment.level === 2) ?? [];
+
+    expect(primary).toHaveLength(1);
+    expect(secondary).toHaveLength(1);
+    expect(secondary[0].startX).toBeGreaterThan(primary[0].startX);
+    expect(secondary[0].endX).toBeCloseTo(primary[0].endX, 1);
+  });
+
+  test('dotted eighth + sixteenth beams together with a partial secondary beamlet (#245)', () => {
+    const events: ScoreEvent[] = [
+      { id: 'e1', duration: 'eighth', dotted: true, notes: [{ id: 'n1', pitch: 'C4' }] },
+      { id: 'e2', duration: 'sixteenth', dotted: false, notes: [{ id: 'n2', pitch: 'D4' }] },
+    ];
+    const [group] = calculateBeamingGroups(events, makePositions(events), 'treble', '4/4');
+    const primary = group.segments?.find((segment) => segment.level === 1);
+    const secondary = group.segments?.find((segment) => segment.level === 2);
+
+    expect(group.ids).toEqual(['e1', 'e2']);
+    expect(primary).toBeDefined();
+    expect(secondary).toBeDefined();
+    expect(secondary!.endX - secondary!.startX).toBeLessThan(primary!.endX - primary!.startX);
+    expect(secondary!.startX).toBeGreaterThan(primary!.startX);
+  });
+
   test('quarter note breaks the beam (no group spanning the rest of the beat)', () => {
     const events: ScoreEvent[] = [
       { id: 'e1', duration: 'eighth', dotted: false, notes: [{ id: 'n1', pitch: 'C4' }] },
