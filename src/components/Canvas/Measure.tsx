@@ -92,7 +92,7 @@ const Measure: React.FC<MeasureProps> = ({
 }) => {
   const { theme } = useTheme();
   const { events } = measureData;
-  const { scale, baseY, clef, keySignature } = layout;
+  const { scale, baseY, clef, keySignature, timeSignature } = layout;
   const {
     selection,
     previewNote,
@@ -110,7 +110,8 @@ const Measure: React.FC<MeasureProps> = ({
     forcedEventPositions,
     forcedWidth,
     stretchFactor,
-    keySignature
+    keySignature,
+    timeSignature
   );
 
   // Extract layout data
