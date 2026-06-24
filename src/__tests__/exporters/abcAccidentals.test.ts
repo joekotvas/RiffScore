@@ -243,6 +243,32 @@ describe('ABC tuplet ratios use the explicit (p:q:r form', () => {
 });
 
 // ===========================================================================
+// Chord anchors inside tuplets
+// ===========================================================================
+
+describe('ABC chord annotations at fractional tuplet anchors', () => {
+  it('emits a chord placed on the second member of an eighth-note triplet', () => {
+    const events: ScoreEvent[] = [0, 1, 2].map((i) => ({
+      id: `t${i}`,
+      duration: 'eighth',
+      dotted: false,
+      notes: [{ id: `tn${i}`, pitch: ['C4', 'D4', 'E4'][i] }],
+      tuplet: { ratio: [3, 2], groupSize: 3, position: i, baseDuration: 'eighth' },
+    }));
+    const score = {
+      ...buildScore([
+        ...events,
+        { id: 'pad', duration: 'half', dotted: true, notes: [{ id: 'padn', pitch: 'G4' }] },
+      ]),
+      chordTrack: [{ id: 'chord-1', measure: 0, quant: 5.333, symbol: 'G7' }],
+    };
+
+    const body = getVoiceBody(generateABC(score, 120));
+    expect(body).toContain('"G7"D');
+  });
+});
+
+// ===========================================================================
 // Ties: hyphen after the complete note token
 // ===========================================================================
 
@@ -296,5 +322,46 @@ describe('ABC final barline', () => {
     const abc = generateABC(buildScore([quarter('e1', 'C4')]), 120);
     const body = getVoiceBody(abc);
     expect(body.trim().endsWith('|]')).toBe(true);
+  });
+});
+
+// ===========================================================================
+// Pickup/anacrusis
+// ===========================================================================
+
+describe('ABC pickup meter marking', () => {
+  it('marks a leading pickup with an inline short meter and restores the score meter', () => {
+    const score = buildMultiMeasureScore([
+      [{ id: 'pickup', duration: 'quarter', dotted: false, notes: [{ id: 'pickup-n', pitch: 'G4' }] }],
+      [
+        quarter('a', 'C5'),
+        quarter('b', 'D5'),
+        quarter('c', 'E5'),
+        quarter('d', 'F5'),
+      ],
+    ]);
+    score.staves[0].measures[0].isPickup = true;
+
+    const body = getVoiceBody(generateABC(score, 120));
+    expect(body).toContain('[M:1/4]G');
+    expect(body).toContain('| [M:4/4]c');
+  });
+
+  it('reduces dotted pickup lengths to the matching inline meter', () => {
+    const score = buildMultiMeasureScore([
+      [
+        {
+          id: 'pickup',
+          duration: 'quarter',
+          dotted: true,
+          notes: [{ id: 'pickup-n', pitch: 'G4' }],
+        },
+      ],
+      [quarter('a', 'C5')],
+    ]);
+    score.staves[0].measures[0].isPickup = true;
+
+    const body = getVoiceBody(generateABC(score, 120));
+    expect(body).toContain('[M:3/8]G3/2');
   });
 });
