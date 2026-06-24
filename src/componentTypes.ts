@@ -12,6 +12,7 @@ export interface LayoutConfig {
   baseY: number; // Base Y for the system (e.g. CONFIG.baseY)
   clef: string; // Current Clef ('treble', 'bass')
   keySignature: string; // Current Key Sig
+  timeSignature: string; // Current Time Sig
   staffIndex: number; // Which staff this measure belongs to
   verticalOffset: number; // Vertical offset for hit detection mapping
   mouseLimits?: { min: number; max: number }; // Optional clamping range

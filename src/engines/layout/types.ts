@@ -57,6 +57,16 @@ export interface BeamGroup {
   endY: number;
   direction: 'up' | 'down';
   type: string;
+  segments: BeamSegment[];
+}
+
+export interface BeamSegment {
+  /** 1 = primary eighth beam, 2 = sixteenth beam, etc. */
+  level: number;
+  startX: number;
+  endX: number;
+  startY: number;
+  endY: number;
 }
 
 export interface TupletBracketGroup {

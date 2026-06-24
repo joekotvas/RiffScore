@@ -168,6 +168,7 @@ const Staff: React.FC<StaffProps> = ({
           baseY: CONFIG.baseY,
           clef,
           keySignature,
+          timeSignature,
           staffIndex,
           verticalOffset: 0, // Staff is at 0 relative to itself (positioned by parent)
           mouseLimits, // Pass clamping limits
@@ -180,17 +181,34 @@ const Staff: React.FC<StaffProps> = ({
   // Render ties between notes
   const renderTies = () => {
     const ties: React.ReactElement[] = [];
-    // Use same preamble calculation as main measure rendering
-    const { measuresX: tieStartX } = calculateSystemPreamble(keySignature, { isFirstSystem });
-
-    let currentMeasureX = tieStartX;
-
     const allNotes: TieNote[] = [];
 
     measures.forEach((measure, mIndex: number) => {
-      const layout = calculateMeasureLayout(measure.events, undefined, clef, false);
+      const actualMeasureIndex = measureIndices?.[mIndex] ?? mIndex;
+      const layout =
+        stretchFactor !== 1.0
+          ? calculateMeasureLayout(
+              measure.events,
+              undefined,
+              clef,
+              measure.isPickup ?? false,
+              undefined,
+              stretchFactor,
+              keySignature
+            )
+          : (staffLayout?.measures[actualMeasureIndex]?.legacyLayout ??
+            calculateMeasureLayout(
+              measure.events,
+              undefined,
+              clef,
+              measure.isPickup ?? false,
+              undefined,
+              1.0,
+              keySignature
+            ));
+      const measureX = measureStartXs[mIndex];
       measure.events.forEach((event, eIndex: number) => {
-        const eventX = currentMeasureX + layout.eventPositions[event.id];
+        const eventX = measureX + layout.eventPositions[event.id];
         event.notes.forEach((note, nIndex: number) => {
           // Skip rest notes (which have null pitch) - they can't have ties
           if (note.pitch === null) return;
@@ -207,7 +225,6 @@ const Staff: React.FC<StaffProps> = ({
           });
         });
       });
-      currentMeasureX += layout.totalWidth;
     });
 
     allNotes.forEach((note) => {
