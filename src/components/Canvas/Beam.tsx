@@ -1,6 +1,11 @@
-// @ts-nocheck
 import { useTheme } from '@/context/ThemeContext';
 import { BEAMING } from '@/constants';
+import type { BeamGroup } from '@/engines/layout/types';
+
+interface BeamProps {
+  beam: BeamGroup;
+  color?: string;
+}
 
 /**
  * Renders a beam connecting multiple notes.
@@ -12,11 +17,18 @@ import { BEAMING } from '@/constants';
  * @param type - Duration type (determines number of beams)
  * @param direction - Stem direction (affects secondary beam offset)
  */
-const Beam = ({ beam, color }) => {
-  const { startX, endX, startY, endY, type, direction } = beam;
+const Beam = ({ beam, color }: BeamProps) => {
+  const { startX, endX, startY, endY, type, direction, segments } = beam;
   const { theme } = useTheme();
 
-  const renderBeam = (y1, y2, key, thickness = 5) => {
+  const renderBeam = (
+    y1: number,
+    y2: number,
+    key: string,
+    thickness = 5,
+    x1 = startX,
+    x2 = endX
+  ) => {
     // To get vertical ends, we draw a polygon.
     // Top-Left: (startX, y1)
     // Top-Right: (endX, y2)
@@ -31,16 +43,32 @@ const Beam = ({ beam, color }) => {
     const halfWidth = thickness / 2;
 
     const points = [
-      `${startX},${y1 - halfWidth}`,
-      `${endX},${y2 - halfWidth}`,
-      `${endX},${y2 + halfWidth}`,
-      `${startX},${y1 + halfWidth}`,
+      `${x1},${y1 - halfWidth}`,
+      `${x2},${y2 - halfWidth}`,
+      `${x2},${y2 + halfWidth}`,
+      `${x1},${y1 + halfWidth}`,
     ].join(' ');
 
     return <polygon key={key} points={points} fill={color || theme.score.note} />;
   };
 
-  const paths = [];
+  const paths: ReturnType<typeof renderBeam>[] = [];
+
+  if (segments?.length) {
+    segments.forEach((segment, index) => {
+      paths.push(
+        renderBeam(
+          segment.startY,
+          segment.endY,
+          `segment-${index}`,
+          BEAMING.THICKNESS,
+          segment.startX,
+          segment.endX
+        )
+      );
+    });
+    return <g className="beam-group">{paths}</g>;
+  }
 
   // Primary Beam (Outermost) - Standard Thickness
   paths.push(renderBeam(startY, endY, 'primary', BEAMING.THICKNESS));
@@ -49,7 +77,7 @@ const Beam = ({ beam, color }) => {
   const beamSpacing = BEAMING.SPACING;
   const innerBeamThickness = BEAMING.THICKNESS;
 
-  const addBeam = (index) => {
+  const addBeam = (index: number) => {
     const offset = direction === 'up' ? index * beamSpacing : -(index * beamSpacing);
     paths.push(renderBeam(startY + offset, endY + offset, `beam-${index}`, innerBeamThickness));
   };

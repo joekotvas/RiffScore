@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+M3 export & engraving fidelity. This closes the remaining practical gaps between the score model,
+the rendered page, and the MusicXML/ABC that users share with notation apps.
+
+### For musicians
+- **MusicXML exports import more faithfully** — minor keys now carry `<mode>`, empty grand-staff
+  staves export explicit whole-measure rests, tuplet chord members no longer duplicate bracket
+  notations, and extended/altered chord symbols (9ths, 11ths, 13ths, add/alter tones) export with
+  more of their harmonic detail. *(This affects the exported file only — how chords look and play
+  inside the editor is unchanged.)*
+- **ABC exports handle pickups and tuplets better** — pickup bars now emit their own temporary
+  meter, and chord symbols anchored on fractional tuplet positions are no longer dropped.
+- **Ties and beams line up with what you see** — cross-measure ties use the same key-aware/stretched
+  layout as noteheads, and mixed dotted/16th rhythms now render primary, secondary, and partial beams
+  instead of splitting the beat.
+
+### For developers
+- MusicXML/ABC chord anchors now quantize through the shared chord quantizer, so fractional tuplet
+  positions are stable across exporters.
+- MusicXML harmony export adds broader kind mapping and `<degree>` output for add/alter tones, plus
+  stricter note-order/tuplet/rest behavior covered by exporter tests.
+- `BeamGroup` now carries explicit per-level beam segments; the renderer draws primary, secondary,
+  and beamlet spans from layout data instead of inferring full-width inner beams from duration.
+- The MusicXML structural helper now validates staff duration streams, `<backup>` durations, note
+  child order, tuplet notation placement, and full-measure rests; representative real exporter
+  outputs — including a tuplet-containing score — run through this validator in Jest/CI. The
+  official MusicXML 4.0 XSD-in-CI check (audit Phase 2) is **not** part of this release and remains
+  an open verification item.
+
 ## [1.0.0-alpha.16] - 2026-06-13
 
 Closes the loop on the M2 interactive-correctness work — the four deferred follow-ups (#261, #263,

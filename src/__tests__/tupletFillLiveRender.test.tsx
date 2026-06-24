@@ -1,4 +1,4 @@
-/* eslint-disable testing-library/no-container, testing-library/no-node-access */
+/* eslint-disable testing-library/no-node-access */
 /**
  * Regression (user bug, round 2): filling a reserved tuplet slot on a MOUNTED editor must render
  * the note. Unlike extractFacts (fresh mount of the final score), this dispatches delete+fill on a

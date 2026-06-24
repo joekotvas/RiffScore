@@ -1,5 +1,5 @@
 import { ScoreEvent } from '@/types';
-import { BeamGroup } from './types';
+import { BeamGroup, BeamSegment } from './types';
 import { getNoteDuration } from '@/utils/core';
 import { getOffsetForPitch, calculateChordLayout, getStemOffset } from './positioning';
 import { CONFIG } from '@/config';
@@ -72,6 +72,15 @@ export const getBeamBeatQuants = (timeSignature = '4/4'): number => {
   return denominatorUnitQuants;
 };
 
+const BEAM_LEVELS: Record<string, number> = {
+  eighth: 1,
+  sixteenth: 2,
+  thirtysecond: 3,
+  sixtyfourth: 4,
+};
+
+const beamLevelForDuration = (duration: string): number => BEAM_LEVELS[duration] ?? 0;
+
 /**
  * Groups events into beaming groups based on musical rules (beats, syncopation).
  * All calculations use CONFIG.baseY - staff positioning is handled by SVG transforms.
@@ -90,7 +99,6 @@ export const calculateBeamingGroups = (
 ): BeamGroup[] => {
   const groups: BeamGroup[] = [];
   let currentGroup: ScoreEvent[] = [];
-  let currentType: string | null = null;
 
   // Helper to finalize a group
   const finalizeGroup = () => {
@@ -98,7 +106,6 @@ export const calculateBeamingGroups = (
       groups.push(processBeamGroup(currentGroup, eventPositions, clef));
     }
     currentGroup = [];
-    currentType = null;
   };
 
   let currentQuant = 0;
@@ -109,24 +116,16 @@ export const calculateBeamingGroups = (
   const beatQuants = getBeamBeatQuants(timeSignature);
 
   events.forEach((event: ScoreEvent) => {
-    const type = event.duration;
-    const isFlagged = ['eighth', 'sixteenth', 'thirtysecond', 'sixtyfourth'].includes(type);
-    const durationQuants = getNoteDuration(type, event.dotted, event.tuplet);
+    const beamLevel = beamLevelForDuration(event.duration);
+    const durationQuants = getNoteDuration(event.duration, event.dotted, event.tuplet);
 
-    // Break beam if:
-    // 1. Not a flagged note
-    // 2. Dotted note (simplify for now - standard beaming breaks on dots usually unless configured)
-    // 3. Type changes (e.g. 8th to 16th - simple engines often break here, complex ones don't)
-    // 4. Rest
-
-    if (!isFlagged || event.isRest) {
+    // Break beams on rests and unbeamable durations. Mixed flagged values stay in
+    // one beat-level group; secondary/partial beam segments encode the shorter
+    // values instead of splitting the primary beam (#245).
+    if (beamLevel === 0 || event.isRest) {
       finalizeGroup();
       currentQuant += durationQuants;
       return;
-    }
-
-    if (currentType && currentType !== type) {
-      finalizeGroup();
     }
 
     // Break the beam at every beat boundary so beams never span across beats.
@@ -137,9 +136,21 @@ export const calculateBeamingGroups = (
       finalizeGroup();
     }
 
+    const eventEndQuant = currentQuant + durationQuants;
+    // Do not start the deferred tuplet-beaming work here: tuplets can carry
+    // fractional beat positions on the current quant grid, so the #245
+    // no-dependency fix only splits plain flagged events that overrun a beat.
+    const crossesPlainBeatBoundary =
+      !event.tuplet &&
+      Math.floor((eventEndQuant - 1e-9) / beatQuants) !== Math.floor(currentQuant / beatQuants);
+    if (crossesPlainBeatBoundary) {
+      finalizeGroup();
+      currentQuant = eventEndQuant;
+      return;
+    }
+
     currentGroup.push(event);
-    currentType = type;
-    currentQuant += durationQuants;
+    currentQuant = eventEndQuant;
   });
 
   finalizeGroup();
@@ -157,8 +168,6 @@ const processBeamGroup = (
   eventPositions: Record<string, number>,
   clef: string
 ): BeamGroup => {
-  const startEvent = groupEvents[0];
-
   // Determine minimum stem length based on the note type with the most beams in the group
   // 32nd notes need longer stems to accommodate 3 beams, 64th for 4 beams
   let minStemLength = STEM_BEAMED_LENGTHS.default;
@@ -287,6 +296,74 @@ const processBeamGroup = (
     }
   }
 
+  const lineYAt = (x: number): number => {
+    const finalSlope = (endBeamY - startBeamY) / (endX - startX);
+    const finalIntercept = startBeamY - finalSlope * startX;
+    return finalSlope * x + finalIntercept;
+  };
+
+  const highestBeamLevel = Math.max(
+    ...groupEvents.map((event) => beamLevelForDuration(event.duration))
+  );
+  const segmentFor = (level: number, start: number, end: number): BeamSegment => {
+    const offset =
+      direction === 'up' ? (level - 1) * BEAMING.SPACING : -(level - 1) * BEAMING.SPACING;
+    return {
+      level,
+      startX: start,
+      endX: end,
+      startY: lineYAt(start) + offset,
+      endY: lineYAt(end) + offset,
+    };
+  };
+
+  const stemXs = noteData.map((d) => d.eventX);
+  const segments: BeamSegment[] = [segmentFor(1, startX, endX)];
+
+  for (let level = 2; level <= highestBeamLevel; level++) {
+    let runStart = -1;
+
+    const flushRun = (runEnd: number) => {
+      if (runStart === -1) return;
+
+      if (runEnd > runStart) {
+        segments.push(
+          segmentFor(
+            level,
+            stemXs[runStart] - BEAMING.EXTENSION_PX,
+            stemXs[runEnd] + BEAMING.EXTENSION_PX
+          )
+        );
+      } else {
+        const stemX = stemXs[runStart];
+        const prevX = stemXs[runStart - 1];
+        const nextX = stemXs[runStart + 1];
+        const towardNext = nextX !== undefined;
+        const neighborX = towardNext ? nextX : prevX;
+        const gap = neighborX === undefined ? 24 : Math.abs(neighborX - stemX);
+        const length = Math.min(14, Math.max(8, gap * 0.45));
+        const beamletStart = towardNext ? stemX : stemX - length;
+        const beamletEnd = towardNext ? stemX + length : stemX;
+        segments.push(segmentFor(level, beamletStart, beamletEnd));
+      }
+
+      runStart = -1;
+    };
+
+    groupEvents.forEach((event, index) => {
+      if (beamLevelForDuration(event.duration) >= level) {
+        if (runStart === -1) runStart = index;
+      } else {
+        flushRun(index - 1);
+      }
+    });
+    flushRun(groupEvents.length - 1);
+  }
+
+  const groupType =
+    groupEvents.find((event) => beamLevelForDuration(event.duration) === highestBeamLevel)
+      ?.duration ?? groupEvents[0].duration;
+
   return {
     ids: groupEvents.map((e) => e.id),
     startX,
@@ -294,6 +371,7 @@ const processBeamGroup = (
     startY: startBeamY,
     endY: endBeamY,
     direction,
-    type: startEvent.duration,
+    type: groupType,
+    segments,
   };
 };

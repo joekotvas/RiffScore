@@ -15,6 +15,7 @@ import { findTieTarget } from '@/utils/ties';
 import { Note } from 'tonal';
 import { canonicalizeKeySignature } from '@/utils/keyResolution';
 import { MeasureAccidentalState, keySignatureAltForLetter } from '@/utils/accidentalContext';
+import { quantizeChordAnchor } from '@/services/chord/ChordQuants';
 
 /** Maps an alteration to its MusicXML <accidental> glyph name. 0 is natural. */
 const xmlAccidentalName = (alt: number): string => {
@@ -62,6 +63,7 @@ const collectTupletDivisors = (score: Score): number[] => {
   const staves = score.staves || [getActiveStaff(score)];
   for (const staff of staves) {
     for (const measure of staff.measures) {
+      if (!measure) continue;
       for (const event of measure.events) {
         if (event.tuplet) {
           const actual = event.tuplet.ratio[0];
@@ -184,17 +186,37 @@ const exportMetadataToXML = (metadata: ScoreMetadata): string => {
  */
 const CHORD_KIND_MAP: Record<string, string> = {
   '': 'major',
-  m: 'minor',
-  '7': 'dominant',
-  maj7: 'major-seventh',
-  m7: 'minor-seventh',
-  dim: 'diminished',
-  aug: 'augmented',
+  maj13: 'major-13th',
+  maj11: 'major-11th',
+  maj9: 'major-ninth',
   dim7: 'diminished-seventh',
   m7b5: 'half-diminished',
+  maj7: 'major-seventh',
+  m13: 'minor-13th',
+  m11: 'minor-11th',
+  m9: 'minor-ninth',
+  m7: 'minor-seventh',
+  m6: 'minor-sixth',
   sus4: 'suspended-fourth',
   sus2: 'suspended-second',
+  maj: 'major',
+  dim: 'diminished',
+  aug: 'augmented',
+  '13': 'dominant-13th',
+  '11': 'dominant-11th',
+  '9': 'dominant-ninth',
+  '7': 'dominant',
+  '6': 'major-sixth',
+  m: 'minor',
 };
+
+type MusicXmlDegreeType = 'add' | 'alter' | 'subtract';
+
+interface MusicXmlDegree {
+  value: number;
+  alter: number;
+  type: MusicXmlDegreeType;
+}
 
 /**
  * Parse a chord symbol into MusicXML harmony components.
@@ -202,7 +224,13 @@ const CHORD_KIND_MAP: Record<string, string> = {
  */
 const parseChordForMusicXML = (
   symbol: string
-): { root: string; alter: number; kind: string; bass?: { step: string; alter: number } } | null => {
+): {
+  root: string;
+  alter: number;
+  kind: string;
+  bass?: { step: string; alter: number };
+  degrees: MusicXmlDegree[];
+} | null => {
   // Handle slash chords (e.g., "C/E")
   let chordPart = symbol;
   let bassPart: string | null = null;
@@ -223,19 +251,38 @@ const parseChordForMusicXML = (
 
   // Extract quality/kind from the rest of the symbol
   const qualityPart = chordPart.slice(rootMatch[0].length);
+  const qualityKey = qualityPart.replace(/^M/, 'maj');
 
   // Find the matching kind (try longer suffixes first)
   const sortedKinds = Object.keys(CHORD_KIND_MAP).sort((a, b) => b.length - a.length);
   let kind = 'major';
+  let matchedSuffix = '';
   for (const suffix of sortedKinds) {
-    if (suffix && qualityPart.startsWith(suffix)) {
+    if (suffix && qualityKey.startsWith(suffix)) {
       kind = CHORD_KIND_MAP[suffix];
+      matchedSuffix = suffix;
       break;
     }
   }
   // If no suffix matched but qualityPart is empty, it's major
-  if (qualityPart === '') {
+  if (qualityKey === '') {
     kind = 'major';
+  }
+
+  const degrees: MusicXmlDegree[] = [];
+  const residualQuality = qualityKey.slice(matchedSuffix.length);
+  for (const match of residualQuality.matchAll(/add(9|11|13)|sus([24])|([#b])([59]|11|13)/g)) {
+    if (match[1]) {
+      degrees.push({ value: Number(match[1]), alter: 0, type: 'add' });
+    } else if (match[2]) {
+      degrees.push({ value: Number(match[2]), alter: 0, type: 'add' });
+    } else {
+      degrees.push({
+        value: Number(match[4]),
+        alter: match[3] === '#' ? 1 : -1,
+        type: 'alter',
+      });
+    }
   }
 
   const result: {
@@ -243,10 +290,12 @@ const parseChordForMusicXML = (
     alter: number;
     kind: string;
     bass?: { step: string; alter: number };
+    degrees: MusicXmlDegree[];
   } = {
     root: rootStep,
     alter: rootAlter,
     kind,
+    degrees,
   };
 
   // Parse bass note if present
@@ -292,6 +341,15 @@ const generateHarmonyElement = (chord: ChordSymbol): string => {
             : ''
         }
       </bass>`;
+  }
+
+  for (const degree of parsed.degrees) {
+    xml += `
+      <degree>
+        <degree-value>${degree.value}</degree-value>
+        <degree-alter>${degree.alter}</degree-alter>
+        <degree-type>${degree.type}</degree-type>
+      </degree>`;
   }
 
   xml += `
@@ -353,6 +411,7 @@ const renderEvent = (
   measures: Measure[],
   measureIndex: number,
   eventIndex: number,
+  measureSpanQuants: number,
   staffNumber?: number
 ): string => {
   let xml = '';
@@ -369,8 +428,7 @@ const renderEvent = (
   let timeModTag = '';
   if (event.tuplet) {
     const [actual, normal] = event.tuplet.ratio;
-    const normalType =
-      NOTE_TYPES[event.tuplet.baseDuration ?? event.duration]?.xmlType ?? xmlType;
+    const normalType = NOTE_TYPES[event.tuplet.baseDuration ?? event.duration]?.xmlType ?? xmlType;
     timeModTag = `
       <time-modification>
         <actual-notes>${actual}</actual-notes>
@@ -390,10 +448,13 @@ const renderEvent = (
         restTupletTag = '<tuplet type="stop"/>';
     }
     const restNotations = restTupletTag ? `\n      <notations>${restTupletTag}</notations>` : '';
+    const isMeasureRest =
+      !event.tuplet && duration === measureSpanDivisions(measureSpanQuants, divisions);
+    const restTag = isMeasureRest ? '<rest measure="yes"/>' : '<rest/>';
     // REST — DTD order: <rest/> <duration> <type> <dot> <time-modification> <staff> <notations>
     xml += `
     <note>
-      <rest/>
+      ${restTag}
       <duration>${duration}</duration>
       <type>${xmlType}</type>
       ${event.dotted ? '<dot/>' : ''}
@@ -470,7 +531,7 @@ const renderEvent = (
 
     // Tuplet bracket notations (start/stop) — separate from time-modification.
     let tupletNotations = '';
-    if (event.tuplet) {
+    if (!isChord && event.tuplet) {
       if (event.tuplet.position === 0) {
         const tupTag = '<tuplet type="start" bracket="yes"/>';
         if (tiedNotations) {
@@ -529,6 +590,28 @@ const renderEvent = (
 const measureDivisionSum = (events: ScoreEvent[], divisions: number): number =>
   events.reduce((sum, event) => sum + eventDivisions(event, divisions), 0);
 
+const measureQuantSum = (events: ScoreEvent[]): number =>
+  events.reduce(
+    (sum, event) => sum + getNoteDuration(event.duration, event.dotted, event.tuplet),
+    0
+  );
+
+const measureSpanDivisions = (measureSpanQuants: number, divisions: number): number =>
+  Math.round((measureSpanQuants / BASE_DIVISIONS_PER_QUARTER) * divisions);
+
+const renderFullMeasureRest = (
+  measureSpanQuants: number,
+  divisions: number,
+  staffNumber?: number
+): string => {
+  const staffTag = staffNumber === undefined ? '' : `\n      <staff>${staffNumber}</staff>`;
+  return `
+    <note>
+      <rest measure="yes"/>
+      <duration>${measureSpanDivisions(measureSpanQuants, divisions)}</duration>${staffTag}
+    </note>`;
+};
+
 export const generateMusicXML = (score: Score): string => {
   const staves = score.staves || [getActiveStaff(score)];
   const timeSig = score.timeSignature || '4/4';
@@ -557,6 +640,13 @@ export const generateMusicXML = (score: Score): string => {
   const hasPickup = staves[0]?.measures[0]?.isPickup === true;
   const measureNumberFor = (mIndex: number): number => (hasPickup ? mIndex : mIndex + 1);
   const isImplicit = (mIndex: number): boolean => hasPickup && mIndex === 0;
+  const measureSpanQuantsFor = (mIndex: number): number => {
+    if (!isImplicit(mIndex)) return measureCapacity;
+
+    const firstMeasure = staves[0]?.measures[mIndex];
+    const pickupSpan = firstMeasure ? measureQuantSum(firstMeasure.events) : 0;
+    return pickupSpan > 0 ? pickupSpan : measureCapacity;
+  };
 
   // Use metadata with fallback to defaults, then fall back to legacy title field
   const metadata: ScoreMetadata = score.metadata ?? {
@@ -569,10 +659,11 @@ export const generateMusicXML = (score: Score): string => {
   const chordMap = new Map<number, Map<number, ChordSymbol>>();
   if (score.chordTrack) {
     for (const chord of score.chordTrack) {
+      const quant = quantizeChordAnchor(chord.quant);
       if (!chordMap.has(chord.measure)) {
         chordMap.set(chord.measure, new Map<number, ChordSymbol>());
       }
-      chordMap.get(chord.measure)!.set(chord.quant, chord);
+      chordMap.get(chord.measure)!.set(quant, chord);
     }
   }
 
@@ -627,6 +718,7 @@ export const generateMusicXML = (score: Score): string => {
   for (let mIndex = 0; mIndex < measureCount; mIndex++) {
     const number = measureNumberFor(mIndex);
     const implicitAttr = isImplicit(mIndex) ? ' implicit="yes"' : '';
+    const measureSpanQuants = measureSpanQuantsFor(mIndex);
     xml += `\n    <measure number="${number}"${implicitAttr}>`;
 
     // Attributes appear on the first measure (pickup or first full measure).
@@ -636,6 +728,7 @@ export const generateMusicXML = (score: Score): string => {
       <divisions>${divisions}</divisions>
       <key>
         <fifths>${fifths}</fifths>
+        <mode>${keySigData?.mode ?? 'major'}</mode>
       </key>
       <time>
         <beats>${timeSig.split('/')[0]}</beats>
@@ -671,7 +764,10 @@ export const generateMusicXML = (score: Score): string => {
         // the same way so the <backup> duration matches the padded measure (grand-staff align).
         const prevMeasure = staves[staffIndex - 1].measures[mIndex];
         const prevEvents = prevMeasure ? padMeasureForExport(prevMeasure, measureCapacity) : [];
-        const backup = measureDivisionSum(prevEvents, divisions);
+        const backup =
+          prevMeasure && prevEvents.length > 0
+            ? measureDivisionSum(prevEvents, divisions)
+            : measureSpanDivisions(measureSpanQuants, divisions);
         if (backup > 0) {
           xml += `
     <backup>
@@ -689,6 +785,11 @@ export const generateMusicXML = (score: Score): string => {
       const activeTies = activeTiesByStaff[staffIndex];
       const staffNumber = isGrandStaff ? staffIndex + 1 : undefined;
 
+      if (!measure || measure.events.length === 0) {
+        xml += renderFullMeasureRest(measureSpanQuants, divisions, staffNumber);
+        return;
+      }
+
       // Track local quant position within measure (for chord placement, top staff only).
       let localQuant = 0;
 
@@ -696,7 +797,7 @@ export const generateMusicXML = (score: Score): string => {
         // Insert harmony element before note if chord exists at this position
         // (chords annotate the top staff's timeline only).
         if (staffIndex === 0) {
-          const chord = chordMap.get(mIndex)?.get(localQuant);
+          const chord = chordMap.get(mIndex)?.get(quantizeChordAnchor(localQuant));
           if (chord) {
             xml += generateHarmonyElement(chord);
           }
@@ -711,6 +812,7 @@ export const generateMusicXML = (score: Score): string => {
           staff.measures,
           mIndex,
           eventIndex,
+          measureSpanQuants,
           staffNumber
         );
 
