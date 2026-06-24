@@ -44,10 +44,13 @@ release now on `dev` / [PR #248](https://github.com/joekotvas/RiffScore/pull/248
   `<divisions>` (LCM of tuplet denominators), grand-staff as one `<part>` with
   `<staves>` + `<backup>`, pickup `implicit="yes"`, score-level `<fifths>`; ABC
   measure-local accidental cancellation (#240, #238, #234).
-- **M3 export/engraving tail** *(Unreleased / pending release)* — MusicXML key mode,
-  whole-measure rests for empty grand-staff staves, slash/extended harmony mapping,
-  stricter note-order/tuplet/rest structural validation, ABC pickup meters/final barline/
-  tuplet chord anchors, key-aware tie layout, and mixed-value secondary/partial beams.
+- **M3 export/engraving tail** *(Unreleased / pending release)* — MusicXML key `<mode>`,
+  whole-measure rests for empty grand-staff staves, richer `<harmony>`/`<degree>` for
+  extended/altered chords (export layer only — display/playback normalization stays open,
+  cluster 7), stricter note-order/tuplet/rest structural validation, ABC pickup-bar meters
+  and fractional-tuplet chord anchors, cross-measure key/stretch-aware tie layout, and
+  mixed-value secondary/partial beams. *(The official MusicXML-4.0-XSD-in-CI gate is not
+  delivered — see M3 below.)*
 - **Transpose lossless undo** — both transpose commands snapshot the pre-image and
   restore verbatim (contract C3).
 - **Migration versioning** — `SCHEMA_VERSION` bumped to **2** so scores saved at v1
@@ -130,27 +133,40 @@ With a trustworthy model, make what gets shared and printed match it exactly.
 
 - ✅ **MusicXML tail** — note child-ordering remains parser-safe; tuplet durations sum to
   `divisions·beats`; #246 empty grand-staff staves emit `<rest measure="yes"/>`; minor
-  keys emit `<mode>`; tuplet bracket notations are primary-note only; slash and extended
-  chord symbols map into richer `<harmony>` / `<degree>` output.
-- ✅ **MusicXML structural validation** — representative real exporter output now runs
-  through a deterministic Jest gate that checks staff duration streams, `<backup>`
-  durations, note child order, tuplet notation placement, and full-measure rests. The
-  committed reduced XSD fixture remains documented; wiring the full official MusicXML
-  4.0 XSD bundle into CI is now a hardening follow-up, not a blocker for the M3 defects
-  above.
-- ✅ **ABC tail** — quintuplet ratios, final barline `|]`, pickup-meter annotation, and
-  fractional tuplet chord anchors are covered by exporter tests.
+  keys emit `<mode>`; tuplet bracket notations are primary-note only; extended/altered
+  chords (9/11/13, add/alter tones) map into richer `<harmony>` / `<degree>` output.
+  *(Export layer only — the internal chord-symbol normalization and slash-bass voicing
+  are still wrong on screen and in playback (cluster 7, LIVE). Slash `<bass>` **export**
+  predates M3 and is unchanged here.)*
+- ✅ **MusicXML structural validation** — representative real exporter output, **including a
+  tuplet-containing score**, now runs through a deterministic Jest gate that checks staff
+  duration streams, `<backup>` durations, note child order, tuplet notation placement, and
+  full-measure rests. This catches the *musical-corruption* defect class (e.g. duration-sum
+  errors an XSD would happily pass) better than a schema check.
+- ⏳ **Official MusicXML 4.0 XSD validation in CI** — *still owed (audit Phase 2 gate, not
+  delivered by M3).* The audit requires validating a representative export against the
+  official XSD via `xmllint` in CI; the committed reduced `.xsd` fixture is documentation
+  only and is wired to no test. The structural gate above substitutes for the corruption
+  class but does **not** discharge this verification requirement.
+- ✅ **ABC tail** — pickup bars emit their own temporary `[M:n/d]` meter and chord symbols
+  on fractional tuplet positions are no longer dropped (shared chord-anchor quantizer).
+  *(Quintuplet ratios and the final barline `|]` shipped earlier in alpha.16, not M3.)*
 - ✅ **Beaming sub-grouping #245 (the no-dependency half)** — dotted-rhythm grouping and
   secondary/partial beam segments now render from layout data (for example 8th+16th+16th
   and dotted-8th+16th). *The tuplet-beaming half of #245 depends on #237 and remains
-  deferred with it.*
-- ✅ **Tie layout key (#249)** — cross-measure tie endpoint X now uses the same
-  key-aware/stretched measure layout as rendered noteheads, including direct Measure
-  fallback paths.
+  deferred with it; mean-Y stem direction, the 45° `MAX_SLOPE` clamp, and beamed-over-rests
+  (audit finding #9 siblings) are out of scope and stay LIVE.*
+- ✅ **Tie layout key (#249)** — cross-measure tie endpoint X now uses the same key-aware
+  measure layout as rendered noteheads, in both the unstretched and justified
+  (stretch ≠ 1.0) paths, regression-tested at tie-X == notehead-X. *(Cross-SYSTEM tie arcs
+  — #270 — are separate and still open: Tie.tsx's split-arc props stay unwired.)*
 
-**Done when:** MusicXML/ABC exports and on-canvas engraving agree for the M3 defect
-classes, and representative exports are covered by structural CI tests. — ✅ **Met**
-for the scoped M3 tail; full official-XSD CI remains a follow-up hardening item.
+**Done when:** exports are internally consistent (durations sum, DTD child order,
+tuplet/rest placement) under structural CI tests, tie endpoints match noteheads, and beams
+render from layout data. — ✅ **Met** for the scoped M3 tail. Two verification items remain
+explicitly open: the audit's official-MusicXML-4.0-XSD-in-CI gate (above), and true
+export↔render *round-trip* agreement, which is untestable until an import path exists
+(there is none today).
 
 ---
 

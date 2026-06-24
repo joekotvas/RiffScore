@@ -38,17 +38,18 @@ note > {pitch|rest|chord} + duration + type`). It documents the real `octave` (s
 ## Why parse-based first, XSD second
 
 XSD validation proves _well-formedness against a grammar_; it does **not** prove
-_musical sense_. The live exporter bug
-(`musicXmlExporter.ts`: `Math.floor((dur * ratio[1]) / ratio[0])`) emits triplet-eighth
-durations that sum to 15 instead of 16 at `divisions=16` — that output is still
-schema-valid but musically corrupt. The **duration-sum invariant** catches it; an XSD
-alone would not. So the parse-based content oracle is the higher-value check and ships
-in Phase 1; XSD validation is an additional well-formedness gate for Phase 2.
+_musical sense_. The exporter bug this oracle was built to catch
+(`musicXmlExporter.ts` formerly did `Math.floor((dur * ratio[1]) / ratio[0])`) emitted
+triplet-eighth durations summing to 15 instead of 16 at `divisions=16` — schema-valid but
+musically corrupt. The **duration-sum invariant** catches it; an XSD alone would not. So
+the parse-based content oracle is the higher-value check and ships in Phase 1; XSD
+validation is an additional well-formedness gate for Phase 2.
 
 > Note (from the verification strategy): `divisions=16` **cannot** represent triplet
-> eighths as integers. The real fix pairs a larger `divisions` value
-> (e.g. `LCM(16, present tuplet denominators)`) with removing the `Math.floor`. The
-> duration-sum test will correctly stay red until both are fixed.
+> eighths as integers. The fix — now landed (alpha.16) — pairs a content-derived
+> `divisions` value (`LCM` of the present tuplet denominators) with removing the
+> `Math.floor`, so durations are exact integers. The duration-sum test is now **green**
+> and stands as the regression guard against that class of corruption returning.
 
 ## Phase-2 wiring (deferred)
 

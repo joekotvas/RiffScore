@@ -19,6 +19,7 @@ jest.mock('@/engines/toneEngine', () => ({
 import { renderScore } from '../helpers/visual';
 import { createDefaultScore, Score, ScoreEvent } from '@/types';
 import { TIE } from '@/constants';
+import { calculateMeasureLayout } from '@/engines/layout';
 
 const q = (id: string, pitch: string | null, tied = false): ScoreEvent =>
   pitch === null
@@ -90,5 +91,45 @@ describe('tie rendering', () => {
     } finally {
       unmount();
     }
+  });
+});
+
+describe('tie layout stays on the notehead when a system is justified (#249, stretch ≠ 1.0)', () => {
+  // The renderer draws ties (Staff.tsx renderTies) and noteheads (Measure → useMeasureLayout)
+  // from the SAME measure layout: both share measureStartXs, so tie-X == notehead-X reduces
+  // to the two paths agreeing on `eventPositions`. In the unstretched path both read the
+  // centralized legacyLayout. In the justified (stretch ≠ 1.0) path the Measure recomputes via
+  // useMeasureLayout(events, …, forcedEventPositions = legacyLayout.eventPositions, stretch, key)
+  // and renderTies recomputes via calculateMeasureLayout(events, …, undefined, stretch, key).
+  // calculateMeasureLayout's forcedEventPositions is QUANT-keyed while legacyLayout.eventPositions
+  // is ID-keyed, so today the forced map is a no-op in BOTH paths and they coincide. This pins
+  // that contract: if a future change makes forced positions effective for the Measure without
+  // also threading them into renderTies, this test fails — a tie would drift off its notehead.
+  const events: ScoreEvent[] = [
+    { id: 'a', duration: 'quarter', dotted: false, notes: [{ id: 'an', pitch: 'F#4', tied: true }] },
+    { id: 'b', duration: 'quarter', dotted: false, notes: [{ id: 'bn', pitch: 'F#4' }] },
+    { id: 'c', duration: 'quarter', dotted: false, notes: [{ id: 'cn', pitch: 'G4' }] },
+    { id: 'd', duration: 'quarter', dotted: false, notes: [{ id: 'dn', pitch: 'A4' }] },
+  ];
+  const clef = 'treble';
+  const key = 'G'; // non-C: accidental width is in play for the F#4s
+  const stretch = 1.5;
+
+  it('the Measure layout and the tie layout produce identical event positions when stretched', () => {
+    // What Staff.tsx forwards to the Measure as forcedEventPositions (id-keyed).
+    const legacyPositions = calculateMeasureLayout(events, undefined, clef, false, undefined, 1.0, key)
+      .eventPositions;
+
+    const measurePath = calculateMeasureLayout(events, undefined, clef, false, legacyPositions, stretch, key)
+      .eventPositions;
+    const tiePath = calculateMeasureLayout(events, undefined, clef, false, undefined, stretch, key)
+      .eventPositions;
+
+    expect(tiePath).toEqual(measurePath);
+
+    // Sanity: the stretch is non-trivial, so the equality above is not vacuous.
+    const unstretched = calculateMeasureLayout(events, undefined, clef, false, undefined, 1.0, key)
+      .eventPositions;
+    expect(tiePath).not.toEqual(unstretched);
   });
 });

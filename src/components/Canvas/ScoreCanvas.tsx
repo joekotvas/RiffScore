@@ -18,7 +18,7 @@ import { MeasureNumber } from './MeasureNumber';
 import { MetadataTrack } from './MetadataTrack';
 import { PageFooter } from './PageFooter';
 import { useMetadataTrack } from '@/hooks/layout/useMetadataTrack';
-import { getActiveStaff, Staff as StaffType, DEFAULT_CHORD_DISPLAY } from '@/types';
+import { getActiveStaff, Staff as StaffType, DEFAULT_CHORD_DISPLAY, Page } from '@/types';
 import { HitZone } from '@/engines/layout/types';
 import { useScoreContext } from '@/context/ScoreContext';
 import { useScoreInteraction } from '@/hooks/interaction';
@@ -261,7 +261,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
   // Helper to compute page-relative measure positions for chord track
   const getPageMeasurePositions = useCallback(
-    (page: (typeof pageLayout.pages)[0]) => {
+    (page: Page) => {
       const measureWidths = calculateAllMeasureWidths(score, 1.0);
       const staffScale = pageLayout.staffScale;
       const positions: Array<{ x: number; width: number; quant: number }> = [];

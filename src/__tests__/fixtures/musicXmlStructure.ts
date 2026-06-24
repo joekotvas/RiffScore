@@ -9,11 +9,13 @@
  * The headline invariant is the DURATION-SUM check: within a measure, the sum of
  * <duration> across time-advancing notes (i.e. excluding <chord/> members, which sound
  * simultaneously with the previous note) must equal divisions * beats. This is exactly
- * the invariant that exposes the live tuplet-truncation bug
- * (musicXmlExporter.ts: `Math.floor((dur * ratio[1]) / ratio[0])`), where three triplet
- * eighths export durations summing to 15 instead of 16 at divisions=16. The substring
- * tests in the existing exporter suite are GREEN on that corrupt output; this helper is
- * not, because it computes a real arithmetic invariant rather than matching text.
+ * the invariant that exposed the tuplet-truncation bug the exporter formerly had
+ * (musicXmlExporter.ts once did `Math.floor((dur * ratio[1]) / ratio[0])`, so three
+ * triplet eighths summed to 15 instead of 16 at divisions=16). That bug is now fixed —
+ * <divisions> is content-derived (LCM of tuplet denominators) so durations are exact
+ * integers — and this helper is the regression guard: the substring tests in the existing
+ * exporter suite were GREEN even on the old corrupt output; this one computes a real
+ * arithmetic invariant rather than matching text, so it would catch a relapse.
  */
 
 import { XMLParser } from 'fast-xml-parser';
