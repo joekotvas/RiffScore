@@ -1,6 +1,6 @@
 # RiffScore Roadmap
 
-> **Generated:** 2026-06-23 · **Living document** · reflects state through **v1.0.0-alpha.16** plus **Unreleased M3**: M1 (truth-in-advertising) shipped in **alpha.13**; M2's **#239 (transpose spelling)** shipped in **alpha.14**; M2's **#242 (interactive correctness / structural invariants)** and the **#252 visual-regression harness** shipped in **alpha.15**; M2's deferred follow-ups **#261/#263/#264/#257** + pre-release QA hardening shipped in **alpha.16**; **M3 export/engraving fidelity** is complete on the integration branch and pending release.
+> **Generated:** 2026-06-23 · **Living document** · reflects state through **v1.0.0-alpha.16** plus **Unreleased M3**: M1 (truth-in-advertising) shipped in **alpha.13**; M2's **#239 (transpose spelling)** shipped in **alpha.14**; M2's **#242 (interactive correctness / structural invariants)** and the **#252 visual-regression harness** shipped in **alpha.15**; M2's deferred follow-ups **#261/#263/#264/#257** + pre-release QA hardening shipped in **alpha.16**; **M3 export/engraving fidelity** merged to `dev` on 2026-06-24 (PR #295), pending release.
 > Grounded in the 2026-06 correctness audit ([CORRECTNESS_AUDIT_2026-06.md](audit/CORRECTNESS_AUDIT_2026-06.md),
 > [AUDIT_QA_2026-06.md](audit/AUDIT_QA_2026-06.md)) and re-sequenced per the audit's
 > own second-pass QA. Every load-bearing claim below was independently fact-checked
@@ -214,9 +214,9 @@ M1 (truth) ✅  →  M2 (#239 ✅ → #242 ✅)  →  M3 (export/engraving) ✅ 
 ```
 
 **M2 is shipped** (#239 in alpha.14, #242 in alpha.15) — it was the long pole. Its deferred
-follow-ups **#261, #263, #264, #257 shipped in alpha.16** (close-the-loop). **M3 is complete on
-the integration branch** (export/engraving tail, #245 no-dependency half, #249, #246 scoped
-behavior). M4 (page view) and M5 (chord theory) are next and can run in parallel. Remaining
+follow-ups **#261, #263, #264, #257 shipped in alpha.16** (close-the-loop). **M3 is merged to
+`dev`** (PR #295: export/engraving tail; #249 and #282 closed; #245/#246/#278 narrowed to their
+post-M3 remainders). M4 (page view) and M5 (chord theory) are next and can run in parallel. Remaining
 M2/M3-adjacent follow-ups: #255 (chord reflow re-anchoring / pickup playback), the capacity
 SSOT #254, full #237 quant migration, full official MusicXML XSD CI, and QA-pass items
 #268–#272.
@@ -279,7 +279,7 @@ and folds in the promise-gaps:
 ## Verification
 
 This roadmap's load-bearing claims were independently fact-checked against the code
-(2026-06-04; **M1 status updated post-M1 on `dev`; M3 status updated on the integration branch 2026-06-23**). Confirmed: `SCHEMA_VERSION` is
+(2026-06-04; **M1 status updated post-M1 on `dev`; M3 merged to `dev` 2026-06-24**). Confirmed: `SCHEMA_VERSION` is
 stamped by `migrateScore` and was bumped to **2** in alpha.12 so v1 scores re-run the new
 migration steps (#237 unblocked); the export wins above are all present (`<fifths>` is score-level, which
 is correct for the single-key model); `api.play()` now plays the chord track via
