@@ -741,6 +741,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               onDragStart: memoizedOnDragStart,
               onLassoStart: (e: React.MouseEvent) => {
                 e.stopPropagation();
+                setDragPageIndex(pageIndex);
                 const svgElement = pageRefsMap.current.get(pageIndex);
                 if (svgElement) {
                   handleDragSelectMouseDown(e, { svgElement, pageIndex });
