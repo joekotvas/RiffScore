@@ -56,6 +56,18 @@ describe('PrintService', () => {
       expect(mockEditor.getAttribute('data-print-mode')).toBe('true');
     });
 
+    it('sets data-print-mode on current ScoreEditor roots', () => {
+      const scoreEditor = document.createElement('div');
+      scoreEditor.className = 'riff-ScoreEditor';
+      document.body.appendChild(scoreEditor);
+
+      preparePrint();
+
+      expect(scoreEditor.getAttribute('data-print-mode')).toBe('true');
+
+      scoreEditor.remove();
+    });
+
     it('handles missing editor element gracefully', () => {
       // Remove the editor
       mockEditor.parentNode?.removeChild(mockEditor);
@@ -112,6 +124,19 @@ describe('PrintService', () => {
       restoreFromPrint();
 
       expect(mockEditor.hasAttribute('data-print-mode')).toBe(false);
+    });
+
+    it('removes data-print-mode from current ScoreEditor roots', () => {
+      const scoreEditor = document.createElement('div');
+      scoreEditor.className = 'riff-ScoreEditor';
+      scoreEditor.setAttribute('data-print-mode', 'true');
+      document.body.appendChild(scoreEditor);
+
+      restoreFromPrint();
+
+      expect(scoreEditor.hasAttribute('data-print-mode')).toBe(false);
+
+      scoreEditor.remove();
     });
 
     it('handles missing editor element gracefully', () => {

@@ -1,0 +1,154 @@
+{
+  "staticMetrics": {
+    "viewMode": "page",
+    "pages": 4,
+    "systems": 15,
+    "chordCount": 5,
+    "tieCount": 82,
+    "visibleTieCount": 82,
+    "bracketCount": 15,
+    "uniqueChordRows": 5,
+    "outOfPageChords": [],
+    "outOfPageTies": [],
+    "offCanvasBrackets": [],
+    "pageBounds": [
+      {
+        "left": 444,
+        "right": 1056,
+        "top": 255.234375,
+        "bottom": 1047.234375,
+        "width": 612,
+        "height": 792
+      },
+      {
+        "left": 444,
+        "right": 1056,
+        "top": 1071.234375,
+        "bottom": 1863.234375,
+        "width": 612,
+        "height": 792
+      },
+      {
+        "left": 444,
+        "right": 1056,
+        "top": 1887.234375,
+        "bottom": 2679.234375,
+        "width": 612,
+        "height": 792
+      },
+      {
+        "left": 444,
+        "right": 1056,
+        "top": 2703.234375,
+        "bottom": 3495.234375,
+        "width": 612,
+        "height": 792
+      }
+    ]
+  },
+  "selectionAfterClick": {
+    "staffIndex": 0,
+    "measureIndex": 12,
+    "eventId": "t-m12-e1",
+    "noteId": "t-m12-e1-n",
+    "selectedNotes": [
+      {
+        "staffIndex": 0,
+        "measureIndex": 12,
+        "eventId": "t-m12-e1",
+        "noteId": "t-m12-e1-n"
+      }
+    ],
+    "anchor": {
+      "staffIndex": 0,
+      "measureIndex": 12,
+      "eventId": "t-m12-e1",
+      "noteId": "t-m12-e1-n"
+    }
+  },
+  "editedPitch": "A4",
+  "selectionAfterLasso": {
+    "staffIndex": 0,
+    "measureIndex": 12,
+    "eventId": "t-m12-e0",
+    "noteId": "t-m12-e0-n",
+    "selectedNotes": [
+      {
+        "staffIndex": 0,
+        "measureIndex": 12,
+        "eventId": "t-m12-e0",
+        "noteId": "t-m12-e0-n"
+      },
+      {
+        "staffIndex": 0,
+        "measureIndex": 12,
+        "eventId": "event_c43f79f2",
+        "noteId": "note_c27b63be"
+      },
+      {
+        "staffIndex": 0,
+        "measureIndex": 12,
+        "eventId": "t-m12-e2",
+        "noteId": "t-m12-e2-n"
+      },
+      {
+        "staffIndex": 0,
+        "measureIndex": 12,
+        "eventId": "t-m12-e3",
+        "noteId": "t-m12-e3-n"
+      }
+    ],
+    "anchor": {
+      "staffIndex": 0,
+      "measureIndex": 12,
+      "eventId": "t-m12-e0",
+      "noteId": "t-m12-e0-n"
+    }
+  },
+  "editedChord": {
+    "id": "chord_f98deb3c",
+    "measure": 12,
+    "quant": 0,
+    "symbol": "A7"
+  },
+  "playbackResult": {
+    "ok": true,
+    "error": null,
+    "cursor": {
+      "x": 252.993,
+      "pageWidth": 612,
+      "transform": "translateX(252.993px)"
+    }
+  },
+  "printMetrics": {
+    "toolbarDisplay": "none",
+    "footerDisplay": "none",
+    "contentTransform": "none",
+    "canvasOverflow": "visible",
+    "editorBackground": "rgb(255, 255, 255)",
+    "pageSvgCount": 4
+  },
+  "consoleMessages": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "type": "log",
+      "text": "[HMR] connected"
+    },
+    {
+      "type": "log",
+      "text": "%c * Tone.js v15.1.22 *  background: #000; color: #fff"
+    },
+    {
+      "type": "log",
+      "text": "[07:26:05.605] [INFO] Committing batch transaction BatchCommand"
+    },
+    {
+      "type": "warning",
+      "text": "[RiffScore API] addNote: Added note A4 {pitch: A4, duration: quarter, dotted: false, warnings: Array(1), info: Array(0)}"
+    }
+  ],
+  "fallbackReason": "In-app browser node_repl bootstrap failed with missing sandboxPolicy; used local Playwright."
+}

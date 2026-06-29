@@ -127,7 +127,7 @@ describe('measure.ts', () => {
           // An INSERT zone targeting index 1 = "between member 0 and member 1", with real width.
           const between = layout.hitZones.find((z) => z.type === 'INSERT' && z.index === 1);
           expect(between).toBeDefined();
-          expect((between!.endX - between!.startX)).toBeGreaterThan(4); // hittable, not a sliver
+          expect(between!.endX - between!.startX).toBeGreaterThan(4); // hittable, not a sliver
         }
       });
 
@@ -625,9 +625,9 @@ describe('measure.ts', () => {
       expect(result).toBe(1.5);
     });
 
-    test('should handle compression (stretch < 1.0)', () => {
+    test('should not compress over-wide systems', () => {
       const result = calculateStretchFactor(200, 100, 1.0);
-      expect(result).toBe(0.5);
+      expect(result).toBe(1.0);
     });
   });
 
@@ -682,10 +682,7 @@ describe('measure.ts', () => {
         stretchFactor
       );
 
-      expect(layoutStretched.totalWidth).toBeCloseTo(
-        layoutNormal.totalWidth * stretchFactor,
-        5
-      );
+      expect(layoutStretched.totalWidth).toBeCloseTo(layoutNormal.totalWidth * stretchFactor, 5);
     });
 
     test('should stretch hit zones correctly', () => {
@@ -707,14 +704,8 @@ describe('measure.ts', () => {
       const stretchedEventZone = layoutStretched.hitZones.find((z) => z.type === 'EVENT');
 
       if (normalEventZone && stretchedEventZone) {
-        expect(stretchedEventZone.startX).toBeCloseTo(
-          normalEventZone.startX * stretchFactor,
-          5
-        );
-        expect(stretchedEventZone.endX).toBeCloseTo(
-          normalEventZone.endX * stretchFactor,
-          5
-        );
+        expect(stretchedEventZone.startX).toBeCloseTo(normalEventZone.startX * stretchFactor, 5);
+        expect(stretchedEventZone.endX).toBeCloseTo(normalEventZone.endX * stretchFactor, 5);
       }
     });
 
@@ -762,10 +753,8 @@ describe('measure.ts', () => {
       );
 
       // Calculate spacing ratios in normal layout
-      const normalSpacing1 =
-        layoutNormal.eventPositions['e2'] - layoutNormal.eventPositions['e1'];
-      const normalSpacing2 =
-        layoutNormal.eventPositions['e3'] - layoutNormal.eventPositions['e2'];
+      const normalSpacing1 = layoutNormal.eventPositions['e2'] - layoutNormal.eventPositions['e1'];
+      const normalSpacing2 = layoutNormal.eventPositions['e3'] - layoutNormal.eventPositions['e2'];
       const normalRatio = normalSpacing1 / normalSpacing2;
 
       // Calculate spacing ratios in stretched layout

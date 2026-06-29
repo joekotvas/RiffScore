@@ -122,6 +122,31 @@ const createMultiMeasureScore = (measureCount: number = 4): Score => {
   };
 };
 
+const createOverWideMeasureScore = (): Score => ({
+  title: 'Over-wide Measure',
+  timeSignature: '4/4',
+  keySignature: 'C',
+  bpm: 120,
+  staves: [
+    {
+      id: 'staff-1',
+      clef: 'treble',
+      keySignature: 'C',
+      measures: [
+        {
+          id: 'm0',
+          events: Array.from({ length: 96 }, (_, index) => ({
+            id: `e${index}`,
+            duration: 'quarter',
+            dotted: false,
+            notes: [{ id: `n${index}`, pitch: 'C4' }],
+          })),
+        },
+      ],
+    },
+  ],
+});
+
 /**
  * Creates a grand staff score (treble + bass).
  */
@@ -437,7 +462,7 @@ describe('PageLayoutService - Justification', () => {
       const layout = calculatePageLayout(score);
 
       // Get measure widths from the page layout
-      const measureWidths = calculateAllMeasureWidths(score, 100);
+      const measureWidths = calculateAllMeasureWidths(score, layout.staffScale);
 
       // Check each justified system
       for (const system of layout.systems) {
@@ -466,6 +491,17 @@ describe('PageLayoutService - Justification', () => {
         // Verify stretched width matches contentWidth (within tolerance)
         expect(stretchedWidth).toBeCloseTo(system.contentWidth, 1);
       }
+    });
+
+    it('does not compress over-wide systems to fit the page content width', () => {
+      const score = createOverWideMeasureScore();
+      const layout = calculatePageLayout(score);
+      const measureWidths = calculateAllMeasureWidths(score, layout.staffScale);
+      const firstSystem = layout.pages[0].systems[0];
+      const firstMeasurePosition = firstSystem.measurePositions[0];
+
+      expect(measureWidths[0]).toBeGreaterThan(firstSystem.contentWidth);
+      expect(firstMeasurePosition.width).toBeCloseTo(measureWidths[0], 1);
     });
 
     it('non-first justified systems have consistent right edge', () => {
@@ -511,12 +547,16 @@ describe('PageLayoutService - Page Layout', () => {
       const score = createEmptyScore();
       const layout = calculatePageLayout(score);
       expect(layout.systems).toEqual([]);
+      expect(layout.pages).toHaveLength(1);
+      expect(layout.pageCount).toBe(1);
     });
 
     it('returns empty systems for score with empty staves', () => {
       const score = createScoreWithEmptyStaves();
       const layout = calculatePageLayout(score);
       expect(layout.systems).toEqual([]);
+      expect(layout.pages).toHaveLength(1);
+      expect(layout.pageCount).toBe(1);
     });
 
     it('creates system for single measure', () => {
@@ -643,6 +683,19 @@ describe('PageLayoutService - Lookup Functions', () => {
       const layout = calculatePageLayout(score);
       expect(getSystemForMeasure(999, layout)).toBe(-1);
     });
+
+    it('finds systems beyond the first page', () => {
+      const score = createMultiMeasureScore(80);
+      const layout = calculatePageLayout(score);
+      const laterPage = layout.pages.find((page) => page.index > 0 && page.systems.length > 0);
+
+      expect(laterPage).toBeDefined();
+
+      const laterSystem = laterPage!.systems[0];
+      const measureIndex = laterSystem.measures[0];
+
+      expect(getSystemForMeasure(measureIndex, layout)).toBe(laterSystem.index);
+    });
   });
 
   describe('getMeasureOriginInSystem', () => {
@@ -681,6 +734,23 @@ describe('PageLayoutService - Lookup Functions', () => {
       const score = createEmptyScore();
       const layout = calculatePageLayout(score);
       expect(getMeasureOriginInSystem(0, layout, [])).toBeNull();
+    });
+
+    it('returns origins for measures beyond the first page', () => {
+      const score = createMultiMeasureScore(80);
+      const layout = calculatePageLayout(score);
+      const widths = calculateAllMeasureWidths(score);
+      const laterPage = layout.pages.find((page) => page.index > 0 && page.systems.length > 0);
+
+      expect(laterPage).toBeDefined();
+
+      const laterSystem = laterPage!.systems[0];
+      const measureIndex = laterSystem.measures[0];
+      const result = getMeasureOriginInSystem(measureIndex, layout, widths);
+
+      expect(result).not.toBeNull();
+      expect(result!.systemIndex).toBe(laterSystem.index);
+      expect(result!.x).toBeCloseTo(laterSystem.xOffset, 1);
     });
   });
 });
@@ -1033,8 +1103,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
       if (layout.pageCount > 1) {
         // Multiple pages: totalHeight = (pageCount * pageHeight) + ((pageCount - 1) * pageGap)
         const expectedHeight =
-          layout.pageCount * layout.dimensions.height +
-          (layout.pageCount - 1) * PAGE_GAP;
+          layout.pageCount * layout.dimensions.height + (layout.pageCount - 1) * PAGE_GAP;
         expect(layout.totalHeight).toBe(expectedHeight);
       }
     });

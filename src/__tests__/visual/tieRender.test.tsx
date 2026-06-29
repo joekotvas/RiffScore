@@ -20,10 +20,18 @@ import { renderScore } from '../helpers/visual';
 import { createDefaultScore, Score, ScoreEvent } from '@/types';
 import { TIE } from '@/constants';
 import { calculateMeasureLayout } from '@/engines/layout';
+import { DEFAULT_LAYOUT_CONFIG } from '@/config';
+import { calculatePageLayout } from '@/services/PageLayoutService';
 
 const q = (id: string, pitch: string | null, tied = false): ScoreEvent =>
   pitch === null
-    ? { id, duration: 'quarter', dotted: false, isRest: true, notes: [{ id: `${id}n`, pitch: null, isRest: true }] }
+    ? {
+        id,
+        duration: 'quarter',
+        dotted: false,
+        isRest: true,
+        notes: [{ id: `${id}n`, pitch: null, isRest: true }],
+      }
     : { id, duration: 'quarter', dotted: false, notes: [{ id: `${id}n`, pitch, tied }] };
 
 const scoreOf = (events: ScoreEvent[], keySignature = 'C'): Score => {
@@ -55,24 +63,34 @@ const translateX = (group: Element): number => {
   return Number(match[1]);
 };
 
+const translateY = (group: Element): number => {
+  const transform = group.getAttribute('transform') ?? '';
+  const match = transform.match(/translate\(\s*-?\d+(?:\.\d+)?,\s*(-?\d+(?:\.\d+)?)/);
+  if (!match) throw new Error(`Unable to parse transform: ${transform}`);
+  return Number(match[1]);
+};
+
 describe('tie rendering', () => {
   it('draws a tie curve when it resolves to a same-pitch successor', () => {
-    expect(tieCount(scoreOf([q('a', 'C4', true), q('b', 'C4'), q('c', 'E4'), q('d', 'F4')]))).toBe(1);
+    expect(tieCount(scoreOf([q('a', 'C4', true), q('b', 'C4'), q('c', 'E4'), q('d', 'F4')]))).toBe(
+      1
+    );
   });
 
   it('draws NO tie (no hanging stub) when the target is a rest', () => {
-    expect(tieCount(scoreOf([q('a', 'C4', true), q('r', null), q('c', 'E4'), q('d', 'F4')]))).toBe(0);
+    expect(tieCount(scoreOf([q('a', 'C4', true), q('r', null), q('c', 'E4'), q('d', 'F4')]))).toBe(
+      0
+    );
   });
 
   it('draws NO tie when the tied note is the last in the score', () => {
-    expect(tieCount(scoreOf([q('a', 'C4'), q('b', 'C4'), q('c', 'C4'), q('d', 'C4', true)]))).toBe(0);
+    expect(tieCount(scoreOf([q('a', 'C4'), q('b', 'C4'), q('c', 'C4'), q('d', 'C4', true)]))).toBe(
+      0
+    );
   });
 
   it('anchors tie X to the rendered notehead under a non-C key signature (#249)', () => {
-    const score = scoreOf(
-      [q('a', 'F#4', true), q('b', 'F#4'), q('c', 'G4'), q('d', 'A4')],
-      'G'
-    );
+    const score = scoreOf([q('a', 'F#4', true), q('b', 'F#4'), q('c', 'G4'), q('d', 'A4')], 'G');
     const { canvas, unmount } = renderScore(score);
     try {
       const tie = canvas.querySelector('.riff-Tie');
@@ -92,6 +110,86 @@ describe('tie rendering', () => {
       unmount();
     }
   });
+
+  it('splits a resolvable tie across page-view system breaks', () => {
+    const score = createDefaultScore();
+    score.timeSignature = '4/4';
+    score.keySignature = 'C';
+    score.layout = { ...DEFAULT_LAYOUT_CONFIG, viewMode: 'page' };
+    score.staves = [
+      {
+        id: 'staff-1',
+        clef: 'treble',
+        keySignature: 'C',
+        measures: Array.from({ length: 16 }, (_, measureIndex) => ({
+          id: `m${measureIndex}`,
+          events: [
+            q(`m${measureIndex}-e0`, 'F4'),
+            q(`m${measureIndex}-e1`, 'C4'),
+            q(`m${measureIndex}-e2`, 'D4'),
+            q(`m${measureIndex}-e3`, 'F4'),
+          ],
+        })),
+      },
+    ];
+
+    const pageLayout = calculatePageLayout(score, score.layout);
+    const firstSystem = pageLayout.pages
+      .flatMap((page) => page.systems)
+      .find((system) => {
+        const lastMeasure = system.measures[system.measures.length - 1];
+        return lastMeasure !== undefined && lastMeasure < score.staves[0].measures.length - 1;
+      });
+
+    expect(firstSystem).toBeDefined();
+    const sourceMeasureIndex = firstSystem!.measures[firstSystem!.measures.length - 1];
+    const sourceEvent = score.staves[0].measures[sourceMeasureIndex].events[3];
+    sourceEvent.notes[0].tied = true;
+
+    const { canvas, unmount } = renderScore(score);
+    try {
+      expect(canvas.querySelectorAll('.riff-Tie')).toHaveLength(2);
+    } finally {
+      unmount();
+    }
+  });
+});
+
+describe('page-view chord track rendering', () => {
+  it('keeps high-note chord labels inside the page top edge', () => {
+    const score = createDefaultScore();
+    score.timeSignature = '4/4';
+    score.keySignature = 'Eb';
+    score.layout = { ...DEFAULT_LAYOUT_CONFIG, viewMode: 'page', staffSize: 90 };
+    score.chordTrack = [{ id: 'top-chord', measure: 12, quant: 0, symbol: 'Fm9' }];
+    score.staves = [
+      {
+        id: 'staff-1',
+        clef: 'treble',
+        keySignature: 'Eb',
+        measures: Array.from({ length: 20 }, (_, measureIndex) => ({
+          id: `m${measureIndex}`,
+          events: [
+            q(`m${measureIndex}-e0`, 'C8'),
+            q(`m${measureIndex}-e1`, 'C8'),
+            q(`m${measureIndex}-e2`, 'C8'),
+            q(`m${measureIndex}-e3`, 'C8'),
+          ],
+        })),
+      },
+    ];
+
+    const { canvas, unmount } = renderScore(score);
+    try {
+      const chordTracks = Array.from(canvas.querySelectorAll('.riff-ChordTrack'));
+      const chordSymbols = Array.from(canvas.querySelectorAll('.riff-ChordSymbol'));
+
+      expect(chordSymbols.some((symbol) => symbol.textContent === 'Fm9')).toBe(true);
+      expect(Math.min(...chordTracks.map(translateY))).toBeGreaterThanOrEqual(12);
+    } finally {
+      unmount();
+    }
+  });
 });
 
 describe('tie layout stays on the notehead when a system is justified (#249, stretch ≠ 1.0)', () => {
@@ -106,7 +204,12 @@ describe('tie layout stays on the notehead when a system is justified (#249, str
   // that contract: if a future change makes forced positions effective for the Measure without
   // also threading them into renderTies, this test fails — a tie would drift off its notehead.
   const events: ScoreEvent[] = [
-    { id: 'a', duration: 'quarter', dotted: false, notes: [{ id: 'an', pitch: 'F#4', tied: true }] },
+    {
+      id: 'a',
+      duration: 'quarter',
+      dotted: false,
+      notes: [{ id: 'an', pitch: 'F#4', tied: true }],
+    },
     { id: 'b', duration: 'quarter', dotted: false, notes: [{ id: 'bn', pitch: 'F#4' }] },
     { id: 'c', duration: 'quarter', dotted: false, notes: [{ id: 'cn', pitch: 'G4' }] },
     { id: 'd', duration: 'quarter', dotted: false, notes: [{ id: 'dn', pitch: 'A4' }] },
@@ -117,19 +220,47 @@ describe('tie layout stays on the notehead when a system is justified (#249, str
 
   it('the Measure layout and the tie layout produce identical event positions when stretched', () => {
     // What Staff.tsx forwards to the Measure as forcedEventPositions (id-keyed).
-    const legacyPositions = calculateMeasureLayout(events, undefined, clef, false, undefined, 1.0, key)
-      .eventPositions;
+    const legacyPositions = calculateMeasureLayout(
+      events,
+      undefined,
+      clef,
+      false,
+      undefined,
+      1.0,
+      key
+    ).eventPositions;
 
-    const measurePath = calculateMeasureLayout(events, undefined, clef, false, legacyPositions, stretch, key)
-      .eventPositions;
-    const tiePath = calculateMeasureLayout(events, undefined, clef, false, undefined, stretch, key)
-      .eventPositions;
+    const measurePath = calculateMeasureLayout(
+      events,
+      undefined,
+      clef,
+      false,
+      legacyPositions,
+      stretch,
+      key
+    ).eventPositions;
+    const tiePath = calculateMeasureLayout(
+      events,
+      undefined,
+      clef,
+      false,
+      undefined,
+      stretch,
+      key
+    ).eventPositions;
 
     expect(tiePath).toEqual(measurePath);
 
     // Sanity: the stretch is non-trivial, so the equality above is not vacuous.
-    const unstretched = calculateMeasureLayout(events, undefined, clef, false, undefined, 1.0, key)
-      .eventPositions;
+    const unstretched = calculateMeasureLayout(
+      events,
+      undefined,
+      clef,
+      false,
+      undefined,
+      1.0,
+      key
+    ).eventPositions;
     expect(tiePath).not.toEqual(unstretched);
   });
 });

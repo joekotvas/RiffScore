@@ -31,72 +31,61 @@ export interface PageContainerProps {
  * Wraps a page's content in its own SVG element.
  * Each page has its own coordinate system starting at (0,0).
  */
-export const PageContainer = forwardRef<SVGSVGElement, PageContainerProps>(
-  function PageContainer(
-    {
-      page,
-      pageLayout,
-      scale,
-      children,
-      onMouseDown,
-      onMouseMove,
-      onMouseUp,
-      onClick,
+export const PageContainer = forwardRef<SVGSVGElement, PageContainerProps>(function PageContainer(
+  { page, pageLayout, scale, children, onMouseDown, onMouseMove, onMouseUp, onClick },
+  ref
+) {
+  const { width, height } = pageLayout.dimensions;
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      onMouseDown?.(e, page.index);
     },
-    ref
-  ) {
-    const { width, height } = pageLayout.dimensions;
+    [onMouseDown, page.index]
+  );
 
-    const handleMouseDown = useCallback(
-      (e: React.MouseEvent<SVGSVGElement>) => {
-        onMouseDown?.(e, page.index);
-      },
-      [onMouseDown, page.index]
-    );
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      onMouseMove?.(e, page.index);
+    },
+    [onMouseMove, page.index]
+  );
 
-    const handleMouseMove = useCallback(
-      (e: React.MouseEvent<SVGSVGElement>) => {
-        onMouseMove?.(e, page.index);
-      },
-      [onMouseMove, page.index]
-    );
+  const handleMouseUp = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      onMouseUp?.(e, page.index);
+    },
+    [onMouseUp, page.index]
+  );
 
-    const handleMouseUp = useCallback(
-      (e: React.MouseEvent<SVGSVGElement>) => {
-        onMouseUp?.(e, page.index);
-      },
-      [onMouseUp, page.index]
-    );
+  const handleClick = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      onClick?.(e, page.index);
+    },
+    [onClick, page.index]
+  );
 
-    const handleClick = useCallback(
-      (e: React.MouseEvent<SVGSVGElement>) => {
-        onClick?.(e, page.index);
-      },
-      [onClick, page.index]
-    );
-
-    return (
-      <div
-        className="riff-page-wrapper"
-        data-page-index={page.index}
-        data-testid={`page-${page.index}`}
+  return (
+    <div
+      className="riff-page-wrapper"
+      data-page-index={page.index}
+      data-testid={`page-${page.index}`}
+    >
+      <svg
+        ref={ref}
+        className="riff-page-svg"
+        width={width * scale}
+        height={height * scale}
+        viewBox={`0 0 ${width} ${height}`}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onClick={handleClick}
       >
-        <svg
-          ref={ref}
-          className="riff-page-svg"
-          width={width * scale}
-          height={height * scale}
-          viewBox={`0 0 ${width} ${height}`}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onClick={handleClick}
-        >
-          {children}
-        </svg>
-      </div>
-    );
-  }
-);
+        {children}
+      </svg>
+    </div>
+  );
+});
 
 export default PageContainer;

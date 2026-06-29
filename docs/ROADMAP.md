@@ -1,6 +1,6 @@
 # RiffScore Roadmap
 
-> **Generated:** 2026-06-23 · **Living document** · reflects state through **v1.0.0-alpha.16** plus **Unreleased M3**: M1 (truth-in-advertising) shipped in **alpha.13**; M2's **#239 (transpose spelling)** shipped in **alpha.14**; M2's **#242 (interactive correctness / structural invariants)** and the **#252 visual-regression harness** shipped in **alpha.15**; M2's deferred follow-ups **#261/#263/#264/#257** + pre-release QA hardening shipped in **alpha.16**; **M3 export/engraving fidelity** merged to `dev` on 2026-06-24 (PR #295), pending release.
+> **Generated:** 2026-06-23 · **Living document** · reflects state through **v1.0.0-alpha.16** plus **Unreleased M3/M4**: M1 (truth-in-advertising) shipped in **alpha.13**; M2's **#239 (transpose spelling)** shipped in **alpha.14**; M2's **#242 (interactive correctness / structural invariants)** and the **#252 visual-regression harness** shipped in **alpha.15**; M2's deferred follow-ups **#261/#263/#264/#257** + pre-release QA hardening shipped in **alpha.16**; **M3 export/engraving fidelity** merged to `dev` on 2026-06-24 (PR #295), and **M4 page view** is complete on this page-view branch, pending release.
 > Grounded in the 2026-06 correctness audit ([CORRECTNESS_AUDIT_2026-06.md](audit/CORRECTNESS_AUDIT_2026-06.md),
 > [AUDIT_QA_2026-06.md](audit/AUDIT_QA_2026-06.md)) and re-sequenced per the audit's
 > own second-pass QA. Every load-bearing claim below was independently fact-checked
@@ -51,6 +51,13 @@ release now on `dev` / [PR #248](https://github.com/joekotvas/RiffScore/pull/248
   and fractional-tuplet chord anchors, cross-measure key/stretch-aware tie layout, and
   mixed-value secondary/partial beams. *(The official MusicXML-4.0-XSD-in-CI gate is not
   delivered — see M3 below.)*
+- **M4 page view hardening** *(Unreleased / pending release)* — Page View is committed,
+  no longer cut/experimental: grand-staff multi-system engraving uses page-aware measure
+  coordinates, over-wide systems do not compress, cross-system ties split at wraps,
+  chord editing resolves page/system X positions, lasso selection and playback cursor
+  use page-local coordinates, empty scores still render a page shell, and print mode
+  removes editor chrome/zoom transforms. Rendered QA evidence lives in
+  [docs/audit/page-view-m4-2026-06-24/](audit/page-view-m4-2026-06-24/).
 - **Transpose lossless undo** — both transpose commands snapshot the pre-image and
   restore verbatim (contract C3).
 - **Migration versioning** — `SCHEMA_VERSION` bumped to **2** so scores saved at v1
@@ -170,17 +177,23 @@ export↔render *round-trip* agreement, which is untestable until an import path
 
 ---
 
-### M4 — Page View: commit or cut · *medium-large (decision point)*
+### M4 — Page View · ✅ committed *(Unreleased / pending release)*
 
-Either make it a real feature or leave it experimental and out of the promise set.
+Page View stays in the promise set. The hardening pass closes the defects that made it a
+decision point:
 
-- If committing: #229 (grand-staff brace off-canvas on non-first systems), #231 (chord X
-  uses scroll coordinates on wrapped systems), #232 (lasso select is a no-op), plus the
-  print-zoom / over-wide-compression / page-aware-cursor defects — built on a unified
-  page/system coordinate accessor (#204). Depends on M2's tie model for cross-system ties.
+- Page/system coordinate access is now used for measure origins, chord tracks, note hit
+  testing, playback cursor placement, and system lookup.
+- Grand-staff multi-system engraving keeps brackets, ties, chords, and notes inside the
+  printable page bounds, including continuation tie arcs across wraps.
+- Page-view editing covers note click/edit, chord inline edit, metadata inline edit, and
+  lasso selection against page-local coordinates.
+- Print mode targets the current editor shell, hides toolbar/footer chrome, removes zoom
+  transforms, and prints page SVGs on white paper.
 
-**Done when:** page view is WYSIWYG-correct for grand-staff multi-system scores, **or**
-stays clearly labeled experimental and outside the promise set.
+**Done when:** page view is WYSIWYG-correct for grand-staff multi-system scores. — ✅ **Met**
+by unit/visual regressions plus rendered Playwright QA on a 4-page, 15-system grand-staff
+score ([audit note](audit/page-view-m4-2026-06-24/)).
 
 ---
 
@@ -210,16 +223,16 @@ dynamics (#20/#21), slurs (#19), lyrics (#30), repeats (#28), inline key/time ch
 ## Critical path
 
 ```
-M1 (truth) ✅  →  M2 (#239 ✅ → #242 ✅)  →  M3 (export/engraving) ✅  →  (M4 decision)  →  M5
+M1 (truth) ✅  →  M2 (#239 ✅ → #242 ✅)  →  M3 (export/engraving) ✅  →  M4 (page view) ✅  →  M5
 ```
 
 **M2 is shipped** (#239 in alpha.14, #242 in alpha.15) — it was the long pole. Its deferred
 follow-ups **#261, #263, #264, #257 shipped in alpha.16** (close-the-loop). **M3 is merged to
 `dev`** (PR #295: export/engraving tail; #249 and #282 closed; #245/#246/#278 narrowed to their
-post-M3 remainders). M4 (page view) and M5 (chord theory) are next and can run in parallel. Remaining
-M2/M3-adjacent follow-ups: #255 (chord reflow re-anchoring / pickup playback), the capacity
-SSOT #254, full #237 quant migration, full official MusicXML XSD CI, and QA-pass items
-#268–#272.
+post-M3 remainders), and **M4 is complete on this page-view hardening branch**. M5 (chord
+theory) is next. Remaining M2/M3-adjacent follow-ups: #255 (chord reflow re-anchoring /
+pickup playback), the capacity SSOT #254, full #237 quant migration, and full official
+MusicXML XSD CI.
 
 ## Cross-cutting — testing & CI (continuous, not a phase)
 

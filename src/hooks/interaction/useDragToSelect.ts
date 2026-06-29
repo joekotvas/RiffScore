@@ -5,6 +5,8 @@ interface DragSelectState {
   startPoint: { x: number; y: number } | null;
   currentPoint: { x: number; y: number } | null;
   isAdditive: boolean; // CMD key held
+  activeSvg: SVGSVGElement | null;
+  pageIndex: number | null;
 }
 
 interface SelectedNote {
@@ -19,6 +21,7 @@ interface NotePosition {
   y: number;
   width: number;
   height: number;
+  pageIndex?: number | null;
   staffIndex: number;
   measureIndex: number;
   eventId: string;
@@ -39,7 +42,10 @@ interface UseDragToSelectReturn {
   justFinishedDrag: boolean; // True for a brief moment after drag ends, to prevent click from clearing selection
   selectionRect: { x: number; y: number; width: number; height: number } | null;
   previewNoteIds: Set<string>; // Composite keys for O(1) lookup: "staffIndex-measureIndex-eventId-noteId"
-  handleMouseDown: (e: React.MouseEvent) => void;
+  handleMouseDown: (
+    e: React.MouseEvent,
+    options?: { svgElement?: SVGSVGElement | null; pageIndex?: number | null }
+  ) => void;
 }
 
 export const useDragToSelect = ({
@@ -54,6 +60,8 @@ export const useDragToSelect = ({
     startPoint: null,
     currentPoint: null,
     isAdditive: false,
+    activeSvg: null,
+    pageIndex: null,
   });
 
   // Track if drag just finished to prevent click from clearing selection
@@ -94,40 +102,61 @@ export const useDragToSelect = ({
   // Get all notes that intersect the selection rectangle
   const getSelectedNotes = useCallback((): SelectedNote[] => {
     if (!selectionRect) return [];
+    const activePageIndex = dragState.pageIndex;
 
     return notePositions
-      .filter((note) => noteIntersectsRect(note, selectionRect))
+      .filter((note) => {
+        const isActivePage =
+          activePageIndex === null ||
+          activePageIndex === undefined ||
+          note.pageIndex === activePageIndex;
+        return isActivePage && noteIntersectsRect(note, selectionRect);
+      })
       .map((note) => ({
         staffIndex: note.staffIndex,
         measureIndex: note.measureIndex,
         eventId: note.eventId,
         noteId: note.noteId,
       }));
-  }, [selectionRect, notePositions, noteIntersectsRect]);
+  }, [selectionRect, dragState.pageIndex, notePositions, noteIntersectsRect]);
 
   // Compute preview note IDs as a Set for O(1) lookup during render
   const previewNoteIds = useMemo((): Set<string> => {
     if (!selectionRect) return new Set();
+    const activePageIndex = dragState.pageIndex;
 
     return new Set(
       notePositions
-        .filter((note) => noteIntersectsRect(note, selectionRect))
+        .filter((note) => {
+          const isActivePage =
+            activePageIndex === null ||
+            activePageIndex === undefined ||
+            note.pageIndex === activePageIndex;
+          return isActivePage && noteIntersectsRect(note, selectionRect);
+        })
         .map((note) => `${note.staffIndex}-${note.measureIndex}-${note.eventId}-${note.noteId}`)
     );
-  }, [selectionRect, notePositions, noteIntersectsRect]);
+  }, [selectionRect, dragState.pageIndex, notePositions, noteIntersectsRect]);
 
   // Start drag on mouseDown on empty space
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+    (
+      e: React.MouseEvent,
+      options?: { svgElement?: SVGSVGElement | null; pageIndex?: number | null }
+    ) => {
       if (!enabled) return;
 
       // Only start if clicking on empty space (not on a note or other interactive element)
       const target = e.target as HTMLElement;
-      if (target.closest('[data-note-hit-area]') || target.closest('[data-interactive]')) {
+      if (
+        target.closest(
+          '[data-note-hit-area], [data-interactive], .Rest, .riff-ChordTrack, .riff-MetadataTrack, .riff-footer'
+        )
+      ) {
         return; // Clicked on a note, don't start drag selection
       }
 
-      const svgElement = svgRef.current;
+      const svgElement = options?.svgElement ?? svgRef.current;
       if (!svgElement) return;
 
       const rect = svgElement.getBoundingClientRect();
@@ -139,6 +168,8 @@ export const useDragToSelect = ({
         startPoint: { x, y },
         currentPoint: { x, y },
         isAdditive: e.metaKey || e.ctrlKey,
+        activeSvg: svgElement,
+        pageIndex: options?.pageIndex ?? null,
       });
 
       e.preventDefault();
@@ -151,7 +182,7 @@ export const useDragToSelect = ({
     if (!dragState.isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const svgElement = svgRef.current;
+      const svgElement = dragState.activeSvg ?? svgRef.current;
       if (!svgElement) return;
 
       const rect = svgElement.getBoundingClientRect();
@@ -186,6 +217,8 @@ export const useDragToSelect = ({
         startPoint: null,
         currentPoint: null,
         isAdditive: false,
+        activeSvg: null,
+        pageIndex: null,
       });
     };
 
@@ -201,6 +234,7 @@ export const useDragToSelect = ({
     dragState.isAdditive,
     dragState.startPoint,
     dragState.currentPoint,
+    dragState.activeSvg,
     getSelectedNotes,
     onSelectionComplete,
     svgRef,

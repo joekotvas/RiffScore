@@ -67,7 +67,7 @@ export const calculateStretchFactor = (
     return 1.0;
   }
 
-  return availableWidth / naturalWidth;
+  return Math.max(1.0, availableWidth / naturalWidth);
 };
 
 // --- TYPES ---

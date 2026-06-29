@@ -206,6 +206,7 @@ const Measure: React.FC<MeasureProps> = ({
         height={CONFIG.lineHeight * 12}
         fill="transparent"
         style={{ cursor: cursorStyle }}
+        onMouseDown={interaction.onLassoStart}
         onClick={handleMeasureClick}
         onMouseMove={handleMeasureMouseMove}
         onMouseLeave={handleMeasureMouseLeave}
