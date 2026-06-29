@@ -16,7 +16,6 @@
   .riff-toolbar,
   .riff-Toolbar,
   .riff-sidebar,
-  .riff-footer,
   .riff-EditorFooter,
   .riff-dialog,
   .riff-tooltip,
@@ -174,7 +173,6 @@
 body.riff-printing .riff-toolbar,
 body.riff-printing .riff-Toolbar,
 body.riff-printing .riff-sidebar,
-body.riff-printing .riff-footer,
 body.riff-printing .riff-EditorFooter {
   display: none !important;
 }
