@@ -50,6 +50,7 @@ describe('useCursorLayout', () => {
             y: 100,
             width: 120,
             events: {},
+            syncedEventPositions: {},
             beamGroups: [],
             tupletGroups: [],
             legacyLayout: {
@@ -81,6 +82,7 @@ describe('useCursorLayout', () => {
             y: 100,
             width: 120,
             events: {},
+            syncedEventPositions: {},
             beamGroups: [],
             tupletGroups: [],
             legacyLayout: {
@@ -98,6 +100,7 @@ describe('useCursorLayout', () => {
             y: 100,
             width: 120,
             events: {},
+            syncedEventPositions: {},
             beamGroups: [],
             tupletGroups: [],
             legacyLayout: {
@@ -120,6 +123,7 @@ describe('useCursorLayout', () => {
             y: 200,
             width: 120,
             events: {},
+            syncedEventPositions: {},
             beamGroups: [],
             tupletGroups: [],
           },
@@ -242,6 +246,7 @@ describe('useCursorLayout', () => {
                 y: 100,
                 width: 120,
                 events: {},
+                syncedEventPositions: {},
                 beamGroups: [],
                 tupletGroups: [],
                 legacyLayout: {
@@ -263,6 +268,7 @@ describe('useCursorLayout', () => {
                 y: 200,
                 width: 120,
                 events: {},
+                syncedEventPositions: {},
                 beamGroups: [],
                 tupletGroups: [],
                 legacyLayout: {
@@ -332,12 +338,32 @@ describe('useCursorLayout', () => {
           {
             y: 100,
             index: 0,
-            measures: [{ x: 80, y: 100, width: 120, events: {}, beamGroups: [], tupletGroups: [] }],
+            measures: [
+              {
+                x: 80,
+                y: 100,
+                width: 120,
+                events: {},
+                syncedEventPositions: {},
+                beamGroups: [],
+                tupletGroups: [],
+              },
+            ],
           } as StaffLayout,
           {
             y: 200,
             index: 1,
-            measures: [{ x: 80, y: 200, width: 120, events: {}, beamGroups: [], tupletGroups: [] }],
+            measures: [
+              {
+                x: 80,
+                y: 200,
+                width: 120,
+                events: {},
+                syncedEventPositions: {},
+                beamGroups: [],
+                tupletGroups: [],
+              },
+            ],
           } as StaffLayout,
         ],
         notes: {},

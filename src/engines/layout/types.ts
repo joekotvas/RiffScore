@@ -134,6 +134,14 @@ export interface MeasureLayoutV2 {
   y: number;
   width: number;
   events: Record<string, EventLayout>; // eventId -> layout
+  /**
+   * Cross-staff synchronized event X positions keyed by QUANT (measure-relative, unstretched).
+   * This is the forced-position map the SSOT fed to calculateMeasureLayout; re-layouts that
+   * must stay aligned across staves (page-view justification) pass it back as
+   * forcedEventPositions. `legacyLayout.eventPositions` is keyed by event id and is NOT
+   * accepted by the engine as a forced-position map.
+   */
+  syncedEventPositions: Record<number, number>;
   beamGroups: BeamGroup[];
   tupletGroups: TupletBracketGroup[];
   // Keep compatibility with V1 layout for now?

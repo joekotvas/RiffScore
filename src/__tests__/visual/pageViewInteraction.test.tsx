@@ -160,3 +160,122 @@ describe('page view interaction', () => {
     }
   });
 });
+
+// ============================================================================
+// POINTER MAPPING — client offsets must be divided by ui scale × viewport zoom
+// (× staffScale in page view), or hover/entry land on the wrong pitch and the lasso drifts.
+// ============================================================================
+
+import { CONFIG as EDITOR_CONFIG } from '@/config';
+import { MEASURE_HIT_AREA_TOP_OFFSET } from '@/constants';
+import { calculateMeasureLayout } from '@/engines/layout';
+import { getOffsetForPitch } from '@/engines/layout/positioning';
+import { composedPosition } from '../helpers/svgGeometry';
+
+describe('pointer mapping', () => {
+  const EVENTS = ['C4', 'D4'].map((pitch, e) => q(`m0-e${e}`, pitch));
+
+  /** Two half-empty bars: one unjustified system, so hit zones are at their natural X. */
+  const halfEmptyScore = (viewMode: 'page' | 'scroll', staffSize = 100): Score => {
+    const score = buildScore(2, viewMode);
+    score.layout = { ...DEFAULT_LAYOUT_CONFIG, viewMode, staffSize };
+    score.staves[0].measures = [0, 1].map((m) => ({
+      id: `m${m}`,
+      events: EVENTS.map((e) => ({
+        ...e,
+        id: `m${m}-${e.id.slice(3)}`,
+        notes: [{ ...e.notes[0], id: `m${m}-${e.id.slice(3)}n` }],
+      })),
+    }));
+    return score;
+  };
+
+  const appendZoneMidX = (): number => {
+    const zone = calculateMeasureLayout(
+      EVENTS,
+      undefined,
+      'treble',
+      false,
+      undefined,
+      1.0,
+      'C'
+    ).hitZones.find((z) => z.type === 'APPEND')!;
+    return (zone.startX + zone.endX) / 2;
+  };
+
+  const E4_STAFF_Y = EDITOR_CONFIG.baseY + getOffsetForPitch('E4', 'treble');
+
+  /**
+   * Hover measure 0 at the point that means "E4, append position" in staff coordinates,
+   * expressed in client pixels through `divisor`. jsdom's bounding rects sit at (0, 0), so
+   * client = staff × divisor. Returns the ghost notehead's staff-local Y, or null if no ghost.
+   */
+  const hoverAtE4 = (canvas: Element, divisor: number): number | null => {
+    const rect = canvas.querySelector('[data-testid="measure-hit-area-0-0"]')!;
+    const yInRect = MEASURE_HIT_AREA_TOP_OFFSET + getOffsetForPitch('E4', 'treble');
+    fireEvent.mouseMove(rect, { clientX: appendZoneMidX() * divisor, clientY: yInRect * divisor });
+    const head = canvas.querySelector('[data-testid="ghost-preview"] .NoteHead');
+    if (!head) return null;
+    return composedPosition(head, (a) => a.classList.contains('Measure')).y;
+  };
+
+  const setZoom = (container: HTMLElement, percent: number) => {
+    const input = container.querySelector('.riff-EditorFooter__zoom-input') as HTMLInputElement;
+    expect(input).not.toBeNull();
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: String(percent) } });
+    fireEvent.blur(input);
+  };
+
+  it('page-view fixture system is not justified (hit zones at natural X)', () => {
+    const score = halfEmptyScore('page', 80);
+    const layout = calculatePageLayout(score, score.layout);
+    expect(layout.pages[0].systems[0].justification).not.toBe(1.0);
+  });
+
+  it('divides by staffScale in page view (80% staff)', () => {
+    const { canvas, unmount } = renderScore(halfEmptyScore('page', 80));
+    try {
+      expect(hoverAtE4(canvas, 0.8)).toBeCloseTo(E4_STAFF_Y, 5);
+    } finally {
+      unmount();
+    }
+  });
+
+  it.each([
+    ['scroll', 100, 1.5],
+    ['page', 80, 1.5 * 0.8],
+  ] as const)(
+    'divides by the viewport zoom (%s view, staff %i%%, zoom 150%%)',
+    (viewMode, staffSize, divisor) => {
+      const { container, canvas, unmount } = renderScore(halfEmptyScore(viewMode, staffSize));
+      try {
+        setZoom(container, 150);
+        expect(hoverAtE4(canvas, divisor)).toBeCloseTo(E4_STAFF_Y, 5);
+        // Control: the pre-fix divisor (no zoom) no longer lands on E4.
+        expect(hoverAtE4(canvas, divisor / 1.5)).not.toBeCloseTo(E4_STAFF_Y, 5);
+      } finally {
+        unmount();
+      }
+    }
+  );
+
+  it('lasso rectangle coordinates are divided by the viewport zoom', () => {
+    const { container, canvas, unmount } = renderScore(halfEmptyScore('scroll'));
+    try {
+      setZoom(container, 150);
+      const rect = canvas.querySelector('[data-testid="measure-hit-area-0-1"]')!;
+      fireEvent.mouseDown(rect, { clientX: 150, clientY: 300 });
+      fireEvent.mouseMove(document, { clientX: 300, clientY: 450 });
+      const lasso = canvas.querySelector('[data-testid="lasso-selection-rect"]')!;
+      expect(lasso).not.toBeNull();
+      expect(Number(lasso.getAttribute('x'))).toBeCloseTo(100, 5);
+      expect(Number(lasso.getAttribute('y'))).toBeCloseTo(200, 5);
+      expect(Number(lasso.getAttribute('width'))).toBeCloseTo(100, 5);
+      expect(Number(lasso.getAttribute('height'))).toBeCloseTo(100, 5);
+      fireEvent.mouseUp(document);
+    } finally {
+      unmount();
+    }
+  });
+});
