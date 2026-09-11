@@ -814,7 +814,6 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       memoizedOnDragStart,
       getHoverHandler,
       layout,
-      scale,
       keySignature,
       timeSignature,
       onClefClick,
