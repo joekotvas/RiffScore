@@ -15,15 +15,6 @@ body {
 /* RiffScore Component Library Styles */
 @import "../../src/styles/index.css";
 
-/* Bravura Music Font - SMuFL compliant */
-@font-face {
-  font-family: 'Bravura';
-  src: url('/fonts/Bravura.woff2') format('woff2');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
 /* Demo Page Utility Classes */
 .demo-page {
   min-height: 100vh;

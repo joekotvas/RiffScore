@@ -14,8 +14,9 @@
      Hide UI Elements
      --------------------------------------------------------------------------- */
   .riff-toolbar,
+  .riff-Toolbar,
   .riff-sidebar,
-  .riff-footer,
+  .riff-EditorFooter,
   .riff-dialog,
   .riff-tooltip,
   .riff-cursor,
@@ -25,6 +26,7 @@
   .riff-zoom-controls,
   .riff-view-toggle,
   .riff-score-setup-btn,
+  .riff-ScoreSetupButton,
   .riff-MetadataField--preview,
   .riff-MetadataInput__foreign {
     display: none !important;
@@ -37,7 +39,11 @@
   body,
   .riff-editor,
   .riff-canvas-container,
-  .riff-canvas {
+  .riff-canvas,
+  .riff-ScoreEditor,
+  .riff-ScoreEditor__viewport,
+  .riff-ScoreCanvas,
+  .riff-ScoreCanvas--page-view {
     background: white !important;
   }
 
@@ -113,10 +119,23 @@
      --------------------------------------------------------------------------- */
   .riff-editor,
   .riff-canvas-container,
-  .riff-canvas {
+  .riff-canvas,
+  .riff-ScoreEditor,
+  .riff-ScoreEditor__viewport,
+  .riff-ScoreEditor__content,
+  .riff-ScoreCanvas {
     width: 100% !important;
     height: auto !important;
     overflow: visible !important;
+  }
+
+  .riff-ScoreEditor__content {
+    transform: none !important;
+    transform-origin: top left !important;
+  }
+
+  .riff-ScoreCanvas {
+    padding: 0 !important;
   }
 
   /* ---------------------------------------------------------------------------
@@ -125,12 +144,14 @@
   .riff-editor,
   .riff-canvas,
   .riff-system,
-  .riff-page-boundary {
+  .riff-page-boundary,
+  .riff-PageBoundary {
     border: none !important;
     box-shadow: none !important;
   }
 
-  .riff-page-boundary {
+  .riff-page-boundary,
+  .riff-PageBoundary {
     stroke: none !important;
   }
 
@@ -150,7 +171,8 @@
    ============================================================================= */
 
 body.riff-printing .riff-toolbar,
+body.riff-printing .riff-Toolbar,
 body.riff-printing .riff-sidebar,
-body.riff-printing .riff-footer {
+body.riff-printing .riff-EditorFooter {
   display: none !important;
 }

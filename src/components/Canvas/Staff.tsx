@@ -21,14 +21,24 @@ import { Measure as MeasureData } from '@/types';
  * Represents a note with tie information for rendering
  */
 interface TieNote {
+  localMeasureIndex: number;
   measureIndex: number;
   eventIndex: number;
   noteIndex: number;
+  eventId: string;
   pitch: string;
   tied: boolean;
   x: number;
   y: number;
   id: string;
+}
+
+interface TieSource {
+  measureIndex: number;
+  eventIndex: number;
+  noteIndex: number;
+  eventId: string;
+  noteId: string;
 }
 
 /**
@@ -57,6 +67,8 @@ export interface StaffProps {
   isLastSystem?: boolean;
   /** Actual measure indices in the score (for page view). If not provided, uses array index. */
   measureIndices?: number[];
+  /** Full staff measures used to resolve ties that cross page-view system breaks. */
+  allMeasures?: MeasureData[];
   /** Pre-computed stretch factor for justified systems (page view only) */
   stretchFactor?: number;
 
@@ -92,6 +104,7 @@ const Staff: React.FC<StaffProps> = ({
   systemIndex = 0,
   isLastSystem = true,
   measureIndices,
+  allMeasures,
   stretchFactor = 1.0,
   interaction,
   mouseLimits,
@@ -182,6 +195,70 @@ const Staff: React.FC<StaffProps> = ({
   const renderTies = () => {
     const ties: React.ReactElement[] = [];
     const allNotes: TieNote[] = [];
+    const tieMeasures = allMeasures ?? measures;
+    const currentMeasureIndices = new Set(
+      measures.map((_, index) => measureIndices?.[index] ?? index)
+    );
+    const systemStartX = measureStartXs[0] ?? measuresX;
+    const systemEndX =
+      measureStartXs.length > 0
+        ? measureStartXs[measureStartXs.length - 1] + stretchedWidths[stretchedWidths.length - 1]
+        : measuresX;
+
+    const findTieSource = (target: TieNote): TieSource | null => {
+      let sourceMeasureIndex = target.measureIndex;
+      let sourceEventIndex = target.eventIndex - 1;
+
+      if (sourceEventIndex < 0) {
+        sourceMeasureIndex = target.measureIndex - 1;
+        const sourceMeasure = tieMeasures[sourceMeasureIndex];
+        if (!sourceMeasure) return null;
+        sourceEventIndex = sourceMeasure.events.length - 1;
+      }
+
+      const sourceEvent = tieMeasures[sourceMeasureIndex]?.events[sourceEventIndex];
+      if (!sourceEvent || sourceEvent.isRest || sourceEvent.reserved) return null;
+
+      const sourceNoteIndex = sourceEvent.notes.findIndex(
+        (candidate) => candidate.pitch === target.pitch && !candidate.isRest && !!candidate.tied
+      );
+      if (sourceNoteIndex === -1) return null;
+
+      const resolvedTarget = findTieTarget(tieMeasures, {
+        measureIndex: sourceMeasureIndex,
+        eventIndex: sourceEventIndex,
+        pitch: target.pitch,
+      });
+
+      if (
+        !resolvedTarget ||
+        resolvedTarget.measureIndex !== target.measureIndex ||
+        resolvedTarget.eventIndex !== target.eventIndex ||
+        resolvedTarget.noteIndex !== target.noteIndex
+      ) {
+        return null;
+      }
+
+      const sourceNote = sourceEvent.notes[sourceNoteIndex];
+      return {
+        measureIndex: sourceMeasureIndex,
+        eventIndex: sourceEventIndex,
+        noteIndex: sourceNoteIndex,
+        eventId: sourceEvent.id,
+        noteId: sourceNote?.id ?? '',
+      };
+    };
+
+    const getTieColor = (source: TieSource | TieNote) => {
+      const isSelected = isNoteSelected(interaction.selection, {
+        staffIndex,
+        measureIndex: source.measureIndex,
+        eventId: source.eventId,
+        noteId: 'noteId' in source ? source.noteId : source.id,
+      });
+
+      return isSelected ? theme.accent : theme.score.note;
+    };
 
     measures.forEach((measure, mIndex: number) => {
       const actualMeasureIndex = measureIndices?.[mIndex] ?? mIndex;
@@ -214,9 +291,11 @@ const Staff: React.FC<StaffProps> = ({
           if (note.pitch === null) return;
 
           allNotes.push({
-            measureIndex: mIndex,
+            localMeasureIndex: mIndex,
+            measureIndex: actualMeasureIndex,
             eventIndex: eIndex,
             noteIndex: nIndex,
+            eventId: event.id,
             pitch: note.pitch,
             tied: !!note.tied,
             x: eventX,
@@ -228,23 +307,28 @@ const Staff: React.FC<StaffProps> = ({
     });
 
     allNotes.forEach((note) => {
+      const incomingSource = findTieSource(note);
+      if (incomingSource && !currentMeasureIndices.has(incomingSource.measureIndex)) {
+        const direction = getOffsetForPitch(note.pitch, clef) > 24 ? 'down' : 'up';
+        ties.push(
+          <Tie
+            key={`tie-in-${incomingSource.noteId}-${note.id}`}
+            startX={systemStartX}
+            startY={note.y}
+            endX={note.x}
+            endY={note.y}
+            direction={direction}
+            color={getTieColor(incomingSource)}
+            crossesSystemBreak
+            isEndOfTie
+          />
+        );
+      }
+
       if (note.tied) {
-        // Check Selection using global staffIndex
-        const eventId = measures[note.measureIndex]?.events[note.eventIndex]?.id;
-        const isSelected = isNoteSelected(interaction.selection, {
-          staffIndex, // Staff prop
-          measureIndex: note.measureIndex,
-          eventId,
-          noteId: note.id,
-        });
-
-        // Use accent color if selected
-        // Important: Use theme.score.note as default instead of hardcoded 'black'
-        const tieColor = isSelected ? theme.accent : theme.score.note;
-
         // Lane E: a tie resolves to the same-pitch note in the immediate next event (cross-barline
         // aware; rests and reserved slots are never targets) via the canonical findTieTarget.
-        const target = findTieTarget(measures, {
+        const target = findTieTarget(tieMeasures, {
           measureIndex: note.measureIndex,
           eventIndex: note.eventIndex,
           pitch: note.pitch,
@@ -254,6 +338,7 @@ const Staff: React.FC<StaffProps> = ({
               (n) =>
                 n.measureIndex === target.measureIndex &&
                 n.eventIndex === target.eventIndex &&
+                n.noteIndex === target.noteIndex &&
                 n.pitch === note.pitch
             )
           : null;
@@ -271,7 +356,21 @@ const Staff: React.FC<StaffProps> = ({
               endX={nextNote.x}
               endY={nextNote.y}
               direction={direction}
-              color={tieColor}
+              color={getTieColor(note)}
+            />
+          );
+        } else if (target && !currentMeasureIndices.has(target.measureIndex)) {
+          ties.push(
+            <Tie
+              key={`tie-out-${note.id}`}
+              startX={note.x + 10}
+              startY={note.y}
+              endX={systemEndX}
+              endY={note.y}
+              direction={direction}
+              color={getTieColor(note)}
+              crossesSystemBreak
+              isStartOfTie
             />
           );
         }

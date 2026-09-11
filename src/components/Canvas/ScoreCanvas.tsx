@@ -18,7 +18,8 @@ import { MeasureNumber } from './MeasureNumber';
 import { MetadataTrack } from './MetadataTrack';
 import { PageFooter } from './PageFooter';
 import { useMetadataTrack } from '@/hooks/layout/useMetadataTrack';
-import { getActiveStaff, Staff as StaffType, DEFAULT_CHORD_DISPLAY, Page } from '@/types';
+import { getActiveStaff, Staff as StaffType, DEFAULT_CHORD_DISPLAY } from '@/types';
+import type { SystemLayout } from '@/types';
 import { HitZone } from '@/engines/layout/types';
 import { useScoreContext } from '@/context/ScoreContext';
 import { useScoreInteraction } from '@/hooks/interaction';
@@ -54,6 +55,9 @@ interface ScoreCanvasProps {
   /** External chord track hook (if provided, ScoreCanvas won't create its own) */
   chordTrack?: UseChordTrackReturn;
 }
+
+// SVG text with dominantBaseline="central" extends above its y baseline.
+const PAGE_CHORD_TEXT_TOP_INSET = 12;
 
 /**
  * Renders the main score canvas, composing Staff components.
@@ -186,6 +190,98 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   // Use page layout hook for multi-system rendering in page view
   const { pageLayout, isPageView } = usePageLayout();
 
+  const unscaledMeasureWidths = useMemo(() => calculateAllMeasureWidths(score, 1.0), [score]);
+
+  const pageSystemByMeasure = useMemo(() => {
+    const map = new Map<number, { pageIndex: number; system: SystemLayout }>();
+
+    pageLayout.pages.forEach((page) => {
+      page.systems.forEach((system) => {
+        system.measures.forEach((measureIndex) => {
+          map.set(measureIndex, { pageIndex: page.index, system });
+        });
+      });
+    });
+
+    return map;
+  }, [pageLayout.pages]);
+
+  const getMeasureStretchFactor = useCallback(
+    (measureIndex: number, system: SystemLayout): number => {
+      const measurePosition = system.measurePositions.find(
+        (position) => position.measureIndex === measureIndex
+      );
+      const naturalWidth = unscaledMeasureWidths[measureIndex] ?? 0;
+
+      if (!measurePosition || naturalWidth <= 0 || pageLayout.staffScale <= 0) {
+        return 1;
+      }
+
+      return measurePosition.width / (naturalWidth * pageLayout.staffScale);
+    },
+    [pageLayout.staffScale, unscaledMeasureWidths]
+  );
+
+  const getPageXFromLocalX = useCallback(
+    (measureIndex: number, localX: number, system: SystemLayout): number | null => {
+      const measurePosition = system.measurePositions.find(
+        (position) => position.measureIndex === measureIndex
+      );
+
+      if (!measurePosition) return null;
+
+      const stretchFactor = getMeasureStretchFactor(measureIndex, system);
+      return measurePosition.x + localX * stretchFactor * pageLayout.staffScale;
+    },
+    [getMeasureStretchFactor, pageLayout.staffScale]
+  );
+
+  const getPageXForPosition = useCallback(
+    (position: { measure: number; quant: number }): number | null => {
+      const located = pageSystemByMeasure.get(position.measure);
+      if (!located) return null;
+
+      const localX = layout.getX({ measure: position.measure, quant: position.quant });
+      if (localX === null) return null;
+
+      return getPageXFromLocalX(position.measure, localX, located.system);
+    },
+    [getPageXFromLocalX, layout, pageSystemByMeasure]
+  );
+
+  const getPageNoteY = useCallback(
+    (noteLayout: (typeof layout.notes)[string], system: SystemLayout): number => {
+      const staffTopInScroll = CONFIG.baseY + noteLayout.staffIndex * CONFIG.staffSpacing;
+      const staffTopOnPage =
+        system.y + noteLayout.staffIndex * CONFIG.staffSpacing * pageLayout.staffScale;
+      return staffTopOnPage + (noteLayout.y - staffTopInScroll) * pageLayout.staffScale;
+    },
+    [layout, pageLayout.staffScale]
+  );
+
+  const getSystemChordTrackY = useCallback(
+    (system: SystemLayout): number => {
+      const { minDistanceFromStaff, paddingAboveNotes, minY, hitBandHalfHeight } =
+        CONFIG.chordTrack;
+      // The chord band (trackY ± hitBandHalfHeight) must stay inside this system's reserved
+      // headroom so it never covers the previous system's staff, and below the page-top inset.
+      const slotTopY = system.y - system.paddingTop + hitBandHalfHeight;
+      const safeTopY = Math.max(minY, PAGE_CHORD_TEXT_TOP_INSET, slotTopY);
+      const defaultY = system.y - minDistanceFromStaff;
+      const noteYs = Object.values(layout.notes)
+        .filter((noteLayout) => system.measures.includes(noteLayout.measureIndex))
+        .map((noteLayout) => getPageNoteY(noteLayout, system));
+
+      if (noteYs.length === 0) {
+        return Math.max(safeTopY, defaultY);
+      }
+
+      const collisionY = Math.min(...noteYs) - paddingAboveNotes;
+      return Math.max(safeTopY, Math.min(collisionY, defaultY));
+    },
+    [getPageNoteY, layout.notes]
+  );
+
   // --- METADATA TRACK HOOK ---
   // For inline editing of title, composer, lyricist, copyright in page view
   const metadataTrack = useMetadataTrack({
@@ -230,6 +326,34 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   // Flatten layout for hit detection (interaction layer)
   // This replaces the old notePositions calculation
   const notePositions = useMemo(() => {
+    if (isPageView) {
+      return Object.values(layout.notes).flatMap((noteLayout) => {
+        const located = pageSystemByMeasure.get(noteLayout.measureIndex);
+        if (!located) return [];
+
+        const x = getPageXFromLocalX(noteLayout.measureIndex, noteLayout.localX, located.system);
+        if (x === null) return [];
+
+        const hitWidth =
+          (noteLayout.hitZone.endX - noteLayout.hitZone.startX) * pageLayout.staffScale;
+        const noteY = getPageNoteY(noteLayout, located.system);
+
+        return [
+          {
+            x: x - hitWidth / 2,
+            y: noteY - 10 * pageLayout.staffScale,
+            width: hitWidth,
+            height: 20 * pageLayout.staffScale,
+            pageIndex: located.pageIndex,
+            staffIndex: noteLayout.staffIndex,
+            measureIndex: noteLayout.measureIndex,
+            eventId: noteLayout.eventId,
+            noteId: noteLayout.noteId,
+          },
+        ];
+      });
+    }
+
     return Object.values(layout.notes).map((noteLayout) => {
       // Calculate absolute X from measureOrigin + localX
       const measureOrigin = layout.getX.measureOrigin({ measure: noteLayout.measureIndex }) ?? 0;
@@ -239,6 +363,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
         // Use hit zone dimensions from layout engine
         width: noteLayout.hitZone.endX - noteLayout.hitZone.startX,
         height: 20, // Standard vertical hit box height
+        pageIndex: null,
         // Metadata
         staffIndex: noteLayout.staffIndex,
         measureIndex: noteLayout.measureIndex,
@@ -246,7 +371,14 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
         noteId: noteLayout.noteId,
       };
     });
-  }, [layout]);
+  }, [
+    getPageNoteY,
+    getPageXFromLocalX,
+    isPageView,
+    layout,
+    pageLayout.staffScale,
+    pageSystemByMeasure,
+  ]);
 
   // --- CHORD TRACK LAYOUT ---
   const measurePositions = useMemo(() => {
@@ -259,38 +391,15 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     }));
   }, [layout.staves, quantsPerMeasure]);
 
-  // Helper to compute page-relative measure positions for chord track
-  const getPageMeasurePositions = useCallback(
-    (page: Page) => {
-      const measureWidths = calculateAllMeasureWidths(score, 1.0);
-      const staffScale = pageLayout.staffScale;
-      const positions: Array<{ x: number; width: number; quant: number }> = [];
-
-      for (const system of page.systems) {
-        let x = system.xOffset;
-        const naturalWidth = system.measures.reduce((sum, i) => sum + (measureWidths[i] ?? 0), 0);
-        const stretchFactor =
-          system.justification === 1.0 && naturalWidth > 0
-            ? system.contentWidth / staffScale / naturalWidth
-            : 1.0;
-
-        for (const measureIndex of system.measures) {
-          const naturalMeasureWidth = measureWidths[measureIndex] ?? 0;
-          const scaledWidth = naturalMeasureWidth * stretchFactor * staffScale;
-
-          positions.push({
-            x,
-            width: scaledWidth,
-            quant: measureIndex * quantsPerMeasure,
-          });
-
-          x += scaledWidth;
-        }
-      }
-
-      return positions;
-    },
-    [score, pageLayout.staffScale, quantsPerMeasure]
+  // Helper to compute page-relative measure positions for a single system's chord track
+  const getSystemMeasurePositions = useCallback(
+    (system: SystemLayout) =>
+      system.measurePositions.map((position) => ({
+        x: position.x,
+        width: position.width,
+        quant: position.measureIndex * quantsPerMeasure,
+      })),
+    [quantsPerMeasure]
   );
 
   // --- DIMENSIONS & REF ---
@@ -356,6 +465,17 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     cursorMeasure !== null && cursorLocalX !== null
       ? (layout.getX.measureOrigin({ measure: cursorMeasure }) ?? 0) + cursorLocalX
       : null;
+
+  const pageCursorX =
+    isPageView && cursorMeasure !== null && cursorLocalX !== null
+      ? (() => {
+          const located = pageSystemByMeasure.get(cursorMeasure);
+          if (!located) return null;
+          return getPageXFromLocalX(cursorMeasure, cursorLocalX, located.system);
+        })()
+      : null;
+
+  const playbackCursorX = isPageView ? pageCursorX : unifiedCursorX;
 
   // Drag to select hook
   const {
@@ -555,9 +675,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       // Convert to SVG coordinates using the page's SVG
       const svgElement = pageRefsMap.current.get(pageIndex);
       if (svgElement) {
-        // Temporarily set svgRef.current to this page's SVG for coordinate conversion
-        // This is a workaround - ideally useDragToSelect would be page-aware
-        handleDragSelectMouseDown(e);
+        handleDragSelectMouseDown(e, { svgElement, pageIndex });
       }
     },
     [handleDragSelectMouseDown]
@@ -607,7 +725,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             <GrandStaffBracket
               topY={system.y}
               bottomY={system.y + totalStaffHeight}
-              x={contentX + firstSystemIndent - 20}
+              x={system.xOffset - system.preambleWidth * staffScale - 20}
             />
           )}
 
@@ -649,6 +767,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                   timeSignature={timeSignature}
                   measures={systemMeasures}
                   measureIndices={system.measures}
+                  allMeasures={staff.measures}
                   staffLayout={layout.staves[staffIndex]}
                   baseY={CONFIG.baseY}
                   scale={scale}
@@ -714,6 +833,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               pageLayout={pageLayout}
               scale={scale}
               onMouseDown={handlePageMouseDown}
+              onClick={handleBackgroundClick}
             >
               {/* Page boundary (white background, border) */}
               <PageBoundary pageLayout={pageLayout} />
@@ -721,136 +841,143 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               {/* Systems on this page */}
               {page.systems.map((system) => renderSystem(system, page.index))}
 
-              {/* Chord Track for this page */}
-              <ChordTrack
-                chords={chordTrackHook.chords}
-                displayConfig={DEFAULT_CHORD_DISPLAY}
-                keySignature={keySignature}
-                timeSignature={timeSignature}
-                validPositions={chordTrackHook.validPositions}
-                measurePositions={getPageMeasurePositions(page)}
-                layout={layout}
-                quantsPerMeasure={quantsPerMeasure}
-                editingChordId={chordTrackHook.editingChordId}
-                selectedChordId={chordTrackHook.selectedChordId}
-                creatingAt={chordTrackHook.creatingAt}
-                initialValue={chordTrackHook.initialValue}
-                pageMeasureIndices={page.systems.flatMap((s) => s.measures)}
-                pageTrackY={page.systems[0]?.y !== undefined ? page.systems[0].y - CONFIG.chordTrack.minDistanceFromStaff : undefined}
-                onChordClick={(chordId) => chordTrackHook.startEditing(chordId)}
-                onChordSelect={(chordId) => {
-                  selectionEngine.selectChord(chordId);
-                  const chord = chordTrackHook.chords.find((c) => c.id === chordId);
-                  if (chord) {
-                    const voicing = getChordVoicing(chord.symbol);
-                    voicing.forEach((note) => playNote(note, '8n'));
-                  }
-                }}
-                onEmptyClick={(position) => chordTrackHook.startCreating(position)}
-                onEditComplete={(chordId, value) => chordTrackHook.completeEdit(chordId, value)}
-                onEditCancel={() => {
-                  const editingId = chordTrackHook.editingChordId;
-                  const isExistingChord = editingId && editingId !== 'new';
-                  if (isExistingChord) {
-                    chordTrackHook.cancelEdit();
-                    selectionEngine.selectChord(editingId);
-                  } else {
-                    const position = chordTrackHook.creatingAt;
-                    chordTrackHook.cancelEdit();
-                    if (position) selectTopmostNoteAtPosition(position);
-                  }
-                }}
-                onNavigateNext={(chordId, value) => {
-                  const currentChord = chordId
-                    ? chordTrackHook.chords.find((c) => c.id === chordId)
-                    : null;
-                  const currentPosition = currentChord
-                    ? { measure: currentChord.measure, quant: currentChord.quant }
-                    : chordTrackHook.creatingAt;
-                  if (!currentPosition) return;
-
-                  const sortedPositions: Array<{ measure: number; quant: number }> = [];
-                  for (const [measure, quants] of chordTrackHook.validPositions) {
-                    for (const quant of quants) {
-                      sortedPositions.push({ measure, quant });
+              {/* Chord tracks are rendered per system so wrapped systems keep local Y positioning. */}
+              {page.systems.map((system) => (
+                <ChordTrack
+                  key={`chord-track-system-${system.index}`}
+                  chords={chordTrackHook.chords}
+                  displayConfig={DEFAULT_CHORD_DISPLAY}
+                  keySignature={keySignature}
+                  timeSignature={timeSignature}
+                  validPositions={chordTrackHook.validPositions}
+                  measurePositions={getSystemMeasurePositions(system)}
+                  layout={layout}
+                  quantsPerMeasure={quantsPerMeasure}
+                  editingChordId={chordTrackHook.editingChordId}
+                  selectedChordId={chordTrackHook.selectedChordId}
+                  creatingAt={chordTrackHook.creatingAt}
+                  initialValue={chordTrackHook.initialValue}
+                  pageMeasureIndices={system.measures}
+                  pageTrackY={getSystemChordTrackY(system)}
+                  resolveX={getPageXForPosition}
+                  onChordClick={(chordId) => chordTrackHook.startEditing(chordId)}
+                  onChordSelect={(chordId) => {
+                    selectionEngine.selectChord(chordId);
+                    const chord = chordTrackHook.chords.find((c) => c.id === chordId);
+                    if (chord) {
+                      const voicing = getChordVoicing(chord.symbol);
+                      voicing.forEach((note) => playNote(note, '8n'));
                     }
-                  }
-                  sortedPositions.sort((a, b) => a.measure - b.measure || a.quant - b.quant);
-
-                  const currentIdx = sortedPositions.findIndex(
-                    (p) => p.measure === currentPosition.measure && p.quant === currentPosition.quant
-                  );
-                  if (currentIdx === -1 || currentIdx >= sortedPositions.length - 1) return;
-
-                  const nextPosition = sortedPositions[currentIdx + 1];
-                  chordTrackHook.completeEdit(chordId, value);
-
-                  setTimeout(() => {
-                    const updatedChords = chordTrackHook.chords;
-                    const chordAtPosition = updatedChords.find(
-                      (c) => c.measure === nextPosition.measure && c.quant === nextPosition.quant
-                    );
-                    if (chordAtPosition) {
-                      chordTrackHook.startEditing(chordAtPosition.id);
+                  }}
+                  onEmptyClick={(position) => chordTrackHook.startCreating(position)}
+                  onEditComplete={(chordId, value) => chordTrackHook.completeEdit(chordId, value)}
+                  onEditCancel={() => {
+                    const editingId = chordTrackHook.editingChordId;
+                    const isExistingChord = editingId && editingId !== 'new';
+                    if (isExistingChord) {
+                      chordTrackHook.cancelEdit();
+                      selectionEngine.selectChord(editingId);
                     } else {
-                      chordTrackHook.startCreating(nextPosition);
+                      const position = chordTrackHook.creatingAt;
+                      chordTrackHook.cancelEdit();
+                      if (position) selectTopmostNoteAtPosition(position);
                     }
-                  }, 0);
-                }}
-                onNavigatePrevious={(chordId, value) => {
-                  const currentChord = chordId
-                    ? chordTrackHook.chords.find((c) => c.id === chordId)
-                    : null;
-                  const currentPosition = currentChord
-                    ? { measure: currentChord.measure, quant: currentChord.quant }
-                    : chordTrackHook.creatingAt;
-                  if (!currentPosition) return;
+                  }}
+                  onNavigateNext={(chordId, value) => {
+                    const currentChord = chordId
+                      ? chordTrackHook.chords.find((c) => c.id === chordId)
+                      : null;
+                    const currentPosition = currentChord
+                      ? { measure: currentChord.measure, quant: currentChord.quant }
+                      : chordTrackHook.creatingAt;
+                    if (!currentPosition) return;
 
-                  const sortedPositions: Array<{ measure: number; quant: number }> = [];
-                  for (const [measure, quants] of chordTrackHook.validPositions) {
-                    for (const quant of quants) {
-                      sortedPositions.push({ measure, quant });
+                    const sortedPositions: Array<{ measure: number; quant: number }> = [];
+                    for (const [measure, quants] of chordTrackHook.validPositions) {
+                      for (const quant of quants) {
+                        sortedPositions.push({ measure, quant });
+                      }
                     }
-                  }
-                  sortedPositions.sort((a, b) => a.measure - b.measure || a.quant - b.quant);
+                    sortedPositions.sort((a, b) => a.measure - b.measure || a.quant - b.quant);
 
-                  const currentIdx = sortedPositions.findIndex(
-                    (p) => p.measure === currentPosition.measure && p.quant === currentPosition.quant
-                  );
-                  if (currentIdx <= 0) return;
-
-                  const previousPosition = sortedPositions[currentIdx - 1];
-                  chordTrackHook.completeEdit(chordId, value);
-
-                  setTimeout(() => {
-                    const updatedChords = chordTrackHook.chords;
-                    const chordAtPosition = updatedChords.find(
-                      (c) =>
-                        c.measure === previousPosition.measure && c.quant === previousPosition.quant
+                    const currentIdx = sortedPositions.findIndex(
+                      (p) =>
+                        p.measure === currentPosition.measure && p.quant === currentPosition.quant
                     );
-                    if (chordAtPosition) {
-                      chordTrackHook.startEditing(chordAtPosition.id);
-                    } else {
-                      chordTrackHook.startCreating(previousPosition);
+                    if (currentIdx === -1 || currentIdx >= sortedPositions.length - 1) return;
+
+                    const nextPosition = sortedPositions[currentIdx + 1];
+                    chordTrackHook.completeEdit(chordId, value);
+
+                    setTimeout(() => {
+                      const updatedChords = chordTrackHook.chords;
+                      const chordAtPosition = updatedChords.find(
+                        (c) => c.measure === nextPosition.measure && c.quant === nextPosition.quant
+                      );
+                      if (chordAtPosition) {
+                        chordTrackHook.startEditing(chordAtPosition.id);
+                      } else {
+                        chordTrackHook.startCreating(nextPosition);
+                      }
+                    }, 0);
+                  }}
+                  onNavigatePrevious={(chordId, value) => {
+                    const currentChord = chordId
+                      ? chordTrackHook.chords.find((c) => c.id === chordId)
+                      : null;
+                    const currentPosition = currentChord
+                      ? { measure: currentChord.measure, quant: currentChord.quant }
+                      : chordTrackHook.creatingAt;
+                    if (!currentPosition) return;
+
+                    const sortedPositions: Array<{ measure: number; quant: number }> = [];
+                    for (const [measure, quants] of chordTrackHook.validPositions) {
+                      for (const quant of quants) {
+                        sortedPositions.push({ measure, quant });
+                      }
                     }
-                  }, 0);
-                }}
-                onDelete={(chordId) => {
-                  const chord = chordTrackHook.chords.find((c) => c.id === chordId);
-                  const chordPosition = chord
-                    ? { measure: chord.measure, quant: chord.quant }
-                    : null;
-                  chordTrackHook.deleteChord(chordId);
-                  if (chordPosition) selectTopmostNoteAtPosition(chordPosition);
-                }}
-              />
+                    sortedPositions.sort((a, b) => a.measure - b.measure || a.quant - b.quant);
+
+                    const currentIdx = sortedPositions.findIndex(
+                      (p) =>
+                        p.measure === currentPosition.measure && p.quant === currentPosition.quant
+                    );
+                    if (currentIdx <= 0) return;
+
+                    const previousPosition = sortedPositions[currentIdx - 1];
+                    chordTrackHook.completeEdit(chordId, value);
+
+                    setTimeout(() => {
+                      const updatedChords = chordTrackHook.chords;
+                      const chordAtPosition = updatedChords.find(
+                        (c) =>
+                          c.measure === previousPosition.measure &&
+                          c.quant === previousPosition.quant
+                      );
+                      if (chordAtPosition) {
+                        chordTrackHook.startEditing(chordAtPosition.id);
+                      } else {
+                        chordTrackHook.startCreating(previousPosition);
+                      }
+                    }, 0);
+                  }}
+                  onDelete={(chordId) => {
+                    const chord = chordTrackHook.chords.find((c) => c.id === chordId);
+                    const chordPosition = chord
+                      ? { measure: chord.measure, quant: chord.quant }
+                      : null;
+                    chordTrackHook.deleteChord(chordId);
+                    if (chordPosition) selectTopmostNoteAtPosition(chordPosition);
+                  }}
+                />
+              ))}
 
               {/* Playback cursor - only on page containing current position */}
-              {cursorPageIndex === page.index && unifiedCursorX !== null && (
+              {cursorPageIndex === page.index && playbackCursorX !== null && (
                 <g
                   data-testid="playback-cursor"
                   style={{
-                    transform: `translateX(${unifiedCursorX}px)`,
+                    transform: `translateX(${playbackCursorX}px)`,
                     transition: `transform ${playbackPosition.duration || 0.1}s linear`,
                     pointerEvents: 'none',
                     opacity: isPlaybackVisible ? 1 : 0,
@@ -865,7 +992,11 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                     const staffScale = pageLayout.staffScale;
                     const cursorTop = cursorSystem.y - 20;
                     const cursorBottom =
-                      cursorSystem.y + STAFF_GEOMETRY.height * staffScale * score.staves.length + 20;
+                      cursorSystem.y +
+                      (CONFIG.staffSpacing * Math.max(0, score.staves.length - 1) +
+                        STAFF_GEOMETRY.height) *
+                        staffScale +
+                      20;
                     return (
                       <>
                         <line
@@ -888,6 +1019,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               {/* Selection rectangle - only on page where drag started */}
               {isDragging && selectionRect && dragPageIndex === page.index && (
                 <rect
+                  data-testid="lasso-selection-rect"
                   x={selectionRect.x}
                   y={selectionRect.y}
                   width={selectionRect.width}
@@ -992,7 +1124,9 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               const isBottom = staffIndex === score.staves.length - 1;
               const mouseLimits = {
                 min: isTop ? CLAMP_LIMITS.OUTER_TOP : -CLAMP_LIMITS.INNER_OFFSET,
-                max: isBottom ? CLAMP_LIMITS.OUTER_BOTTOM : STAFF_HEIGHT + CLAMP_LIMITS.INNER_OFFSET,
+                max: isBottom
+                  ? CLAMP_LIMITS.OUTER_BOTTOM
+                  : STAFF_HEIGHT + CLAMP_LIMITS.INNER_OFFSET,
               };
 
               return (
@@ -1129,9 +1263,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               }}
               onDelete={(chordId) => {
                 const chord = chordTrackHook.chords.find((c) => c.id === chordId);
-                const chordPosition = chord
-                  ? { measure: chord.measure, quant: chord.quant }
-                  : null;
+                const chordPosition = chord ? { measure: chord.measure, quant: chord.quant } : null;
                 chordTrackHook.deleteChord(chordId);
                 if (chordPosition) selectTopmostNoteAtPosition(chordPosition);
               }}
@@ -1176,6 +1308,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             {/* Drag-to-Select Rectangle */}
             {isDragging && selectionRect && (
               <rect
+                data-testid="lasso-selection-rect"
                 x={selectionRect.x}
                 y={selectionRect.y}
                 width={selectionRect.width}

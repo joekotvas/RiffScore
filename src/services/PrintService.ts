@@ -19,8 +19,15 @@ const PRINTING_CLASS = 'riff-printing';
 /** Attribute set on editor when in print mode */
 const PRINT_MODE_ATTR = 'data-print-mode';
 
-/** Selector for the editor element */
-const EDITOR_SELECTOR = '.riff-editor';
+/** Selectors for editor roots that should receive print-mode state */
+const EDITOR_SELECTORS = ['.riff-ScoreEditor', '.riff-editor'];
+
+const getEditorElements = (): Element[] => {
+  const editors = EDITOR_SELECTORS.flatMap((selector) =>
+    Array.from(document.querySelectorAll(selector))
+  );
+  return Array.from(new Set(editors));
+};
 
 // =============================================================================
 // PRINT STATE FUNCTIONS
@@ -52,10 +59,9 @@ export const isPrinting = (): boolean => {
 export const preparePrint = (): void => {
   document.body.classList.add(PRINTING_CLASS);
 
-  const editor = document.querySelector(EDITOR_SELECTOR);
-  if (editor) {
+  getEditorElements().forEach((editor) => {
     editor.setAttribute(PRINT_MODE_ATTR, 'true');
-  }
+  });
 };
 
 /**
@@ -70,10 +76,9 @@ export const preparePrint = (): void => {
 export const restoreFromPrint = (): void => {
   document.body.classList.remove(PRINTING_CLASS);
 
-  const editor = document.querySelector(EDITOR_SELECTOR);
-  if (editor) {
+  getEditorElements().forEach((editor) => {
     editor.removeAttribute(PRINT_MODE_ATTR);
-  }
+  });
 };
 
 // =============================================================================
@@ -96,9 +101,10 @@ export const openPrintDialog = (): void => {
   preparePrint();
 
   setTimeout(() => {
-    window.print();
-
-    // Restore after print dialog closes (print or cancel)
+    // Restore after the print dialog closes (print or cancel). Chromium and Firefox dispatch
+    // 'afterprint' synchronously inside window.print(), so the listener must exist beforehand or
+    // print mode (hidden toolbar/footer) leaks until the page is reloaded.
     window.addEventListener('afterprint', () => restoreFromPrint(), { once: true });
+    window.print();
   }, TIMING.printStyleSettleMs);
 };

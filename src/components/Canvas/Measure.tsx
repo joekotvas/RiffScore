@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { CONFIG } from '@/config';
-import { MEASURE_HIT_AREA_TOP_OFFSET } from '@/constants';
+import { MEASURE_HIT_AREA_HEIGHT, MEASURE_HIT_AREA_TOP_OFFSET } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
 import { getFirstNoteId } from '@/utils/core';
 import { isRestSelected, isBeamGroupSelected } from '@/utils/selection';
@@ -203,7 +203,7 @@ const Measure: React.FC<MeasureProps> = ({
         x={0}
         y={baseY - MEASURE_HIT_AREA_TOP_OFFSET}
         width={effectiveWidth}
-        height={CONFIG.lineHeight * 12}
+        height={MEASURE_HIT_AREA_HEIGHT}
         fill="transparent"
         style={{ cursor: cursorStyle }}
         onClick={handleMeasureClick}

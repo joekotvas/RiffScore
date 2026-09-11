@@ -255,6 +255,38 @@ describe('ChordTrack', () => {
       expect(screen.getByTestId('chord-symbol-chord-3')).toHaveAttribute('data-x', '146');
     });
 
+    it('uses a page coordinate resolver when provided', () => {
+      const resolveX = jest.fn((position: { measure: number; quant: number }) => {
+        return 400 + position.measure * 100 + position.quant;
+      });
+
+      render(
+        <svg>
+          <ChordTrack {...defaultProps} resolveX={resolveX} />
+        </svg>
+      );
+
+      expect(screen.getByTestId('chord-symbol-chord-1')).toHaveAttribute('data-x', '400');
+      expect(screen.getByTestId('chord-symbol-chord-2')).toHaveAttribute('data-x', '424');
+      expect(screen.getByTestId('chord-symbol-chord-3')).toHaveAttribute('data-x', '448');
+    });
+
+    it('does not apply scroll-layout chord Y offsets in page view', () => {
+      const layoutWithHighNote = createMockLayout(new Map([[0, 20]]));
+
+      render(
+        <svg>
+          <ChordTrack {...defaultProps} layout={layoutWithHighNote} pageTrackY={500} />
+        </svg>
+      );
+
+      // eslint-disable-next-line testing-library/no-node-access
+      expect(screen.getByTestId('chord-symbol-chord-1').parentElement).toHaveAttribute(
+        'transform',
+        'translate(0, 0)'
+      );
+    });
+
     it('marks selected chord correctly', () => {
       render(
         <svg>
@@ -378,6 +410,33 @@ describe('ChordTrack', () => {
       setMockCoordinates(194, 0);
 
       fireEvent.click(hitArea, { clientX: 194, clientY: 0 });
+
+      expect(onEmptyClick).toHaveBeenCalledWith({ measure: 1, quant: 8 });
+    });
+
+    it('uses the page coordinate resolver for empty-position hit testing', () => {
+      const onEmptyClick = jest.fn();
+      const validPositions = new Map([[1, new Set([8])]]);
+      const resolveX = jest.fn((position: { measure: number; quant: number }) => {
+        return position.measure === 1 && position.quant === 8 ? 320 : null;
+      });
+
+      render(
+        <svg data-testid="test-svg">
+          <ChordTrack
+            {...defaultProps}
+            chords={[]}
+            validPositions={validPositions}
+            resolveX={resolveX}
+            onEmptyClick={onEmptyClick}
+          />
+        </svg>
+      );
+
+      const hitArea = screen.getByTestId('chord-track-hit-area');
+      setMockCoordinates(320, 0);
+
+      fireEvent.click(hitArea, { clientX: 320, clientY: 0 });
 
       expect(onEmptyClick).toHaveBeenCalledWith({ measure: 1, quant: 8 });
     });
