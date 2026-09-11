@@ -67,7 +67,9 @@ export const calculateStretchFactor = (
     return 1.0;
   }
 
-  return Math.max(1.0, availableWidth / naturalWidth);
+  // May be < 1.0 when a single measure is wider than the system: compress it to fit rather than
+  // let it run past the page edge (system breaks never pack more than fits otherwise).
+  return availableWidth / naturalWidth;
 };
 
 // --- TYPES ---

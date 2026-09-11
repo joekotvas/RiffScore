@@ -199,6 +199,8 @@ export interface EditorConfig {
     paddingAboveNotes: number;
     /** Absolute minimum Y position (top of canvas) */
     minY: number;
+    /** Half-height of the chord track's hit band, centred on the track baseline */
+    hitBandHalfHeight: number;
   };
 
   /** Toolbar sizing */
@@ -298,6 +300,10 @@ export interface SystemLayout {
   y: number;
   /** Total height of system (page coords) */
   height: number;
+  /** Headroom reserved above the staff block (page coords): ledger/clef zone and the chord band */
+  paddingTop: number;
+  /** Headroom reserved below the staff block (page coords): ledger/stem zone */
+  paddingBottom: number;
   /** X position where measures start (page coords, includes preamble + indent) */
   xOffset: number;
   /** Available width for measures (page coords, preamble already excluded) */

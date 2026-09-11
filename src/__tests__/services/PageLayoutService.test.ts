@@ -18,7 +18,14 @@ import {
   distributeSystemsToPages,
 } from '@/services/PageLayoutService';
 import { calculateStretchFactor } from '@/engines/layout';
-import { DEFAULT_LAYOUT_CONFIG, FIRST_SYSTEM_INDENT, PAGE_GAP, FOOTER_HEIGHT } from '@/config';
+import {
+  CONFIG,
+  DEFAULT_LAYOUT_CONFIG,
+  FIRST_SYSTEM_INDENT,
+  PAGE_GAP,
+  FOOTER_HEIGHT,
+} from '@/config';
+import { MEASURE_HIT_AREA_HEIGHT, MEASURE_HIT_AREA_TOP_OFFSET, STAFF_GEOMETRY } from '@/constants';
 import type { Score, LayoutConfig } from '@/types';
 
 // ============================================================================
@@ -493,15 +500,20 @@ describe('PageLayoutService - Justification', () => {
       }
     });
 
-    it('does not compress over-wide systems to fit the page content width', () => {
+    it('compresses a single over-wide measure to the system content width instead of clipping', () => {
       const score = createOverWideMeasureScore();
       const layout = calculatePageLayout(score);
       const measureWidths = calculateAllMeasureWidths(score, layout.staffScale);
       const firstSystem = layout.pages[0].systems[0];
       const firstMeasurePosition = firstSystem.measurePositions[0];
 
+      // Sanity: the measure really is wider than the system
       expect(measureWidths[0]).toBeGreaterThan(firstSystem.contentWidth);
-      expect(firstMeasurePosition.width).toBeCloseTo(measureWidths[0], 1);
+      // It is squeezed to fit rather than allowed past the right margin / page edge
+      expect(firstMeasurePosition.width).toBeCloseTo(firstSystem.contentWidth, 1);
+      expect(firstMeasurePosition.x + firstMeasurePosition.width).toBeLessThanOrEqual(
+        layout.contentArea.x + layout.contentArea.width + 0.01
+      );
     });
 
     it('non-first justified systems have consistent right edge', () => {
@@ -867,6 +879,8 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         measures: [i],
         y: 0,
         height: systemHeight,
+        paddingTop: 0,
+        paddingBottom: 0,
         xOffset: 100,
         contentWidth: 500,
         preambleWidth: 100,
@@ -1175,5 +1189,122 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
       // footer should equal first page footer
       expect(layout.footer).toEqual(layout.pages[0]?.footer);
     });
+  });
+});
+
+// ============================================================================
+// SYSTEM HEADROOM (page view)
+// Systems reserve the measure hit-area ledger zones (and the chord band when the score has
+// chord symbols) above and below the staff block, so neighbouring systems' interactive areas
+// and chord tracks never overlap and nothing is packed past the page edge.
+// ============================================================================
+
+describe('PageLayoutService - System headroom', () => {
+  type Clef = Score['staves'][number]['clef'];
+
+  const createQuarterNoteScore = (
+    measureCount: number,
+    withChords: boolean,
+    staves: number = 1
+  ): Score => ({
+    title: 'Headroom',
+    timeSignature: '4/4',
+    keySignature: 'C',
+    bpm: 120,
+    staves: Array.from({ length: staves }, (_, s) => ({
+      id: `staff-${s}`,
+      clef: (s === 0 ? 'treble' : 'bass') as Clef,
+      keySignature: 'C',
+      measures: Array.from({ length: measureCount }, (_, m) => ({
+        id: `s${s}-m${m}`,
+        events: ['C4', 'D4', 'E4', 'F4'].map((pitch, e) => ({
+          id: `s${s}-m${m}-e${e}`,
+          duration: 'quarter' as const,
+          dotted: false,
+          notes: [{ id: `s${s}-m${m}-e${e}-n`, pitch }],
+        })),
+      })),
+    })),
+    chordTrack: withChords
+      ? Array.from({ length: measureCount }, (_, m) => ({
+          id: `c${m}`,
+          measure: m,
+          quant: 0,
+          symbol: 'C',
+        }))
+      : undefined,
+  });
+
+  const staffScale = DEFAULT_LAYOUT_CONFIG.staffSize / 100;
+  const ledgerAbove = MEASURE_HIT_AREA_TOP_OFFSET * staffScale;
+  const ledgerBelow =
+    (MEASURE_HIT_AREA_HEIGHT - MEASURE_HIT_AREA_TOP_OFFSET - STAFF_GEOMETRY.height) * staffScale;
+
+  it('reports the drawn grand-staff height (staff spacing + one staff), not one staff per stave', () => {
+    const layout = calculatePageLayout(createQuarterNoteScore(4, false, 2));
+    expect(layout.systems[0].height).toBeCloseTo(
+      (CONFIG.staffSpacing + STAFF_GEOMETRY.height) * staffScale,
+      5
+    );
+  });
+
+  it('reserves the measure hit-area ledger zones above and below every system', () => {
+    const layout = calculatePageLayout(createQuarterNoteScore(24, false));
+    const systems = layout.pages.flatMap((page) => page.systems);
+    expect(systems.length).toBeGreaterThan(1);
+    for (const system of systems) {
+      expect(system.paddingTop).toBeCloseTo(ledgerAbove, 5);
+      expect(system.paddingBottom).toBeCloseTo(ledgerBelow, 5);
+    }
+  });
+
+  it('reserves the chord band above systems when the score has chord symbols', () => {
+    const layout = calculatePageLayout(createQuarterNoteScore(24, true));
+    const { minDistanceFromStaff, hitBandHalfHeight } = CONFIG.chordTrack;
+    for (const system of layout.pages.flatMap((page) => page.systems)) {
+      expect(system.paddingTop).toBeGreaterThanOrEqual(minDistanceFromStaff + hitBandHalfHeight);
+    }
+  });
+
+  it.each([[false], [true]])(
+    'never overlaps consecutive systems on a page, staff block or chord band (chords: %s)',
+    (withChords) => {
+      const { minDistanceFromStaff, hitBandHalfHeight } = CONFIG.chordTrack;
+      for (const measureCount of [8, 16, 24, 40]) {
+        const layout = calculatePageLayout(createQuarterNoteScore(measureCount, withChords));
+        for (const page of layout.pages) {
+          for (let i = 1; i < page.systems.length; i++) {
+            const prev = page.systems[i - 1];
+            const next = page.systems[i];
+            const prevSlotBottom = prev.y + prev.height + prev.paddingBottom;
+            const nextSlotTop = next.y - next.paddingTop;
+            expect(nextSlotTop).toBeGreaterThanOrEqual(prevSlotBottom - 1e-6);
+            // The chord band at its default position clears the previous staff block
+            const chordBandTop = next.y - minDistanceFromStaff - hitBandHalfHeight;
+            expect(chordBandTop).toBeGreaterThanOrEqual(prev.y + prev.height - 1e-6);
+          }
+        }
+      }
+    }
+  );
+
+  it('keeps every system inside the available content height, including not-full pages', () => {
+    for (const measureCount of [4, 8, 12, 16, 18, 20, 22, 24, 30, 40, 60]) {
+      const layout = calculatePageLayout(createQuarterNoteScore(measureCount, false));
+      for (const page of layout.pages) {
+        const available = calculateAvailableContentHeight(
+          page.index,
+          layout.contentArea,
+          layout.metadata.bottom
+        );
+        const top = page.index === 0 ? layout.metadata.bottom : layout.contentArea.y;
+        for (const system of page.systems) {
+          expect(system.y - system.paddingTop).toBeGreaterThanOrEqual(top - 1e-6);
+          expect(system.y + system.height + system.paddingBottom).toBeLessThanOrEqual(
+            top + available + 1e-6
+          );
+        }
+      }
+    }
   });
 });

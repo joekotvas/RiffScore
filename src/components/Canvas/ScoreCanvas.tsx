@@ -261,8 +261,12 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
   const getSystemChordTrackY = useCallback(
     (system: SystemLayout): number => {
-      const { minDistanceFromStaff, paddingAboveNotes, minY } = CONFIG.chordTrack;
-      const safeTopY = Math.max(minY, PAGE_CHORD_TEXT_TOP_INSET);
+      const { minDistanceFromStaff, paddingAboveNotes, minY, hitBandHalfHeight } =
+        CONFIG.chordTrack;
+      // The chord band (trackY ± hitBandHalfHeight) must stay inside this system's reserved
+      // headroom so it never covers the previous system's staff, and below the page-top inset.
+      const slotTopY = system.y - system.paddingTop + hitBandHalfHeight;
+      const safeTopY = Math.max(minY, PAGE_CHORD_TEXT_TOP_INSET, slotTopY);
       const defaultY = system.y - minDistanceFromStaff;
       const noteYs = Object.values(layout.notes)
         .filter((noteLayout) => system.measures.includes(noteLayout.measureIndex))
@@ -679,7 +683,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
   // Helper to render a system group (used in page view)
   const renderSystem = useCallback(
-    (system: (typeof pageLayout.pages)[0]['systems'][0], pageIndex: number) => {
+    (system: (typeof pageLayout.pages)[0]['systems'][0], _pageIndex: number) => {
       const firstMeasureIndex = system.measures[0];
       const contentX = pageLayout.contentArea.x;
       const staffScale = pageLayout.staffScale;
@@ -739,14 +743,6 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               onAddNote: addNoteToMeasure,
               onSelectNote: memoizedOnSelectNote,
               onDragStart: memoizedOnDragStart,
-              onLassoStart: (e: React.MouseEvent) => {
-                e.stopPropagation();
-                setDragPageIndex(pageIndex);
-                const svgElement = pageRefsMap.current.get(pageIndex);
-                if (svgElement) {
-                  handleDragSelectMouseDown(e, { svgElement, pageIndex });
-                }
-              },
               onHover: getHoverHandler(staffIndex),
             };
 
@@ -804,7 +800,6 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       addNoteToMeasure,
       memoizedOnSelectNote,
       memoizedOnDragStart,
-      handleDragSelectMouseDown,
       getHoverHandler,
       layout,
       scale,
@@ -838,6 +833,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               pageLayout={pageLayout}
               scale={scale}
               onMouseDown={handlePageMouseDown}
+              onClick={handleBackgroundClick}
             >
               {/* Page boundary (white background, border) */}
               <PageBoundary pageLayout={pageLayout} />
@@ -1023,6 +1019,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               {/* Selection rectangle - only on page where drag started */}
               {isDragging && selectionRect && dragPageIndex === page.index && (
                 <rect
+                  data-testid="lasso-selection-rect"
                   x={selectionRect.x}
                   y={selectionRect.y}
                   width={selectionRect.width}
@@ -1120,10 +1117,6 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 onAddNote: addNoteToMeasure,
                 onSelectNote: memoizedOnSelectNote,
                 onDragStart: memoizedOnDragStart,
-                onLassoStart: (e: React.MouseEvent) => {
-                  e.stopPropagation();
-                  handleDragSelectMouseDown(e);
-                },
                 onHover: getHoverHandler(staffIndex),
               };
 
@@ -1315,6 +1308,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             {/* Drag-to-Select Rectangle */}
             {isDragging && selectionRect && (
               <rect
+                data-testid="lasso-selection-rect"
                 x={selectionRect.x}
                 y={selectionRect.y}
                 width={selectionRect.width}

@@ -53,7 +53,7 @@ release now on `dev` / [PR #248](https://github.com/joekotvas/RiffScore/pull/248
   delivered — see M3 below.)*
 - **M4 page view hardening** *(Unreleased / pending release)* — Page View is committed,
   no longer cut/experimental: grand-staff multi-system engraving uses page-aware measure
-  coordinates, over-wide systems do not compress, cross-system ties split at wraps,
+  coordinates, over-wide measures compress to fit the page, cross-system ties split at wraps,
   chord editing resolves page/system X positions, lasso selection and playback cursor
   use page-local coordinates, empty scores still render a page shell, and print mode
   removes editor chrome/zoom transforms. Rendered QA evidence lives in
@@ -188,6 +188,9 @@ decision point:
   printable page bounds, including continuation tie arcs across wraps.
 - Page-view editing covers note click/edit, chord inline edit, metadata inline edit, and
   lasso selection against page-local coordinates.
+- Each system reserves vertical headroom for its ledger zone and chord band, so chord tracks and
+  measure hit areas never overlap neighbouring systems; an over-wide measure is compressed to fit
+  rather than clipped by the page.
 - Print mode targets the current editor shell, hides toolbar/footer chrome, removes zoom
   transforms, and prints page SVGs on white paper.
 

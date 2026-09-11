@@ -509,6 +509,14 @@ export const MOUSE_OFFSET_SNAP = HALF_SPACE; // 6px
  */
 export const MEASURE_HIT_AREA_TOP_OFFSET = Math.ceil(OUTER_ZONE_LINES * LEDGER_LINE_STEP);
 
+/**
+ * Total height of the measure hit area (12 staff lines): the ledger zone above the staff,
+ * the staff itself, and the ledger zone below. Must match the `height` of the hit area rect in
+ * Measure.tsx; PageLayoutService reserves the same zones around each system in page view so
+ * adjacent systems' hit areas never overlap.
+ */
+export const MEASURE_HIT_AREA_HEIGHT = CONFIG.lineHeight * 12;
+
 export const PIANO_RANGE = {
   min: 'A0', // MIDI 21
   max: 'C8', // MIDI 108

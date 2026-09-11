@@ -37,6 +37,9 @@ interface UseDragToSelectProps {
   enabled?: boolean;
 }
 
+const isTextEntryElement = (el: HTMLElement): boolean =>
+  el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
+
 interface UseDragToSelectReturn {
   isDragging: boolean;
   justFinishedDrag: boolean; // True for a brief moment after drag ends, to prevent click from clearing selection
@@ -171,6 +174,14 @@ export const useDragToSelect = ({
         activeSvg: svgElement,
         pageIndex: options?.pageIndex ?? null,
       });
+
+      // preventDefault() (needed to stop text selection while dragging) also suppresses the
+      // browser's default focus change, so an open inline editor (chord symbol, title, ...) would
+      // never receive the blur that commits it. Blur it explicitly first.
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && isTextEntryElement(active)) {
+        active.blur();
+      }
 
       e.preventDefault();
     },

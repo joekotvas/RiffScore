@@ -111,6 +111,7 @@ export const CONFIG: EditorConfig = {
     minDistanceFromStaff: 40,
     paddingAboveNotes: 20,
     minY: 0,
+    hitBandHalfHeight: 20,
   },
 
   toolbar: {

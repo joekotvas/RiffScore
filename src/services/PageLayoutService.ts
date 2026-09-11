@@ -54,7 +54,7 @@ import {
 } from '@/config';
 import { CONFIG } from '@/config';
 import { calculateMeasureWidth, calculateSystemPreamble } from '@/engines/layout';
-import { STAFF_GEOMETRY } from '@/constants';
+import { MEASURE_HIT_AREA_HEIGHT, MEASURE_HIT_AREA_TOP_OFFSET, STAFF_GEOMETRY } from '@/constants';
 
 // =============================================================================
 // CONSTANTS
@@ -404,8 +404,8 @@ const MIN_SYSTEM_SPACING = 12;
  * @param systems - All systems to distribute (with heights calculated)
  * @param contentArea - Content area dimensions
  * @param metadataBottom - Y position where metadata ends
- * @param defaultSpacing - Default spacing (1 staff height, used for single-page scores)
- * @param systemHeight - Height of each system
+ * @param defaultSpacing - Spacing between systems on pages that are not full
+ * @param systemHeight - Height of each system slot (staff block plus reserved headroom)
  * @returns Array of page assignments with page-relative system Y coordinates
  */
 export const distributeSystemsToPages = (
@@ -493,7 +493,9 @@ export const distributeSystemsToPages = (
           break;
         }
       }
-      pageJustifiedSpacings.push(spacingToUse);
+      // Packing used MIN_SYSTEM_SPACING; a larger spacing must not push systems off the page.
+      const maxSpacing = (availableHeight - count * systemHeight) / (count - 1);
+      pageJustifiedSpacings.push(Math.min(spacingToUse, maxSpacing));
     }
   }
 
@@ -551,10 +553,9 @@ const calculateMeasurePositions = (
   const naturalWidth = systemMeasures.reduce((sum, idx) => sum + (measureWidths[idx] ?? 0), 0);
 
   // Stretch factor for justified systems
+  // < 1.0 only when a single measure is wider than the system; it is compressed to fit the page.
   const stretchFactor =
-    justification === 1.0 && naturalWidth > 0
-      ? Math.max(1.0, systemContentWidth / naturalWidth)
-      : 1.0;
+    justification === 1.0 && naturalWidth > 0 ? systemContentWidth / naturalWidth : 1.0;
 
   let currentX = systemXOffset;
 
@@ -646,19 +647,31 @@ export const calculatePageLayout = (
     firstSystemIndent: FIRST_SYSTEM_INDENT,
   });
 
-  // Calculate staff height with scale (page coords)
-  const scaledStaffHeight = STAFF_GEOMETRY.height * staffScale;
-
-  // Default spacing for single-page scores: 1 staff height
-  // Multi-page scores use vertical justification (spacing calculated per page)
-  const defaultSpacing = scaledStaffHeight;
-
-  // Calculate system height (staff height + spacing for staves in grand staff)
+  // System height = drawn extent of the staff block (page coords): the spacing between staves
+  // plus one staff height, matching how ScoreCanvas positions the staves and the bracket.
   const stavesCount = score.staves.length;
   const systemHeight =
-    stavesCount > 1
-      ? scaledStaffHeight * stavesCount + CONFIG.staffSpacing * staffScale * (stavesCount - 1)
-      : scaledStaffHeight;
+    (CONFIG.staffSpacing * Math.max(0, stavesCount - 1) + STAFF_GEOMETRY.height) * staffScale;
+
+  // Headroom reserved above and below the staff block. The measure hit area extends
+  // MEASURE_HIT_AREA_TOP_OFFSET above the top line and the rest of MEASURE_HIT_AREA_HEIGHT below
+  // the bottom line (ledger notes, clef overhang, stems); reserving both keeps adjacent systems'
+  // hit areas from overlapping. Chord symbols sit minDistanceFromStaff above the staff (unscaled
+  // page px) with a ±hitBandHalfHeight hit band, so scores with chords need at least that on top.
+  const ledgerZoneAbove = MEASURE_HIT_AREA_TOP_OFFSET * staffScale;
+  const ledgerZoneBelow =
+    (MEASURE_HIT_AREA_HEIGHT - MEASURE_HIT_AREA_TOP_OFFSET - STAFF_GEOMETRY.height) * staffScale;
+  const chordZone =
+    (score.chordTrack?.length ?? 0) > 0
+      ? CONFIG.chordTrack.minDistanceFromStaff + CONFIG.chordTrack.hitBandHalfHeight
+      : 0;
+  const paddingTop = Math.max(ledgerZoneAbove, chordZone);
+  const paddingBottom = ledgerZoneBelow;
+  const slotHeight = paddingTop + systemHeight + paddingBottom;
+
+  // Spacing between system slots on pages that are not full (full pages are justified). The
+  // slots already carry the ledger/chord headroom, so only the packing minimum is added.
+  const defaultSpacing = MIN_SYSTEM_SPACING;
 
   // Build system layouts (without final Y positions - will be set during page distribution)
   const allSystems: SystemLayout[] = [];
@@ -707,6 +720,8 @@ export const calculatePageLayout = (
       measures: systemMeasures,
       y: 0, // Will be set during page distribution
       height: systemHeight,
+      paddingTop,
+      paddingBottom,
       xOffset,
       contentWidth: systemContentWidth,
       preambleWidth: systemPreambleWidth, // Staff coords (unscaled)
@@ -723,7 +738,7 @@ export const calculatePageLayout = (
     contentArea,
     metadata.bottom,
     defaultSpacing,
-    systemHeight
+    slotHeight
   );
 
   // Build Page objects. Even scores with no systems need a visible page shell so page view is
@@ -736,6 +751,8 @@ export const calculatePageLayout = (
           // Update system indices relative to this page
           const pageRelativeSystems = pageSystems.map((system, idx) => ({
             ...system,
+            // Distribution positions slots; the staff block starts below the top headroom
+            y: system.y + paddingTop,
             // isFirst only for first system on first page
             isFirst: pageIndex === 0 && idx === 0,
             // isLast only for last system on last page
@@ -878,7 +895,7 @@ export const getMeasureOriginInSystem = (
     // Apply justification if system is justified
     if (system.justification === 1.0 && system.measures.length > 1) {
       const naturalWidth = system.measures.reduce((sum, i) => sum + (measureWidths[i] ?? 0), 0);
-      const stretchFactor = Math.max(1.0, system.contentWidth / naturalWidth);
+      const stretchFactor = system.contentWidth / naturalWidth;
       x += width * stretchFactor;
     } else {
       x += width;

@@ -5,7 +5,12 @@
  * Tests DOM manipulation for print mode transitions.
  */
 
-import { preparePrint, restoreFromPrint, isPrinting } from '@/services/PrintService';
+import {
+  preparePrint,
+  restoreFromPrint,
+  isPrinting,
+  openPrintDialog,
+} from '@/services/PrintService';
 
 // ============================================================================
 // TEST SETUP
@@ -235,5 +240,66 @@ describe('PrintService', () => {
       expect(document.body.className).toBe(initialBodyClasses);
       expect(Array.from(mockEditor.attributes).map((a) => a.name)).toEqual(initialEditorAttrs);
     });
+  });
+});
+
+// ============================================================================
+// openPrintDialog TESTS
+// ============================================================================
+
+describe('openPrintDialog', () => {
+  let mockEditor: HTMLDivElement;
+  let printSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    document.body.className = '';
+    mockEditor = document.createElement('div');
+    mockEditor.className = 'riff-ScoreEditor';
+    document.body.appendChild(mockEditor);
+    if (typeof window.print !== 'function') {
+      Object.defineProperty(window, 'print', {
+        value: () => {},
+        writable: true,
+        configurable: true,
+      });
+    }
+  });
+
+  afterEach(() => {
+    printSpy?.mockRestore();
+    mockEditor.remove();
+    document.body.className = '';
+    jest.useRealTimers();
+  });
+
+  it('restores print mode when afterprint fires synchronously inside window.print() (Chromium, Firefox)', () => {
+    printSpy = jest.spyOn(window, 'print').mockImplementation(() => {
+      window.dispatchEvent(new Event('beforeprint'));
+      window.dispatchEvent(new Event('afterprint'));
+    });
+
+    openPrintDialog();
+    expect(isPrinting()).toBe(true);
+    expect(mockEditor.getAttribute('data-print-mode')).toBe('true');
+
+    jest.runAllTimers();
+
+    expect(printSpy).toHaveBeenCalledTimes(1);
+    expect(isPrinting()).toBe(false);
+    expect(mockEditor.hasAttribute('data-print-mode')).toBe(false);
+  });
+
+  it('restores print mode when afterprint fires after window.print() has returned', () => {
+    printSpy = jest.spyOn(window, 'print').mockImplementation(() => {});
+
+    openPrintDialog();
+    jest.runAllTimers();
+    expect(printSpy).toHaveBeenCalledTimes(1);
+    expect(isPrinting()).toBe(true);
+
+    window.dispatchEvent(new Event('afterprint'));
+    expect(isPrinting()).toBe(false);
+    expect(mockEditor.hasAttribute('data-print-mode')).toBe(false);
   });
 });

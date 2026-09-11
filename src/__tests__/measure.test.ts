@@ -625,9 +625,9 @@ describe('measure.ts', () => {
       expect(result).toBe(1.5);
     });
 
-    test('should not compress over-wide systems', () => {
+    test('should compress a single over-wide measure to fit (stretch < 1.0)', () => {
       const result = calculateStretchFactor(200, 100, 1.0);
-      expect(result).toBe(1.0);
+      expect(result).toBe(0.5);
     });
   });
 

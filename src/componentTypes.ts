@@ -2,7 +2,6 @@ import { Selection, Measure, PreviewNote } from './types';
 import { HitZone, MeasureLayoutV2, EventLayout, ChordLayout } from './engines/layout/types';
 import { NoteInput, PlacementOverride } from './hooks/note/useNoteEntry';
 import type { AccidentalGlyphDecision } from './utils/accidentalContext';
-import type { MouseEvent as ReactMouseEvent } from 'react';
 
 /**
  * Encapsulates all layout configuration required for a measure to render.
@@ -62,7 +61,6 @@ export interface InteractionState {
     isShift?: boolean
   ) => void;
   onDragStart: (params: DragStartParams) => void;
-  onLassoStart?: (event: ReactMouseEvent) => void;
   onHover: (
     measureIndex: number | null,
     hit: HitZone | null,

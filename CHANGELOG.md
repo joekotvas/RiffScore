@@ -35,6 +35,40 @@ the rendered page, and the MusicXML/ABC that users share with notation apps.
   official MusicXML 4.0 XSD-in-CI check (audit Phase 2) is **not** part of this release and remains
   an open verification item.
 
+M4 page view. Page View leaves the experimental bucket: coordinates, ties, chord symbols, lasso
+selection, the playback cursor and printing work on wrapped systems and later pages, and every
+system reserves the vertical room its interactive and chord areas need.
+
+### For musicians
+- **Page View is no longer experimental** — notes, chords and the title/composer can be edited
+  directly on the page, lasso selection and the playback cursor follow wrapped systems and later
+  pages, and ties that cross a system or page break are drawn as two arcs.
+- **Systems keep their distance** — each system reserves headroom for ledger notes, clefs and chord
+  symbols, so chord symbols no longer land on the staff above and clicking a note near the bottom of
+  a staff no longer opens a chord editor for the next system.
+- **Over-wide bars fit the page** — a bar wider than the page is squeezed to fit instead of running
+  off the right edge.
+- **Printing keeps the editor usable** — the toolbar and footer come back after the print dialog
+  closes, and page numbers and copyright print on every page.
+
+### For developers
+- `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
+  now the drawn extent of the staff block (staff spacing plus one staff height) instead of one staff
+  height per stave. `distributeSystemsToPages` positions system slots and never lets a not-full page
+  overflow the content area.
+- `CONFIG.chordTrack.hitBandHalfHeight` and `MEASURE_HIT_AREA_HEIGHT` are the single source for the
+  chord band and measure hit-area extents used by both rendering and page layout.
+- `calculateStretchFactor` may return < 1.0 again for a single over-wide measure (compression
+  instead of clipping).
+- `useDragToSelect.handleMouseDown` accepts `{ svgElement, pageIndex }` for page-local lassos and
+  blurs an open inline editor before `preventDefault()`; the measure hit area no longer stops
+  `mousedown` propagation, so host click-outside handlers fire again. Page background clicks clear
+  the selection and focus the editor like the scroll view.
+- `openPrintDialog` registers `afterprint` before calling `window.print()`.
+- New tests: `useDragToSelect` hook contract, page-view interaction (propagation, lasso page
+  placement, chord-track clearance), system headroom and pagination bounds, print restore in both
+  event orderings.
+
 ## [1.0.0-alpha.16] - 2026-06-13
 
 Closes the loop on the M2 interactive-correctness work — the four deferred follow-ups (#261, #263,

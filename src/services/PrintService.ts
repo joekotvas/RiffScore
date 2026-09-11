@@ -101,9 +101,10 @@ export const openPrintDialog = (): void => {
   preparePrint();
 
   setTimeout(() => {
-    window.print();
-
-    // Restore after print dialog closes (print or cancel)
+    // Restore after the print dialog closes (print or cancel). Chromium and Firefox dispatch
+    // 'afterprint' synchronously inside window.print(), so the listener must exist beforehand or
+    // print mode (hidden toolbar/footer) leaks until the page is reloaded.
     window.addEventListener('afterprint', () => restoreFromPrint(), { once: true });
+    window.print();
   }, TIMING.printStyleSettleMs);
 };
