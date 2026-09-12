@@ -409,6 +409,7 @@ const ScoreEditorContent = ({
         >
           <ScoreCanvas
             scale={scale}
+            zoom={viewportZoom / 100}
             playbackPosition={playback.playbackPosition}
             containerRef={scoreContainerRef}
             onHoverChange={handleHoverChange}

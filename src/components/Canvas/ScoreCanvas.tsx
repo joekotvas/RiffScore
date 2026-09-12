@@ -43,6 +43,11 @@ import { calculateAllMeasureWidths } from '@/services/PageLayoutService';
 
 interface ScoreCanvasProps {
   scale: number;
+  /**
+   * Viewport zoom factor the editor shell applies as a CSS transform around the canvas
+   * (1 = 100%). Rendering ignores it; pointer-to-score mapping must divide by it.
+   */
+  zoom?: number;
   playbackPosition?: { measureIndex: number | null; quant: number | null; duration: number };
   onKeySigClick?: () => void;
   onTimeSigClick?: () => void;
@@ -65,6 +70,7 @@ const PAGE_CHORD_TEXT_TOP_INSET = 12;
  */
 const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   scale,
+  zoom = 1,
   playbackPosition = { measureIndex: null, quant: null, duration: 0 },
   onKeySigClick,
   onTimeSigClick,
@@ -189,6 +195,11 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   // --- PAGE LAYOUT ---
   // Use page layout hook for multi-system rendering in page view
   const { pageLayout, isPageView } = usePageLayout();
+
+  // Pointer-to-score divisor: the svg is rendered at `scale` and the shell zooms it with a CSS
+  // transform, so client offsets must be divided by both (page-view staves additionally by
+  // staffScale, applied at the Staff call site).
+  const pointerScale = scale * zoom;
 
   const unscaledMeasureWidths = useMemo(() => calculateAllMeasureWidths(score, 1.0), [score]);
 
@@ -498,7 +509,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
         })
       );
     },
-    scale,
+    scale: pointerScale,
   });
 
   /**
@@ -770,7 +781,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                   allMeasures={staff.measures}
                   staffLayout={layout.staves[staffIndex]}
                   baseY={CONFIG.baseY}
-                  scale={scale}
+                  scale={pointerScale * staffScale}
                   isSystemStart={true}
                   systemIndex={system.index}
                   isLastSystem={system.isLast}
@@ -789,6 +800,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     },
     [
       pageLayout,
+      pointerScale,
       score,
       selection,
       previewNote,
@@ -802,7 +814,6 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       memoizedOnDragStart,
       getHoverHandler,
       layout,
-      scale,
       keySignature,
       timeSignature,
       onClefClick,
@@ -1139,7 +1150,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                   measures={staff.measures}
                   staffLayout={layout.staves[staffIndex]}
                   baseY={staffBaseY}
-                  scale={scale}
+                  scale={pointerScale}
                   interaction={interaction}
                   onClefClick={onClefClick}
                   onKeySigClick={onKeySigClick}

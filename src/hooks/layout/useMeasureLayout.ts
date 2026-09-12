@@ -32,7 +32,7 @@ export function useMeasureLayout(
   events: ScoreEvent[],
   clef: string,
   isPickup: boolean,
-  forcedEventPositions?: Record<string, number>,
+  forcedEventPositions?: Record<number, number>,
   forcedWidth?: number,
   stretchFactor: number = 1.0,
   keySignature: string = 'C',

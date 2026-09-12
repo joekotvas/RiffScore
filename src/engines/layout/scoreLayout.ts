@@ -253,6 +253,7 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
         y: staffY,
         width,
         events: {},
+        syncedEventPositions: forcedPos,
         beamGroups,
         // Pass the beams so a beamed tuplet's bracket can run parallel to its beam.
         tupletGroups: calculateTupletBrackets(

@@ -56,6 +56,10 @@ export interface StaffProps {
   // Layout
   baseY?: number; // Y offset for stacking staves (default: CONFIG.baseY)
   staffLayout?: StaffLayout;
+  /**
+   * Pointer-to-staff divisor for mouse interaction: ui scale × viewport zoom, × staffScale in
+   * page view. Rendering scale is applied by the parent transform, not here.
+   */
   scale: number;
 
   // Page view props
@@ -148,9 +152,10 @@ const Staff: React.FC<StaffProps> = ({
     // Use centralized layout if available, otherwise calculate
     // Use actual measure index for layout lookup (important for page view)
     const measureLayoutV2 = staffLayout?.measures[actualMeasureIndex];
-    const legacyLayout = measureLayoutV2?.legacyLayout;
 
-    const forcedPositions = legacyLayout?.eventPositions;
+    // Quant-keyed synchronized positions so a justified (stretched) re-layout keeps the
+    // treble/bass columns aligned; the id-keyed legacyLayout.eventPositions would be ignored.
+    const forcedPositions = measureLayoutV2?.syncedEventPositions;
     const stretchedWidth = stretchedWidths[index];
 
     // Only show preview note if it belongs to this staff
