@@ -53,7 +53,8 @@ import {
   FOOTER_HEIGHT,
 } from '@/config';
 import { CONFIG } from '@/config';
-import { calculateMeasureWidth, calculateSystemPreamble } from '@/engines/layout';
+import { calculateSystemPreamble } from '@/engines/layout';
+import { calculateSynchronizedMeasureWidths } from '@/engines/layout/scoreLayout';
 import { MEASURE_HIT_AREA_HEIGHT, MEASURE_HIT_AREA_TOP_OFFSET, STAFF_GEOMETRY } from '@/constants';
 
 // =============================================================================
@@ -82,53 +83,32 @@ const mmToPx = (mm: number): number => mm * MM_TO_PX;
 /**
  * Calculates the width of a single measure in a score.
  *
+ * Uses the same cross-staff synchronized, key-aware widths the renderer draws with (see
+ * calculateSynchronizedMeasureWidths), so page-layout positions match the rendered staves.
+ *
  * @param score - The score containing the measure
  * @param measureIndex - 0-based measure index
  * @param staffScale - Staff scale factor (1.0 = 100%)
- * @returns Width in pixels
+ * @returns Width in pixels (0 for a missing measure)
  */
 export const calculateSingleMeasureWidth = (
   score: Score,
   measureIndex: number,
   staffScale: number = 1.0
 ): number => {
-  if (!score.staves.length) return 0;
-
-  // For grand staff, take the maximum width across all staves
-  let maxWidth = 0;
-
-  for (const staff of score.staves) {
-    const measure = staff.measures[measureIndex];
-    if (!measure) continue;
-
-    const width = calculateMeasureWidth(measure.events, measure.isPickup);
-    maxWidth = Math.max(maxWidth, width);
-  }
-
-  return maxWidth * staffScale;
+  const width = calculateSynchronizedMeasureWidths(score)[measureIndex];
+  return width === undefined ? 0 : width * staffScale;
 };
 
 /**
- * Calculates the widths of all measures in a score.
+ * Calculates the widths of all measures in a score (synchronized across staves, key-aware).
  *
  * @param score - The score to analyze
  * @param staffScale - Staff scale factor (1.0 = 100%)
  * @returns Array of measure widths in pixels
  */
-export const calculateAllMeasureWidths = (score: Score, staffScale: number = 1.0): number[] => {
-  if (!score.staves.length || !score.staves[0].measures.length) {
-    return [];
-  }
-
-  const measureCount = score.staves[0].measures.length;
-  const widths: number[] = [];
-
-  for (let i = 0; i < measureCount; i++) {
-    widths.push(calculateSingleMeasureWidth(score, i, staffScale));
-  }
-
-  return widths;
-};
+export const calculateAllMeasureWidths = (score: Score, staffScale: number = 1.0): number[] =>
+  calculateSynchronizedMeasureWidths(score).map((width) => width * staffScale);
 
 // =============================================================================
 // SYSTEM BREAK CALCULATION
@@ -398,8 +378,10 @@ const MIN_SYSTEM_SPACING = 12;
  *
  * Algorithm:
  * 1. Pack as many systems as possible per page using minimum spacing
- * 2. For full pages: distribute systems equidistantly (vertical justification)
- * 3. For final page: use same spacing as previous pages, or 1 staff height if single page
+ * 2. For full pages before the last: distribute systems equidistantly (vertical justification)
+ * 3. For the last page (including a single-page score): never justify — a short final page
+ *    keeps the spacing of the previous full page, or the default spacing when there is none,
+ *    so a four-bar piece does not get spread across the whole sheet
  *
  * @param systems - All systems to distribute (with heights calculated)
  * @param contentArea - Content area dimensions
@@ -474,21 +456,23 @@ export const distributeSystemsToPages = (
     const count = pageSystemCounts[i];
     const availableHeight = pageAvailableHeights[i];
 
+    const isLastPage = i === pageSystemCounts.length - 1;
+
     if (count <= 1) {
       // Single system on page - no spacing needed
       pageJustifiedSpacings.push(0);
-    } else if (pageIsFull[i]) {
-      // Full page: justify vertically (distribute systems equidistantly)
+    } else if (pageIsFull[i] && !isLastPage) {
+      // Full page before the last: justify vertically (distribute systems equidistantly)
       // spacing = (availableHeight - totalSystemsHeight) / (count - 1)
       const totalSystemsHeight = count * systemHeight;
       const justifiedSpacing = (availableHeight - totalSystemsHeight) / (count - 1);
       pageJustifiedSpacings.push(justifiedSpacing);
     } else {
-      // Not full page: use previous full page's spacing or default
-      // Find the most recent full page's spacing
+      // Not full, or the last page: use the previous justified page's spacing or the default
+      // Find the most recent justified page's spacing
       let spacingToUse = defaultSpacing;
       for (let j = i - 1; j >= 0; j--) {
-        if (pageIsFull[j]) {
+        if (pageIsFull[j] && pageSystemCounts[j] > 1) {
           spacingToUse = pageJustifiedSpacings[j];
           break;
         }
