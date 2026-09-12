@@ -50,6 +50,11 @@ system reserves the vertical room its interactive and chord areas need.
   off the right edge.
 - **Printing keeps the editor usable** — the toolbar and footer come back after the print dialog
   closes, and page numbers and copyright print on every page.
+- **Short scores stay compact** — the last page of a score (including a single-page score) is no
+  longer stretched to fill the sheet; only full pages before it are vertically justified.
+- **Measures line up with the page** — page layout now sizes bars exactly as they are drawn (same
+  key-aware, cross-staff spacing), so justified systems end at the right margin and clicks, the
+  playback cursor and chord symbols land where the notes are, in every key.
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -65,6 +70,9 @@ system reserves the vertical room its interactive and chord areas need.
   `mousedown` propagation, so host click-outside handlers fire again. Page background clicks clear
   the selection and focus the editor like the scroll view.
 - `openPrintDialog` registers `afterprint` before calling `window.print()`.
+- `calculateAllMeasureWidths` / `calculateSingleMeasureWidth` derive from
+  `calculateSynchronizedMeasureWidths` (exported from `scoreLayout.ts`), the same widths
+  `Staff` renders with; `distributeSystemsToPages` never vertically justifies the last page.
 - New tests: `useDragToSelect` hook contract, page-view interaction (propagation, lasso page
   placement, chord-track clearance), system headroom and pagination bounds, print restore in both
   event orderings.

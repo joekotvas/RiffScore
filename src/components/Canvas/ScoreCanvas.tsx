@@ -707,8 +707,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
         ? pageLayout.firstSystemIndent * fullEffectiveWidth
         : 0;
 
-      const measureWidths = calculateAllMeasureWidths(score, 1.0);
-      const systemMeasureWidths = system.measures.map((idx) => measureWidths[idx] || 0);
+      const systemMeasureWidths = system.measures.map((idx) => unscaledMeasureWidths[idx] || 0);
       const naturalMeasuresWidth = systemMeasureWidths.reduce((a, b) => a + b, 0);
       const availableForMeasures = system.contentWidth / staffScale;
       const systemStretchFactor = calculateStretchFactor(
@@ -802,6 +801,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       pageLayout,
       pointerScale,
       score,
+      unscaledMeasureWidths,
       selection,
       previewNote,
       activeDuration,
