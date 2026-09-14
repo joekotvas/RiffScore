@@ -78,6 +78,12 @@ system reserves the vertical room its interactive and chord areas need.
   leap slants more than one space; a group whose inner notes go beyond its outer ones is
   horizontal. In page view, beams and tuplet brackets now start and end on their stems in
   justified systems (they were drawn at the unstretched positions).
+- **Engraved note spacing** — notes take the room engraved music gives them: a quarter about
+  3.7 staff spaces, an eighth 2.6, a sixteenth 1.8 (they were roughly a third wider, eighths
+  most of all), and the gap after a barline is two spaces instead of three. At the default page
+  size a bar of eight eighths is now about 43 mm instead of 63, so a 32-bar lead sheet fits one
+  page and a piano piece with running eighths gets three bars per system instead of two.
+  Systems in page view are still justified to the margins.
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -123,6 +129,12 @@ system reserves the vertical room its interactive and chord areas need.
   `TUPLET.MAX_SLOPE` follows it). Lane A/B fixtures `beaming-4-4-mixed` and
   `beaming-direction-slope` pin the rules. `Measure` takes `beamGroups`/`tupletGroups` from the
   stretched fallback layout whenever `stretchFactor !== 1`, like its other geometry.
+- `NOTE_SPACING` (constants.ts) is the single spacing table: `UNIT` 11 px per √quant and
+  pixel `MIN_WIDTH` floors, used by `getNoteWidth` and the grand-staff synchroniser
+  (`system.ts`); `LAYOUT.MIN_WIDTH_FACTORS` is gone. `CONFIG.measurePaddingLeft` is 24.
+  `noteSpacing.test.ts` pins widths in staff spaces, bar widths in mm at the 60% default, and
+  synchroniser parity. All Lane A structured-fact snapshots and Lane B pixel baselines were
+  regenerated (only horizontal facts changed).
 
 ## [1.0.0-alpha.16] - 2026-06-13
 

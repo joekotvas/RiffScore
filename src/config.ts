@@ -105,7 +105,7 @@ export const CONFIG: EditorConfig = {
   topMargin: 20,
   baseY: 80,
   quantsPerMeasure: 64,
-  measurePaddingLeft: 36,
+  measurePaddingLeft: 24,
   measurePaddingRight: 0,
   scoreMarginLeft: 60,
   staffSpacing: 120,
