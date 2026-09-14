@@ -84,6 +84,10 @@ system reserves the vertical room its interactive and chord areas need.
   size a bar of eight eighths is now about 43 mm instead of 63, so a 32-bar lead sheet fits one
   page and a piano piece with running eighths gets three bars per system instead of two.
   Systems in page view are still justified to the margins.
+- **Tuplet brackets sit on the beam side** — a beamed triplet whose notes straddle the middle line
+  (G4–B4–D5) drew its beam below the notes but its bracket and "3" above them; the bracket now
+  follows the beam, as engraved music does — also for a tuplet inside a longer beam (the third
+  triplet of a 6/8 bar). Unbeamed tuplets are unchanged.
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -139,6 +143,13 @@ system reserves the vertical room its interactive and chord areas need.
   `noteSpacing.test.ts` pins widths in staff spaces, bar widths in mm at the 60% default, and
   synchroniser parity. All Lane A structured-fact snapshots and Lane B pixel baselines were
   regenerated (only horizontal facts changed).
+- `calculateTupletBrackets` votes a bracket's side from each member's *effective* stem direction —
+  its beam group's direction when beamed (the side `ChordGroup` draws the stem on), else its own
+  `chordLayout.direction` — instead of the chord layout alone, whose tuplet-unified direction
+  (`getTupletUnifiedDirection`) can disagree with `beamGroupDirection`. `tupletBracketSide.test.ts`
+  pins it, including the `tuplet-mixed-stems` and `tuplet-triplets-6-8` fixtures run through
+  `calculateMeasureLayout`. Lane A facts do not capture brackets (no snapshot change); those two
+  fixtures' Lane B pixel baselines must be regenerated (`update_baselines=true`).
 
 ## [1.0.0-alpha.16] - 2026-06-13
 

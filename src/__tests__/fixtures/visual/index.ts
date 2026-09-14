@@ -426,7 +426,7 @@ export const visualFixtures: VisualFixture[] = [
   treble('tuplet-ledger-high', 'Tuplets', 'A triplet high above the staff — bracket sits clear above the ledger lines.', ['triplet on ledger lines', 'bracket above ledgers'], ['tuplet', 'triplet', 'ledger'], [
     measure([...tupg('eighth', ['A5', 'C6', 'E6']), q('G5'), rest('half')]),
   ]),
-  treble('tuplet-mixed-stems', 'Tuplets', 'A triplet straddling the middle line — members want opposite stem directions; the group must pick one.', ['stem-direction conflict within a group', 'forced common stem'], ['tuplet', 'triplet', 'stems'], [
+  treble('tuplet-mixed-stems', 'Tuplets', 'A triplet straddling the middle line — members want opposite stem directions; the group must pick one.', ['stem-direction conflict within a group', 'forced common stem', 'bracket and number on the beam side'], ['tuplet', 'triplet', 'stems'], [
     measure([...tupg('eighth', ['G4', 'B4', 'D5']), q('C5'), rest('half')]),
   ]),
   treble('tuplet-half-triplet', 'Tuplets', 'A half-note triplet filling the whole bar — a wide unbeamed bracket spanning three stems.', ['half-note triplet', 'full-bar bracket', 'unbeamed contour'], ['tuplet', 'triplet', 'half', 'unbeamed'], [
