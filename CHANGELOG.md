@@ -76,7 +76,8 @@ system reserves the vertical room its interactive and chord areas need.
   beat). A beamed group's stems follow the note farthest from the middle line, so adjacent
   groups no longer flip up/down, and beams slant gently — a step slants a quarter space and no
   leap slants more than one space; a group whose inner notes go beyond its outer ones is
-  horizontal.
+  horizontal. In page view, beams and tuplet brackets now start and end on their stems in
+  justified systems (they were drawn at the unstretched positions).
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -120,7 +121,8 @@ system reserves the vertical room its interactive and chord areas need.
   exports `beamGroupDirection` (farthest note, mean tiebreak, on-line ⇒ down) and `beamRise`
   (concave ⇒ 0, `BEAMING.MAX_RISE_SPACES` by interval, `BEAMING.MAX_SLOPE` = 0.35;
   `TUPLET.MAX_SLOPE` follows it). Lane A/B fixtures `beaming-4-4-mixed` and
-  `beaming-direction-slope` pin the rules.
+  `beaming-direction-slope` pin the rules. `Measure` takes `beamGroups`/`tupletGroups` from the
+  stretched fallback layout whenever `stretchFactor !== 1`, like its other geometry.
 
 ## [1.0.0-alpha.16] - 2026-06-13
 
