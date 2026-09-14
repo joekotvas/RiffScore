@@ -130,6 +130,33 @@ const createMultiMeasureScore = (measureCount: number = 4): Score => {
   };
 };
 
+/**
+ * Creates a score whose measures each hold four quarter notes, so a handful of measures wraps
+ * into several systems on one page (and a few hundred spans several pages).
+ */
+const createWrappingScore = (measureCount: number): Score => ({
+  title: 'Wrapping',
+  timeSignature: '4/4',
+  keySignature: 'C',
+  bpm: 120,
+  staves: [
+    {
+      id: 'staff-1',
+      clef: 'treble',
+      keySignature: 'C',
+      measures: Array.from({ length: measureCount }, (_, m) => ({
+        id: `m${m}`,
+        events: ['C4', 'D4', 'E4', 'F4'].map((pitch, e) => ({
+          id: `m${m}-e${e}`,
+          duration: 'quarter',
+          dotted: false,
+          notes: [{ id: `m${m}-n${e}`, pitch }],
+        })),
+      })),
+    },
+  ],
+});
+
 const createOverWideMeasureScore = (): Score => ({
   title: 'Over-wide Measure',
   timeSignature: '4/4',
@@ -794,26 +821,32 @@ describe('PageLayoutService - Edge Cases', () => {
     expect(narrowLayout.contentWidth).toBeGreaterThan(wideLayout.contentWidth);
   });
 
-  it('ignores systemSpacing preset in page view (uses vertical justification)', () => {
-    // Page view uses vertical justification instead of fixed spacing presets
-    // All preset values should produce the same layout
-    const score = createMultiMeasureScore(8);
+  it('applies the systemSpacing preset to the gap between systems', () => {
+    const presets: LayoutConfig['systemSpacing'][] = ['compact', 'normal', 'relaxed'];
 
-    const compactLayout = calculatePageLayout(score, {
-      ...DEFAULT_LAYOUT_CONFIG,
-      systemSpacing: 'compact',
+    // A page that is not full is not justified, so the preset sets the gap between systems
+    // directly: compact < normal < relaxed, stepping by the same amount each time.
+    const short = createWrappingScore(12);
+    const gaps = presets.map((systemSpacing) => {
+      const layout = calculatePageLayout(short, { ...DEFAULT_LAYOUT_CONFIG, systemSpacing });
+      expect(layout.pageCount).toBe(1);
+      expect(layout.systems.length).toBeGreaterThan(1);
+      return layout.systems[1].y - layout.systems[0].y;
     });
-    const relaxedLayout = calculatePageLayout(score, {
-      ...DEFAULT_LAYOUT_CONFIG,
-      systemSpacing: 'relaxed',
-    });
+    const [compactGap, normalGap, relaxedGap] = gaps;
+    expect(compactGap).toBeLessThan(normalGap);
+    expect(normalGap).toBeLessThan(relaxedGap);
+    expect(relaxedGap - normalGap).toBeCloseTo(normalGap - compactGap, 5);
 
-    // Both should have the same system positions (vertical justification)
-    if (compactLayout.systems.length > 1 && relaxedLayout.systems.length > 1) {
-      const compactGap = compactLayout.systems[1].y - compactLayout.systems[0].y;
-      const relaxedGap = relaxedLayout.systems[1].y - relaxedLayout.systems[0].y;
-      expect(relaxedGap).toBe(compactGap);
-    }
+    // A wider gap packs fewer systems per page, so page counts never decrease across presets.
+    const long = createWrappingScore(240);
+    const pageCounts = presets.map(
+      (systemSpacing) =>
+        calculatePageLayout(long, { ...DEFAULT_LAYOUT_CONFIG, systemSpacing }).pageCount
+    );
+    expect(pageCounts[0]).toBeGreaterThan(1);
+    expect(pageCounts[0]).toBeLessThanOrEqual(pageCounts[1]);
+    expect(pageCounts[1]).toBeLessThanOrEqual(pageCounts[2]);
   });
 
   it('correctly numbers system indices', () => {
@@ -1050,6 +1083,56 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
       expect(result[0].justifiedSpacing).toBeCloseTo(20, 5);
       // Page 1 (last): NOT spread to (230 - 160) = 70; keeps page 0's 20
       expect(result[1].justifiedSpacing).toBeCloseTo(20, 5);
+    });
+
+    it('scales the packing gap by the spacing multiplier', () => {
+      // Page 0 has 330 available (400 - 20 footer - 50 metadata). With 70px systems, four fit
+      // when the gap is 6 (compact: 280 + 18) or 12 (normal: 280 + 36) but not when it is 18
+      // (relaxed: 280 + 54 = 334), which pushes the fourth system onto a second page.
+      const shortSystems = createMockSystems(4).map((system) => ({ ...system, height: 70 }));
+      const run = (multiplier: number) =>
+        distributeSystemsToPages(
+          shortSystems,
+          contentArea,
+          metadataBottom,
+          12 * multiplier,
+          70,
+          multiplier
+        );
+
+      const compact = run(0.5);
+      const normal = run(1);
+      const relaxed = run(1.5);
+
+      expect(compact).toHaveLength(1);
+      expect(normal).toHaveLength(1);
+      expect(relaxed).toHaveLength(2);
+      expect(relaxed[0].systems).toHaveLength(3);
+
+      // The (last, hence unjustified) page keeps the preset's gap between slots.
+      expect(compact[0].justifiedSpacing).toBeCloseTo(6, 5);
+      expect(normal[0].justifiedSpacing).toBeCloseTo(12, 5);
+      expect(normal[0].systems[1].y - normal[0].systems[0].y).toBeCloseTo(70 + 12, 5);
+    });
+
+    it('defaults the spacing multiplier to 1', () => {
+      const systems = createMockSystems(5);
+      const implicit = distributeSystemsToPages(
+        systems,
+        contentArea,
+        metadataBottom,
+        defaultSpacing,
+        systemHeight
+      );
+      const explicit = distributeSystemsToPages(
+        systems,
+        contentArea,
+        metadataBottom,
+        defaultSpacing,
+        systemHeight,
+        1
+      );
+      expect(explicit).toEqual(implicit);
     });
 
     it('final page uses previous page spacing', () => {

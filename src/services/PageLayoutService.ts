@@ -51,6 +51,7 @@ import {
   METADATA_TYPOGRAPHY,
   PAGE_GAP,
   FOOTER_HEIGHT,
+  SYSTEM_SPACING_MULTIPLIERS,
 } from '@/config';
 import { CONFIG } from '@/config';
 import { calculateSystemPreamble } from '@/engines/layout';
@@ -370,14 +371,15 @@ export const calculateAvailableContentHeight = (
   return baseHeight;
 };
 
-/** Minimum spacing between systems for packing calculation (page coords) */
+/** Minimum spacing between systems for packing calculation (page coords, 'normal' preset) */
 const MIN_SYSTEM_SPACING = 12;
 
 /**
  * Distributes systems across pages with vertical justification.
  *
  * Algorithm:
- * 1. Pack as many systems as possible per page using minimum spacing
+ * 1. Pack as many systems as possible per page using the minimum spacing
+ *    (MIN_SYSTEM_SPACING scaled by the systemSpacing preset multiplier)
  * 2. For full pages before the last: distribute systems equidistantly (vertical justification)
  * 3. For the last page (including a single-page score): never justify — a short final page
  *    keeps the spacing of the previous full page, or the default spacing when there is none,
@@ -388,6 +390,8 @@ const MIN_SYSTEM_SPACING = 12;
  * @param metadataBottom - Y position where metadata ends
  * @param defaultSpacing - Spacing between systems on pages that are not full
  * @param systemHeight - Height of each system slot (staff block plus reserved headroom)
+ * @param spacingMultiplier - systemSpacing preset multiplier applied to MIN_SYSTEM_SPACING
+ *   (1 = 'normal'; see SYSTEM_SPACING_MULTIPLIERS)
  * @returns Array of page assignments with page-relative system Y coordinates
  */
 export const distributeSystemsToPages = (
@@ -395,11 +399,14 @@ export const distributeSystemsToPages = (
   contentArea: ContentArea,
   metadataBottom: number,
   defaultSpacing: number,
-  systemHeight: number
+  systemHeight: number,
+  spacingMultiplier: number = 1
 ): { pageIndex: number; systems: SystemLayout[]; justifiedSpacing: number }[] => {
   if (systems.length === 0) {
     return [];
   }
+
+  const minSpacing = MIN_SYSTEM_SPACING * spacingMultiplier;
 
   // ─── PHASE 1: Determine how many systems fit per page ───
   // Use minimum spacing to pack as many as possible
@@ -414,12 +421,12 @@ export const distributeSystemsToPages = (
 
     // Calculate how many systems fit with minimum spacing
     // First system: just systemHeight
-    // Each additional: systemHeight + MIN_SYSTEM_SPACING
+    // Each additional: systemHeight + minSpacing
     let count = 0;
     let usedHeight = 0;
 
     while (remainingSystems > 0) {
-      const neededHeight = count === 0 ? systemHeight : systemHeight + MIN_SYSTEM_SPACING;
+      const neededHeight = count === 0 ? systemHeight : systemHeight + minSpacing;
       if (usedHeight + neededHeight > availableHeight && count > 0) {
         break; // Page is full
       }
@@ -441,9 +448,9 @@ export const distributeSystemsToPages = (
     const availableHeight = pageAvailableHeights[i];
 
     // Calculate space used with minimum spacing
-    const usedHeight = count * systemHeight + Math.max(0, count - 1) * MIN_SYSTEM_SPACING;
+    const usedHeight = count * systemHeight + Math.max(0, count - 1) * minSpacing;
     // Would one more system fit?
-    const spaceForNext = systemHeight + MIN_SYSTEM_SPACING;
+    const spaceForNext = systemHeight + minSpacing;
     const isFull = usedHeight + spaceForNext > availableHeight;
 
     pageIsFull.push(isFull);
@@ -477,7 +484,7 @@ export const distributeSystemsToPages = (
           break;
         }
       }
-      // Packing used MIN_SYSTEM_SPACING; a larger spacing must not push systems off the page.
+      // Packing used minSpacing; a larger spacing must not push systems off the page.
       const maxSpacing = (availableHeight - count * systemHeight) / (count - 1);
       pageJustifiedSpacings.push(Math.min(spacingToUse, maxSpacing));
     }
@@ -580,7 +587,10 @@ export const calculatePageLayout = (
   const pageDims = PAGE_DIMENSIONS[config.pageSize];
   const margins = MARGIN_PRESETS[config.margins];
   const staffScale = config.staffSize / 100;
-  // Note: config.systemSpacing is ignored in page view (vertical justification is used instead)
+  // systemSpacing scales the minimum gap between system slots: it sets how tightly systems pack
+  // onto a page and the gap on pages that are not full. Full pages before the last one are still
+  // vertically justified, so there the preset only changes how many systems fit.
+  const spacingMultiplier = SYSTEM_SPACING_MULTIPLIERS[config.systemSpacing] ?? 1;
 
   // Convert margins to pixels
   const marginsPx: MarginsPx = {
@@ -655,8 +665,9 @@ export const calculatePageLayout = (
   const slotHeight = paddingTop + systemHeight + paddingBottom;
 
   // Spacing between system slots on pages that are not full (full pages are justified). The
-  // slots already carry the ledger/chord headroom, so only the packing minimum is added.
-  const defaultSpacing = MIN_SYSTEM_SPACING;
+  // slots already carry the ledger/chord headroom, so only the packing minimum (scaled by the
+  // systemSpacing preset) is added.
+  const defaultSpacing = MIN_SYSTEM_SPACING * spacingMultiplier;
 
   // Build system layouts (without final Y positions - will be set during page distribution)
   const allSystems: SystemLayout[] = [];
@@ -723,7 +734,8 @@ export const calculatePageLayout = (
     contentArea,
     metadata.bottom,
     defaultSpacing,
-    slotHeight
+    slotHeight,
+    spacingMultiplier
   );
 
   // Build Page objects. Even scores with no systems need a visible page shell so page view is

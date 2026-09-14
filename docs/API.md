@@ -176,7 +176,7 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `loadScore` | `loadScore(score)` | ✅ | Load a `Score` object. |
+| `loadScore` | `loadScore(score)` | ✅ | Load a `Score` object. A score without `layout` keeps the current layout configuration (view mode, page size, margins, …); a score that carries `layout` replaces it. |
 | `reset` | `reset(template?, measures?)` | ✅ | Reset to blank score/template. |
 | `export` | `export(format)` | ✅ | Returns string (empty on error). `'json' \| 'abc' \| 'musicxml'`. |
 
@@ -275,7 +275,7 @@ interface LayoutConfig {
   pageSize: 'letter' | 'a4';           // Page dimensions
   margins: 'narrow' | 'normal' | 'wide'; // Margin preset
   staffSize: number;                    // 50-150 (percentage)
-  systemSpacing: 'compact' | 'normal' | 'relaxed';
+  systemSpacing: 'compact' | 'normal' | 'relaxed'; // Gap between systems in page view
   viewMode: 'scroll' | 'page';
 }
 ```
