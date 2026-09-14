@@ -17,7 +17,8 @@ import {
   calculateAvailableContentHeight,
   distributeSystemsToPages,
 } from '@/services/PageLayoutService';
-import { calculateStretchFactor } from '@/engines/layout';
+import { calculateMeasureWidth, calculateStretchFactor } from '@/engines/layout';
+import { calculateScoreLayout } from '@/engines/layout/scoreLayout';
 import {
   CONFIG,
   DEFAULT_LAYOUT_CONFIG,
@@ -1007,12 +1008,12 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
       }
     });
 
-    it('justifies single page when at capacity', () => {
-      // Create a content area that can fit exactly 3 systems with minimum spacing
-      // Available height = 310 (400 - 40 footer - 50 metadata offset)
-      // 3 systems with min spacing: 80 + (80+12) + (80+12) = 264 < 310
-      // 4 systems with min spacing: 264 + (80+12) = 356 > 310
-      // So 3 systems is at capacity
+    it('does not vertically justify a single page even when it is at capacity', () => {
+      // Available height = 330 (400 - 20 footer - 50 metadata offset).
+      // 3 systems with min spacing: 80 + (80+12) + (80+12) = 264 <= 330; a 4th would not fit,
+      // so the page counts as full — but it is also the LAST page, so it keeps the default
+      // spacing (capped so the systems still fit: (330 - 240) / 2 = 45) instead of being
+      // spread to the bottom margin.
       const systems = createMockSystems(3);
       const result = distributeSystemsToPages(
         systems,
@@ -1022,12 +1023,33 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         systemHeight
       );
 
-      // Should be single page
       expect(result).toHaveLength(1);
-      // Should be justified (spacing > minimum) because page is at capacity
-      const spacing = result[0].justifiedSpacing;
-      // Justified spacing = (310 - 3*80) / 2 = 35
-      expect(spacing).toBeGreaterThan(12); // MIN_SYSTEM_SPACING = 12
+      expect(result[0].justifiedSpacing).toBeCloseTo(Math.min(defaultSpacing, 45), 5);
+      const last = result[0].systems[2];
+      expect(last.y + systemHeight).toBeLessThanOrEqual(metadataBottom + 330 + 1e-6);
+    });
+
+    it('justifies full pages before the last one but never the last page', () => {
+      // contentArea.height 250: page 0 has 180 available (250 - 20 - 50) and holds 2 systems
+      // (80 + 92 = 172); page 1 has 230 available and also holds 2 (a 3rd needs 264).
+      // Both pages are "full", but only page 0 is justified; the last page inherits its spacing.
+      const shortContentArea = { x: 50, y: 50, width: 600, height: 250 };
+      const systems = createMockSystems(4);
+      const result = distributeSystemsToPages(
+        systems,
+        shortContentArea,
+        metadataBottom,
+        defaultSpacing,
+        systemHeight
+      );
+
+      expect(result).toHaveLength(2);
+      expect(result[0].systems).toHaveLength(2);
+      expect(result[1].systems).toHaveLength(2);
+      // Page 0: justified => (180 - 160) / 1 = 20
+      expect(result[0].justifiedSpacing).toBeCloseTo(20, 5);
+      // Page 1 (last): NOT spread to (230 - 160) = 70; keeps page 0's 20
+      expect(result[1].justifiedSpacing).toBeCloseTo(20, 5);
     });
 
     it('final page uses previous page spacing', () => {
@@ -1306,5 +1328,69 @@ describe('PageLayoutService - System headroom', () => {
         }
       }
     }
+  });
+});
+
+// ============================================================================
+// WIDTH SOURCE — page layout must size measures exactly as the renderer draws them
+// ============================================================================
+
+describe('PageLayoutService - Width source', () => {
+  type Clef = Score['staves'][number]['clef'];
+  const note = (id: string, pitch: string, duration: 'quarter' | 'eighth') => ({
+    id,
+    duration,
+    dotted: false,
+    notes: [{ id: `${id}-n`, pitch }],
+  });
+  /** D major (F#/C# carry no accidental glyphs) with differing rhythms across staves. */
+  const sharpKeyGrandStaff = (measureCount = 6): Score => ({
+    title: 'Widths',
+    timeSignature: '4/4',
+    keySignature: 'D',
+    bpm: 120,
+    staves: [
+      {
+        id: 's0',
+        clef: 'treble' as Clef,
+        keySignature: 'D',
+        measures: Array.from({ length: measureCount }, (_, m) => ({
+          id: `s0-m${m}`,
+          events: ['F#4', 'A4', 'C#5', 'D5'].map((p, e) => note(`s0-m${m}-e${e}`, p, 'quarter')),
+        })),
+      },
+      {
+        id: 's1',
+        clef: 'bass' as Clef,
+        keySignature: 'D',
+        measures: Array.from({ length: measureCount }, (_, m) => ({
+          id: `s1-m${m}`,
+          events: ['D3', 'E3', 'F#3', 'G3', 'A3', 'B3', 'C#4', 'D4'].map((p, e) =>
+            note(`s1-m${m}-e${e}`, p, 'eighth')
+          ),
+        })),
+      },
+    ],
+  });
+
+  it('sizes measures with the synchronized, key-aware widths the renderer uses', () => {
+    const score = sharpKeyGrandStaff();
+    const rendered = calculateScoreLayout(score);
+    const widths = calculateAllMeasureWidths(score, 0.7);
+    expect(widths).toHaveLength(6);
+    widths.forEach((width, i) => {
+      expect(width).toBeCloseTo(rendered.staves[0].measures[i].width * 0.7, 5);
+      expect(width).toBeCloseTo(rendered.staves[1].measures[i].width * 0.7, 5);
+    });
+    expect(calculateSingleMeasureWidth(score, 3, 0.7)).toBeCloseTo(
+      rendered.staves[0].measures[3].width * 0.7,
+      5
+    );
+  });
+
+  it('is not the per-staff natural width (which assumes key C and one staff)', () => {
+    const score = sharpKeyGrandStaff();
+    const naturalTreble = calculateMeasureWidth(score.staves[0].measures[0].events);
+    expect(calculateAllMeasureWidths(score, 1)[0]).not.toBeCloseTo(naturalTreble, 0);
   });
 });

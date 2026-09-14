@@ -66,6 +66,19 @@ const calculateSystemMetrics = (staves: Staff[], keySignature: string = 'C') => 
   return { widths, forcedPositions };
 };
 
+/**
+ * Synchronized natural measure widths for the whole score (unscaled): the widths every staff
+ * actually renders with — cross-staff union of onsets, key-aware accidental spacing, pickup
+ * minimums. Page layout must size measures from THIS rather than from a per-staff natural
+ * layout, or measure positions, hit boxes, the cursor, chord X and the right margin drift from
+ * what is drawn.
+ */
+export const calculateSynchronizedMeasureWidths = (score: Score): number[] => {
+  if (!score.staves || score.staves.length === 0) return [];
+  const keySignature = score.keySignature || score.staves[0].keySignature || 'C';
+  return calculateSystemMetrics(score.staves, keySignature).widths;
+};
+
 // --- Phase 2: Atomic Event/Note Helper ---
 
 interface MeasureContext {
