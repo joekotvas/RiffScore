@@ -115,6 +115,7 @@ export const CONFIG: EditorConfig = {
     paddingAboveNotes: 20,
     minY: 0,
     hitBandHalfHeight: 20,
+    noteHitGap: 2,
   },
 
   toolbar: {

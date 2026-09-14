@@ -373,13 +373,21 @@ describe('page-view chord track rendering', () => {
       },
     ];
 
+    const pageLayout = calculatePageLayout(score, score.layout);
+    // Chord text is 1.25rem (20px) with dominantBaseline="central", drawn inside the
+    // staff-scaled track group: the glyph box extends 10 staff units above its baseline.
+    const glyphHalfHeight = 10 * pageLayout.staffScale;
+
     const { canvas, unmount } = renderScore(score);
     try {
-      const chordTracks = Array.from(canvas.querySelectorAll('.riff-ChordTrack'));
       const chordSymbols = Array.from(canvas.querySelectorAll('.riff-ChordSymbol'));
 
       expect(chordSymbols.some((symbol) => symbol.textContent === 'Fm9')).toBe(true);
-      expect(Math.min(...chordTracks.map((t) => composedPosition(t).y))).toBeGreaterThanOrEqual(12);
+      for (const symbol of chordSymbols) {
+        expect(composedPosition(symbol).y - glyphHalfHeight).toBeGreaterThanOrEqual(
+          pageLayout.contentArea.y
+        );
+      }
     } finally {
       unmount();
     }

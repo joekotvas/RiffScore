@@ -201,6 +201,8 @@ export interface EditorConfig {
     minY: number;
     /** Half-height of the chord track's hit band, centred on the track baseline */
     hitBandHalfHeight: number;
+    /** Vertical gap kept between the hit band's edge and a notehead's hit area */
+    noteHitGap: number;
   };
 
   /** Toolbar sizing */

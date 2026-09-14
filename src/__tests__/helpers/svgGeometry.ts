@@ -40,6 +40,21 @@ export function parseTransform(transform: string): Affine {
 const DEFAULT_STOP = (a: Element): boolean => a.tagName.toLowerCase() === 'svg';
 
 /**
+ * Every transform from `stopAt` (exclusive; the enclosing <svg> by default) down to the
+ * element itself, composed into one matrix.
+ */
+function composedMatrix(el: Element, stopAt: (ancestor: Element) => boolean): Affine {
+  const chain: Element[] = [];
+  for (let e: Element | null = el; e && !stopAt(e); e = e.parentElement) chain.unshift(e);
+  let m = IDENTITY;
+  for (const e of chain) {
+    const t = e.getAttribute('transform');
+    if (t) m = multiply(m, parseTransform(t));
+  }
+  return m;
+}
+
+/**
  * Where a point expressed in `el`'s own coordinate system is drawn, after composing every
  * ancestor transform from `stopAt` (exclusive; the enclosing <svg> by default) down to the
  * element itself. Use this for coordinates that live inside an attribute such as a <path>'s
@@ -50,13 +65,7 @@ export function composedPoint(
   point: { x: number; y: number },
   stopAt: (ancestor: Element) => boolean = DEFAULT_STOP
 ): { x: number; y: number } {
-  const chain: Element[] = [];
-  for (let e: Element | null = el; e && !stopAt(e); e = e.parentElement) chain.unshift(e);
-  let m = IDENTITY;
-  for (const e of chain) {
-    const t = e.getAttribute('transform');
-    if (t) m = multiply(m, parseTransform(t));
-  }
+  const m = composedMatrix(el, stopAt);
   const { x, y } = point;
   return { x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] };
 }
@@ -72,4 +81,22 @@ export function composedPosition(
   const x = Number(el.getAttribute('x') ?? 0);
   const y = Number(el.getAttribute('y') ?? 0);
   return composedPoint(el, { x, y }, stopAt);
+}
+
+/**
+ * Drawn box of a <rect> (its x, y, width, height attributes) after composing every ancestor
+ * transform, as `composedPosition` does; translate/scale chains keep the box axis-aligned.
+ */
+export function composedRect(
+  el: Element,
+  stopAt: (ancestor: Element) => boolean = DEFAULT_STOP
+): { x: number; y: number; width: number; height: number } {
+  const m = composedMatrix(el, stopAt);
+  const { x, y } = composedPosition(el, stopAt);
+  return {
+    x,
+    y,
+    width: m[0] * Number(el.getAttribute('width') ?? 0),
+    height: m[3] * Number(el.getAttribute('height') ?? 0),
+  };
 }

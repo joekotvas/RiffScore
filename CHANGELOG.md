@@ -68,6 +68,9 @@ system reserves the vertical room its interactive and chord areas need.
   longer shows "Untitled" in page view or print (and `getTitle()` agrees with the scroll view).
 - **System spacing works** — the compact/normal/relaxed setting now changes the gap between
   systems in page view.
+- **Clicks near chord symbols select the note** — the chord-symbol hit band now yields to any
+  notehead it would otherwise cover (both views), and lasso selection in scroll view uses boxes
+  centred on the noteheads, so a rectangle over the left half of a note selects it.
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -100,6 +103,10 @@ system reserves the vertical room its interactive and chord areas need.
   metadata block, used by the metadata track, `getMetadata`/`getTitle`, `SetMetadataCommand` and
   the Score Setup dialog. `TimelineService` no longer warns for rests on play.
   `distributeSystemsToPages` takes a `spacingMultiplier` (from `SYSTEM_SPACING_MULTIPLIERS`).
+- `ChordTrack.clipHitBand` (with `CONFIG.chordTrack.noteHitGap`) clips the chord hit rect around
+  intruding noteheads; page view passes each system's note Ys as `pageNoteYs`. `ScoreCanvas`
+  lasso `notePositions` are top-left boxes in both views; the page-top chord inset constant is
+  gone (the reserved system headroom already keeps chord text inside the content area).
 - New tests: `useDragToSelect` hook contract, page-view interaction (propagation, lasso page
   placement, chord-track clearance), system headroom and pagination bounds, print restore in both
   event orderings.

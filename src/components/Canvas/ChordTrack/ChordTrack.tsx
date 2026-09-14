@@ -12,6 +12,7 @@ import { useModifierKeys } from '@hooks/editor';
 import { clientToSvg } from '@/engines/layout/coordinateUtils';
 import { ScoreLayout } from '@/engines/layout/types';
 import { CONFIG } from '@/config';
+import { LAYOUT } from '@/constants';
 import { ChordSymbol } from './ChordSymbol';
 import { ChordInput } from './ChordInput';
 import './ChordTrack.css';
@@ -75,6 +76,12 @@ interface ChordTrackProps {
 
   /** Override Y position for chord track (used in page view) */
   pageTrackY?: number;
+
+  /**
+   * Y of every notehead on this track's system, in the track's own units (used in page view,
+   * where the notes of other systems are irrelevant). The hit band is kept clear of them.
+   */
+  pageNoteYs?: number[];
 
   /** Optional coordinate resolver for page/system layouts */
   resolveX?: (position: ChordPosition) => number | null;
@@ -166,6 +173,37 @@ function xToNearestPosition(
   return nearestDist <= snapDistance ? nearest : null;
 }
 
+/**
+ * Vertical extent of the hit band (top edge `y` and `height`, relative to the track baseline).
+ *
+ * The band is painted after the staves, so wherever it overlapped a note's hit area the note
+ * could not be clicked: the click opened a chord input instead. Collision avoidance only keeps
+ * the baseline paddingAboveNotes above the highest note (less than the band's half-height), and
+ * in page view the band is pinned inside the system's reserved headroom, so the band yields to
+ * the notes instead: a note intruding from below clips the bottom edge, one intruding from above
+ * clips the top edge, and notes clear of the band leave it untouched. `noteYs` are notehead
+ * centres in the track's coordinate space.
+ */
+export function clipHitBand(noteYs: number[], trackY: number): { y: number; height: number } {
+  const { hitBandHalfHeight, noteHitGap } = CONFIG.chordTrack;
+  const clearance = LAYOUT.HIT_AREA.HEIGHT / 2 + noteHitGap;
+  let top = trackY - hitBandHalfHeight;
+  let bottom = trackY + hitBandHalfHeight;
+
+  for (const noteY of noteYs) {
+    const noteTop = noteY - clearance;
+    const noteBottom = noteY + clearance;
+    if (noteBottom <= top || noteTop >= bottom) continue;
+    if (noteY < trackY) {
+      top = Math.max(top, noteBottom);
+    } else {
+      bottom = Math.min(bottom, noteTop);
+    }
+  }
+
+  return { y: top - trackY, height: Math.max(0, bottom - top) };
+}
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -184,6 +222,7 @@ export const ChordTrack = memo(function ChordTrack({
   initialValue,
   pageMeasureIndices,
   pageTrackY,
+  pageNoteYs,
   resolveX,
   onChordClick,
   onChordSelect,
@@ -248,6 +287,15 @@ export const ChordTrack = memo(function ChordTrack({
     // Clamp to minY (can go all the way to 0 for extreme cases)
     return Math.max(minY, Math.min(collisionY, defaultY));
   }, [layout, pageTrackY]);
+
+  // Notehead centres the hit band must stay clear of: this system's notes in page view, every
+  // note of the (single-system) layout in scroll view.
+  const noteYs = useMemo(
+    () => pageNoteYs ?? Object.values(layout.notes).map((noteLayout) => noteLayout.y),
+    [layout, pageNoteYs]
+  );
+
+  const hitBand = useMemo(() => clipHitBand(noteYs, trackY), [noteYs, trackY]);
 
   // Compute cursor style based on hover state and meta key
   // Using useMemo instead of useEffect to avoid synchronous setState in effect
@@ -394,15 +442,15 @@ export const ChordTrack = memo(function ChordTrack({
       aria-label="Chord symbols"
       style={{ cursor: computedCursorStyle }}
     >
-      {/* Hit area for clicks */}
+      {/* Hit area for clicks (clipped so it never covers a note's hit area) */}
       <rect
         className="riff-ChordTrack__hitArea"
         data-testid="chord-track-hit-area"
         data-interactive="true"
         x={0}
-        y={-CONFIG.chordTrack.hitBandHalfHeight}
+        y={hitBand.y}
         width={trackWidth}
-        height={CONFIG.chordTrack.hitBandHalfHeight * 2}
+        height={hitBand.height}
         fill="transparent"
         style={{ cursor: computedCursorStyle }}
         onMouseDown={handleMouseDown}
