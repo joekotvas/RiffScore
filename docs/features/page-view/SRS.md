@@ -2,7 +2,7 @@
 
 **Feature:** Page View Mode with System Breaks and Print Support
 **Issue:** [#174](https://github.com/joekotvas/riffscore/issues/174)
-**Status:** Draft
+**Status:** Implemented (see ROADMAP M4)
 **Date:** 2026-02-14
 **Parent:** [PRD.md](./PRD.md)
 

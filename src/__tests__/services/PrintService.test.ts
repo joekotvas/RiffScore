@@ -226,6 +226,42 @@ describe('PrintService', () => {
   // INTEGRATION TESTS
   // ============================================================================
 
+  describe('editor roots', () => {
+    it('marks each root once — including one carrying both root classes — and clears them all', () => {
+      const scoreEditor = document.createElement('div');
+      scoreEditor.className = 'riff-ScoreEditor';
+      const bothClasses = document.createElement('div');
+      bothClasses.className = 'riff-ScoreEditor riff-editor';
+      document.body.append(scoreEditor, bothClasses);
+      // mockEditor (.riff-editor) is mounted by the outer beforeEach.
+      const roots = [scoreEditor, mockEditor, bothClasses];
+      const setSpies = roots.map((root) => jest.spyOn(root, 'setAttribute'));
+      const removeSpies = roots.map((root) => jest.spyOn(root, 'removeAttribute'));
+
+      try {
+        preparePrint();
+
+        roots.forEach((root, i) => {
+          expect(root.getAttribute('data-print-mode')).toBe('true');
+          expect(setSpies[i]).toHaveBeenCalledTimes(1);
+          expect(setSpies[i]).toHaveBeenCalledWith('data-print-mode', 'true');
+        });
+
+        restoreFromPrint();
+
+        roots.forEach((root, i) => {
+          expect(root.hasAttribute('data-print-mode')).toBe(false);
+          expect(removeSpies[i]).toHaveBeenCalledTimes(1);
+          expect(removeSpies[i]).toHaveBeenCalledWith('data-print-mode');
+        });
+      } finally {
+        [...setSpies, ...removeSpies].forEach((spy) => spy.mockRestore());
+        scoreEditor.remove();
+        bothClasses.remove();
+      }
+    });
+  });
+
   describe('prepare/restore cycle', () => {
     it('fully restores state after print cycle', () => {
       // Capture initial state
