@@ -7,7 +7,7 @@
 
 import { CONFIG } from '@/config';
 import { getNoteDuration } from '@/utils/core';
-import { NOTE_SPACING_BASE_UNIT, LAYOUT } from '@/constants';
+import { NOTE_SPACING, NOTE_SPACING_BASE_UNIT, LAYOUT } from '@/constants';
 import { ScoreEvent, Note } from './types';
 import { calculateChordLayout } from './positioning';
 import { pitchHasAlteration } from '@/services/MusicService';
@@ -19,7 +19,6 @@ import { resolveMeasureAccidentals, type AccidentalGlyphDecision } from '@/utils
 const ACCIDENTAL_PADDING = LAYOUT.ACCIDENTAL_PADDING;
 
 /** Minimum width factors for short-duration notes */
-const MIN_WIDTH_FACTORS = LAYOUT.MIN_WIDTH_FACTORS;
 
 // --- HELPERS ---
 
@@ -119,18 +118,16 @@ const getSegmentWidthRequirement = (
   accidentalGlyphsByMeasure?: Record<string, AccidentalGlyphDecision | null>[]
 ): number => {
   const segmentDuration = endQuant - startQuant;
-  let maxSegmentWidth = NOTE_SPACING_BASE_UNIT * Math.sqrt(segmentDuration);
+  let maxSegmentWidth = NOTE_SPACING.UNIT * Math.sqrt(segmentDuration);
   let maxExtraPadding = 0;
 
   measures.forEach((measure, idx) => {
     const event = findEventAtQuant(measure.events, startQuant);
     if (!event) return;
 
-    // Check minimum width for short notes
-    const minFactor = MIN_WIDTH_FACTORS[event.duration] || 0;
-    if (minFactor > 0) {
-      maxSegmentWidth = Math.max(maxSegmentWidth, minFactor * NOTE_SPACING_BASE_UNIT);
-    }
+    // Check minimum width for short notes (same floor as getNoteWidth)
+    const minWidth = NOTE_SPACING.MIN_WIDTH[event.duration] ?? 0;
+    maxSegmentWidth = Math.max(maxSegmentWidth, minWidth);
 
     // Calculate padding requirements
     const padding = calculateEventPadding(event, accidentalGlyphsByMeasure?.[idx]);

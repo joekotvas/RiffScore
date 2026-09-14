@@ -35,9 +35,6 @@ const HIT_RADIUS = LAYOUT.HIT_ZONE_RADIUS;
 /** Padding added before noteheads when accidentals are present */
 const ACCIDENTAL_PADDING = LAYOUT.ACCIDENTAL_PADDING;
 
-/** Minimum width factors for short-duration notes relative to NOTE_SPACING_BASE_UNIT */
-// const MIN_WIDTH_FACTORS = LAYOUT.MIN_WIDTH_FACTORS;
-
 // --- STRETCH FACTOR CALCULATION ---
 
 /**

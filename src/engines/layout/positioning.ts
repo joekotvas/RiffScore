@@ -1,4 +1,11 @@
-import { MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT, KEY_SIGNATURES, LAYOUT, STEM } from '@/constants';
+import {
+  MIDDLE_LINE_Y,
+  NOTE_SPACING,
+  NOTE_SPACING_BASE_UNIT,
+  KEY_SIGNATURES,
+  LAYOUT,
+  STEM,
+} from '@/constants';
 import { CONFIG } from '@/config';
 import { getNoteDuration } from '@/utils/core';
 import { Note, ChordLayout, SystemPreamble } from './types';
@@ -109,7 +116,10 @@ const diatonicStepsBetween = (
 ): number => (pitch.octave - ref.octave) * STAFF_LETTERS.length + (pitch.letterIdx - ref.letterIdx);
 
 /** Diatonic (natural) pitch that lies `steps` diatonic steps above `ref`. */
-const pitchAtDiatonicSteps = (ref: { letterIdx: number; octave: number }, steps: number): string => {
+const pitchAtDiatonicSteps = (
+  ref: { letterIdx: number; octave: number },
+  steps: number
+): string => {
   const total = ref.letterIdx + steps;
   const len = STAFF_LETTERS.length;
   // Floored division handles negative steps so the octave rolls correctly.
@@ -173,25 +183,16 @@ export const getPitchForOffset = (offset: number, clef: string = 'treble'): stri
 
 /**
  * Calculates the visual width of a note based on its duration.
- * Spacing is proportional to the square root of quants to balance density.
- * Includes minimum widths for short notes and dot padding.
+ * Spacing is proportional to the square root of quants (see `NOTE_SPACING`), floored per
+ * duration for short notes, plus dot padding.
  * @param duration - The duration type (e.g., 'quarter', 'eighth')
  * @param dotted - Whether the note is dotted
  * @returns The calculated width in pixels
  */
 export const getNoteWidth = (duration: string, dotted: boolean): number => {
   const quants = getNoteDuration(duration, dotted, undefined);
-  const baseWidth = NOTE_SPACING_BASE_UNIT * Math.sqrt(quants);
-
-  // Use multipliers relative to the base unit for responsiveness
-  const MIN_WIDTH_FACTORS: Record<string, number> = {
-    sixtyfourth: 1.2,
-    thirtysecond: 1.5,
-    sixteenth: 1.8,
-    eighth: 2.2,
-  };
-
-  const minWidth = (MIN_WIDTH_FACTORS[duration] || 0) * NOTE_SPACING_BASE_UNIT;
+  const baseWidth = NOTE_SPACING.UNIT * Math.sqrt(quants);
+  const minWidth = NOTE_SPACING.MIN_WIDTH[duration] ?? 0;
 
   // Calculate base width (greater of rhythm-based or visual minimum)
   let width = Math.max(baseWidth, minWidth);

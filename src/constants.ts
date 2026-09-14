@@ -337,6 +337,30 @@ export const NOTE_TYPES: Record<string, NoteType> = {
 // =============================================================================
 
 export const NOTE_SPACING_BASE_UNIT = 16;
+
+/**
+ * Rhythmic (duration-proportional) horizontal spacing, in staff pixels at 100%
+ * (12 px = one staff space).
+ *
+ * The distance a note claims before the next one is `UNIT * sqrt(quants)` — the classic
+ * engraving progression where each halving of the value takes about 1/√2 of the space —
+ * floored by `MIN_WIDTH` so short values never crowd their flags and heads. Calibrated to
+ * engraved density at a 7–7.6 mm staff: a quarter ≈ 3.7 spaces, an eighth ≈ 2.6, a
+ * sixteenth ≈ 1.8, a whole ≈ 7.3, so a 4/4 bar of eight eighths runs ≈ 43 mm at the 60%
+ * page-view default (was 63 mm with the previous 16 px unit). Glyph paddings (accidentals,
+ * dots, lookahead) stay on `NOTE_SPACING_BASE_UNIT`.
+ */
+export const NOTE_SPACING = {
+  /** Pixels per √quant (quarter = 16 quants → 4 × UNIT). */
+  UNIT: 11,
+  /** Floor per duration, in pixels; values not listed have no floor. */
+  MIN_WIDTH: {
+    sixtyfourth: 16,
+    thirtysecond: 18,
+    sixteenth: 20,
+    eighth: 24,
+  } as Record<string, number>,
+};
 export const WHOLE_REST_WIDTH = 12;
 export const DEFAULT_SCALE = 0.75;
 
@@ -377,14 +401,6 @@ export const LAYOUT = {
   },
   HIT_ZONE_RADIUS: 14,
   APPEND_ZONE_WIDTH: 2000,
-
-  // Min widths for short notes
-  MIN_WIDTH_FACTORS: {
-    sixtyfourth: 1.2,
-    thirtysecond: 1.5,
-    sixteenth: 1.8,
-    eighth: 2.2,
-  } as Record<string, number>,
 
   LOOKAHEAD_PADDING_FACTOR: 0.3,
 };

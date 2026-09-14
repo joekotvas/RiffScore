@@ -161,6 +161,25 @@ The `measure.ts` module calculates horizontal positioning:
 - Eighth note = 8 quants
 - Sixteenth = 4 quants
 
+### Horizontal Spacing
+
+`getNoteWidth` (positioning.ts) gives each note the distance it claims before the next one:
+
+```
+width = NOTE_SPACING.UNIT * sqrt(quants)      // 11 px per √quant at 100%
+width = max(width, NOTE_SPACING.MIN_WIDTH[duration])
+width += dot padding when dotted
+```
+
+Each halving of the value takes about 1/√2 of the space, the classic engraving progression:
+a whole ≈ 7.3 staff spaces, half ≈ 5.2, quarter ≈ 3.7, eighth ≈ 2.6, sixteenth ≈ 1.8, with
+pixel floors for 32nds and 64ths. Calibrated so a 4/4 bar at the 60% page-view default (a
+7.6 mm staff) matches engraved density: eight eighths ≈ 43 mm, four quarters ≈ 32 mm, sixteen
+sixteenths ≈ 60 mm. `CONFIG.measurePaddingLeft` (2 spaces) sits between the barline and the
+first note. Grand-staff synchronisation (`system.ts`) spaces each time segment by the same
+table, so both staves agree. Glyph paddings (accidentals, dots, lookahead) are separate and
+stay on `NOTE_SPACING_BASE_UNIT`. `noteSpacing.test.ts` pins these ranges.
+
 ### Hit Zones
 
 Each rhythmic position has an invisible "hit zone" for click detection:

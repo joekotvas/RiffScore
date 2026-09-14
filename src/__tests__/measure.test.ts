@@ -18,7 +18,7 @@ import { calculateSystemLayout } from '@/engines/layout/system';
 import { calculateChordLayout } from '@/engines/layout';
 import { Note, ScoreEvent } from '@/engines/layout/types';
 import { CONFIG } from '@/config';
-import { NOTE_SPACING_BASE_UNIT, WHOLE_REST_WIDTH } from '@/constants';
+import { NOTE_SPACING, WHOLE_REST_WIDTH } from '@/constants';
 
 // --- TEST HELPERS ---
 
@@ -250,7 +250,7 @@ describe('measure.ts', () => {
         const sixteenth = [createEvent('e1', 'sixteenth', [createNote('n1', 'C4')])];
         const layout = calculateMeasureLayout(sixteenth);
 
-        const minExpectedWidth = NOTE_SPACING_BASE_UNIT * 1.8;
+        const minExpectedWidth = NOTE_SPACING.MIN_WIDTH.sixteenth;
         expect(layout.totalWidth).toBeGreaterThanOrEqual(minExpectedWidth);
       });
 
@@ -258,7 +258,7 @@ describe('measure.ts', () => {
         const thirtysecond = [createEvent('e1', 'thirtysecond', [createNote('n1', 'C4')])];
         const layout = calculateMeasureLayout(thirtysecond);
 
-        const minExpectedWidth = NOTE_SPACING_BASE_UNIT * 1.5;
+        const minExpectedWidth = NOTE_SPACING.MIN_WIDTH.thirtysecond;
         expect(layout.totalWidth).toBeGreaterThanOrEqual(minExpectedWidth);
       });
     });
@@ -485,7 +485,7 @@ describe('measure.ts', () => {
 
       // Sixteenth = 4 quants
       const segmentWidth = quantToX[4] - quantToX[0];
-      const minExpected = NOTE_SPACING_BASE_UNIT * 1.8;
+      const minExpected = NOTE_SPACING.MIN_WIDTH.sixteenth;
 
       expect(segmentWidth).toBeGreaterThanOrEqual(minExpected);
     });
