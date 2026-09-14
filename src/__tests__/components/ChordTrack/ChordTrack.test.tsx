@@ -286,20 +286,65 @@ describe('ChordTrack', () => {
       expect(screen.getByTestId('chord-symbol-chord-3')).toHaveAttribute('data-x', '448');
     });
 
-    it('does not apply scroll-layout chord Y offsets in page view', () => {
-      const layoutWithHighNote = createMockLayout(new Map([[0, 20]]));
-
-      render(
-        <svg>
-          <ChordTrack {...defaultProps} layout={layoutWithHighNote} pageTrackY={500} />
-        </svg>
+    describe('per-chord collision offset', () => {
+      // getChordYOffset lifts a chord only when the note at its quant sits ABOVE the system-wide
+      // note extent the track baseline was computed from. createMockLayout derives that extent
+      // from the same map, so no map can trigger it; report the two directly instead: the note
+      // under chord-1 (quant 0) tops out at 20 while the system-wide extent tops out at 60.
+      const noteTop = 20;
+      const systemTop = 60;
+      const base = createMockLayout();
+      const layoutWithHighNote: ScoreLayout = {
+        ...base,
+        getY: {
+          ...base.getY,
+          notes: (quant?: number) =>
+            quant === 0 ? { top: noteTop, bottom: noteTop } : { top: systemTop, bottom: systemTop },
+        },
+      };
+      const { minDistanceFromStaff, paddingAboveNotes, minY } = CONFIG.chordTrack;
+      // Scroll view: baseline = max(minY, min(systemTop − padding, staffTop − minDistance)) = 40;
+      // chord-1's ideal Y (noteTop − padding = 0) is above it, so it is lifted to minY: −40.
+      const scrollTrackY = Math.max(
+        minY,
+        Math.min(systemTop - paddingAboveNotes, CONFIG.baseY - minDistanceFromStaff)
       );
+      const scrollOffset = Math.max(minY, noteTop - paddingAboveNotes) - scrollTrackY;
 
-      // eslint-disable-next-line testing-library/no-node-access
-      expect(screen.getByTestId('chord-symbol-chord-1').parentElement).toHaveAttribute(
-        'transform',
-        'translate(0, 0)'
-      );
+      it('lifts the chord in scroll view (the fixture is not vacuous)', () => {
+        expect(scrollOffset).toBeLessThan(0);
+
+        render(
+          <svg>
+            <ChordTrack {...defaultProps} layout={layoutWithHighNote} />
+          </svg>
+        );
+
+        expect(screen.getByTestId('chord-track')).toHaveAttribute(
+          'transform',
+          `translate(0, ${scrollTrackY})`
+        );
+        // eslint-disable-next-line testing-library/no-node-access
+        expect(screen.getByTestId('chord-symbol-chord-1').parentElement).toHaveAttribute(
+          'transform',
+          `translate(0, ${scrollOffset})`
+        );
+      });
+
+      it('does not apply scroll-layout chord Y offsets in page view', () => {
+        render(
+          <svg>
+            <ChordTrack {...defaultProps} layout={layoutWithHighNote} pageTrackY={500} />
+          </svg>
+        );
+
+        expect(screen.getByTestId('chord-track')).toHaveAttribute('transform', 'translate(0, 500)');
+        // eslint-disable-next-line testing-library/no-node-access
+        expect(screen.getByTestId('chord-symbol-chord-1').parentElement).toHaveAttribute(
+          'transform',
+          'translate(0, 0)'
+        );
+      });
     });
 
     it('marks selected chord correctly', () => {

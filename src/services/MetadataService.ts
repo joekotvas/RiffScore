@@ -8,7 +8,7 @@
  * All functions are pure and stateless.
  */
 
-import type { ScoreMetadata } from '@/types';
+import type { Score, ScoreMetadata } from '@/types';
 import { DEFAULT_SCORE_METADATA } from '@/config';
 
 // =============================================================================
@@ -218,6 +218,22 @@ export const createMetadata = (overrides: Partial<ScoreMetadata> = {}): ScoreMet
     ...overrides,
   });
 };
+
+/**
+ * Resolves the metadata a score displays and edits.
+ *
+ * A score without a `metadata` block (most host JSON) still has a top-level `title`; that is
+ * the title the scroll view prints, page view positions and the exporters write, so it is the
+ * fallback here too. Only an empty title falls back to the default "Untitled".
+ *
+ * @param score - Score (or just its title/metadata) to read
+ * @returns The score's metadata, or a default block titled from `score.title`
+ */
+export const resolveScoreMetadata = (score: Pick<Score, 'title' | 'metadata'>): ScoreMetadata =>
+  score.metadata ?? {
+    ...DEFAULT_SCORE_METADATA,
+    title: score.title || DEFAULT_SCORE_METADATA.title,
+  };
 
 /**
  * Checks if metadata has any content beyond the default title.

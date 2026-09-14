@@ -53,7 +53,8 @@ export const PAGE_DIMENSIONS = {
 } as const;
 
 /**
- * System spacing multipliers (relative to staff height).
+ * System spacing multipliers. Page view applies them to the minimum gap between system slots
+ * (see PageLayoutService.distributeSystemsToPages); the 'normal' preset is the unscaled gap.
  */
 export const SYSTEM_SPACING_MULTIPLIERS = {
   compact: 0.5,

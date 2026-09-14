@@ -37,6 +37,8 @@ export function parseTransform(transform: string): Affine {
   return m;
 }
 
+const DEFAULT_STOP = (a: Element): boolean => a.tagName.toLowerCase() === 'svg';
+
 /**
  * Every transform from `stopAt` (exclusive; the enclosing <svg> by default) down to the
  * element itself, composed into one matrix.
@@ -52,7 +54,21 @@ function composedMatrix(el: Element, stopAt: (ancestor: Element) => boolean): Af
   return m;
 }
 
-const isSvg = (a: Element): boolean => a.tagName.toLowerCase() === 'svg';
+/**
+ * Where a point expressed in `el`'s own coordinate system is drawn, after composing every
+ * ancestor transform from `stopAt` (exclusive; the enclosing <svg> by default) down to the
+ * element itself. Use this for coordinates that live inside an attribute such as a <path>'s
+ * `d`, which `composedPosition` (x/y attributes only) cannot see.
+ */
+export function composedPoint(
+  el: Element,
+  point: { x: number; y: number },
+  stopAt: (ancestor: Element) => boolean = DEFAULT_STOP
+): { x: number; y: number } {
+  const m = composedMatrix(el, stopAt);
+  const { x, y } = point;
+  return { x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] };
+}
 
 /**
  * Position of an element's own (x, y) attributes after composing every ancestor transform
@@ -60,12 +76,11 @@ const isSvg = (a: Element): boolean => a.tagName.toLowerCase() === 'svg';
  */
 export function composedPosition(
   el: Element,
-  stopAt: (ancestor: Element) => boolean = isSvg
+  stopAt: (ancestor: Element) => boolean = DEFAULT_STOP
 ): { x: number; y: number } {
-  const m = composedMatrix(el, stopAt);
   const x = Number(el.getAttribute('x') ?? 0);
   const y = Number(el.getAttribute('y') ?? 0);
-  return { x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] };
+  return composedPoint(el, { x, y }, stopAt);
 }
 
 /**
@@ -74,7 +89,7 @@ export function composedPosition(
  */
 export function composedRect(
   el: Element,
-  stopAt: (ancestor: Element) => boolean = isSvg
+  stopAt: (ancestor: Element) => boolean = DEFAULT_STOP
 ): { x: number; y: number; width: number; height: number } {
   const m = composedMatrix(el, stopAt);
   const { x, y } = composedPosition(el, stopAt);

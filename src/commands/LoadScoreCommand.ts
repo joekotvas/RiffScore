@@ -15,6 +15,12 @@ export class LoadScoreCommand implements Command {
 
   execute(score: Score): Score {
     this.previousScore = score;
+    // A score without `layout` (most host JSON) keeps the layout the editor is already in — view
+    // mode, page size, margins — instead of silently falling back to the scroll-view defaults.
+    // A score that carries its own `layout` replaces it.
+    if (this.newScore.layout === undefined && score.layout !== undefined) {
+      return { ...this.newScore, layout: score.layout };
+    }
     return this.newScore;
   }
 

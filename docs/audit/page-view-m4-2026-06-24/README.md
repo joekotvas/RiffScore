@@ -1,5 +1,7 @@
 # M4 Page View QA - 2026-06-24
 
+> Note (2026-09): these metrics predate the 2026-09 page-view fixes (PRs #298, #302, #303, #304).
+
 The flow under test is: demo editor loads -> switch to page view with a generated
 grand-staff score -> verify wrapped engraving, editing, lasso selection, playback cursor,
 and print media output.

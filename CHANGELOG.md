@@ -62,6 +62,12 @@ system reserves the vertical room its interactive and chord areas need.
 - **Pages print at their real size** — each page prints at the physical Letter/A4 size, one page
   per sheet (it used to print at 75%), and the notation is always black on white regardless of the
   editor theme. Selected notes, the hover ghost, the playback cursor and lasso never print.
+- **Loading a score keeps your view** — `loadScore()` with a score that has no layout keeps the
+  current view mode, page size and margins instead of dropping back to scroll view.
+- **Page view shows the score's title** — a score with a top-level title but no metadata block no
+  longer shows "Untitled" in page view or print (and `getTitle()` agrees with the scroll view).
+- **System spacing works** — the compact/normal/relaxed setting now changes the gap between
+  systems in page view.
 - **Clicks near chord symbols select the note** — the chord-symbol hit band now yields to any
   notehead it would otherwise cover (both views), and lasso selection in scroll view uses boxes
   centred on the noteheads, so a rectangle over the left half of a note selects it.
@@ -93,6 +99,10 @@ system reserves the vertical room its interactive and chord areas need.
   state with `flushSync`), so browser-menu printing behaves like the Print button. `print.css` no
   longer carries dead selectors; transient overlays have stable classes (`riff-GhostPreview`,
   `riff-PlaybackCursor`, `riff-LassoRect`).
+- `resolveScoreMetadata(score)` (MetadataService) is the single fallback for a score without a
+  metadata block, used by the metadata track, `getMetadata`/`getTitle`, `SetMetadataCommand` and
+  the Score Setup dialog. `TimelineService` no longer warns for rests on play.
+  `distributeSystemsToPages` takes a `spacingMultiplier` (from `SYSTEM_SPACING_MULTIPLIERS`).
 - `ChordTrack.clipHitBand` (with `CONFIG.chordTrack.noteHitGap`) clips the chord hit rect around
   intruding noteheads; page view passes each system's note Ys as `pageNoteYs`. `ScoreCanvas`
   lasso `notePositions` are top-left boxes in both views; the page-top chord inset constant is

@@ -17,11 +17,11 @@ jest.mock('@/engines/toneEngine', () => ({
 }));
 
 import { renderScore } from '../helpers/visual';
-import { composedPosition } from '../helpers/svgGeometry';
-import { createDefaultScore, Score, ScoreEvent } from '@/types';
+import { composedPoint, composedPosition } from '../helpers/svgGeometry';
+import { createDefaultScore, Measure, PageLayout, Score, ScoreEvent, SystemLayout } from '@/types';
 import { TIE } from '@/constants';
 import { calculateMeasureLayout } from '@/engines/layout';
-import { DEFAULT_LAYOUT_CONFIG } from '@/config';
+import { CONFIG, DEFAULT_LAYOUT_CONFIG } from '@/config';
 import { calculatePageLayout } from '@/services/PageLayoutService';
 
 const q = (id: string, pitch: string | null, tied = false): ScoreEvent =>
@@ -104,18 +104,39 @@ describe('tie rendering', () => {
       unmount();
     }
   });
+});
 
-  it('splits a resolvable tie across page-view system breaks', () => {
+/**
+ * Split ties in page view (Staff.tsx renderTies): a tie whose target sits on the next system is
+ * drawn as an out-arc that tapers to the source system's right edge (`systemEndX`) and an in-arc
+ * that enters from the target system's left edge (`systemStartX`), both in staff units inside the
+ * staff group's translate/scale. The facts below are read back in PAGE coordinates (the page
+ * <svg> is the frame `composedPoint` stops at) and compared with the layout service's
+ * `measurePositions`, so a drift between the renderer's system edges and the page layout fails
+ * here rather than as a tie hanging in the margin.
+ */
+describe('split ties in page view', () => {
+  type Pt = { x: number; y: number };
+
+  const chord = (id: string, pitches: string[], tied = false): ScoreEvent => ({
+    id,
+    duration: 'quarter',
+    dotted: false,
+    notes: pitches.map((pitch, i) => ({ id: `${id}n${i}`, pitch, tied })),
+  });
+
+  /** A single-staff page-view score of `measureCount` identical quarter-note bars (F4 C4 D4 F4). */
+  const pageViewScore = (measureCount: number, staffSize: number): Score => {
     const score = createDefaultScore();
     score.timeSignature = '4/4';
     score.keySignature = 'C';
-    score.layout = { ...DEFAULT_LAYOUT_CONFIG, viewMode: 'page' };
+    score.layout = { ...DEFAULT_LAYOUT_CONFIG, viewMode: 'page', staffSize };
     score.staves = [
       {
         id: 'staff-1',
         clef: 'treble',
         keySignature: 'C',
-        measures: Array.from({ length: 16 }, (_, measureIndex) => ({
+        measures: Array.from({ length: measureCount }, (_, measureIndex) => ({
           id: `m${measureIndex}`,
           events: [
             q(`m${measureIndex}-e0`, 'F4'),
@@ -126,23 +147,202 @@ describe('tie rendering', () => {
         })),
       },
     ];
+    return score;
+  };
+
+  /** Every coordinate pair in a Tie path's `d` (M/L/Q operands, control points included), in order. */
+  const tiePathPoints = (path: Element): Pt[] => {
+    const d = path.getAttribute('d') ?? '';
+    const nums = (d.match(/-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) ?? []).map(Number);
+    if (nums.length < 2 || nums.length % 2 !== 0) throw new Error(`Unable to parse tie path: ${d}`);
+    const points: Pt[] = [];
+    for (let i = 0; i < nums.length; i += 2) points.push({ x: nums[i], y: nums[i + 1] });
+    return points;
+  };
+
+  /** The point drawn furthest right: an out-arc's taper tip, or the note end of an in-arc. */
+  const rightmost = (points: Pt[]): Pt => points.reduce((a, b) => (b.x > a.x ? b : a));
+
+  /** 0-based index of the page (PageContainer wrapper) the element is drawn on. */
+  const pageIndexOf = (el: Element): number => {
+    const page = el.closest('[data-page-index]');
+    if (!page) throw new Error('element is not drawn inside a page-view page');
+    return Number(page.getAttribute('data-page-index'));
+  };
+
+  /** The system whose staff group draws the path: that group's origin sits baseY·staffScale above system.y. */
+  const systemOf = (path: Element, systems: SystemLayout[], staffScale: number): SystemLayout => {
+    const origin = composedPoint(path, { x: 0, y: 0 });
+    const system = systems.find((s) => Math.abs(s.y - CONFIG.baseY * staffScale - origin.y) < 0.01);
+    if (!system) throw new Error(`no candidate system owns the staff group at page y=${origin.y}`);
+    return system;
+  };
+
+  const firstSystemBreak = (pageLayout: PageLayout): [SystemLayout, SystemLayout] => {
+    const systems = pageLayout.pages.flatMap((page) => page.systems);
+    expect(systems.length).toBeGreaterThan(1);
+    return [systems[0], systems[1]];
+  };
+
+  const firstPageBreak = (pageLayout: PageLayout): [SystemLayout, SystemLayout] => {
+    expect(pageLayout.pageCount).toBeGreaterThan(1);
+    const [page0, page1] = pageLayout.pages;
+    return [page0.systems[page0.systems.length - 1], page1.systems[0]];
+  };
+
+  /**
+   * Edit the last bar before a break and the first bar after it, confirm the edit did not move
+   * the break, and render. Returns the break's systems from the layout of the edited score.
+   */
+  const renderTieAcrossBreak = (
+    score: Score,
+    pickBreak: (pageLayout: PageLayout) => [SystemLayout, SystemLayout],
+    edit: (sourceMeasure: Measure, targetMeasure: Measure) => void
+  ) => {
+    const measures = score.staves[0].measures;
+    const [initialSource, initialTarget] = pickBreak(calculatePageLayout(score, score.layout));
+    const sourceMeasureIndex = initialSource.measures[initialSource.measures.length - 1];
+    const targetMeasureIndex = initialTarget.measures[0];
+    expect(targetMeasureIndex).toBe(sourceMeasureIndex + 1);
+    edit(measures[sourceMeasureIndex], measures[targetMeasureIndex]);
 
     const pageLayout = calculatePageLayout(score, score.layout);
-    const firstSystem = pageLayout.pages
-      .flatMap((page) => page.systems)
-      .find((system) => {
-        const lastMeasure = system.measures[system.measures.length - 1];
-        return lastMeasure !== undefined && lastMeasure < score.staves[0].measures.length - 1;
-      });
+    const [source, target] = pickBreak(pageLayout);
+    expect(source.measures[source.measures.length - 1]).toBe(sourceMeasureIndex);
+    expect(target.measures[0]).toBe(targetMeasureIndex);
 
-    expect(firstSystem).toBeDefined();
-    const sourceMeasureIndex = firstSystem!.measures[firstSystem!.measures.length - 1];
-    const sourceEvent = score.staves[0].measures[sourceMeasureIndex].events[3];
-    sourceEvent.notes[0].tied = true;
+    return { ...renderScore(score), pageLayout, source, target };
+  };
 
-    const { canvas, unmount } = renderScore(score);
+  /** All tie paths, split into the source system's out-arcs and the target system's in-arcs (each top-down). */
+  const splitArcs = (
+    canvas: Element,
+    source: SystemLayout,
+    target: SystemLayout,
+    staffScale: number
+  ) => {
+    const arcs = Array.from(canvas.querySelectorAll('.riff-Tie'));
+    const topDown = (a: Element, b: Element) => tiePathPoints(a)[0].y - tiePathPoints(b)[0].y;
+    const owner = (arc: Element) => systemOf(arc, [source, target], staffScale);
+    return {
+      arcs,
+      outArcs: arcs.filter((arc) => owner(arc) === source).sort(topDown),
+      inArcs: arcs.filter((arc) => owner(arc) === target).sort(topDown),
+    };
+  };
+
+  /**
+   * One split tie: the out-arc leaves the tied note's bar and tapers to the source system's
+   * right edge; the in-arc enters from the target system's left edge and lands in the target
+   * note's bar. Edges are compared in page coordinates (±1px) with the layout's measure
+   * positions; both halves sit at the same staff-local height (same pitch).
+   */
+  const expectSplitTieGeometry = (
+    outArc: Element,
+    inArc: Element,
+    source: SystemLayout,
+    target: SystemLayout
+  ) => {
+    const sourceLast = source.measurePositions[source.measurePositions.length - 1];
+    const targetFirst = target.measurePositions[0];
+    const outPoints = tiePathPoints(outArc);
+    const inPoints = tiePathPoints(inArc);
+    const outTip = rightmost(outPoints);
+    const inStart = inPoints[0]; // `M sX sY`: the taper tip on the left edge
+
+    const outStartOnPage = composedPoint(outArc, outPoints[0]);
+    const outTipOnPage = composedPoint(outArc, outTip);
+    const inStartOnPage = composedPoint(inArc, inStart);
+    const inEndOnPage = composedPoint(inArc, rightmost(inPoints));
+
+    expect(Math.abs(outTipOnPage.x - (sourceLast.x + sourceLast.width))).toBeLessThanOrEqual(1);
+    expect(Math.abs(inStartOnPage.x - targetFirst.x)).toBeLessThanOrEqual(1);
+
+    expect(outStartOnPage.x).toBeGreaterThan(sourceLast.x);
+    expect(outStartOnPage.x).toBeLessThan(sourceLast.x + sourceLast.width);
+    expect(inEndOnPage.x).toBeGreaterThan(targetFirst.x);
+    expect(inEndOnPage.x).toBeLessThan(targetFirst.x + targetFirst.width);
+
+    expect(inStart.y).toBeCloseTo(outTip.y, 6);
+  };
+
+  const tieLastNote = (sourceMeasure: Measure) => {
+    sourceMeasure.events[3].notes[0].tied = true; // F4 → the next bar's opening F4
+  };
+
+  it('splits a resolvable tie across page-view system breaks', () => {
+    const { canvas, unmount, pageLayout, source, target } = renderTieAcrossBreak(
+      pageViewScore(16, DEFAULT_LAYOUT_CONFIG.staffSize),
+      firstSystemBreak,
+      tieLastNote
+    );
     try {
-      expect(canvas.querySelectorAll('.riff-Tie')).toHaveLength(2);
+      const { arcs, outArcs, inArcs } = splitArcs(canvas, source, target, pageLayout.staffScale);
+      expect(arcs).toHaveLength(2);
+      expect(outArcs).toHaveLength(1);
+      expect(inArcs).toHaveLength(1);
+      expect(pageIndexOf(outArcs[0])).toBe(0);
+      expect(pageIndexOf(inArcs[0])).toBe(0);
+      expectSplitTieGeometry(outArcs[0], inArcs[0], source, target);
+    } finally {
+      unmount();
+    }
+  });
+
+  it('splits every note of a tied chord: one out-arc and one in-arc per note', () => {
+    const { canvas, unmount, pageLayout, source, target } = renderTieAcrossBreak(
+      pageViewScore(16, DEFAULT_LAYOUT_CONFIG.staffSize),
+      firstSystemBreak,
+      (sourceMeasure, targetMeasure) => {
+        sourceMeasure.events[3] = chord('src-chord', ['C4', 'E4'], true);
+        targetMeasure.events[0] = chord('tgt-chord', ['C4', 'E4']);
+      }
+    );
+    try {
+      const { arcs, outArcs, inArcs } = splitArcs(canvas, source, target, pageLayout.staffScale);
+      expect(arcs).toHaveLength(4);
+      expect(outArcs).toHaveLength(2);
+      expect(inArcs).toHaveLength(2);
+      expectSplitTieGeometry(outArcs[0], inArcs[0], source, target);
+      expectSplitTieGeometry(outArcs[1], inArcs[1], source, target);
+      // One pair per chord note, at distinct heights.
+      expect(tiePathPoints(outArcs[0])[0].y).not.toBeCloseTo(tiePathPoints(outArcs[1])[0].y, 6);
+    } finally {
+      unmount();
+    }
+  });
+
+  it('draws no arc when the tie target across the break is a rest', () => {
+    const { canvas, unmount } = renderTieAcrossBreak(
+      pageViewScore(16, DEFAULT_LAYOUT_CONFIG.staffSize),
+      firstSystemBreak,
+      (sourceMeasure, targetMeasure) => {
+        tieLastNote(sourceMeasure);
+        targetMeasure.events[0] = q('tgt-rest', null);
+      }
+    );
+    try {
+      expect(canvas.querySelectorAll('.riff-Tie')).toHaveLength(0);
+    } finally {
+      unmount();
+    }
+  });
+
+  it('splits a tie across a page break: one arc on each page', () => {
+    // staffSize 100 keeps the old density: 16 bars overflow one Letter page.
+    const { canvas, unmount, pageLayout, source, target } = renderTieAcrossBreak(
+      pageViewScore(16, 100),
+      firstPageBreak,
+      tieLastNote
+    );
+    try {
+      const { arcs, outArcs, inArcs } = splitArcs(canvas, source, target, pageLayout.staffScale);
+      expect(arcs).toHaveLength(2);
+      expect(outArcs).toHaveLength(1);
+      expect(inArcs).toHaveLength(1);
+      expect(pageIndexOf(outArcs[0])).toBe(0);
+      expect(pageIndexOf(inArcs[0])).toBe(1);
+      expectSplitTieGeometry(outArcs[0], inArcs[0], source, target);
     } finally {
       unmount();
     }
