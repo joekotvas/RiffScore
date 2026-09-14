@@ -266,7 +266,7 @@ Available notations: `'letter'` (default), `'roman'`, `'nashville'`, `'fixedDo'`
 
 ## Layout Configuration
 
-Page view and print read `score.layout` (a `LayoutConfig` stored with the score). It is not part of `RiffScoreConfig`: set it through the API (`setViewMode`, `setLayoutConfig`, `resetLayoutConfig` — see [API.md](API.md) §12; a score passed to `loadScore` keeps its own `layout`) or in the Score Setup dialog (`Cmd+,`).
+Page view and print read `score.layout` (a `LayoutConfig` stored with the score). It is not part of `RiffScoreConfig`: set it through the API (`setViewMode`, `setLayoutConfig`, `resetLayoutConfig` — see [API.md](API.md) §12; a score passed to `loadScore` uses its own `layout` when it has one, otherwise the editor's current layout) or in the Score Setup dialog (`Cmd+,`).
 
 ```typescript
 interface LayoutConfig {
@@ -283,7 +283,7 @@ interface LayoutConfig {
 | `pageSize` | `'letter'` | |
 | `margins` | `'normal'` | 19mm on all sides (`narrow` 12.7mm, `wide` 25.4mm) |
 | `staffSize` | `60` | Percent of the canvas staff. 60 is a 7.6mm staff — the standard for lead sheets, vocal and piano music. Range 50-150 in steps of 10. |
-| `systemSpacing` | `'normal'` | Stored and validated; not applied by the current renderer (page view justifies systems vertically instead). |
+| `systemSpacing` | `'normal'` | Scales the minimum gap between systems in page view (`compact` ×0.5, `relaxed` ×1.5). Full pages before the last are still vertically justified. |
 | `viewMode` | `'scroll'` | |
 
 ---
