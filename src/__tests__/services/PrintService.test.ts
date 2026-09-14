@@ -303,3 +303,38 @@ describe('openPrintDialog', () => {
     expect(mockEditor.hasAttribute('data-print-mode')).toBe(false);
   });
 });
+
+// ============================================================================
+// @page size injection
+// ============================================================================
+
+describe('page size rule', () => {
+  afterEach(() => {
+    document.querySelectorAll('[data-page-size]').forEach((el) => el.remove());
+    document.getElementById('riff-print-page-size')?.remove();
+    document.body.className = '';
+  });
+
+  it.each([
+    ['letter', 'size: letter'],
+    ['a4', 'size: A4'],
+  ])('injects @page { %s } while printing and removes it afterwards', (pageSize, expected) => {
+    const pages = document.createElement('div');
+    pages.setAttribute('data-page-size', pageSize);
+    document.body.appendChild(pages);
+
+    preparePrint();
+    const style = document.getElementById('riff-print-page-size');
+    expect(style?.textContent).toContain(expected);
+    expect(style?.textContent).toContain('margin: 0');
+
+    restoreFromPrint();
+    expect(document.getElementById('riff-print-page-size')).toBeNull();
+  });
+
+  it('injects nothing when no page view is mounted (scroll view)', () => {
+    preparePrint();
+    expect(document.getElementById('riff-print-page-size')).toBeNull();
+    restoreFromPrint();
+  });
+});

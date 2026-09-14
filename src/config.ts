@@ -28,7 +28,9 @@ export const DEFAULT_SCORE_METADATA: ScoreMetadata = {
 export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
   pageSize: 'letter',
   margins: 'normal',
-  staffSize: 100,
+  // 60% of the 48px canvas staff = 28.8px = 7.6mm at 96dpi: rastral size 3, the standard
+  // staff height for lead sheets, vocal lines and piano music on Letter/A4.
+  staffSize: 60,
   systemSpacing: 'normal',
   viewMode: 'scroll',
 };

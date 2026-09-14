@@ -70,6 +70,13 @@ export const PageContainer = forwardRef<SVGSVGElement, PageContainerProps>(funct
       className="riff-page-wrapper"
       data-page-index={page.index}
       data-testid={`page-${page.index}`}
+      style={
+        {
+          // print.css sizes the page svg to the physical sheet from these (screen uses `scale`)
+          '--riff-page-width': `${width}px`,
+          '--riff-page-height': `${height}px`,
+        } as React.CSSProperties
+      }
     >
       <svg
         ref={ref}

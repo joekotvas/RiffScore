@@ -139,3 +139,23 @@ body {
 .demo-footer a:hover {
   opacity: 0.8;
 }
+
+/* Printing: the demo's own chrome must not share the sheet with the score pages. */
+@media print {
+  body,
+  main,
+  [style*='padding'] {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  h1,
+  h2,
+  p,
+  .demo-header,
+  .demo-footer,
+  .demo-json,
+  .demo-copy-btn,
+  .demo-section-header {
+    display: none !important;
+  }
+}

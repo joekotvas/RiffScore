@@ -16,6 +16,7 @@
 
 import { fireEvent } from '@testing-library/react';
 import { renderScore } from '../helpers/visual';
+import { composedPosition } from '../helpers/svgGeometry';
 import { createDefaultScore, Score, ScoreEvent } from '@/types';
 import { CONFIG, DEFAULT_LAYOUT_CONFIG } from '@/config';
 import { calculatePageLayout } from '@/services/PageLayoutService';
@@ -30,12 +31,13 @@ const q = (id: string, pitch: string): ScoreEvent => ({
 const buildScore = (
   measureCount: number,
   viewMode: 'page' | 'scroll',
-  withChords = false
+  withChords = false,
+  staffSize = DEFAULT_LAYOUT_CONFIG.staffSize
 ): Score => {
   const score = createDefaultScore();
   score.timeSignature = '4/4';
   score.keySignature = 'C';
-  score.layout = { ...DEFAULT_LAYOUT_CONFIG, viewMode };
+  score.layout = { ...DEFAULT_LAYOUT_CONFIG, viewMode, staffSize };
   score.staves = [
     {
       id: 'staff-1',
@@ -56,13 +58,6 @@ const buildScore = (
     }));
   }
   return score;
-};
-
-const translateY = (el: Element): number => {
-  const transform = el.getAttribute('transform') ?? '';
-  const match = transform.match(/translate\(\s*-?[\d.]+,\s*(-?[\d.]+)/);
-  if (!match) throw new Error(`Unable to parse transform: ${transform}`);
-  return Number(match[1]);
 };
 
 describe('page view interaction', () => {
@@ -94,7 +89,7 @@ describe('page view interaction', () => {
   );
 
   it('lasso started inside a measure hit area draws its rectangle inside that page only', () => {
-    const { canvas, unmount } = renderScore(buildScore(48, 'page'));
+    const { canvas, unmount } = renderScore(buildScore(48, 'page', false, 100));
     try {
       const pages = canvas.querySelectorAll('.riff-page-wrapper');
       expect(pages.length).toBeGreaterThanOrEqual(2);
@@ -128,11 +123,12 @@ describe('page view interaction', () => {
   });
 
   it("keeps every wrapped system's chord track clear of the previous system's staff", () => {
-    const score = buildScore(16, 'page', true);
+    const score = buildScore(16, 'page', true, 100);
     const pageLayout = calculatePageLayout(score, score.layout);
     const { canvas, unmount } = renderScore(score);
     try {
-      const { hitBandHalfHeight } = CONFIG.chordTrack;
+      // The chord track is drawn in staff units inside a scale(staffScale) group
+      const hitBandHalfHeight = CONFIG.chordTrack.hitBandHalfHeight * pageLayout.staffScale;
       expect(pageLayout.pages.flatMap((page) => page.systems).length).toBeGreaterThan(2);
 
       pageLayout.pages.forEach((page) => {
@@ -141,7 +137,7 @@ describe('page view interaction', () => {
         expect(tracks).toHaveLength(page.systems.length);
 
         page.systems.forEach((system, i) => {
-          const trackY = translateY(tracks[i]);
+          const trackY = composedPosition(tracks[i]).y;
           // Band bottom stays above this system's staff...
           expect(trackY + hitBandHalfHeight).toBeLessThanOrEqual(system.y + 1e-6);
           // ...and band top stays below whatever sits above: the previous staff block, or the
@@ -170,7 +166,6 @@ import { CONFIG as EDITOR_CONFIG } from '@/config';
 import { MEASURE_HIT_AREA_TOP_OFFSET } from '@/constants';
 import { calculateMeasureLayout } from '@/engines/layout';
 import { getOffsetForPitch } from '@/engines/layout/positioning';
-import { composedPosition } from '../helpers/svgGeometry';
 
 describe('pointer mapping', () => {
   const EVENTS = ['C4', 'D4'].map((pitch, e) => q(`m0-e${e}`, pitch));

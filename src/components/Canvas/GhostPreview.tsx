@@ -87,7 +87,13 @@ const GhostPreview: React.FC<GhostPreviewProps> = ({
     );
   }
 
-  if (!blocked) return <g data-testid="ghost-preview">{content}</g>;
+  if (!blocked) {
+    return (
+      <g className="riff-GhostPreview" data-testid="ghost-preview">
+        {content}
+      </g>
+    );
+  }
 
   // Blocked: grey the whole ghost (desaturate the teal accent) and stamp an X over the notehead.
   // The X is drawn in the accent colour INSIDE the grayscale group, so it desaturates to the exact
@@ -97,7 +103,11 @@ const GhostPreview: React.FC<GhostPreviewProps> = ({
     : baseY + getOffsetForPitch(previewNote.pitch ?? 'B4', layout.clef);
 
   return (
-    <g data-testid="ghost-blocked" style={{ filter: 'grayscale(100%)' }}>
+    <g
+      className="riff-GhostPreview riff-GhostPreview--blocked"
+      data-testid="ghost-blocked"
+      style={{ filter: 'grayscale(100%)' }}
+    >
       {content}
       <g
         stroke={theme.accent}
