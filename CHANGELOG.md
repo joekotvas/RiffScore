@@ -98,6 +98,10 @@ system reserves the vertical room its interactive and chord areas need.
   blurs an open inline editor before `preventDefault()`; the measure hit area no longer stops
   `mousedown` propagation, so host click-outside handlers fire again. Page background clicks clear
   the selection and focus the editor like the scroll view.
+- Lasso note boxes are ±10 px (under a staff space) around the notehead in both views; a
+  regression test pins that a rectangle from a beamed bass group's beam to its lowest notehead
+  selects only that staff. Browser-side checks must measure noteheads from the note hit-area rect
+  or stems, not a `<text>` `boundingBox()`, which is Bravura's 4 em line box (~16 staff spaces).
 - `openPrintDialog` registers `afterprint` before calling `window.print()`.
 - `calculateAllMeasureWidths` / `calculateSingleMeasureWidth` derive from
   `calculateSynchronizedMeasureWidths` (exported from `scoreLayout.ts`), the same widths

@@ -12,6 +12,8 @@
  * - Page top: the first system on a later page starts at the content-area top plus its
  *   reserved headroom, which already keeps the chord band (and so the chord glyphs) inside the
  *   page; no separate page-top inset is needed.
+ * - Lasso across staves: a rectangle around a beamed bass group (beam to lowest notehead) must
+ *   select only that staff; the note boxes reach less than a staff space from the notehead.
  */
 
 /* eslint-disable testing-library/no-node-access --
@@ -28,7 +30,7 @@ jest.mock('@/engines/toneEngine', () => ({
 
 import { fireEvent } from '@testing-library/react';
 import { renderScore } from '../helpers/visual';
-import { composedPosition, composedRect } from '../helpers/svgGeometry';
+import { composedPoint, composedPosition, composedRect } from '../helpers/svgGeometry';
 import { createDefaultScore, Score, ScoreEvent } from '@/types';
 import { DEFAULT_LAYOUT_CONFIG, THEMES } from '@/config';
 import { LAYOUT } from '@/constants';
@@ -97,12 +99,12 @@ const selectedNoteIds = (canvas: Element): string[] =>
 const chordInput = (container: HTMLElement): Element | null =>
   container.querySelector('input.riff-ChordInput, input[aria-label*="chord" i]');
 
-/** Notehead centre in svg coordinates, from the note's hit-area rect (offset from the centre). */
+/** Notehead centre in svg coordinates: the note's hit-area rect is centred on the glyph. */
 const noteCentre = (canvas: Element, noteId: string): { x: number; y: number } => {
   const hit = canvas.querySelector(`[data-testid="note-${noteId}"]`);
   expect(hit).not.toBeNull();
-  const { x, y } = composedPosition(hit!);
-  return { x: x - LAYOUT.HIT_AREA.OFFSET_X, y: y - LAYOUT.HIT_AREA.OFFSET_Y };
+  const { x, y, width, height } = composedRect(hit!);
+  return { x: x + width / 2, y: y + height / 2 };
 };
 
 // jsdom reports zero bounding rects, so at scale 1 client coordinates are svg coordinates.
@@ -245,4 +247,166 @@ describe('page-top chord track', () => {
       unmount();
     }
   });
+});
+
+// ============================================================================
+// LASSO ACROSS STAVES — a rectangle drawn around a beamed group on one staff must not select
+// the other staff. Each note box is LASSO_NOTE_HIT_HEIGHT (20 px, under one staff space) tall
+// around the notehead centre, so a rectangle whose top is at the bass beam, several spaces below
+// the treble noteheads, cannot reach them.
+//
+// Measure the group from what is DRAWN: hit-area rects (centred on the glyph), stems and beam.
+// In a real browser, boundingBox() of a chord group or of a `.NoteHead` <text> is the font's
+// line box, not the ink: Bravura at 4 × staff space has a 4 em line box, so every notehead "box"
+// spans ~16 staff spaces and the union of a bass group reaches up into the treble staff.
+// ============================================================================
+
+describe('lasso around a beamed bass group (grand staff)', () => {
+  const event = (id: string, duration: string, pitch: string): ScoreEvent => ({
+    id,
+    duration,
+    dotted: false,
+    notes: [{ id: `${id}n`, pitch }],
+  });
+
+  /** Treble G4 q, B4 q, D5 h over eight bass eighths (two beamed groups), in G. */
+  const grandStaffScore = (viewMode: 'page' | 'scroll'): Score => {
+    const score = createDefaultScore();
+    score.timeSignature = '4/4';
+    score.keySignature = 'G';
+    score.layout = { ...DEFAULT_LAYOUT_CONFIG, viewMode };
+    score.staves = [
+      {
+        id: 'staff-1',
+        clef: 'treble',
+        keySignature: 'G',
+        measures: [
+          {
+            id: 'm0',
+            events: [
+              event('s0-m0-e0', 'quarter', 'G4'),
+              event('s0-m0-e1', 'quarter', 'B4'),
+              event('s0-m0-e2', 'half', 'D5'),
+            ],
+          },
+        ],
+      },
+      {
+        id: 'staff-2',
+        clef: 'bass',
+        keySignature: 'G',
+        measures: [
+          {
+            id: 'm0-bass',
+            events: ['G2', 'D3', 'G3', 'D3', 'G2', 'D3', 'G3', 'D3'].map((pitch, e) =>
+              event(`s1-m0-e${e}`, 'eighth', pitch)
+            ),
+          },
+        ],
+      },
+    ];
+    return score;
+  };
+
+  interface Box {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  }
+  const union = (boxes: Box[]): Box => ({
+    left: Math.min(...boxes.map((b) => b.left)),
+    top: Math.min(...boxes.map((b) => b.top)),
+    right: Math.max(...boxes.map((b) => b.right)),
+    bottom: Math.max(...boxes.map((b) => b.bottom)),
+  });
+  const pointBox = (p: { x: number; y: number }): Box => ({
+    left: p.x,
+    top: p.y,
+    right: p.x,
+    bottom: p.y,
+  });
+
+  /** Drawn extent of the first bass beam group: notehead hit areas, stems and beam. */
+  const drawnBeamGroup = (canvas: Element): Box => {
+    const boxes: Box[] = [];
+    for (let e = 0; e < 4; e++) {
+      const group = canvas.querySelector(`[data-testid="chord-s1-m0-e${e}"]`);
+      expect(group).not.toBeNull();
+      const hit = composedRect(group!.querySelector('[data-note-hit-area]')!);
+      boxes.push({ left: hit.x, top: hit.y, right: hit.x + hit.width, bottom: hit.y + hit.height });
+      for (const line of Array.from(group!.querySelectorAll('line'))) {
+        const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((a) => Number(line.getAttribute(a)));
+        if (x1 !== x2) continue; // ledger lines are horizontal; stems are vertical
+        boxes.push(
+          union([
+            pointBox(composedPoint(line, { x: x1, y: y1 })),
+            pointBox(composedPoint(line, { x: x2, y: y2 })),
+          ])
+        );
+      }
+    }
+    const stemsAndHeads = union(boxes);
+    // The beam is drawn by the measure, not the chord group: the polygon spanning these stems.
+    const beams = Array.from(canvas.querySelectorAll('polygon'))
+      .map((polygon) =>
+        union(
+          (polygon.getAttribute('points') ?? '')
+            .trim()
+            .split(/\s+/)
+            .map((pair) => {
+              const [x, y] = pair.split(',').map(Number);
+              return pointBox(composedPoint(polygon, { x, y }));
+            })
+        )
+      )
+      .filter((b) => b.left >= stemsAndHeads.left - 2 && b.right <= stemsAndHeads.right + 2);
+    expect(beams).toHaveLength(1);
+    return union([stemsAndHeads, ...beams]);
+  };
+
+  const BASS_GROUP = ['note-s1-m0-e0n', 'note-s1-m0-e1n', 'note-s1-m0-e2n', 'note-s1-m0-e3n'];
+
+  it.each([['scroll'], ['page']] as const)(
+    'a rectangle from the beam to the lowest notehead selects only the bass notes (%s view)',
+    (viewMode) => {
+      const { canvas, unmount } = renderScore(grandStaffScore(viewMode));
+      try {
+        const box = drawnBeamGroup(canvas);
+        const g4 = noteCentre(canvas, 's0-m0-e0n');
+        const b4 = noteCentre(canvas, 's0-m0-e1n');
+        // Fixture sanity: the treble G4 and B4 sit more than a staff space above the rectangle
+        // and inside its x-range, so only the boxes' vertical reach decides their fate.
+        expect(box.top - g4.y).toBeGreaterThan(g4.y - b4.y);
+        expect(g4.x).toBeGreaterThan(box.left);
+        expect(b4.x).toBeLessThan(box.right);
+
+        const background = canvas.querySelector('[data-testid="measure-hit-area-1-0"]')!;
+        lasso(background, [box.left, box.top], [box.right, box.bottom]);
+
+        expect(selectedNoteIds(canvas)).toEqual(BASS_GROUP);
+      } finally {
+        unmount();
+      }
+    }
+  );
+
+  it.each([['scroll'], ['page']] as const)(
+    'a note box reaches no further than one staff space below its notehead (%s view)',
+    (viewMode) => {
+      const { canvas, unmount } = renderScore(grandStaffScore(viewMode));
+      try {
+        const box = drawnBeamGroup(canvas);
+        const g4 = noteCentre(canvas, 's0-m0-e0n');
+        const staffSpace = g4.y - noteCentre(canvas, 's0-m0-e1n').y;
+        const background = canvas.querySelector('[data-testid="measure-hit-area-1-0"]')!;
+        // Top edge one staff space (plus a hair) below the lowest treble notehead in range.
+        lasso(background, [box.left, g4.y + staffSpace + 1], [box.right, box.bottom]);
+
+        expect(selectedNoteIds(canvas)).toEqual(BASS_GROUP);
+      } finally {
+        unmount();
+      }
+    }
+  );
 });
