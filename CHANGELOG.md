@@ -55,6 +55,13 @@ system reserves the vertical room its interactive and chord areas need.
 - **Measures line up with the page** — page layout now sizes bars exactly as they are drawn (same
   key-aware, cross-staff spacing), so justified systems end at the right margin and clicks, the
   playback cursor and chord symbols land where the notes are, in every key.
+- **A standard page size by default** — the default staff size in page view is now 60% (a 7.6 mm
+  staff, the standard for lead sheets, vocal lines and piano music), and chord symbols scale with
+  the staff. A 32-bar lead sheet fits on one page plus a few bars instead of four; a 24-bar piano
+  piece takes three pages instead of nine. Existing scores keep whatever staff size they saved.
+- **Pages print at their real size** — each page prints at the physical Letter/A4 size, one page
+  per sheet (it used to print at 75%), and the notation is always black on white regardless of the
+  editor theme. Selected notes, the hover ghost, the playback cursor and lasso never print.
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -73,6 +80,16 @@ system reserves the vertical room its interactive and chord areas need.
 - `calculateAllMeasureWidths` / `calculateSingleMeasureWidth` derive from
   `calculateSynchronizedMeasureWidths` (exported from `scoreLayout.ts`), the same widths
   `Staff` renders with; `distributeSystemsToPages` never vertically justifies the last page.
+- `DEFAULT_LAYOUT_CONFIG.staffSize` is 60. In page view the per-system chord track renders inside
+  a `scale(staffScale)` group (positions in staff units), and `PageLayoutService` reserves the
+  chord band scaled likewise.
+- Page view renders inside a `ThemeOverride` with the light palette (`themeCSSVariables` and
+  `ThemeOverride` are exported from `ThemeContext`). `PageContainer` sets `--riff-page-width/height`
+  and `ScoreCanvas` sets `data-page-size`; `PrintService.preparePrint` injects the matching
+  `@page { size }` rule and `ScoreEditor` calls it from `beforeprint` (flushing selection/hover
+  state with `flushSync`), so browser-menu printing behaves like the Print button. `print.css` no
+  longer carries dead selectors; transient overlays have stable classes (`riff-GhostPreview`,
+  `riff-PlaybackCursor`, `riff-LassoRect`).
 - New tests: `useDragToSelect` hook contract, page-view interaction (propagation, lasso page
   placement, chord-track clearance), system headroom and pagination bounds, print restore in both
   event orderings.

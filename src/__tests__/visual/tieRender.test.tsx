@@ -17,6 +17,7 @@ jest.mock('@/engines/toneEngine', () => ({
 }));
 
 import { renderScore } from '../helpers/visual';
+import { composedPosition } from '../helpers/svgGeometry';
 import { createDefaultScore, Score, ScoreEvent } from '@/types';
 import { TIE } from '@/constants';
 import { calculateMeasureLayout } from '@/engines/layout';
@@ -59,13 +60,6 @@ const firstMoveX = (path: Element): number => {
 const translateX = (group: Element): number => {
   const transform = group.getAttribute('transform') ?? '';
   const match = transform.match(/translate\(\s*(-?\d+(?:\.\d+)?)/);
-  if (!match) throw new Error(`Unable to parse transform: ${transform}`);
-  return Number(match[1]);
-};
-
-const translateY = (group: Element): number => {
-  const transform = group.getAttribute('transform') ?? '';
-  const match = transform.match(/translate\(\s*-?\d+(?:\.\d+)?,\s*(-?\d+(?:\.\d+)?)/);
   if (!match) throw new Error(`Unable to parse transform: ${transform}`);
   return Number(match[1]);
 };
@@ -185,7 +179,7 @@ describe('page-view chord track rendering', () => {
       const chordSymbols = Array.from(canvas.querySelectorAll('.riff-ChordSymbol'));
 
       expect(chordSymbols.some((symbol) => symbol.textContent === 'Fm9')).toBe(true);
-      expect(Math.min(...chordTracks.map(translateY))).toBeGreaterThanOrEqual(12);
+      expect(Math.min(...chordTracks.map((t) => composedPosition(t).y))).toBeGreaterThanOrEqual(12);
     } finally {
       unmount();
     }

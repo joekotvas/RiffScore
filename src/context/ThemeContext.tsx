@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useLayoutEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useEffect,
+  useLayoutEffect,
+} from 'react';
 import { THEMES, Theme, ThemeName, DEFAULT_THEME } from '@/config';
 import { DEFAULT_SCALE } from '@/constants';
 
@@ -21,23 +28,44 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
  */
 function injectThemeCSSVariables(theme: Theme, container?: HTMLElement | null) {
   const target = container || document.documentElement;
-
-  // Map theme properties to CSS custom properties
-  target.style.setProperty('--riff-color-bg', theme.background);
-  target.style.setProperty('--riff-color-bg-panel', theme.panelBackground);
-  target.style.setProperty('--riff-color-text', theme.text);
-  target.style.setProperty('--riff-color-text-secondary', theme.secondaryText);
-  target.style.setProperty('--riff-color-border', theme.border);
-  target.style.setProperty('--riff-color-primary', theme.accent);
-  target.style.setProperty('--riff-color-active-bg', theme.accent);
-  target.style.setProperty('--riff-color-button-bg', theme.buttonBackground);
-  target.style.setProperty('--riff-color-hover-bg', theme.buttonHoverBackground);
-
-  // Score-specific colors
-  target.style.setProperty('--riff-color-score-line', theme.score.line);
-  target.style.setProperty('--riff-color-score-note', theme.score.note);
-  target.style.setProperty('--riff-color-score-fill', theme.score.fill);
+  for (const [name, value] of Object.entries(themeCSSVariables(theme))) {
+    target.style.setProperty(name, value);
+  }
 }
+
+/** The CSS custom properties a theme maps to (usable as an inline `style` for a subtree). */
+export function themeCSSVariables(theme: Theme): Record<string, string> {
+  return {
+    '--riff-color-bg': theme.background,
+    '--riff-color-bg-panel': theme.panelBackground,
+    '--riff-color-text': theme.text,
+    '--riff-color-text-secondary': theme.secondaryText,
+    '--riff-color-border': theme.border,
+    '--riff-color-primary': theme.accent,
+    '--riff-color-active-bg': theme.accent,
+    '--riff-color-button-bg': theme.buttonBackground,
+    '--riff-color-hover-bg': theme.buttonHoverBackground,
+    // Score-specific colors
+    '--riff-color-score-line': theme.score.line,
+    '--riff-color-score-note': theme.score.note,
+    '--riff-color-score-fill': theme.score.fill,
+  };
+}
+
+/**
+ * Renders `children` with a different theme object than the surrounding provider, keeping the
+ * provider's setters. Used by the page view, which draws on white paper regardless of the UI
+ * theme. CSS-variable consumers in the subtree still need `themeCSSVariables(theme)` applied
+ * as an inline style on an ancestor element.
+ */
+export const ThemeOverride: React.FC<{ theme: Theme; children: React.ReactNode }> = ({
+  theme,
+  children,
+}) => {
+  const context = useTheme();
+  const value = useMemo(() => ({ ...context, theme }), [context, theme]);
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+};
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode; initialTheme?: ThemeName }> = ({
   children,

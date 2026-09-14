@@ -1284,7 +1284,9 @@ describe('PageLayoutService - System headroom', () => {
     const layout = calculatePageLayout(createQuarterNoteScore(24, true));
     const { minDistanceFromStaff, hitBandHalfHeight } = CONFIG.chordTrack;
     for (const system of layout.pages.flatMap((page) => page.systems)) {
-      expect(system.paddingTop).toBeGreaterThanOrEqual(minDistanceFromStaff + hitBandHalfHeight);
+      expect(system.paddingTop).toBeGreaterThanOrEqual(
+        (minDistanceFromStaff + hitBandHalfHeight) * staffScale
+      );
     }
   });
 
@@ -1302,7 +1304,7 @@ describe('PageLayoutService - System headroom', () => {
             const nextSlotTop = next.y - next.paddingTop;
             expect(nextSlotTop).toBeGreaterThanOrEqual(prevSlotBottom - 1e-6);
             // The chord band at its default position clears the previous staff block
-            const chordBandTop = next.y - minDistanceFromStaff - hitBandHalfHeight;
+            const chordBandTop = next.y - (minDistanceFromStaff + hitBandHalfHeight) * staffScale;
             expect(chordBandTop).toBeGreaterThanOrEqual(prev.y + prev.height - 1e-6);
           }
         }

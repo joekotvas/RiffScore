@@ -477,7 +477,7 @@ describe('Layout Commands - Integration', () => {
     expect(score.metadata?.title).toBe('Untitled');
 
     score = layoutCmd.undo(score);
-    expect(score.layout?.staffSize).toBe(100);
+    expect(score.layout?.staffSize).toBe(DEFAULT_LAYOUT_CONFIG.staffSize);
 
     score = viewModeCmd.undo(score);
     expect(score.layout?.viewMode).toBe('scroll');

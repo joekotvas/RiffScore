@@ -640,14 +640,15 @@ export const calculatePageLayout = (
   // Headroom reserved above and below the staff block. The measure hit area extends
   // MEASURE_HIT_AREA_TOP_OFFSET above the top line and the rest of MEASURE_HIT_AREA_HEIGHT below
   // the bottom line (ledger notes, clef overhang, stems); reserving both keeps adjacent systems'
-  // hit areas from overlapping. Chord symbols sit minDistanceFromStaff above the staff (unscaled
-  // page px) with a ±hitBandHalfHeight hit band, so scores with chords need at least that on top.
+  // hit areas from overlapping. Chord symbols sit minDistanceFromStaff above the staff with a
+  // ±hitBandHalfHeight hit band, all in staff units scaled like the staff, so scores with chords
+  // need at least that on top.
   const ledgerZoneAbove = MEASURE_HIT_AREA_TOP_OFFSET * staffScale;
   const ledgerZoneBelow =
     (MEASURE_HIT_AREA_HEIGHT - MEASURE_HIT_AREA_TOP_OFFSET - STAFF_GEOMETRY.height) * staffScale;
   const chordZone =
     (score.chordTrack?.length ?? 0) > 0
-      ? CONFIG.chordTrack.minDistanceFromStaff + CONFIG.chordTrack.hitBandHalfHeight
+      ? (CONFIG.chordTrack.minDistanceFromStaff + CONFIG.chordTrack.hitBandHalfHeight) * staffScale
       : 0;
   const paddingTop = Math.max(ledgerZoneAbove, chordZone);
   const paddingBottom = ledgerZoneBelow;

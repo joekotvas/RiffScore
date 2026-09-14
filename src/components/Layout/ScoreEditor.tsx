@@ -1,4 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { flushSync } from 'react-dom';
+import { preparePrint, restoreFromPrint } from '@/services/PrintService';
 
 // Contexts
 import { ScoreProvider, useScoreContext } from '@context/ScoreContext';
@@ -329,6 +331,26 @@ const ScoreEditorContent = ({
   const handleBackgroundClick = useCallback(() => {
     clearSelection();
   }, [clearSelection]);
+
+  // Printing: enter print mode for browser-menu prints that bypass openPrintDialog, and drop
+  // the on-screen state a sheet must not carry (selection colour, hover ghost). Browsers take
+  // the print snapshot right after 'beforeprint', so the DOM update is flushed synchronously.
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      preparePrint();
+      flushSync(() => {
+        clearSelection();
+        setPreviewNote(null);
+      });
+    };
+    const handleAfterPrint = () => restoreFromPrint();
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, [clearSelection, setPreviewNote]);
 
   const handleHoverChange = useCallback(
     (isHovering: boolean) => {
