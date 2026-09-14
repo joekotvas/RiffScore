@@ -169,8 +169,9 @@ With a trustworthy model, make what gets shared and printed match it exactly.
 - ✅ **Beaming sub-grouping #245 (the no-dependency half)** — dotted-rhythm grouping and
   secondary/partial beam segments now render from layout data (for example 8th+16th+16th
   and dotted-8th+16th). *The tuplet-beaming half of #245 depends on #237 and remains
-  deferred with it; mean-Y stem direction, the 45° `MAX_SLOPE` clamp, and beamed-over-rests
-  (audit finding #9 siblings) are out of scope and stay LIVE.*
+  deferred with it. Of the audit finding #9 siblings, mean-Y stem direction and the 45°
+  `MAX_SLOPE` clamp were resolved in M4 (farthest-note direction, rise-capped slant, half-bar
+  eighth groups in 4/4); beamed-over-rests stays LIVE.*
 - ✅ **Tie layout key (#249)** — cross-measure tie endpoint X now uses the same key-aware
   measure layout as rendered noteheads, in both the unstretched and justified
   (stretch ≠ 1.0) paths, regression-tested at tie-X == notehead-X. *(Cross-SYSTEM tie arcs

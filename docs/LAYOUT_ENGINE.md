@@ -183,22 +183,43 @@ calculateMeasureLayout(measure, config) → {
 
 ## 4. Beaming
 
-The `beaming.ts` module groups notes for beaming:
+The `beaming.ts` module groups notes for beaming and computes each group's geometry:
 
 ### Grouping Rules
 
-1. Notes within the same beat are beamed together
-2. Notes across barlines are not beamed
-3. Rests break beam groups
-4. Beam direction follows majority stem direction
+1. Notes beam within one **beat** (`getBeamBeatQuants`): the denominator unit in simple
+   meters (a quarter in 4/4, 3/4, 2/4; a half in 2/2), a dotted beat of three in compound
+   meters (6/8, 9/8, 12/8); 3/8 beams the whole bar.
+2. **4/4 only:** two complete quarter-beat groups of *plain* eighths on beats 1–2 or 3–4 join
+   into one half-bar group of four. Nothing beams across the middle of the bar, and a beat
+   containing a sixteenth, dotted or tuplet value keeps its beat-level group.
+3. Rests and unbeamable durations break groups; a plain flagged value that overruns its beat
+   is left unbeamed.
+4. Mixed values inside a beat share one primary beam with secondary/partial segments (#245).
 
-### Beam Angle
+### Stem Direction (per group)
 
-```
-angle = atan2(lastNoteY - firstNoteY, lastNoteX - firstNoteX)
-```
+`beamGroupDirection`: the note **farthest from the middle line** decides — stems up when it
+lies below, down when above. If the highest and lowest notes are equidistant, the **mean** of
+every note in the group decides, and a mean on the line takes stems **down**. Chords contribute
+all of their notes. This matches the single-note/chord rule in `positioning.ts`, so a beamed
+group never flips direction against the unbeamed notes around it.
 
-Clamped to reasonable angles to avoid extreme slopes.
+### Beam Slant
+
+`beamRise` derives the beam's rise from the outer two anchors (top notes for up-stems, bottom
+notes for down-stems), then applies the engraving limits:
+
+- an inner note beyond **both** outer notes on the beam side ⇒ horizontal beam;
+- the rise is capped by the interval between the outer anchors
+  (`BEAMING.MAX_RISE_SPACES`: a second ¼ space, a third ½, a fourth ¾, a fifth or wider
+  1 space);
+- the rise/run never exceeds `BEAMING.MAX_SLOPE` (≈19°), so tightly spaced groups stay
+  shallow.
+
+The beam then sits the minimum beamed stem length (`STEM.BEAMED_LENGTHS`) from the note
+nearest to it; every other stem is at least that long. Tuplet brackets over a beamed group
+read their tips from the beam line, so they stay parallel to it.
 
 ---
 
