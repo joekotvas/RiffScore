@@ -92,7 +92,7 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 
 *   **WYSIWYG Page Layout**: Automatic system breaks with first system indent and justified measures.
 *   **Multi-Page Pagination**: True page breaks with visual gaps between printable pages.
-*   **Layout Options**: Letter/A4 page sizes, margin presets, staff size (50-150%), system spacing.
+*   **Layout Options**: Letter/A4 page sizes, margin presets, staff size (50-150%, defaulting to a standard 7.6mm staff), system spacing.
 *   **Score Setup Dialog**: Configure metadata (title, composer, copyright) and layout via `Cmd+,`.
 *   **Interactive Editing**: Edit notes, chords, and metadata directly in page view, with lasso selection and playback cursor support.
 *   **Print Support**: Professional PDF output via native browser dialog (`Cmd+P`).
