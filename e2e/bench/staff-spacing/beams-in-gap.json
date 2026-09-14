@@ -1,0 +1,518 @@
+{
+  "title": "Beams in the gap",
+  "timeSignature": "4/4",
+  "keySignature": "C",
+  "bpm": 100,
+  "metadata": {
+    "title": "Beams in the gap",
+    "composer": "QA"
+  },
+  "staves": [
+    {
+      "id": "s0",
+      "clef": "treble",
+      "keySignature": "C",
+      "measures": [
+        {
+          "id": "t0",
+          "events": [
+            {
+              "id": "t0-e0",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t0-e0-n",
+                  "pitch": "D5"
+                }
+              ]
+            },
+            {
+              "id": "t0-e1",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t0-e1-n",
+                  "pitch": "C6"
+                }
+              ]
+            },
+            {
+              "id": "t0-e2",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t0-e2-n",
+                  "pitch": "F5"
+                }
+              ]
+            },
+            {
+              "id": "t0-e3",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t0-e3-n",
+                  "pitch": "C4"
+                }
+              ]
+            },
+            {
+              "id": "t0-e4",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t0-e4-n",
+                  "pitch": "E5"
+                }
+              ]
+            },
+            {
+              "id": "t0-e5",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t0-e5-n",
+                  "pitch": "B5"
+                }
+              ]
+            },
+            {
+              "id": "t0-e6",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t0-e6-n",
+                  "pitch": "D4"
+                }
+              ]
+            },
+            {
+              "id": "t0-e7",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t0-e7-n",
+                  "pitch": "C4"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "t1",
+          "events": [
+            {
+              "id": "t1-e0",
+              "duration": "sixteenth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t1-e0-n",
+                  "pitch": "G5"
+                }
+              ]
+            },
+            {
+              "id": "t1-e1",
+              "duration": "sixteenth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t1-e1-n",
+                  "pitch": "A5"
+                }
+              ]
+            },
+            {
+              "id": "t1-e2",
+              "duration": "sixteenth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t1-e2-n",
+                  "pitch": "D4"
+                }
+              ]
+            },
+            {
+              "id": "t1-e3",
+              "duration": "sixteenth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t1-e3-n",
+                  "pitch": "E4"
+                }
+              ]
+            },
+            {
+              "id": "t1-e4",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t1-e4-n",
+                  "pitch": "C4"
+                }
+              ]
+            },
+            {
+              "id": "t1-e5",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t1-e5-n",
+                  "pitch": "G5"
+                }
+              ]
+            },
+            {
+              "id": "t1-e6",
+              "duration": "quarter",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t1-e6-n",
+                  "pitch": "F5"
+                }
+              ]
+            },
+            {
+              "id": "t1-e7",
+              "duration": "quarter",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t1-e7-n",
+                  "pitch": "A4"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "t2",
+          "events": [
+            {
+              "id": "t2-e0",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t2-e0-n",
+                  "pitch": "C6"
+                }
+              ]
+            },
+            {
+              "id": "t2-e1",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t2-e1-n",
+                  "pitch": "C4"
+                }
+              ]
+            },
+            {
+              "id": "t2-e2",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t2-e2-n",
+                  "pitch": "C6"
+                }
+              ]
+            },
+            {
+              "id": "t2-e3",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t2-e3-n",
+                  "pitch": "C4"
+                }
+              ]
+            },
+            {
+              "id": "t2-e4",
+              "duration": "half",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "t2-e4-n",
+                  "pitch": "E5"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s1",
+      "clef": "bass",
+      "keySignature": "C",
+      "measures": [
+        {
+          "id": "b0",
+          "events": [
+            {
+              "id": "b0-e0",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b0-e0-n",
+                  "pitch": "G3"
+                }
+              ]
+            },
+            {
+              "id": "b0-e1",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b0-e1-n",
+                  "pitch": "C2"
+                }
+              ]
+            },
+            {
+              "id": "b0-e2",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b0-e2-n",
+                  "pitch": "C2"
+                }
+              ]
+            },
+            {
+              "id": "b0-e3",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b0-e3-n",
+                  "pitch": "G3"
+                }
+              ]
+            },
+            {
+              "id": "b0-e4",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b0-e4-n",
+                  "pitch": "A3"
+                }
+              ]
+            },
+            {
+              "id": "b0-e5",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b0-e5-n",
+                  "pitch": "D2"
+                }
+              ]
+            },
+            {
+              "id": "b0-e6",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b0-e6-n",
+                  "pitch": "E2"
+                }
+              ]
+            },
+            {
+              "id": "b0-e7",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b0-e7-n",
+                  "pitch": "B3"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "b1",
+          "events": [
+            {
+              "id": "b1-e0",
+              "duration": "sixteenth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b1-e0-n",
+                  "pitch": "B3"
+                }
+              ]
+            },
+            {
+              "id": "b1-e1",
+              "duration": "sixteenth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b1-e1-n",
+                  "pitch": "C2"
+                }
+              ]
+            },
+            {
+              "id": "b1-e2",
+              "duration": "sixteenth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b1-e2-n",
+                  "pitch": "D2"
+                }
+              ]
+            },
+            {
+              "id": "b1-e3",
+              "duration": "sixteenth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b1-e3-n",
+                  "pitch": "A3"
+                }
+              ]
+            },
+            {
+              "id": "b1-e4",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b1-e4-n",
+                  "pitch": "G3"
+                }
+              ]
+            },
+            {
+              "id": "b1-e5",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b1-e5-n",
+                  "pitch": "C2"
+                }
+              ]
+            },
+            {
+              "id": "b1-e6",
+              "duration": "quarter",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b1-e6-n",
+                  "pitch": "B3"
+                }
+              ]
+            },
+            {
+              "id": "b1-e7",
+              "duration": "quarter",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b1-e7-n",
+                  "pitch": "D3"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "b2",
+          "events": [
+            {
+              "id": "b2-e0",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b2-e0-n",
+                  "pitch": "C2"
+                }
+              ]
+            },
+            {
+              "id": "b2-e1",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b2-e1-n",
+                  "pitch": "B3"
+                }
+              ]
+            },
+            {
+              "id": "b2-e2",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b2-e2-n",
+                  "pitch": "C2"
+                }
+              ]
+            },
+            {
+              "id": "b2-e3",
+              "duration": "eighth",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b2-e3-n",
+                  "pitch": "B3"
+                }
+              ]
+            },
+            {
+              "id": "b2-e4",
+              "duration": "half",
+              "dotted": false,
+              "notes": [
+                {
+                  "id": "b2-e4-n",
+                  "pitch": "G2"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
