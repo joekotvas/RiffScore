@@ -88,6 +88,9 @@ system reserves the vertical room its interactive and chord areas need.
   (G4–B4–D5) drew its beam below the notes but its bracket and "3" above them; the bracket now
   follows the beam, as engraved music does — also for a tuplet inside a longer beam (the third
   triplet of a 6/8 bar). Unbeamed tuplets are unchanged.
+- **Beamed stems never come up short** — in a wide beamed group (a run that leaps more than a
+  stem's length past its first note) the notes on the far side of the beam kept a stem as short
+  as one staff space; every stem now reaches the minimum beamed length.
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -150,6 +153,10 @@ system reserves the vertical room its interactive and chord areas need.
   pins it, including the `tuplet-mixed-stems` and `tuplet-triplets-6-8` fixtures run through
   `calculateMeasureLayout`. Lane A facts do not capture brackets (no snapshot change); those two
   fixtures' Lane B pixel baselines must be regenerated (`update_baselines=true`).
+- `processBeamGroup`'s clearance pass measures each stem SIGNED (negative when the first-anchor
+  beam line falls on the far side of a note) instead of with `Math.abs`, so the shift always
+  restores `STEM.BEAMED_LENGTHS`; `beamingRules.test.ts` and a fourth bar of the
+  `beaming-direction-slope` fixture pin both directions.
 
 ## [1.0.0-alpha.16] - 2026-06-13
 

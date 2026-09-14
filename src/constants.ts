@@ -420,6 +420,22 @@ export const STEM = {
     thirtysecond: 48,
     sixtyfourth: 56,
   } as Record<string, number>,
+  /**
+   * Shortest stem allowed next to the beam in a WIDE group (Gould: about 2.5 spaces; more with
+   * three or four beams so the inner beams still clear the notehead). See
+   * `BEAMED_RANGE_ALLOWANCE`.
+   */
+  BEAMED_SHORT_LENGTHS: {
+    default: 30,
+    thirtysecond: 36,
+    sixtyfourth: 44,
+  } as Record<string, number>,
+  /**
+   * How far (px) a group's longest stem may exceed the minimum before the stems nearest the
+   * beam are shortened to compensate — about an octave's span (3.5 spaces). Beyond it the
+   * beam moves toward the notes by the excess, never past `BEAMED_SHORT_LENGTHS`.
+   */
+  BEAMED_RANGE_ALLOWANCE: 42,
   OFFSET_X: HALF_SPACE + 0.25,
 };
 

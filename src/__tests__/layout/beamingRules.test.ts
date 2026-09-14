@@ -17,7 +17,7 @@ import { calculateBeamingGroups, beamGroupDirection, beamRise } from '@/engines/
 import { getOffsetForPitch } from '@/engines/layout/positioning';
 import { STEM_BEAMED_LENGTHS } from '@/engines/layout/stems';
 import { CONFIG } from '@/config';
-import { BEAMING, MIDDLE_LINE_Y } from '@/constants';
+import { BEAMING, MIDDLE_LINE_Y, STEM } from '@/constants';
 import type { ScoreEvent } from '@/types';
 
 const SPACE = CONFIG.lineHeight;
@@ -169,6 +169,67 @@ describe('stem lengths after the slant cap', () => {
     expect(Math.min(...lengths)).toBeCloseTo(STEM_BEAMED_LENGTHS.default, 6);
     expect(lengths[1]).toBeCloseTo(STEM_BEAMED_LENGTHS.default, 6);
     expect(lengths[0]).toBeGreaterThan(STEM_BEAMED_LENGTHS.default);
+  });
+
+  test.each([
+    // Stems down: the line placed 44 px below G5 lands 16 px ABOVE D4's head. D4 and E4 must
+    // get real stems, and since the group spans ten steps the nearest stems shorten to the
+    // short minimum instead of the G5/A5 stems growing to 104 px.
+    ['down', ['G5', 'A5', 'D4', 'E4'], 'D4', 66], // A5 is the farthest: 66 px above D4
+    // Stems up, mirrored (B3 is farther below the middle line than A5 is above it).
+    ['up', ['B3', 'C4', 'A5', 'G5'], 'A5', 78],
+  ] as const)(
+    'a wide group with notes beyond the first anchor: every stem ≥ the short minimum, nearest = short minimum (%s)',
+    (direction, pitches, nearest, rangePx) => {
+      const events = eighths([...pitches], 'sixteenth');
+      const g = calculateBeamingGroups(events, spaced(events, 24), 'treble', '4/4')[0];
+      expect(g.direction).toBe(direction);
+      const xs = [
+        g.startX + BEAMING.EXTENSION_PX,
+        ...[1, 2].map((i) => g.startX + BEAMING.EXTENSION_PX + i * 24),
+        g.endX - BEAMING.EXTENSION_PX,
+      ];
+      const lengths = pitches.map((p, i) => {
+        const beamY = beamYAt(g, xs[i]);
+        return direction === 'up' ? y(p) - beamY : beamY - y(p);
+      });
+      const short = STEM.BEAMED_SHORT_LENGTHS.default;
+      lengths.forEach((len) => expect(len).toBeGreaterThanOrEqual(short - 1e-6));
+      expect(lengths[(pitches as readonly string[]).indexOf(nearest)]).toBeCloseTo(short, 6);
+      expect(Math.max(...lengths)).toBeCloseTo(short + rangePx, 6);
+    }
+  );
+
+  test('a group within about an octave keeps the normal minimum stem', () => {
+    // Alberti bass G2–D3–G3–D3: range 42 px (seven steps), longest stem exactly at the allowance.
+    const events = eighths(['G2', 'D3', 'G3', 'D3']);
+    const g = calculateBeamingGroups(events, spaced(events, 30), 'bass', '4/4')[0];
+    expect(g.direction).toBe('up');
+    const nearest = y('G3', 'bass') - beamYAt(g, g.startX + BEAMING.EXTENSION_PX + 2 * 30);
+    expect(nearest).toBeCloseTo(STEM_BEAMED_LENGTHS.default, 6);
+  });
+
+  test('shortening is progressive: an excess of 12 px shortens the nearest stem by 12 px', () => {
+    // C4–E5–C4 is concave (horizontal beam); the C4 stems would be 44 + 54 = 98 px, 12 px over
+    // the allowance, so the beam comes down 12 px: E5 stem 32, C4 stems 86.
+    const events = eighths(['C4', 'E5', 'C4']);
+    const g = calculateBeamingGroups(events, spaced(events), 'treble', '3/8')[0];
+    expect(g.direction).toBe('up');
+    const innerX = g.startX + BEAMING.EXTENSION_PX + 40;
+    expect(y('E5') - beamYAt(g, innerX)).toBeCloseTo(STEM_BEAMED_LENGTHS.default - 12, 6);
+    expect(y('C4') - beamYAt(g, g.startX + BEAMING.EXTENSION_PX)).toBeCloseTo(86, 6);
+  });
+
+  test('64th groups keep the taller short minimum so four beams still clear the heads', () => {
+    const events = eighths(['C4', 'A5', 'A5', 'C4'], 'sixtyfourth');
+    const g = calculateBeamingGroups(events, spaced(events, 16), 'treble', '4/4')[0];
+    const nearest = Math.min(
+      ...['C4', 'A5', 'A5', 'C4'].map((p, i) => {
+        const beamY = beamYAt(g, g.startX + BEAMING.EXTENSION_PX + i * 16);
+        return g.direction === 'up' ? y(p) - beamY : beamY - y(p);
+      })
+    );
+    expect(nearest).toBeGreaterThanOrEqual(STEM.BEAMED_SHORT_LENGTHS.sixtyfourth - 1e-6);
   });
 
   test('a horizontal (concave) beam clears its innermost note by the minimum stem', () => {
