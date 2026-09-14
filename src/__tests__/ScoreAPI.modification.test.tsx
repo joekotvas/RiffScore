@@ -9,6 +9,7 @@ import { render, act } from '@testing-library/react';
 import { RiffScore } from '../RiffScore';
 import type { MusicEditorAPI } from '../api.types';
 import { Score, ClefType } from '../types';
+import { DEFAULT_LAYOUT_CONFIG } from '../config';
 
 // Helper to get typed API
 const getAPI = (id: string): MusicEditorAPI => {
@@ -55,6 +56,49 @@ describe('ScoreAPI Modification & IO Methods', () => {
       const current = api.getScore();
       expect(current.title).toBe('New Score');
       expect(current.staves[0].clef).toBe('bass');
+    });
+
+    test('keeps the current view mode when the loaded score has no layout', () => {
+      render(<RiffScore id="load-keep-layout" />);
+      const api = getAPI('load-keep-layout');
+
+      act(() => {
+        api.setViewMode('page');
+      });
+      const before = api.getScore();
+      expect(before.layout?.viewMode).toBe('page');
+
+      const hostJson: Score = {
+        title: 'Host JSON',
+        staves: [{ id: 'staff-1', clef: 'treble', keySignature: 'C', measures: [] }],
+        timeSignature: '4/4',
+        keySignature: 'C',
+        bpm: 100,
+      };
+      expect(hostJson.layout).toBeUndefined();
+
+      act(() => {
+        api.loadScore(hostJson);
+      });
+      expect(api.getScore().title).toBe('Host JSON');
+      expect(api.getViewMode()).toBe('page');
+      expect(api.getLayoutConfig()).toEqual(before.layout);
+
+      // A score that carries its own layout replaces the current one.
+      act(() => {
+        api.loadScore({ ...hostJson, layout: { ...DEFAULT_LAYOUT_CONFIG, viewMode: 'scroll' } });
+      });
+      expect(api.getViewMode()).toBe('scroll');
+
+      // Undo restores the previous score exactly, step by step.
+      act(() => {
+        api.undo();
+      });
+      expect(api.getViewMode()).toBe('page');
+      act(() => {
+        api.undo();
+      });
+      expect(api.getScore()).toEqual(before);
     });
 
     test('rejects structurally malformed input instead of reporting success (#209)', () => {
