@@ -3,7 +3,7 @@ import { BeamGroup, BeamSegment } from './types';
 import { getNoteDuration } from '@/utils/core';
 import { getOffsetForPitch, calculateChordLayout, getStemOffset } from './positioning';
 import { CONFIG } from '@/config';
-import { MIDDLE_LINE_Y, BEAMING } from '@/constants';
+import { MIDDLE_LINE_Y, BEAMING, STEM } from '@/constants';
 
 // Removed temporary interfaces
 
@@ -286,7 +286,8 @@ export const beamRise = (anchorYs: number[], direction: 'up' | 'down', run: numb
 /**
  * Calculates the geometry for a single beam group.
  * Direction and slant follow `beamGroupDirection` and `beamRise`; every stem is then
- * checked for the minimum beamed stem length.
+ * checked for the minimum beamed stem length, and wide groups pull the beam back toward
+ * the notes so the nearest stems shorten instead of the far ones growing without bound.
  */
 const processBeamGroup = (
   groupEvents: ScoreEvent[],
@@ -366,7 +367,12 @@ const processBeamGroup = (
   noteData.forEach((d) => {
     const beamYAtPoint = slope * d.eventX + intercept;
     const anchorNoteY = direction === 'up' ? d.minY : d.maxY;
-    const currentStemLength = Math.abs(beamYAtPoint - anchorNoteY);
+    // Signed: positive when the beam lies on the stem side of this anchor, NEGATIVE when the
+    // line placed from the first anchor falls on the far side of a later note (a wide group
+    // whose notes overshoot the first one by more than a stem). An absolute value here left
+    // such notes with a stem of the overshoot's remainder — one staff space in the worst case.
+    const currentStemLength =
+      direction === 'up' ? anchorNoteY - beamYAtPoint : beamYAtPoint - anchorNoteY;
 
     if (currentStemLength < minStemLength) {
       const needed = minStemLength - currentStemLength;
@@ -390,6 +396,30 @@ const processBeamGroup = (
     const finalIntercept = startBeamY - finalSlope * startX;
     return finalSlope * x + finalIntercept;
   };
+
+  // Wide groups: the stems nearest the beam may shorten (Gould, "Stem lengths in beamed
+  // groups") so the far stems stay bounded and the beam stays near the staff. Pull the beam
+  // toward the notes by however much the longest stem exceeds the minimum plus an allowance
+  // of about an octave, never past the short minimum for this group's beam count.
+  const stemLengthAt = (d: { eventX: number; minY: number; maxY: number }): number =>
+    direction === 'up' ? d.minY - lineYAt(d.eventX) : lineYAt(d.eventX) - d.maxY;
+  const longestStem = Math.max(...noteData.map(stemLengthAt));
+  const shortMinStemLength = uniqueDurations.has('sixtyfourth')
+    ? STEM.BEAMED_SHORT_LENGTHS.sixtyfourth
+    : uniqueDurations.has('thirtysecond')
+      ? STEM.BEAMED_SHORT_LENGTHS.thirtysecond
+      : STEM.BEAMED_SHORT_LENGTHS.default;
+  const excess = longestStem - minStemLength - STEM.BEAMED_RANGE_ALLOWANCE;
+  const shortening = Math.min(Math.max(0, excess), minStemLength - shortMinStemLength);
+  if (shortening > 0) {
+    if (direction === 'up') {
+      startBeamY += shortening;
+      endBeamY += shortening;
+    } else {
+      startBeamY -= shortening;
+      endBeamY -= shortening;
+    }
+  }
 
   const highestBeamLevel = Math.max(
     ...groupEvents.map((event) => beamLevelForDuration(event.duration))
