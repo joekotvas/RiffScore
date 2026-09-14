@@ -480,14 +480,12 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     if (isPageView) {
       return pageLayout.totalHeight;
     }
-    // In scroll view, derive from content: the staff block, or the lowest ink / lyric band
-    // below the last staff when that reaches further.
-    const contentBottom = Math.max(
-      layout.getY.content.bottom,
-      CONFIG.baseY + (layout.vertical?.bottom ?? 0)
-    );
-    // Add padding below content
-    return contentBottom > 0 ? contentBottom + 50 : 200;
+    // In scroll view, derive from content: the staff block plus padding, extended only when
+    // the lowest ink or lyric band below the last staff would otherwise come within 20 px of
+    // the edge (deep ledger notes, wide beamed groups, several lyric lines).
+    const contentBottom = layout.getY.content.bottom;
+    const inkBottom = CONFIG.baseY + (layout.vertical?.bottom ?? 0);
+    return contentBottom > 0 ? Math.max(contentBottom + 50, inkBottom + 20) : 200;
   }, [layout, isPageView, pageLayout.totalHeight]);
 
   // Cursor layout (consumes centralized layout - no duplicate calculations)
