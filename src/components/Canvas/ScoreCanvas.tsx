@@ -62,8 +62,8 @@ interface ScoreCanvasProps {
   chordTrack?: UseChordTrackReturn;
 }
 
-// SVG text with dominantBaseline="central" extends above its y baseline.
-const PAGE_CHORD_TEXT_TOP_INSET = 12;
+// Vertical extent of a note's lasso hit box (staff units), centred on the notehead.
+const LASSO_NOTE_HIT_HEIGHT = 20;
 
 // Page view is WYSIWYG paper: notation, chords and metadata always use the light palette on the
 // white page regardless of the UI theme (this is also what prints).
@@ -276,6 +276,15 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     [layout, pageLayout.staffScale]
   );
 
+  // Page Y of every notehead centre on a system (all staves).
+  const getSystemNoteYs = useCallback(
+    (system: SystemLayout): number[] =>
+      Object.values(layout.notes)
+        .filter((noteLayout) => system.measures.includes(noteLayout.measureIndex))
+        .map((noteLayout) => getPageNoteY(noteLayout, system)),
+    [getPageNoteY, layout.notes]
+  );
+
   const getSystemChordTrackY = useCallback(
     (system: SystemLayout): number => {
       const { minDistanceFromStaff, paddingAboveNotes, minY, hitBandHalfHeight } =
@@ -283,14 +292,13 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       const staffScale = pageLayout.staffScale;
       // The chord track is drawn in staff units (scaled with the staff, like the scroll view), so
       // its distances scale too. The chord band (trackY ± hitBandHalfHeight·s) must stay inside
-      // this system's reserved headroom so it never covers the previous system's staff, and
-      // below the page-top inset. Returns page coordinates.
+      // this system's reserved headroom so it never covers the previous system's staff; that
+      // headroom starts at or below the page's content area, so it also keeps the chord text
+      // inside the page. Returns page coordinates.
       const slotTopY = system.y - system.paddingTop + hitBandHalfHeight * staffScale;
-      const safeTopY = Math.max(minY, PAGE_CHORD_TEXT_TOP_INSET, slotTopY);
+      const safeTopY = Math.max(minY, slotTopY);
       const defaultY = system.y - minDistanceFromStaff * staffScale;
-      const noteYs = Object.values(layout.notes)
-        .filter((noteLayout) => system.measures.includes(noteLayout.measureIndex))
-        .map((noteLayout) => getPageNoteY(noteLayout, system));
+      const noteYs = getSystemNoteYs(system);
 
       if (noteYs.length === 0) {
         return Math.max(safeTopY, defaultY);
@@ -299,7 +307,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       const collisionY = Math.min(...noteYs) - paddingAboveNotes * staffScale;
       return Math.max(safeTopY, Math.min(collisionY, defaultY));
     },
-    [getPageNoteY, layout.notes, pageLayout.staffScale]
+    [getSystemNoteYs, pageLayout.staffScale]
   );
 
   // Page X of a chord position expressed in the staff-scaled chord-track space.
@@ -352,8 +360,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     },
   });
 
-  // Flatten layout for hit detection (interaction layer)
-  // This replaces the old notePositions calculation
+  // Flatten layout for hit detection (interaction layer). Each box is the TOP-LEFT corner plus
+  // size, as useDragToSelect's intersection test expects.
   const notePositions = useMemo(() => {
     if (isPageView) {
       return Object.values(layout.notes).flatMap((noteLayout) => {
@@ -365,14 +373,15 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
         const hitWidth =
           (noteLayout.hitZone.endX - noteLayout.hitZone.startX) * pageLayout.staffScale;
+        const hitHeight = LASSO_NOTE_HIT_HEIGHT * pageLayout.staffScale;
         const noteY = getPageNoteY(noteLayout, located.system);
 
         return [
           {
             x: x - hitWidth / 2,
-            y: noteY - 10 * pageLayout.staffScale,
+            y: noteY - hitHeight / 2,
             width: hitWidth,
-            height: 20 * pageLayout.staffScale,
+            height: hitHeight,
             pageIndex: located.pageIndex,
             staffIndex: noteLayout.staffIndex,
             measureIndex: noteLayout.measureIndex,
@@ -386,12 +395,13 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     return Object.values(layout.notes).map((noteLayout) => {
       // Calculate absolute X from measureOrigin + localX
       const measureOrigin = layout.getX.measureOrigin({ measure: noteLayout.measureIndex }) ?? 0;
+      // Use hit zone dimensions from layout engine
+      const hitWidth = noteLayout.hitZone.endX - noteLayout.hitZone.startX;
       return {
-        x: measureOrigin + noteLayout.localX,
-        y: noteLayout.y,
-        // Use hit zone dimensions from layout engine
-        width: noteLayout.hitZone.endX - noteLayout.hitZone.startX,
-        height: 20, // Standard vertical hit box height
+        x: measureOrigin + noteLayout.localX - hitWidth / 2,
+        y: noteLayout.y - LASSO_NOTE_HIT_HEIGHT / 2,
+        width: hitWidth,
+        height: LASSO_NOTE_HIT_HEIGHT,
         pageIndex: null,
         // Metadata
         staffIndex: noteLayout.staffIndex,
@@ -896,6 +906,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                       initialValue={chordTrackHook.initialValue}
                       pageMeasureIndices={system.measures}
                       pageTrackY={getSystemChordTrackY(system) / pageLayout.staffScale}
+                      pageNoteYs={getSystemNoteYs(system).map((y) => y / pageLayout.staffScale)}
                       resolveX={getSystemChordX}
                       onChordClick={(chordId) => chordTrackHook.startEditing(chordId)}
                       onChordSelect={(chordId) => {
@@ -1381,8 +1392,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               notePositions.map((pos) => (
                 <rect
                   key={`${pos.staffIndex}-${pos.measureIndex}-${pos.eventId}-${pos.noteId}`}
-                  x={pos.x - pos.width / 2}
-                  y={pos.y - pos.height / 2}
+                  x={pos.x}
+                  y={pos.y}
                   width={pos.width}
                   height={pos.height}
                   fill="cyan"

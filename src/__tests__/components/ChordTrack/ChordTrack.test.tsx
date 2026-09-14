@@ -8,7 +8,7 @@
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ChordTrack } from '@/components/Canvas/ChordTrack/ChordTrack';
+import { ChordTrack, clipHitBand } from '@/components/Canvas/ChordTrack/ChordTrack';
 import type { ChordSymbol, ChordDisplayConfig } from '@/types';
 import type { ScoreLayout } from '@/engines/layout/types';
 import { CONFIG } from '@/config';
@@ -171,9 +171,24 @@ describe('ChordTrack', () => {
       };
     }
 
+    // One notehead per mapped quant, so the flat lookup agrees with getY.notes()
+    const notes: ScoreLayout['notes'] = {};
+    noteYByQuant?.forEach((y, quant) => {
+      notes[`0-0-e${quant}-n${quant}`] = {
+        localX: 0,
+        y,
+        noteId: `n${quant}`,
+        eventId: `e${quant}`,
+        measureIndex: 0,
+        staffIndex: 0,
+        pitch: 'C4',
+        hitZone: { startX: 0, endX: 0, index: 0, type: 'EVENT', eventId: `e${quant}` },
+      };
+    });
+
     return {
       staves: [{ y: staffTop, index: 0, measures: [] }],
-      notes: {},
+      notes,
       events: {},
       getX: createMockGetX(),
       getY: {
@@ -733,6 +748,58 @@ describe('ChordTrack', () => {
 
       // With high note at Y=30, trackY = 30 - PADDING_ABOVE_NOTES (20) = 10
       expect(trackGroup).toHaveAttribute('transform', 'translate(0, 10)');
+    });
+  });
+
+  describe('hit band', () => {
+    // hitBandHalfHeight 20; a note's hit area reaches HIT_AREA.HEIGHT / 2 + noteHitGap = 8
+    // above and below its centre.
+    describe('clipHitBand', () => {
+      it('keeps the full band when no note is near it', () => {
+        expect(clipHitBand([], 40)).toEqual({ y: -20, height: 40 });
+        expect(clipHitBand([100, 5], 40)).toEqual({ y: -20, height: 40 });
+      });
+
+      it('clips the bottom edge above a note intruding from below', () => {
+        // Band 10..50, note 50 reaches up to 42
+        expect(clipHitBand([50], 30)).toEqual({ y: -20, height: 32 });
+      });
+
+      it('clips the top edge below a note intruding from above', () => {
+        // Band 20..60, note 15 reaches down to 23
+        expect(clipHitBand([15], 40)).toEqual({ y: -17, height: 37 });
+      });
+
+      it('collapses instead of covering notes that leave no room', () => {
+        // Band 20..60, note 30 reaches down to 38, note 45 reaches up to 37
+        expect(clipHitBand([30, 45], 40)).toEqual({ y: -2, height: 0 });
+      });
+    });
+
+    it('ends the hit rect above the highest note in scroll view', () => {
+      // trackY = 30 - 20 = 10, band 10..50, note hit area top at 22
+      render(
+        <svg data-testid="test-svg">
+          <ChordTrack {...defaultProps} layout={createMockLayout(new Map([[0, 30]]))} />
+        </svg>
+      );
+
+      const hitArea = screen.getByTestId('chord-track-hit-area');
+      expect(hitArea).toHaveAttribute('y', '-20');
+      expect(hitArea).toHaveAttribute('height', '32');
+    });
+
+    it('ends the hit rect above the highest note of the system in page view', () => {
+      // Band 20..60 around the given baseline, note hit area top at 42
+      render(
+        <svg data-testid="test-svg">
+          <ChordTrack {...defaultProps} pageTrackY={40} pageNoteYs={[50, 70]} />
+        </svg>
+      );
+
+      const hitArea = screen.getByTestId('chord-track-hit-area');
+      expect(hitArea).toHaveAttribute('y', '-20');
+      expect(hitArea).toHaveAttribute('height', '22');
     });
   });
 });

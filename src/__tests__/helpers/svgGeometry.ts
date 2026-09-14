@@ -38,13 +38,10 @@ export function parseTransform(transform: string): Affine {
 }
 
 /**
- * Position of an element's own (x, y) attributes after composing every ancestor transform
- * from `stopAt` (exclusive; the enclosing <svg> by default) down to the element itself.
+ * Every transform from `stopAt` (exclusive; the enclosing <svg> by default) down to the
+ * element itself, composed into one matrix.
  */
-export function composedPosition(
-  el: Element,
-  stopAt: (ancestor: Element) => boolean = (a) => a.tagName.toLowerCase() === 'svg'
-): { x: number; y: number } {
+function composedMatrix(el: Element, stopAt: (ancestor: Element) => boolean): Affine {
   const chain: Element[] = [];
   for (let e: Element | null = el; e && !stopAt(e); e = e.parentElement) chain.unshift(e);
   let m = IDENTITY;
@@ -52,7 +49,39 @@ export function composedPosition(
     const t = e.getAttribute('transform');
     if (t) m = multiply(m, parseTransform(t));
   }
+  return m;
+}
+
+const isSvg = (a: Element): boolean => a.tagName.toLowerCase() === 'svg';
+
+/**
+ * Position of an element's own (x, y) attributes after composing every ancestor transform
+ * from `stopAt` (exclusive; the enclosing <svg> by default) down to the element itself.
+ */
+export function composedPosition(
+  el: Element,
+  stopAt: (ancestor: Element) => boolean = isSvg
+): { x: number; y: number } {
+  const m = composedMatrix(el, stopAt);
   const x = Number(el.getAttribute('x') ?? 0);
   const y = Number(el.getAttribute('y') ?? 0);
   return { x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] };
+}
+
+/**
+ * Drawn box of a <rect> (its x, y, width, height attributes) after composing every ancestor
+ * transform, as `composedPosition` does; translate/scale chains keep the box axis-aligned.
+ */
+export function composedRect(
+  el: Element,
+  stopAt: (ancestor: Element) => boolean = isSvg
+): { x: number; y: number; width: number; height: number } {
+  const m = composedMatrix(el, stopAt);
+  const { x, y } = composedPosition(el, stopAt);
+  return {
+    x,
+    y,
+    width: m[0] * Number(el.getAttribute('width') ?? 0),
+    height: m[3] * Number(el.getAttribute('height') ?? 0),
+  };
 }
