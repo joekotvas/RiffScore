@@ -65,6 +65,17 @@ export const calculateTupletBrackets = (
 ): TupletBracketGroup[] => {
   const brackets: TupletBracketGroup[] = [];
 
+  // The beam group (if any) that owns an event's stem.
+  const beamOf = (event: ScoreEvent): BeamGroup | undefined =>
+    beamGroups.find((b) => b.ids.includes(event.id));
+
+  // The side an event's stem is actually drawn on. A beamed stem sits on its beam's side (the
+  // beam decides for the whole group — see beamGroupDirection — whatever the event's own
+  // chordLayout.direction says); an unbeamed stem follows its chord layout. This mirrors the
+  // renderer (ChordGroup: `beamSpec?.direction || direction`).
+  const effectiveDirection = (event: ScoreEvent): 'up' | 'down' =>
+    beamOf(event)?.direction ?? event.chordLayout?.direction ?? 'down';
+
   // Helper to get Y bounds of an event (top and bottom of everything: notes, stems)
   const getEventYBounds = (event: ScoreEvent, _dir: 'up' | 'down') => {
     // 1. Noteheads - filter out rest notes (null pitch)
@@ -84,7 +95,7 @@ export const calculateTupletBrackets = (
     //    event's x (so the bracket tracks the actual beamed stems, whatever their slope).
     //  - Otherwise (unbeamed: quarters, lone eighths) use the default stem length.
     const chordDir = event.chordLayout?.direction || 'down';
-    const beam = beamGroups.find((b) => b.ids.includes(event.id));
+    const beam = beamOf(event);
 
     let topY = minNoteY;
     let bottomY = maxNoteY;
@@ -120,13 +131,17 @@ export const calculateTupletBrackets = (
       if (groupEvents.length === 0) continue;
 
       // 1. Determine Direction
-      // Rule: Place on stem side.
+      // Rule: place the bracket on the stem side — the majority of the members' EFFECTIVE stem
+      // directions (see effectiveDirection). For a beamed tuplet every member votes with its
+      // beam, so the bracket and its number land on the beam side (engraving convention); the
+      // per-event chordLayout.direction alone could disagree with the beam (tuplet-mixed-stems:
+      // G4–B4–D5 beamed below but bracketed above). Unbeamed tuplets vote as before.
       // If majority stems up -> Bracket Up (above).
       // If majority stems down -> Bracket Down (below).
       let upCount = 0;
       let downCount = 0;
       groupEvents.forEach((e) => {
-        if (e.chordLayout?.direction === 'up') upCount++;
+        if (effectiveDirection(e) === 'up') upCount++;
         else downCount++;
       });
 
