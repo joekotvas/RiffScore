@@ -17,6 +17,7 @@ import { Score, ScoreMetadata } from '@/types';
 import { Command } from '@/commands/types';
 import { SetMetadataCommand } from '@/commands/layout';
 import { DEFAULT_SCORE_METADATA } from '@/config';
+import { resolveScoreMetadata } from '@/services/MetadataService';
 
 // ============================================================================
 // TYPES
@@ -230,15 +231,20 @@ export const useMetadataTrack = ({
   // 1. Local Editing State
   // ─────────────────────────────────────────────────────────────────────────────
 
-  const [editingState, setEditingState] = useState<MetadataTrackEditingState>(INITIAL_EDITING_STATE);
+  const [editingState, setEditingState] =
+    useState<MetadataTrackEditingState>(INITIAL_EDITING_STATE);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 2. Derived State from Score
   // ─────────────────────────────────────────────────────────────────────────────
 
-  const metadata = useMemo((): ScoreMetadata => {
-    return score.metadata ?? { ...DEFAULT_SCORE_METADATA };
-  }, [score.metadata]);
+  // A score without a metadata block shows its top-level title (resolveScoreMetadata), so the
+  // page view never prints "Untitled" over a score the scroll view titles.
+  const { metadata: scoreMetadata, title: scoreTitle } = score;
+  const metadata = useMemo(
+    (): ScoreMetadata => resolveScoreMetadata({ metadata: scoreMetadata, title: scoreTitle }),
+    [scoreMetadata, scoreTitle]
+  );
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 3. Helper Functions
@@ -249,7 +255,9 @@ export const useMetadataTrack = ({
    */
   const getFieldValue = useCallback(
     (field: MetadataFieldName): string => {
-      const meta = scoreRef.current?.metadata ?? { ...DEFAULT_SCORE_METADATA };
+      const meta = scoreRef.current
+        ? resolveScoreMetadata(scoreRef.current)
+        : { ...DEFAULT_SCORE_METADATA };
       switch (field) {
         case 'title':
           return meta.title;

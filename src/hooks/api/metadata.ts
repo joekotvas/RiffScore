@@ -9,7 +9,7 @@ import { MusicEditorAPI } from '@/api.types';
 import { APIContext } from './types';
 import { SetMetadataCommand } from '@/commands/layout';
 import { ScoreMetadata, Score } from '@/types';
-import { DEFAULT_SCORE_METADATA } from '@/config';
+import { resolveScoreMetadata } from '@/services/MetadataService';
 import { SetSelectionCommand } from '@/commands/selection';
 
 /**
@@ -101,7 +101,8 @@ export const createMetadataMethods = (
 
   return {
     getMetadata(): ScoreMetadata {
-      return getScore().metadata ?? { ...DEFAULT_SCORE_METADATA };
+      // Same fallback as the metadata track: a score without a metadata block reads its title.
+      return resolveScoreMetadata(getScore());
     },
 
     setMetadata(metadata) {

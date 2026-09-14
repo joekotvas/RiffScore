@@ -80,9 +80,32 @@ describe('useMetadataTrack', () => {
       expect(result.current.metadata.copyright).toBe('Test Copyright');
     });
 
-    it('returns default metadata when score has no metadata', () => {
+    it("falls back to the score's top-level title when score has no metadata", () => {
+      // Host JSON usually has a `title` but no `metadata` block; the track must show that title
+      // (what the scroll view prints), not the "Untitled" default.
       const score = createTestScore();
       delete score.metadata;
+      score.title = 'My Song';
+      scoreRef.current = score;
+
+      const { result } = renderHook(() =>
+        useMetadataTrack({
+          scoreRef,
+          score: scoreRef.current,
+          dispatch: mockDispatch,
+          selectFirstElement: mockSelectFirstElement,
+          selectLastElement: mockSelectLastElement,
+        })
+      );
+
+      expect(result.current.metadata.title).toBe('My Song');
+      expect(result.current.metadata.composer).toBeUndefined();
+    });
+
+    it('returns the default title when score has neither metadata nor a title', () => {
+      const score = createTestScore();
+      delete score.metadata;
+      score.title = '';
       scoreRef.current = score;
 
       const { result } = renderHook(() =>
