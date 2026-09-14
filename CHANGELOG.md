@@ -62,6 +62,9 @@ system reserves the vertical room its interactive and chord areas need.
 - **Pages print at their real size** — each page prints at the physical Letter/A4 size, one page
   per sheet (it used to print at 75%), and the notation is always black on white regardless of the
   editor theme. Selected notes, the hover ghost, the playback cursor and lasso never print.
+- **Clicks near chord symbols select the note** — the chord-symbol hit band now yields to any
+  notehead it would otherwise cover (both views), and lasso selection in scroll view uses boxes
+  centred on the noteheads, so a rectangle over the left half of a note selects it.
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -90,6 +93,10 @@ system reserves the vertical room its interactive and chord areas need.
   state with `flushSync`), so browser-menu printing behaves like the Print button. `print.css` no
   longer carries dead selectors; transient overlays have stable classes (`riff-GhostPreview`,
   `riff-PlaybackCursor`, `riff-LassoRect`).
+- `ChordTrack.clipHitBand` (with `CONFIG.chordTrack.noteHitGap`) clips the chord hit rect around
+  intruding noteheads; page view passes each system's note Ys as `pageNoteYs`. `ScoreCanvas`
+  lasso `notePositions` are top-left boxes in both views; the page-top chord inset constant is
+  gone (the reserved system headroom already keeps chord text inside the content area).
 - New tests: `useDragToSelect` hook contract, page-view interaction (propagation, lasso page
   placement, chord-track clearance), system headroom and pagination bounds, print restore in both
   event orderings.
