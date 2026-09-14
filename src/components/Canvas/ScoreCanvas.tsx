@@ -28,7 +28,7 @@ import { useAutoScroll, useCursorLayout, usePageLayout } from '@/hooks/layout';
 import { useScoreLayout } from '@/hooks/layout';
 import { useDragToSelect } from '@/hooks/interaction';
 import GrandStaffBracket from '../Assets/GrandStaffBracket';
-import { CLAMP_LIMITS, STAFF_HEIGHT, STAFF_GEOMETRY, TIME_SIGNATURES } from '@/constants';
+import { CLAMP_LIMITS, STAFF_HEIGHT, TIME_SIGNATURES } from '@/constants';
 import { getNoteDuration } from '@/utils/core';
 import { findEventAtQuantPosition } from '@/utils/navigation/crossStaff';
 import { LassoSelectCommand } from '@/commands/selection';
@@ -271,9 +271,10 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
   const getPageNoteY = useCallback(
     (noteLayout: (typeof layout.notes)[string], system: SystemLayout): number => {
-      const staffTopInScroll = CONFIG.baseY + noteLayout.staffIndex * CONFIG.staffSpacing;
-      const staffTopOnPage =
-        system.y + noteLayout.staffIndex * CONFIG.staffSpacing * pageLayout.staffScale;
+      // Staff top lines come from the layouts (content-aware in both views); the note's offset
+      // within its staff is the same in either.
+      const staffTopInScroll = layout.staves[noteLayout.staffIndex]?.y ?? CONFIG.baseY;
+      const staffTopOnPage = system.y + (system.staffOffsets[noteLayout.staffIndex] ?? 0);
       return staffTopOnPage + (noteLayout.y - staffTopInScroll) * pageLayout.staffScale;
     },
     [layout, pageLayout.staffScale]
@@ -479,8 +480,12 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     if (isPageView) {
       return pageLayout.totalHeight;
     }
-    // In scroll view, derive from content
-    const contentBottom = layout.getY.content.bottom;
+    // In scroll view, derive from content: the staff block, or the lowest ink / lyric band
+    // below the last staff when that reaches further.
+    const contentBottom = Math.max(
+      layout.getY.content.bottom,
+      CONFIG.baseY + (layout.vertical?.bottom ?? 0)
+    );
     // Add padding below content
     return contentBottom > 0 ? contentBottom + 50 : 200;
   }, [layout, isPageView, pageLayout.totalHeight]);
@@ -747,11 +752,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
         system.justification
       );
 
-      const singleStaffHeight = STAFF_GEOMETRY.height * staffScale;
-      const totalStaffHeight =
-        score.staves.length > 1
-          ? singleStaffHeight + STAFF_GEOMETRY.spacing * staffScale * (score.staves.length - 1)
-          : singleStaffHeight;
+      // Staff block height (first top line to last bottom line) is content-aware per system.
+      const totalStaffHeight = system.height;
 
       return (
         <g key={`system-${system.index}`} className="riff-system">
@@ -771,7 +773,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
           )}
 
           {score.staves?.map((staff: StaffType, staffIndex: number) => {
-            const staffYOffset = staffIndex * CONFIG.staffSpacing * staffScale;
+            const staffYOffset =
+              system.staffOffsets[staffIndex] ?? staffIndex * CONFIG.staffSpacing * staffScale;
 
             const interaction = {
               selection,
@@ -1047,14 +1050,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                         sys.measures.includes(cursorMeasure!)
                       );
                       if (!cursorSystem) return null;
-                      const staffScale = pageLayout.staffScale;
                       const cursorTop = cursorSystem.y - 20;
-                      const cursorBottom =
-                        cursorSystem.y +
-                        (CONFIG.staffSpacing * Math.max(0, score.staves.length - 1) +
-                          STAFF_GEOMETRY.height) *
-                          staffScale +
-                        20;
+                      const cursorBottom = cursorSystem.y + cursorSystem.height + 20;
                       return (
                         <>
                           <line

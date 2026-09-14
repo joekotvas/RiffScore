@@ -1,6 +1,6 @@
 // Staff-spacing benchmark: loads each score into the running demo (npm run demo:dev, port 3000),
 // measures how far the treble staff's lowest beam edge reaches below the bass staff's highest
-// beam edge in every bar (svg units at 100%; positive = the beams overlap), and captures a
+// beam edge in every bar (staff px at 100%, UI scale removed; positive = the beams overlap), and captures a
 // scroll-view crop plus page 1 under print media into the given output folder.
 //
 //   node e2e/bench/staff-spacing/measure.mjs before   # writes ./before/*.png and prints the table
@@ -46,8 +46,10 @@ for (const [name, score] of scores) {
       const measure = hit.closest('.Measure');
       const root = measure.ownerSVGElement;
       const ys = [];
+      // Report staff px at 100%: undo the view's UI scale carried by the CTM.
       measure.querySelectorAll('.beam-group polygon').forEach((p) => {
         const ctm = p.getCTM();
+        const scale = ctm.a || 1;
         p.getAttribute('points')
           .split(' ')
           .forEach((pair) => {
@@ -55,7 +57,7 @@ for (const [name, score] of scores) {
             const pt = root.createSVGPoint();
             pt.x = x;
             pt.y = y;
-            ys.push(pt.matrixTransform(ctm).y);
+            ys.push(pt.matrixTransform(ctm).y / scale);
           });
       });
       return ys;

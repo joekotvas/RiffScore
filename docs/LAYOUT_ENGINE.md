@@ -242,6 +242,33 @@ read their tips from the beam line, so they stay parallel to it.
 
 ---
 
+## 4a. Vertical Layout (staff distance, lyric bands)
+
+`vertical.ts` decides how far apart the staves of a system sit and what is reserved above and
+below them. It is content-aware:
+
+1. **Extent.** Every measure of every staff has a drawn extent relative to its staff's top line:
+   noteheads and ledger notes (± half a space), stems (to the beam edge for beamed notes, a
+   standard stem otherwise) and tuplet brackets with their numbers. Rests, accidentals and flags
+   stay inside those bounds. `calculateMeasureExtents(score)` (scoreLayout.ts) returns them for
+   the whole score from the same geometry the renderer draws.
+2. **Lyric band.** `Staff.lyricLines` (default 0) reserves a band below that staff's extent —
+   `lyricBandHeight(lines)` from `LYRICS` — and `lyricLineBaseline` says where each verse's
+   baseline will sit (about 1.8 spaces below a bare staff, lower under ledger notes or beams).
+   Lyrics themselves are not rendered yet (roadmap #30); the space is already accounted for.
+3. **Offsets.** `calculateStaffOffsets` places each staff `CONFIG.staffSpacing` (120 px) below the
+   previous one, or further when the previous staff's extent plus its band would come within
+   `STAFF_DISTANCE.MIN_CLEARANCE` (one space) of this staff's extent. Staves that need no room
+   never move.
+
+Scroll view applies one vertical layout to the whole score (`ScoreLayout.vertical`,
+`StaffLayout.y`). Page view applies it **per system**: `SystemLayout.staffOffsets` and `height`
+follow that system's measures, and its `paddingTop`/`paddingBottom` grow past the ledger zones
+when ink or a lyric band reaches further, so `distributeSystemsToPages` packs and justifies
+per-system slot heights. `staffSpacing.test.tsx` and `e2e/bench/staff-spacing` pin the result.
+
+---
+
 ## 5. Stem Direction
 
 The `stems.ts` module determines stem direction:

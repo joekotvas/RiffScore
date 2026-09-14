@@ -111,6 +111,11 @@ system reserves the vertical room its interactive and chord areas need.
 - **Beamed stems never come up short** — in a wide beamed group (a run that leaps more than a
   stem's length past its first note) the notes on the far side of the beam kept a stem as short
   as one staff space; every stem now reaches the minimum beamed length.
+- **Staves make room for each other** — on a grand staff the distance between staves is no
+  longer fixed: when beams, stems or ledger notes from both staves would meet in the gap, the
+  lower staff moves down just enough to keep one staff space clear (per system in page view;
+  systems and pages grow to match). Staves that need no room stay where they were. Space for
+  lyrics is reserved the same way (`lyricLines` on a staff) ahead of the lyrics feature itself.
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -177,6 +182,13 @@ system reserves the vertical room its interactive and chord areas need.
   beam line falls on the far side of a note) instead of with `Math.abs`, so the shift always
   restores `STEM.BEAMED_LENGTHS`; `beamingRules.test.ts` and a fourth bar of the
   `beaming-direction-slope` fixture pin both directions.
+- `engines/layout/vertical.ts`: `calculateMeasureExtent` / `unionExtents` (drawn extent per
+  measure), `lyricBandHeight` / `lyricLineBaseline` (from `LYRICS`), and `calculateStaffOffsets`
+  (content-aware distance, floor `CONFIG.staffSpacing`, gap `STAFF_DISTANCE.MIN_CLEARANCE`).
+  `ScoreLayout.vertical` and `StaffLayout.y` carry it in scroll view; `SystemLayout.staffOffsets`,
+  `height`, `paddingTop`/`paddingBottom` carry it per system in page view, and
+  `distributeSystemsToPages` now packs per-system slot heights (the uniform `systemHeight`
+  argument is gone). `Staff.lyricLines?: number` is the model hook for the reserved band.
 
 ## [1.0.0-alpha.16] - 2026-06-13
 

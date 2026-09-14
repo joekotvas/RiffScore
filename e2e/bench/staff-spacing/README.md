@@ -13,18 +13,31 @@ the state as of dev `7b1d7f9` (after PR #312, which bounds stem lengths in wide 
 Lyrics are not in the model yet (roadmap #30). When they land they belong below the treble staff,
 i.e. exactly in this gap, so a lyrics variant of this score should be added then.
 
-## Baseline numbers (svg units at 100%; positive = overlap)
+## Baseline numbers (staff px at 100%; positive = overlap)
 
 `beams-in-gap` and `beams-in-gap-chords` measure identically:
 
 | Bar | Treble beam bottom | Bass beam top | Overlap |
 | --- | ------------------ | ------------- | ------- |
-| 1   | 129.4              | 121.1         | 8.3     |
-| 2   | 124.9              | 121.1         | 3.8     |
-| 3   | 135.4              | 115.1         | 20.2    |
+| 1   | 172.6              | 161.5         | 11.1    |
+| 2   | 166.5              | 161.5         | 5.1     |
+| 3   | 180.5              | 153.5         | 26.9    |
 
-The bass staff's top line is at y = 200 (treble bottom line 128, gap 72); a treble beam bottom
-past ~188 would touch the bass staff itself.
+(The first version of this table was in the scroll view's 75%-scaled screen px; these are the
+same measurements in staff px.) The treble staff's top line is at y = 80 and its bottom line at
+128; with the fixed 120 px distance the bass top line sat at 200.
+
+## After content-aware staff spacing
+
+| Bar | Treble beam bottom | Bass beam top | Overlap |
+| --- | ------------------ | ------------- | ------- |
+| 1   | 172.6              | 200.4         | −27.8   |
+| 2   | 166.5              | 200.4         | −33.9   |
+| 3   | 180.5              | 192.5         | −12.0   |
+
+The bass staff moved down by the shortfall of the worst bar (bar 3) so that bar clears by exactly
+`STAFF_DISTANCE.MIN_CLEARANCE` (12 px); in page view the same happens per system, so systems
+without such content keep the default distance.
 
 ## Re-measuring
 

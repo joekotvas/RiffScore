@@ -99,6 +99,12 @@ export interface Staff {
   clef: ClefType;
   keySignature: string; // e.g., 'C', 'G', 'F', 'Bb'
   measures: Measure[];
+  /**
+   * Number of lyric lines (verses) to reserve vertical space for below this staff. Lyrics are
+   * not rendered yet (roadmap #30); the layout reserves the band (`LYRICS` in constants) so
+   * staves and systems already make room. Default 0.
+   */
+  lyricLines?: number;
 }
 
 // ========== CHORD SYMBOLS ==========
@@ -304,8 +310,13 @@ export interface SystemLayout {
   height: number;
   /** Headroom reserved above the staff block (page coords): ledger/clef zone and the chord band */
   paddingTop: number;
-  /** Headroom reserved below the staff block (page coords): ledger/stem zone */
+  /** Headroom reserved below the staff block (page coords): ledger/stem zone, lyric band */
   paddingBottom: number;
+  /**
+   * Y of each staff's top line relative to `y` (page coords). Content-aware: the default
+   * `CONFIG.staffSpacing` apart, more where a staff's ink or lyric band needs it.
+   */
+  staffOffsets: number[];
   /** X position where measures start (page coords, includes preamble + indent) */
   xOffset: number;
   /** Available width for measures (page coords, preamble already excluded) */

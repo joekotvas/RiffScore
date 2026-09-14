@@ -915,6 +915,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         height: systemHeight,
         paddingTop: 0,
         paddingBottom: 0,
+        staffOffsets: [0],
         xOffset: 100,
         contentWidth: 500,
         preambleWidth: 100,
@@ -925,25 +926,13 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
       }));
 
     it('returns empty array for no systems', () => {
-      const result = distributeSystemsToPages(
-        [],
-        contentArea,
-        metadataBottom,
-        defaultSpacing,
-        systemHeight
-      );
+      const result = distributeSystemsToPages([], contentArea, metadataBottom, defaultSpacing);
       expect(result).toEqual([]);
     });
 
     it('places single system on single page', () => {
       const systems = createMockSystems(1);
-      const result = distributeSystemsToPages(
-        systems,
-        contentArea,
-        metadataBottom,
-        defaultSpacing,
-        systemHeight
-      );
+      const result = distributeSystemsToPages(systems, contentArea, metadataBottom, defaultSpacing);
 
       expect(result).toHaveLength(1);
       expect(result[0].pageIndex).toBe(0);
@@ -958,8 +947,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         systems,
         smallContentArea,
         metadataBottom,
-        defaultSpacing,
-        systemHeight
+        defaultSpacing
       );
 
       expect(result.length).toBeGreaterThan(1);
@@ -971,13 +959,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
 
     it('sets page-relative Y coordinates', () => {
       const systems = createMockSystems(2);
-      const result = distributeSystemsToPages(
-        systems,
-        contentArea,
-        metadataBottom,
-        defaultSpacing,
-        systemHeight
-      );
+      const result = distributeSystemsToPages(systems, contentArea, metadataBottom, defaultSpacing);
 
       // First system on page 0 should start at metadataBottom
       expect(result[0].systems[0].y).toBe(metadataBottom);
@@ -985,13 +967,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
 
     it('uses defaultSpacing for single-page scores', () => {
       const systems = createMockSystems(2);
-      const result = distributeSystemsToPages(
-        systems,
-        contentArea,
-        metadataBottom,
-        defaultSpacing,
-        systemHeight
-      );
+      const result = distributeSystemsToPages(systems, contentArea, metadataBottom, defaultSpacing);
 
       // Single page with 2 systems should use defaultSpacing
       expect(result).toHaveLength(1);
@@ -1001,13 +977,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
 
     it('returns justifiedSpacing for each page', () => {
       const systems = createMockSystems(2);
-      const result = distributeSystemsToPages(
-        systems,
-        contentArea,
-        metadataBottom,
-        defaultSpacing,
-        systemHeight
-      );
+      const result = distributeSystemsToPages(systems, contentArea, metadataBottom, defaultSpacing);
 
       expect(result[0]).toHaveProperty('justifiedSpacing');
       expect(typeof result[0].justifiedSpacing).toBe('number');
@@ -1021,13 +991,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
       // Page 1+: available = 400 - 40 = 360
       // Can fit: floor((360 + 12) / (80 + 12)) = 4 systems
       const systems = createMockSystems(7); // 3 on page 0, 4 on page 1
-      const result = distributeSystemsToPages(
-        systems,
-        contentArea,
-        metadataBottom,
-        defaultSpacing,
-        systemHeight
-      );
+      const result = distributeSystemsToPages(systems, contentArea, metadataBottom, defaultSpacing);
 
       // Should span 2 pages
       expect(result.length).toBeGreaterThanOrEqual(2);
@@ -1048,13 +1012,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
       // spacing (capped so the systems still fit: (330 - 240) / 2 = 45) instead of being
       // spread to the bottom margin.
       const systems = createMockSystems(3);
-      const result = distributeSystemsToPages(
-        systems,
-        contentArea,
-        metadataBottom,
-        defaultSpacing,
-        systemHeight
-      );
+      const result = distributeSystemsToPages(systems, contentArea, metadataBottom, defaultSpacing);
 
       expect(result).toHaveLength(1);
       expect(result[0].justifiedSpacing).toBeCloseTo(Math.min(defaultSpacing, 45), 5);
@@ -1072,8 +1030,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         systems,
         shortContentArea,
         metadataBottom,
-        defaultSpacing,
-        systemHeight
+        defaultSpacing
       );
 
       expect(result).toHaveLength(2);
@@ -1096,7 +1053,6 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
           contentArea,
           metadataBottom,
           12 * multiplier,
-          70,
           multiplier
         );
 
@@ -1121,15 +1077,13 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         systems,
         contentArea,
         metadataBottom,
-        defaultSpacing,
-        systemHeight
+        defaultSpacing
       );
       const explicit = distributeSystemsToPages(
         systems,
         contentArea,
         metadataBottom,
         defaultSpacing,
-        systemHeight,
         1
       );
       expect(explicit).toEqual(implicit);
@@ -1143,8 +1097,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         systems,
         largeContentArea,
         metadataBottom,
-        defaultSpacing,
-        systemHeight
+        defaultSpacing
       );
 
       if (result.length > 1) {

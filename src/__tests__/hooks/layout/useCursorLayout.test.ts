@@ -35,6 +35,7 @@ describe('useCursorLayout', () => {
     staves: [],
     notes: {},
     events: {},
+    vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
     getX: createMockGetX(),
     getY: createMockGetY(),
   });
@@ -67,6 +68,7 @@ describe('useCursorLayout', () => {
     ],
     notes: {},
     events: {},
+    vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
     getX: createMockGetX([80]),
     getY: createMockGetY(),
   });
@@ -132,6 +134,7 @@ describe('useCursorLayout', () => {
     ],
     notes: {},
     events: {},
+    vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
     getX: createMockGetX([80, 200]),
     getY: createMockGetY(),
   });
@@ -281,6 +284,7 @@ describe('useCursorLayout', () => {
         ],
         notes: {},
         events: {},
+        vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
         getX: createMockGetX([80]),
         getY: createMockGetY(),
       };
@@ -368,6 +372,7 @@ describe('useCursorLayout', () => {
         ],
         notes: {},
         events: {},
+        vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
         getX: createMockGetX([80]),
         getY: createMockGetY(),
       };

@@ -190,6 +190,7 @@ describe('ChordTrack', () => {
       staves: [{ y: staffTop, index: 0, measures: [] }],
       notes,
       events: {},
+      vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
       getX: createMockGetX(),
       getY: {
         content: { top: staffTop, bottom: staffBottom },
