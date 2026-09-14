@@ -79,6 +79,12 @@ and commit the updated `.snap`. If not, you found a regression.
   `ScoreEditor` emits. `global-setup` regenerates it before every run, so screenshots always
   reflect current source. The Bravura music font is bundled next to the gallery and the spec
   waits on `document.fonts.ready` before capturing.
+- Measuring geometry in the browser: `boundingBox()` / `getBoundingClientRect()` of a `<text>`
+  glyph (or of a chord group that contains one) is the font's **line box**, not the ink. Bravura
+  at 4 × staff space has a 4 em line box, so a notehead "box" spans ~16 staff spaces and the
+  union of a beamed bass group reaches the treble staff. Measure noteheads from their
+  `[data-note-hit-area]` rect (12 px, centred on the glyph) and stems/beams from their `<line>`
+  / `<polygon>` attributes, as `src/__tests__/helpers/svgGeometry.ts` does.
 
 ### Baselines are platform-scoped — approve them in CI, never locally
 
