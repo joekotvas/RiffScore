@@ -63,6 +63,7 @@ import {
   STAFF_HEIGHT,
 } from '@/constants';
 import { calculateMeasureExtents } from '@/engines/layout/scoreLayout';
+import { calculateStretchFactor } from '@/engines/layout/measure';
 import { calculateStaffOffsets, unionExtents, EMPTY_STAFF_EXTENT } from '@/engines/layout/vertical';
 
 // =============================================================================
@@ -668,7 +669,6 @@ export const calculatePageLayout = (
   // stems, beams, tuplet brackets) over the system's measures, plus any lyric band, decides
   // how far apart the staves sit (never closer than CONFIG.staffSpacing) and how much
   // headroom the system reserves above its first staff and below its last.
-  const measureExtents = calculateMeasureExtents(score);
   const lyricLines = score.staves.map((staff) => staff.lyricLines ?? 0);
 
   // Baseline headroom above and below the staff block. The measure hit area extends
@@ -689,6 +689,25 @@ export const calculatePageLayout = (
   // slots already carry the ledger/chord headroom, so only the packing minimum (scaled by the
   // systemSpacing preset) is added.
   const defaultSpacing = MIN_SYSTEM_SPACING * spacingMultiplier;
+
+  // Every measure's stretch factor is that of its system (justified systems draw beams on the
+  // stretched positions), so extents are measured at the stretch they are drawn with.
+  const stretchByMeasure = new Map<number, number>();
+  systemBreaks.forEach((systemMeasures, i) => {
+    const effectiveWidth = i === 0 ? firstSystemEffectiveWidth : subsequentSystemEffectiveWidth;
+    const width = i === 0 ? effectiveWidth * (1 - FIRST_SYSTEM_INDENT) : effectiveWidth;
+    const justification = calculateJustification(
+      systemMeasures,
+      measureWidths,
+      width,
+      i === systemBreaks.length - 1
+    );
+    const natural = systemMeasures.reduce((sum, m) => sum + (measureWidths[m] || 0), 0);
+    systemMeasures.forEach((m) =>
+      stretchByMeasure.set(m, calculateStretchFactor(natural, width, justification))
+    );
+  });
+  const measureExtents = calculateMeasureExtents(score, (m) => stretchByMeasure.get(m) ?? 1.0);
 
   // Build system layouts (without final Y positions - will be set during page distribution)
   const allSystems: SystemLayout[] = [];

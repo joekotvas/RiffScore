@@ -201,7 +201,8 @@ const buildMeasureGeometries = (
   score: Score,
   keySignature: string,
   timeSignature: string,
-  forcedPositions: Record<number, number>[]
+  forcedPositions: Record<number, number>[],
+  stretchFor: (measureIndex: number) => number = () => 1.0
 ): MeasureGeometry[][] =>
   score.staves.map((staff, staffIdx) => {
     const clef = staff.clef || (staffIdx === 0 ? 'treble' : 'bass');
@@ -212,7 +213,7 @@ const buildMeasureGeometries = (
         clef,
         measure.isPickup || false,
         forcedPositions[measureIdx],
-        1.0,
+        stretchFor(measureIdx),
         keySignature
       );
       const beamGroups = calculateBeamingGroups(
@@ -239,17 +240,25 @@ const buildMeasureGeometries = (
 
 /**
  * Drawn extent of every measure of every staff (staff px relative to each staff's top line),
- * from the same geometry the SSOT layout renders. Page layout unions these per system to space
- * the staves of each system by their content.
+ * from the same geometry the renderer draws. Page layout unions these per system to space the
+ * staves of each system by their content; pass `stretchFor` so a justified system's measures
+ * are measured at the stretch they are drawn with (beam slopes depend on the run).
  */
-export const calculateMeasureExtents = (score: Score): StaffExtent[][] => {
+export const calculateMeasureExtents = (
+  score: Score,
+  stretchFor: (measureIndex: number) => number = () => 1.0
+): StaffExtent[][] => {
   if (!score.staves || score.staves.length === 0) return [];
   const keySignature = score.keySignature || score.staves[0].keySignature || 'C';
   const timeSignature = score.timeSignature || '4/4';
   const { forcedPositions } = calculateSystemMetrics(score.staves, keySignature);
-  return buildMeasureGeometries(score, keySignature, timeSignature, forcedPositions).map(
-    (measures) => measures.map((m) => m.extent)
-  );
+  return buildMeasureGeometries(
+    score,
+    keySignature,
+    timeSignature,
+    forcedPositions,
+    stretchFor
+  ).map((measures) => measures.map((m) => m.extent));
 };
 
 /**
