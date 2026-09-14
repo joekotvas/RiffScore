@@ -1136,7 +1136,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
         <svg
           ref={svgRef}
           width={totalWidth * scale}
-          height={svgHeight * scale}
+          height={Math.ceil(svgHeight * scale)}
           className="riff-ScoreCanvas__svg"
           onMouseDown={handleDragSelectMouseDown}
         >
