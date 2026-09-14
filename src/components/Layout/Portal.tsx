@@ -17,10 +17,12 @@ const Portal = ({ children }: { children: React.ReactNode }) => {
     return () => setMounted(false);
   }, []);
 
-  // Use the RiffScore container if available, otherwise fall back to body
+  // Use the RiffScore container if available, otherwise fall back to body. `document` is read
+  // only once mounted so a Portal rendered during server-side rendering is a harmless no-op.
+  if (!mounted) return null;
   const target = containerRef || document.body;
 
-  return mounted ? createPortal(children, target) : null;
+  return createPortal(children, target);
 };
 
 export default Portal;

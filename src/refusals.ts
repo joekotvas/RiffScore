@@ -80,6 +80,9 @@ export type RefusalCode =
   | 'SCORE_VALIDATION_WARNINGS'
   | 'EXPORT_NOT_IMPLEMENTED'
   | 'EXPORT_FAILED'
+  | 'IMPORT_NOT_IMPLEMENTED'
+  | 'IMPORT_FAILED'
+  | 'IMPORT_WARNINGS'
   | 'PLAYBACK_ERROR'
   | 'INVALID_INSTRUMENT'
   | 'NOT_IMPLEMENTED';
@@ -188,6 +191,16 @@ export const REFUSALS: Record<RefusalCode, RefusalSpec> = {
     severity: 'error',
     message: (ctx) => (typeof ctx?.error === 'string' ? `Export failed: ${ctx.error}` : 'Export failed'),
   },
+  IMPORT_NOT_IMPLEMENTED: {
+    severity: 'error',
+    message: (ctx) => `Import format '${ctx?.format ?? ''}' not yet implemented`,
+  },
+  IMPORT_FAILED: {
+    severity: 'error',
+    message: (ctx) => (typeof ctx?.error === 'string' ? `Import failed: ${ctx.error}` : 'Import failed'),
+  },
+  // Success with caveats: the score loaded, but parts of the input could not be represented.
+  IMPORT_WARNINGS: { severity: 'warning', message: s('Score imported with warnings') },
   PLAYBACK_ERROR: {
     severity: 'error',
     message: (ctx) => (typeof ctx?.error === 'string' ? `Playback failed: ${ctx.error}` : 'Playback failed'),
