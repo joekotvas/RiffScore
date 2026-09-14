@@ -282,8 +282,20 @@ export const visualFixtures: VisualFixture[] = [
   ]),
 
   // --- Beaming (one fixture per meter) -------------------------------------------------
-  treble('beaming-4-4', 'Beaming', '4/4 — eighths beam in pairs by the quarter beat.', ['four beat-groups of two'], ['beaming', 'simple-meter', '4/4'], [
+  treble('beaming-4-4', 'Beaming', '4/4 — plain eighths beam by the half bar: two groups of four, never across the middle of the bar.', ['two half-bar groups of four'], ['beaming', 'simple-meter', '4/4'], [
     eighthBar(['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5']),
+  ], '4/4'),
+  treble('beaming-4-4-mixed', 'Beaming', '4/4 — a beat with sixteenths or a dotted eighth keeps beat-level groups; pairs on beats 2–3 stay apart.', ['sixteenth beat stays a beat group', 'dotted-eighth beat stays a beat group', 'no beam across the middle of the bar'], ['beaming', 'simple-meter', '4/4', 'sixteenth', 'dotted'], [
+    measure([e('E4'), e('F4'), s('G4'), s('A4'), s('B4'), s('C5'), dot('eighth', [note('D5')]), s('C5'), e('B4'), e('A4')]),
+    measure([q('G4'), e('A4'), e('B4'), e('C5'), e('D5'), q('E5')]),
+  ], '4/4'),
+  treble('beaming-direction-slope', 'Beaming', 'Stem direction follows the note farthest from the middle line (a mean on the line goes down); slants are capped by interval (a second ¼ space, a fifth or wider 1 space) and a group with an inner note beyond both outer notes is horizontal.', ['farthest-note direction', 'mean-on-line goes down', 'quarter-space slant for a second', 'one-space cap for wide leaps', 'concave group horizontal'], ['beaming', 'stem-direction', 'slope'], [
+    // Both half-bar groups: G4 is farthest from the middle line → stems up for both.
+    eighthBar(['G4', 'A4', 'Bb4', 'C5', 'C5', 'Bb4', 'A4', 'G4']),
+    // Pairs isolated by quarters: G4–D5 tie → mean on the line → down; C4–C5 octave → up, 1-space cap.
+    measure([q('B4'), e('G4'), e('D5'), q('B4'), e('C4'), e('C5')]),
+    // Concave sixteenth beats are horizontal (up and down); the eighth pairs slant 1 space (fifth) and ½ space (third).
+    measure([s('C4'), s('G4'), s('C4'), s('D4'), e('C4'), e('G4'), s('E5'), s('A4'), s('E5'), s('D5'), e('C4'), e('E4')]),
   ], '4/4'),
   treble('beaming-2-4', 'Beaming', '2/4 — two beat-groups of two eighths.', ['two beat-groups'], ['beaming', 'simple-meter', '2/4'], [
     eighthBar(['C4', 'D4', 'E4', 'F4']),

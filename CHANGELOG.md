@@ -71,6 +71,13 @@ system reserves the vertical room its interactive and chord areas need.
 - **Clicks near chord symbols select the note** — the chord-symbol hit band now yields to any
   notehead it would otherwise cover (both views), and lasso selection in scroll view uses boxes
   centred on the noteheads, so a rectangle over the left half of a note selects it.
+- **Beams read like engraved music** — in 4/4, four plain eighths on beats 1–2 or 3–4 share one
+  beam (never across the middle of the bar; sixteenths and dotted rhythms still beam by the
+  beat). A beamed group's stems follow the note farthest from the middle line, so adjacent
+  groups no longer flip up/down, and beams slant gently — a step slants a quarter space and no
+  leap slants more than one space; a group whose inner notes go beyond its outer ones is
+  horizontal. In page view, beams and tuplet brackets now start and end on their stems in
+  justified systems (they were drawn at the unstretched positions).
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -110,6 +117,12 @@ system reserves the vertical room its interactive and chord areas need.
 - New tests: `useDragToSelect` hook contract, page-view interaction (propagation, lasso page
   placement, chord-track clearance), system headroom and pagination bounds, print restore in both
   event orderings.
+- `calculateBeamingGroups` joins plain-eighth beat groups by the half bar in 4/4; `beaming.ts`
+  exports `beamGroupDirection` (farthest note, mean tiebreak, on-line ⇒ down) and `beamRise`
+  (concave ⇒ 0, `BEAMING.MAX_RISE_SPACES` by interval, `BEAMING.MAX_SLOPE` = 0.35;
+  `TUPLET.MAX_SLOPE` follows it). Lane A/B fixtures `beaming-4-4-mixed` and
+  `beaming-direction-slope` pin the rules. `Measure` takes `beamGroups`/`tupletGroups` from the
+  stretched fallback layout whenever `stretchFactor !== 1`, like its other geometry.
 
 ## [1.0.0-alpha.16] - 2026-06-13
 

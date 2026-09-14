@@ -133,9 +133,14 @@ const Measure: React.FC<MeasureProps> = ({
   const centeredEvents = useStretched
     ? fallbackLayout.centeredEvents
     : (measureLayout?.legacyLayout?.processedEvents ?? fallbackLayout.centeredEvents);
-  const beamGroups: BeamGroup[] = measureLayout?.beamGroups ?? fallbackLayout.beamGroups;
-  const tupletGroups: TupletBracketGroup[] =
-    measureLayout?.tupletGroups ?? fallbackLayout.tupletGroups;
+  // Beams and tuplet brackets are geometry over the event positions, so a justified system
+  // must take them from the same stretched layout the stems are drawn from.
+  const beamGroups: BeamGroup[] = useStretched
+    ? fallbackLayout.beamGroups
+    : (measureLayout?.beamGroups ?? fallbackLayout.beamGroups);
+  const tupletGroups: TupletBracketGroup[] = useStretched
+    ? fallbackLayout.tupletGroups
+    : (measureLayout?.tupletGroups ?? fallbackLayout.tupletGroups);
 
   // 2. Accidental Logic
   const accidentalOverrides = useAccidentalContext(events, keySignature);

@@ -414,7 +414,18 @@ export const STEM = {
 export const BEAMING = {
   THICKNESS: 5,
   SPACING: 8,
-  MAX_SLOPE: 1.0,
+  /**
+   * Maximum beam rise in staff spaces, indexed by the interval between the outer anchor
+   * notes in staff steps (0 = unison, 1 = second, 2 = third, …); wider intervals use the
+   * last entry. Engraving convention (Gould): a second slants a quarter space, and no beam
+   * slants more than one space however wide the leap.
+   */
+  MAX_RISE_SPACES: [0, 0.25, 0.5, 0.75, 1],
+  /**
+   * Maximum rise/run whatever the interval (≈19°), so tightly spaced beams — sixteenth
+   * pairs, compressed measures — stay shallow.
+   */
+  MAX_SLOPE: 0.35,
   EXTENSION_PX: 0.625,
 };
 
@@ -427,7 +438,7 @@ export const TUPLET = {
   PADDING: 15,
   // Matches BEAMING.MAX_SLOPE so a bracket drawn over a beamed tuplet can run parallel to
   // the beam instead of being clamped flatter than it.
-  MAX_SLOPE: 1.0,
+  MAX_SLOPE: BEAMING.MAX_SLOPE,
   NUMBER_FONT_SIZE: 11,
   NUMBER_OFFSET_UP: -4,
   NUMBER_OFFSET_DOWN: 12,
