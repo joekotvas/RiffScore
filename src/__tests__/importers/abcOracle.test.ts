@@ -13,6 +13,7 @@ import { MELODIES } from '@/data/melodies';
 import { generateABC } from '@/exporters/abcExporter';
 import { parseABC } from '@/importers/abcImporter';
 import { getNoteDuration } from '@/utils/core';
+import { getMeasureCapacity } from '@/constants';
 import { migrateScore } from '@/types';
 import type { Score } from '@/types';
 import { Note } from 'tonal';
@@ -54,6 +55,11 @@ const scoreOnsets = (score: Score): Onset[][] =>
     let t = 0;
     let previous: { pitches: Set<string> } | null = null;
     for (const measure of staff.measures) {
+      if (measure.events.length === 0) {
+        t += getMeasureCapacity(score.timeSignature) / 64; // an empty bar is a whole-bar rest
+        previous = null;
+        continue;
+      }
       for (const event of measure.events) {
         const tiedIn = previous?.pitches ?? new Set<string>();
         if (!event.isRest) {
@@ -111,6 +117,10 @@ const corpus: Record<string, string> = {
     'X:1\nM:4/4\nL:1/8\nK:C\n[CEG]2 [C2E2G2] [CEG]/ [CEG]/ [ceg]2- | [ceg]2 [C-EG] [CEG] [_BDF]2 |',
   'tuplets (3, (5:4:5, (3:2:2, and 6/8 duplets':
     'X:1\nM:4/4\nL:1/8\nK:C\n(3ABc d2 (5:4:5ABcde | (3:2:2A2B c2 d2 e2 |\n[M:6/8] (2AB c3 |',
+  'tied accidentals over the bar line':
+    'X:1\nM:4/4\nL:1/4\nK:C\n^F4- | F2 F2 | [^F^c]4- | [Fc]2 F2 | ^F2 F2- | F2 F2 |',
+  'a lone whole-note rest is a whole-bar rest in any meter':
+    'X:1\nM:3/4\nL:1/4\nK:C\nC D E | z4 | F2 G |\n[M:6/8] z8 | A3 B3 |',
   'pickup bar and 3/4': 'X:1\nM:3/4\nL:1/4\nK:F\nC | F2 A | B3 | A2 z |',
   '6/8 jig with repeats (imported once)':
     'X:1\nM:6/8\nL:1/8\nK:G\n|:G3 GAB|A3 ABd|edd gdd|edB dBA|\nG3 GAB|A3 ABd|edd gdB|AGF G3:|',

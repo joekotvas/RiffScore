@@ -142,6 +142,12 @@ describe('ABC importer — header', () => {
       expect(ok(`X:1\nM:${m}\nQ:${q}\nK:C\nC|`).bpm).toBe(bpm);
     });
 
+    it('ignores a label-only Q: silently', () => {
+      const r = parseABC('X:1\nQ:"Allegro"\nK:C\nC|');
+      expect(r.ok && r.score.bpm).toBe(120);
+      expect(r.warnings).toEqual([]);
+    });
+
     it('defaults to 120, clamps out-of-range tempos and warns on unparseable ones', () => {
       jest.spyOn(console, 'warn').mockImplementation(() => {});
       expect(ok('X:1\nK:C\nC|').bpm).toBe(120);
@@ -212,6 +218,20 @@ describe('ABC importer — header', () => {
       expect(body('A', 'K:G octave=-1')).toEqual(['A38']);
     });
 
+    it.each([
+      ['clef=bass', 'bass'],
+      ['bass', 'bass'],
+      ['alto', 'alto'],
+      ['treble', 'treble'],
+      ['tenor', 'tenor'],
+      ['clef=treble octave=-1', 'treble'],
+    ])('reads K:%s as a clef with no key signature', (k, clef) => {
+      const r = parseABC(`X:1\nK:${k}\nB|`);
+      expect(r.warnings).toEqual([]);
+      expect(r.ok && r.score.keySignature).toBe('C');
+      expect(r.ok && r.score.staves[0].clef).toBe(clef);
+    });
+
     it('maps octave-transposing and unknown clefs to a plain clef with a warning', () => {
       const t8 = parseABC('X:1\nK:G treble-8\nC|');
       expect(t8.ok && t8.score.staves[0].clef).toBe('treble');
@@ -259,6 +279,17 @@ describe('ABC importer — pitches', () => {
     expect(body('=F F | F', 'M:4/4\nL:1/8\nK:G')).toEqual(['F48 F48', 'F#48']);
     expect(body('^F =F F')).toEqual(['F#48 F48 F48']);
     expect(body('^F _F F')).toEqual(['F#48 Fb48 Fb48']);
+  });
+
+  it('carries a tied accidental over the bar line to the tied note only', () => {
+    expect(body('^F4- | F2 F2', 'M:4/4\nL:1/4\nK:C')).toEqual(['F#4-w', 'F#4h F4h']);
+    expect(body('=F4- | F2 F2', 'M:4/4\nL:1/4\nK:G')).toEqual(['F4-w', 'F4h F#4h']);
+    expect(body('[^F^c]4- | [Fc]2 F2', 'M:4/4\nL:1/4\nK:C')).toEqual([
+      'F#4-+C#5-w',
+      'F#4+C#5h F4h',
+    ]);
+    // The carry expires with the first event of the bar, a rest included.
+    expect(body('^F4- | z2 F2', 'M:4/4\nL:1/4\nK:C')).toEqual(['F#4w', 'zh F4h']);
   });
 
   it('spells double sharps and double flats', () => {
@@ -322,6 +353,16 @@ describe('ABC importer — lengths', () => {
     expect(body('z z2 z/ x2 z4')).toEqual(['z8 zq z16 zq zh']);
   });
 
+  it('reads a lone whole-note rest as a whole-bar rest (empty bar) in any meter', () => {
+    const r = parseABC(tune('A B c | z4 | A B c |', 'M:3/4\nL:1/4\nK:C'));
+    expect(r.warnings).toEqual([]);
+    expect(r.ok && bars(r.score)).toEqual(['A4q B4q C5q', '', 'A4q B4q C5q']);
+    expect(body('z8 | C8 |')).toEqual(['', 'C4w']);
+    // …but not when it is dotted, accompanied, or carrying a chord symbol.
+    expect(body('z4 C4 | z6 |', 'M:6/4\nL:1/4\nK:C')).toEqual(['zw C4w', 'zw.']);
+    expect(body('"G"z4 |', 'M:3/4\nL:1/4\nK:C')).toEqual(['zw']);
+  });
+
   it('expands multi-bar rests into empty bars', () => {
     const score = ok(tune('A2 | Z2 | B2 |'));
     expect(bars(score)).toEqual(['A4q', '', '', 'B4q']);
@@ -383,13 +424,11 @@ describe('ABC importer — chords, ties and tuplets', () => {
 
   it('counts a chord as one tuplet member and lets a tuplet contain rests', () => {
     expect(body('(3[CEG]zA')).toEqual(['C4+E4+G48(3:2/3#0) z8(3:2/3#1) A48(3:2/3#2)']);
-    expect(ok(tune('(3[CEG]zA')).staves[0].measures[0].events.map((e) => e.tuplet?.id)).toEqual(
-      Array(3).fill(
-        ok(tune('(3ABc')).staves[0].measures[0].events[0].tuplet?.id
-          ? expect.any(String)
-          : undefined
-      )
+    const ids = new Set(
+      ok(tune('(3[CEG]zA')).staves[0].measures[0].events.map((e) => e.tuplet?.id)
     );
+    expect(ids.size).toBe(1);
+    expect([...ids][0]).toEqual(expect.any(String));
   });
 
   it('imports the notes of a tuplet cut short by a bar line as plain notes, with a warning', () => {
@@ -520,6 +559,15 @@ describe('ABC importer — bars and structure', () => {
 // ---------------------------------------------------------------------------
 // Voices
 // ---------------------------------------------------------------------------
+
+describe('ABC importer — validation warnings', () => {
+  it('lists the first eight problem bars and counts the rest', () => {
+    const r = parseABC(tune(Array(12).fill('A2 B2 c2 d2 e2').join(' | ')));
+    expect(r.warnings).toHaveLength(9);
+    expect(r.warnings[7]).toMatch(/^Bar 8 holds/);
+    expect(r.warnings[8]).toBe('4 more bars hold more than a full bar');
+  });
+});
 
 describe('ABC importer — voices', () => {
   const grand = 'X:1\nM:4/4\nL:1/4\nK:C\nV:1 clef=treble\nV:2 clef=bass\n';
@@ -687,7 +735,7 @@ describe('ABC importer — input handling', () => {
   });
 
   it('never throws and always yields a structurally valid score (property)', () => {
-    const alphabet = [...'ABCDEFGabcdefg^_=,\'0123456789/<>-|:[]()"!{}zZxyV:KLMQ \n%&.~+$`'];
+    const alphabet = [...'ABCDEFGabcdefg^_=,\'0123456789/<>-|:[]()"!{}zZxyV:KLMQ \n%&.~+$`#°Δ'];
     fc.assert(
       fc.property(fc.array(fc.constantFrom(...alphabet), { maxLength: 80 }), (chars) => {
         const result = parseABC(chars.join(''));

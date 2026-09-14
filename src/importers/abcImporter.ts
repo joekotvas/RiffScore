@@ -314,8 +314,13 @@ const parseKeyField = (raw: string, warnings: Warnings, line: number): ParsedKey
   let keySignature = 'C';
 
   const special = rest.match(/^(none|hp)(?![A-Za-z])/i);
-  if (rest === '') {
-    // K: with no value — no key signature.
+  const firstWord = rest.split(/\s+/)[0] ?? '';
+  // `K:clef=bass`, `K:bass`: a clef with no key — the tonic letter must not be read from "bass".
+  const clefOnly =
+    /^(clef|octave|middle|transpose|stafflines|t|m)=/i.test(firstWord) ||
+    parseClefName(firstWord) !== null;
+  if (rest === '' || clefOnly) {
+    // K: with no key value — no key signature (properties, if any, are read below).
   } else if (special) {
     rest = rest.slice(special[0].length);
     if (special[1].toLowerCase() === 'hp') {
@@ -831,8 +836,17 @@ interface VoiceState {
   localQuant: number;
   /** Measure-local accidental memory, keyed by letter+octave. */
   ledger: Map<string, number>;
+  /**
+   * Alterations carried over the bar line by a tie: they apply to the tied note that opens the
+   * next bar and to nothing after it (standard engraving; abcjs reads it the same way).
+   */
+  carried: Map<string, number>;
+  /** Alterations of the notes in the most recent event that are tied onward (feeds `carried`). */
+  tiedOnward: Map<string, number>;
   tuplet: TupletState | null;
   pendingChords: { symbol: string; line: number }[];
+  /** Whether a chord symbol was anchored inside the bar being filled. */
+  barHasChord: boolean;
   skipUntilBar: boolean;
 }
 
@@ -1052,6 +1066,7 @@ class TuneBuilder {
   }
 
   private setTempo(value: string, line: number, inBody: boolean): void {
+    if (!value.replace(/"[^"]*"/g, '').trim()) return; // `Q:"Allegro"`: a label, no tempo
     if (inBody && this.bpm !== null) {
       this.warnings.add('tempo-change', 'Tempo changes inside the tune are not supported', line);
       return;
@@ -1087,8 +1102,11 @@ class TuneBuilder {
       events: [],
       localQuant: 0,
       ledger: new Map(),
+      carried: new Map(),
+      tiedOnward: new Map(),
       tuplet: null,
       pendingChords: [],
+      barHasChord: false,
       skipUntilBar: false,
     };
     this.voices.push(voice);
@@ -1123,23 +1141,38 @@ class TuneBuilder {
     return quants;
   }
 
-  /** ABC accidental rules: explicit sign, else the bar's memory for this letter+octave, else the key. */
-  private resolvePitch(voice: VoiceState, p: TokPitch): { pitch: string; forced: boolean } {
+  /**
+   * ABC accidental rules: an explicit sign, else the bar's memory for this letter+octave, else an
+   * alteration a tie carried over the bar line, else the key signature.
+   */
+  private resolvePitch(
+    voice: VoiceState,
+    p: TokPitch
+  ): { pitch: string; forced: boolean; slot: string; alt: number } {
     const octave = p.octave + (voice.octave ?? this.defaultOctave ?? 0);
     const slot = `${p.letter}${octave}`;
     const keyAlt = keySignatureAltForLetter(p.letter, voice.key);
-    const inEffect = voice.ledger.has(slot) ? voice.ledger.get(slot)! : keyAlt;
+    const inEffect = voice.ledger.has(slot)
+      ? voice.ledger.get(slot)!
+      : voice.carried.has(slot)
+        ? voice.carried.get(slot)!
+        : keyAlt;
     const alt = p.acc ?? inEffect;
     if (p.acc !== null) voice.ledger.set(slot, alt);
     return {
       pitch: `${p.letter}${ALT_SUFFIX[alt] ?? ''}${octave}`,
       // A written accidental that changes nothing is a courtesy/forced glyph: keep it visible.
       forced: p.acc !== null && p.acc === inEffect,
+      slot,
+      alt,
     };
   }
 
   private note(voice: VoiceState, tok: NoteToken): void {
     const resolved = tok.pitches.map((p) => ({ ...this.resolvePitch(voice, p), tied: p.tied }));
+    // A carried alteration serves the note that opens the bar only.
+    voice.carried.clear();
+    voice.tiedOnward = new Map(resolved.filter((r) => r.tied).map((r) => [r.slot, r.alt]));
     const parts = decomposeQuants(this.quantsFor(voice, tok.len, tok.line));
     parts.forEach((part, k) => {
       const splitTie = k < parts.length - 1; // parts of one written note are tied together
@@ -1159,6 +1192,8 @@ class TuneBuilder {
   }
 
   private rest(voice: VoiceState, tok: Extract<Token, { t: 'rest' }>): void {
+    voice.carried.clear();
+    voice.tiedOnward = new Map();
     const parts = decomposeQuants(this.quantsFor(voice, tok.len, tok.line));
     parts.forEach((part, k) => {
       const id = eventId();
@@ -1201,6 +1236,7 @@ class TuneBuilder {
       // Two voices may carry the same symbol at the same beat (or a bar may repeat one): keep the first.
       if (this.chords.some((c) => c.measure === measure && c.quant === quant)) continue;
       this.chords.push({ id: chordId(), measure, quant, symbol: parsed.symbol });
+      voice.barHasChord = true;
     }
     voice.pendingChords = [];
   }
@@ -1300,10 +1336,25 @@ class TuneBuilder {
     // Consecutive bar lines ("|: A B :|" then "|: …" on the next line, a leading "|:") never
     // open an empty bar; an intentionally empty bar is written with rests or Z.
     if (voice.events.length === 0) return;
-    voice.measures.push({ id: measureId(), events: voice.events });
+    // A lone whole-note rest is the engraver's "rest for the bar" in any meter (`z4` with L:1/4
+    // in 3/4 is not an over-full bar; abcjs reads it the same way). The model's empty bar is
+    // exactly that, and it is what the exporter writes an empty bar back as. A chord symbol
+    // needs an event to anchor to, so a rest carrying one stays explicit.
+    const [only] = voice.events;
+    const wholeBarRest =
+      voice.events.length === 1 &&
+      !!only.isRest &&
+      only.duration === 'whole' &&
+      !only.dotted &&
+      !only.tuplet &&
+      !voice.barHasChord;
+    voice.measures.push({ id: measureId(), events: wholeBarRest ? [] : voice.events });
     voice.events = [];
     voice.localQuant = 0;
+    voice.barHasChord = false;
     voice.ledger.clear();
+    voice.carried = voice.tiedOnward;
+    voice.tiedOnward = new Map();
   }
 
   private multiRest(voice: VoiceState, count: number): void {
@@ -1312,6 +1363,7 @@ class TuneBuilder {
     for (let i = 0; i < Math.max(1, count); i++) {
       voice.measures.push({ id: measureId(), events: [] });
     }
+    voice.carried.clear();
   }
 
   // --- Assembly ---------------------------------------------------------------
@@ -1406,13 +1458,37 @@ class TuneBuilder {
       }),
     };
 
+    // One line per bar for the first few problems, then a count — a 4000-bar import must not
+    // produce a 4000-line warning list.
+    const MAX_BAR_WARNINGS = 8;
+    const overflow: Record<string, number> = {};
+    let listed = 0;
     for (const error of validateScore(score).errors) {
       if (error.measureIndex < 0) continue; // parity is guaranteed by the padding above
+      const overfull = error.reason.startsWith('overfull');
+      if (listed >= MAX_BAR_WARNINGS) {
+        const kind = overfull ? 'overfull' : 'incomplete';
+        overflow[kind] = (overflow[kind] ?? 0) + 1;
+        continue;
+      }
+      listed += 1;
       const where = `Bar ${toDisplayMeasureNumber(error.measureIndex)}${staves.length > 1 ? ` (staff ${error.staffIndex + 1})` : ''}`;
-      const what = error.reason.startsWith('overfull')
+      const what = overfull
         ? `holds more than a full bar ${error.reason.replace(/^overfull\s*/, '')}`
         : 'contains an incomplete tuplet';
       this.warnings.add(`validation:${error.staffIndex}:${error.measureIndex}`, `${where} ${what}`);
+    }
+    if (overflow.overfull) {
+      this.warnings.add(
+        'validation:more-overfull',
+        `${overflow.overfull} more bars hold more than a full bar`
+      );
+    }
+    if (overflow.incomplete) {
+      this.warnings.add(
+        'validation:more-incomplete',
+        `${overflow.incomplete} more bars contain an incomplete tuplet`
+      );
     }
 
     return { ok: true, score, warnings: this.warnings.list() };

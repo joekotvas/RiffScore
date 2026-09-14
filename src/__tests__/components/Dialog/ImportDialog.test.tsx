@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FileMenu from '@/components/Toolbar/FileMenu';
 import { ScoreProvider, useScoreContext } from '@/context/ScoreContext';
@@ -132,6 +132,32 @@ describe('ImportDialog', () => {
     await waitFor(() => expect(screen.getByLabelText('Score text')).toHaveValue(TUNE));
     expect(screen.getByText('kesh.abc')).toBeInTheDocument();
     expect(screen.getByTestId('import-summary')).toHaveTextContent('Pasted Tune');
+  });
+
+  it('stays open when a drag that started in the text box ends on the backdrop', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    await openDialog(user);
+    const textarea = screen.getByLabelText('Score text');
+    const backdrop = screen.getByTestId('import-backdrop');
+
+    fireEvent.mouseDown(textarea);
+    fireEvent.mouseUp(backdrop);
+    fireEvent.click(backdrop);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    fireEvent.mouseDown(backdrop);
+    fireEvent.mouseUp(backdrop);
+    fireEvent.click(backdrop);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('hands focus back to the File menu button when it closes', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    await openDialog(user);
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('button', { name: 'File Menu' })).toHaveFocus();
   });
 
   it('closes without importing on Cancel and on Escape', async () => {

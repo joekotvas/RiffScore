@@ -37,7 +37,7 @@ no header at all (`C D E F | G A B c |`) works too, with the defaults `M:4/4`, `
 | `N:` | `metadata.copyright` | Only when the line reads as a copyright notice (contains ©, `(c)`, "copyright" or "all rights reserved"); other notes are ignored. |
 | `M:` | `timeSignature` | `4/4`, `6/8`, `C` (= 4/4), `C|` (= 2/2), `(2+3)/8` (= 5/8). Missing → 4/4. `M:none` and other unsupported meters warn and fall back to 4/4. |
 | `L:` | unit note length | Missing → `1/8`, or `1/16` when the meter is shorter than 3/4 (ABC 2.1 rule). |
-| `Q:` | `bpm` (quarter notes per minute) | `1/4=120`, `3/8=100` (→ 150), `1/2=60` (→ 120), compound beats `1/4 3/8=40` (summed), an `"Allegro"` label is skipped. A bare `Q:120` counts beats of the meter's beat unit (dotted quarter in 6/8, 9/8, 12/8). Clamped to 30–300 with a warning. |
+| `Q:` | `bpm` (quarter notes per minute) | `1/4=120`, `3/8=100` (→ 150), `1/2=60` (→ 120), compound beats `1/4 3/8=40` (summed), an `"Allegro"` label is skipped and a label alone leaves the default 120. A bare `Q:120` counts beats of the meter's beat unit (the dotted quarter in compound x/8 meters). Clamped to 30–300 with a warning. |
 | `K:` | `keySignature` (+ clef / octave) | See [§3](#3-keys-and-modes). |
 | `V:` | one staff per voice | `V:id clef=bass octave=-1`; `name=`, `sname=`, `middle=`, `transpose=`, `stem=` are ignored. Voices appear in declaration order; a declared voice that never plays is dropped. |
 | `w:` `W:` `P:` | — | Lyrics and part markers are not supported (warning). |
@@ -61,7 +61,7 @@ The score model has 15 major and 15 minor key signatures. `K:` values map onto t
 | `Dmix`, `Elyd` | `G`, `B` | Mixolydian and Lydian import as the **major key** with the same signature (warning). |
 | `none`, empty | `C` | No key signature. |
 | `HP` / `Hp` | `D` | Highland pipes (warning). |
-| `K:G clef=bass`, `K:C bass`, `K:C clef=F4` | clef | `treble`/`G2`, `bass`/`F4`, `alto`/`C3`, `tenor`/`C4`. `treble-8`, `bass+8` etc. import as the plain clef (warning); `perc`/`none` become treble (warning). |
+| `K:G clef=bass`, `K:C bass`, `K:clef=F4`, `K:bass` | clef | `treble`/`G2`, `bass`/`F4`, `alto`/`C3`, `tenor`/`C4`, with or without a key in front. `treble-8`, `bass+8` etc. import as the plain clef (warning); `perc`/`none` become treble (warning). |
 | `K:G octave=-1` | pitch shift | Every note of the voice moves by that many octaves. |
 | `K:D exp ^f ^c` | — | Explicit signature accidentals are ignored (warning). |
 
@@ -78,11 +78,11 @@ every accidental decision is identical. Only the name shown in the key menu diff
 | Accidentals | `^F _B =F ^^F __B` | Sharp, flat, natural, double sharp, double flat — applied to the same letter **and octave** until the bar line, exactly as in ABC. A written accidental that only restates what is already in force (`^F` in G major) is kept visible (`accidentalDisplay: 'show'`). |
 | Lengths | `A A2 A3/2 A/ A// A/4` | Multiples of `L:`. A length that is not a single (dotted) note value becomes tied notes (`A5` with `L:1/8` → half tied to eighth); a length off the 64th-note grid (`A1/3`) is rounded with a warning. |
 | Broken rhythm | `A>B A<B A>>B` | Dotted / halved pairs, including double dots. |
-| Rests | `z z2 x2` | Rests (`x` is treated as a normal rest). |
+| Rests | `z z2 x2` | Rests (`x` is treated as a normal rest). A bar holding nothing but a whole-note rest (`z4` with `L:1/4`, `z8` with `L:1/8`) is the engraver's "rest for the bar" in **any** meter and becomes an empty bar; a rest with a chord symbol on it stays explicit. (abcjs goes further and reads every whole-note rest as a bar, even next to other notes; RiffScore keeps those literal and reports the over-full bar.) |
 | Multi-bar rests | `Z2` | That many empty bars. |
 | Chords | `[CEG]2 [C2E2G2]` | One event with several notes; the length is the first note's times the outer length. |
-| Ties | `A2-A2`, `[CEG]2-[CEG]2`, `[C-EG]` | Ties to the next same-pitch note, also across a bar line. A tie with no matching note is dropped (warning). |
-| Tuplets | `(3ABc (5:4:5ABcde (3:2:2A2B` | `tuplet: { ratio: [p, q], groupSize: r }`. Omitted `q` follows ABC 2.1 (`(2`→3, `(3`→2, `(4`→3, `(6`→2, `(8`→3, others 3 in compound meters else 2); omitted `r` = `p`. A chord counts as one member and rests may be members. A tuplet cut off by a bar line imports as plain notes (warning); nested tuplets are ignored (warning). |
+| Ties | `A2-A2`, `[CEG]2-[CEG]2`, `[C-EG]` | Ties to the next same-pitch note, also across a bar line. A tie carries its accidental over the bar line to the tied note only (`^F4- \| F2 F2` sounds F♯, F♯, F♮), as in engraved music. A tie with no matching note is dropped (warning). |
+| Tuplets | `(3ABc (5:4:5ABcde (3:2:2A2B` | `tuplet: { ratio: [p, q], groupSize: r }`. Omitted `q` follows ABC 2.1 (`(2`→3, `(3`→2, `(4`→3, `(6`→2, `(8`→3; `(5` `(7` `(9` → 3 in 6/8, 9/8 and 12/8, else 2); omitted `r` = `p`. abcjs reads a bare `(5`/`(7`/`(9` as "in the time of 2" in every meter, so write `(5:3:5` or `(5:2:5` in compound meters to be unambiguous everywhere. A chord counts as one member and rests may be members. A tuplet cut off by a bar line imports as plain notes (warning; abcjs lets it run on across the bar); nested tuplets are ignored (warning). |
 | Bar lines | `\| \|\| \|] [\| \|: :\| :: \|1 [2` | Every form is a bar boundary. Consecutive bar lines (`:\|` then `\|:` on the next line) never create an empty bar. |
 | Chord symbols | `"G"A2 "D7"B2 "Em"z2` | `chordTrack` entries anchored on the next note, rest or chord (also inside tuplets, on the fractional quant). Symbols are canonicalised by the chord parser; an unrecognised one is dropped (warning). The first symbol wins when two land on the same beat. |
 | Inline fields | `[L:1/16] [K:D] [M:1/4] [V:2] [Q:…]` | `L:` and `V:` apply immediately. See below for `K:`, `M:`, `Q:`. |
@@ -92,8 +92,8 @@ every accidental decision is identical. Only the name shown in the key menu diff
 whether it is written plainly (`D | G2 …`) or with the exporter's `[M:1/4] … [M:4/4]` pair.
 
 **Bar fullness.** Under-full bars are valid (the editor renders the remainder as an implicit rest).
-Over-full bars import as written and are reported (`Bar 3 holds more than a full bar (72/64 quants)`)
-so they can be fixed in the editor.
+Over-full bars import as written and are reported (`Bar 3 holds more than a full bar (72/64 quants)`,
+the first eight individually and the rest as a count) so they can be fixed in the editor.
 
 **Mid-tune changes.** The score has one key, meter and tempo. A `K:` inside the tune keeps the
 score key but resolves later accidentals in the new key, so every sounding pitch is right and
@@ -159,9 +159,9 @@ set of synthetic scores (accidentals in every key, ties, tuplets, chord symbols 
 anchors, pickups, grand staves, every clef), and the importer is cross-checked against **abcjs** as
 an independent reference for the sounding pitches and onsets of hand-written tunes.
 
-Two things are intentionally not round-tripped: an empty bar exports as a full-bar rest and imports
-as an explicit rest, and a `hide` accidental policy has no ABC form (the pitch is exported, the
-policy is not).
+Two things are intentionally lossy: a written whole-note rest that fills a bar by itself comes back
+as an empty bar (both export as `z4`, both engrave as a whole-bar rest), and a `hide` accidental
+policy has no ABC form (the pitch is exported, the policy is not).
 
 ---
 

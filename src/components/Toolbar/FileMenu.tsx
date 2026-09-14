@@ -237,7 +237,11 @@ const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = 'h-9', variant
 
       {isImportOpen && (
         <Portal>
-          <ImportDialog isOpen onClose={() => setIsImportOpen(false)} />
+          <ImportDialog
+            isOpen
+            onClose={() => setIsImportOpen(false)}
+            returnFocusRef={buttonRef as React.RefObject<HTMLElement>}
+          />
         </Portal>
       )}
     </div>

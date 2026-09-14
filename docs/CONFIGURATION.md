@@ -144,7 +144,7 @@ T:The Kesh
 M:6/8
 L:1/8
 K:G
-|:G3 GAB|A3 ABd|edd gdd|edB dBA|G3 GAB|A3 ABd|edd gdB|AGF G3:|`,
+G3 GAB|A3 ABd|edd gdd|edB dBA|G3 GAB|A3 ABd|edd gdB|AGF G3|`,
   },
 }} />
 ```

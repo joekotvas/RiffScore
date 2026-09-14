@@ -68,21 +68,17 @@ const ev = (spec: Spec, tuplet?: ScoreEvent['tuplet']): ScoreEvent => {
   };
 };
 
+/** The duration name a spec denotes ('C4:8' → 'eighth', { rest: 'q' } → 'quarter'). */
+const specDuration = (spec: Spec): string => {
+  const text = typeof spec === 'string' ? spec : Array.isArray(spec) ? spec[0] : `z:${spec.rest}`;
+  return DUR[text.split(':')[1]?.replace('.', '') ?? 'q'];
+};
+
 const tuplet = (ratio: [number, number], specs: Spec[]): ScoreEvent[] => {
   const id = `t${++seq}`;
+  const baseDuration = specDuration(specs[0]);
   return specs.map((s, position) =>
-    ev(s, {
-      ratio,
-      groupSize: specs.length,
-      position,
-      id,
-      baseDuration:
-        DUR[
-          (typeof s === 'string' ? s : Array.isArray(s) ? s[0] : `x:${s.rest}`)
-            .split(':')[1]
-            ?.replace('.', '') ?? 'q'
-        ],
-    })
+    ev(s, { ratio, groupSize: specs.length, position, id, baseDuration })
   );
 };
 
@@ -225,7 +221,7 @@ const fixtures: Record<string, Score> = {
           ev('F6:8.'),
           ev('G6:q'),
         ],
-        [{ ...ev({ rest: 'w' }) }],
+        [ev({ rest: 'w' })],
         [],
       ],
     }
@@ -337,6 +333,11 @@ describe('ABC round trip — synthetic fixtures', () => {
       lyricist: 'A. Lyricist',
       copyright: '© 2026 Someone',
     });
+  });
+
+  it('brings an empty bar back as an empty bar, and a lone written whole rest as an empty bar too', () => {
+    const { imported } = roundTrip(fixtures['dotted values, sixteenths and a whole rest bar']);
+    expect(imported.staves[0].measures.slice(2).map((m) => m.events.length)).toEqual([0, 0]);
   });
 
   it('keeps a forced (redundant) accidental visible', () => {

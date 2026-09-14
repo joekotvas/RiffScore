@@ -23,6 +23,8 @@ interface ImportDialogProps {
   isOpen: boolean;
   /** Called when the dialog closes (after an import or on cancel) */
   onClose: () => void;
+  /** Element to focus again when the dialog closes (the menu button that opened it) */
+  returnFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
 const PLACEHOLDER = [
@@ -47,13 +49,19 @@ const readFileText = (file: File): Promise<string> =>
 const analyze = (text: string): ImportTextResult | null =>
   text.trim() ? importScoreText(text) : null;
 
-const ImportDialogContent: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+const ImportDialogContent: React.FC<Omit<ImportDialogProps, 'isOpen'>> = ({
+  onClose,
+  returnFocusRef,
+}) => {
   const ctx = useScoreContext();
   const { dispatch } = ctx.engines;
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // A click only closes the dialog when it both starts and ends on the backdrop, so dragging a
+  // text selection out of the text box and releasing outside does not throw the text away.
+  const backdropPress = useRef(false);
   const [text, setText] = useState('');
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -64,6 +72,7 @@ const ImportDialogContent: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     containerRef: dialogRef,
     isActive: true,
     onEscape: onClose,
+    returnFocusRef,
     autoFocus: false, // the trap would focus the × button; the text box is where typing starts
   });
 
@@ -105,7 +114,18 @@ const ImportDialogContent: React.FC<{ onClose: () => void }> = ({ onClose }) => 
   const modKey = getModifierKey();
 
   return (
-    <div className="riff-ImportDialog-backdrop" onClick={onClose} role="presentation">
+    <div
+      className="riff-ImportDialog-backdrop"
+      onMouseDown={(e) => {
+        backdropPress.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        if (backdropPress.current && e.target === e.currentTarget) onClose();
+        backdropPress.current = false;
+      }}
+      role="presentation"
+      data-testid="import-backdrop"
+    >
       <div
         ref={dialogRef}
         className="riff-ImportDialog"
@@ -238,7 +258,7 @@ const ImportDialogContent: React.FC<{ onClose: () => void }> = ({ onClose }) => 
  * Import dialog. Renders nothing while closed; the inner component remounts on each open so
  * the text box and file state start fresh.
  */
-export const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) => {
+export const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose, returnFocusRef }) => {
   if (!isOpen) return null;
-  return <ImportDialogContent onClose={onClose} />;
+  return <ImportDialogContent onClose={onClose} returnFocusRef={returnFocusRef} />;
 };
