@@ -8,7 +8,7 @@
  */
 
 import { createTimeline } from '@/services/TimelineService';
-import type { Score, ScoreEvent } from '@/types';
+import type { Score, ScoreEvent, Note } from '@/types';
 
 describe('TimelineService', () => {
   const mockScore: Score = {
@@ -371,7 +371,12 @@ describe('TimelineService', () => {
             id: 'staff-1',
             clef: 'treble' as const,
             keySignature: 'C',
-            measures: [{ id: '1', events: [trip('e1', 'C4', true), trip('e2', 'C4', false), trip('e3', 'E4', false)] }],
+            measures: [
+              {
+                id: '1',
+                events: [trip('e1', 'C4', true), trip('e2', 'C4', false), trip('e3', 'E4', false)],
+              },
+            ],
           },
         ],
       };
@@ -402,8 +407,28 @@ describe('TimelineService', () => {
             clef: 'treble' as const,
             keySignature: 'C',
             measures: [
-              { id: 'm1', events: [{ id: 'e1', duration: 'quarter', dotted: false, notes: [{ id: 'n1', pitch: 'C4', tied: true }] }] },
-              { id: 'm2', events: [{ id: 'e2', duration: 'quarter', dotted: false, notes: [{ id: 'n2', pitch: 'C4', tied: false }] }] },
+              {
+                id: 'm1',
+                events: [
+                  {
+                    id: 'e1',
+                    duration: 'quarter',
+                    dotted: false,
+                    notes: [{ id: 'n1', pitch: 'C4', tied: true }],
+                  },
+                ],
+              },
+              {
+                id: 'm2',
+                events: [
+                  {
+                    id: 'e2',
+                    duration: 'quarter',
+                    dotted: false,
+                    notes: [{ id: 'n2', pitch: 'C4', tied: false }],
+                  },
+                ],
+              },
             ],
           },
         ],
@@ -446,6 +471,81 @@ describe('TimelineService', () => {
       const f4 = timeline.find((e) => e.pitch === 'F4'); // first note of bar 2
       expect(f4).toBeDefined();
       expect(f4!.time).toBeCloseTo(3.0); // 3/4 bar => bar 2 at 3s, not 4s
+    });
+  });
+
+  // Rests are `{ isRest: true, notes: [{ pitch: null, isRest: true }] }` (DATA_MODEL.md); they are
+  // silent by design, so the "note without pitch" diagnostic must not fire for every rest played.
+  describe('rests and pitch-less notes', () => {
+    let warn: jest.SpyInstance;
+
+    beforeEach(() => {
+      warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      warn.mockRestore();
+    });
+
+    const scoreWith = (secondEvent: ScoreEvent): Score => ({
+      ...mockScore,
+      staves: [
+        {
+          id: 'staff-1',
+          clef: 'treble' as const,
+          keySignature: 'C',
+          measures: [
+            {
+              id: '1',
+              events: [
+                {
+                  id: 'e1',
+                  duration: 'quarter',
+                  dotted: false,
+                  notes: [{ id: 'n1', pitch: 'C4' }],
+                },
+                secondEvent,
+                {
+                  id: 'e3',
+                  duration: 'quarter',
+                  dotted: false,
+                  notes: [{ id: 'n3', pitch: 'E4' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    test('a rest advances time without warning about a missing pitch', () => {
+      const score = scoreWith({
+        id: 'e2',
+        duration: 'quarter',
+        dotted: false,
+        isRest: true,
+        notes: [{ id: 'n2', pitch: null, isRest: true }],
+      });
+
+      const timeline = createTimeline(score, 60); // 1 beat = 1s
+
+      expect(timeline.map((e) => e.pitch)).toEqual(['C4', 'E4']);
+      expect(timeline[1].time).toBeCloseTo(2.0); // the rest still occupies its beat
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    test('a non-rest note without a pitch still warns', () => {
+      const pitchless = { id: 'n2', pitch: null } as unknown as Note;
+      const score = scoreWith({ id: 'e2', duration: 'quarter', dotted: false, notes: [pitchless] });
+
+      const timeline = createTimeline(score, 60);
+
+      expect(timeline.map((e) => e.pitch)).toEqual(['C4', 'E4']);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        'TimelineService: Note without pitch detected',
+        expect.objectContaining({ measureIndex: 0, eventIndex: 1 })
+      );
     });
   });
 });

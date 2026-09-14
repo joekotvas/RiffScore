@@ -15,7 +15,8 @@ import { SetLayoutConfigCommand } from '@/commands/layout';
 import { MetadataSection } from './MetadataSection';
 import { LayoutSection } from './LayoutSection';
 import type { ScoreMetadata, LayoutConfig } from '@/types';
-import { DEFAULT_SCORE_METADATA, DEFAULT_LAYOUT_CONFIG } from '@/config';
+import { DEFAULT_LAYOUT_CONFIG } from '@/config';
+import { resolveScoreMetadata } from '@/services/MetadataService';
 import './ScoreSetupDialog.css';
 
 interface ScoreSetupDialogProps {
@@ -52,7 +53,7 @@ const ScoreSetupDialogContent: React.FC<{
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Get current values with defaults
-  const metadata: ScoreMetadata = score.metadata ?? { ...DEFAULT_SCORE_METADATA };
+  const metadata: ScoreMetadata = resolveScoreMetadata(score);
   const layout: LayoutConfig = score.layout ?? { ...DEFAULT_LAYOUT_CONFIG };
 
   // Focus trap for accessibility
