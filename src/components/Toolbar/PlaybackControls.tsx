@@ -92,6 +92,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         </span>
         <input
           type="text"
+          aria-label="Tempo (BPM)"
           value={bpmBuffer}
           onChange={(e) => setBpmBuffer(e.target.value)}
           onFocus={() => setIsFocused(true)}

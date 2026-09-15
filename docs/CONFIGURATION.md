@@ -249,6 +249,8 @@ Supported: `4/4`, `3/4`, `2/4`, `6/8`
 }} />
 ```
 
+`score.bpm` is the score's authoritative tempo: `api.play()` and the exporters use it, and `api.setBpm()` changes it (undoably). The toolbar's tempo input is a *working* tempo (issue #22): it is seeded from `score.bpm` and re-synced whenever the score tempo changes — a loaded or imported score, a melody from the library, `api.setBpm()`, `api.reset()`, undo/redo — but editing it in the toolbar only changes what the toolbar's Play button plays and never writes back to the score, so a practice tempo can differ from the notated one.
+
 ---
 
 ## Chord Configuration

@@ -82,7 +82,17 @@ const ScoreEditorContent = ({
   const { pendingClefChange, setPendingClefChange } = scoreLogic as any; // UI state from context
 
   // --- Local UI State ---
-  const [bpm, setBpm] = useState(120);
+  // Toolbar tempo (#22): a working/playback tempo, seeded from the score's authoritative
+  // `score.bpm` and re-synced whenever that tempo changes — a LOAD_SCORE (loadScore, import, the
+  // melody library, reset), a SET_BPM (api.setBpm) or an undo/redo of either. The sync is one-way:
+  // editing the value in the toolbar only changes what the toolbar transport plays, never the
+  // score, so a practice tempo can differ from the notated one. (A load whose tempo equals the
+  // current score tempo leaves such an override in place — there is no tempo change to follow.)
+  const scoreBpm = score.bpm || 120;
+  const [bpm, setBpm] = useState(scoreBpm);
+  useEffect(() => {
+    setBpm(scoreBpm);
+  }, [scoreBpm]);
   const [showHelp, setShowHelp] = useState(false);
   const [isHoveringScore, setIsHoveringScore] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState<InstrumentType>('bright');
