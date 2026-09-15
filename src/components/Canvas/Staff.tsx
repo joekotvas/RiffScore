@@ -289,7 +289,8 @@ const Staff: React.FC<StaffProps> = ({
               measureLayoutV2?.syncedEventPositions,
               stretchFactor,
               keySignature,
-              tieStops
+              tieStops,
+              timeSignature
             )
           : (measureLayoutV2?.legacyLayout ??
             calculateMeasureLayout(
@@ -300,7 +301,8 @@ const Staff: React.FC<StaffProps> = ({
               undefined,
               1.0,
               keySignature,
-              tieStops
+              tieStops,
+              timeSignature
             ));
       const measureX = measureStartXs[mIndex];
       // Stem direction each event is drawn with: its beam's when beamed, else its chord's.

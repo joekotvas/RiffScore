@@ -2,11 +2,37 @@
  * Constants and helpers for calculating stem geometry.
  */
 
-import { STEM } from '@/constants';
+import { MIDDLE_LINE_Y, STEM } from '@/constants';
 
 // Re-export for backwards compatibility
 export const STEM_LENGTHS = STEM.LENGTHS;
 export const STEM_BEAMED_LENGTHS = STEM.BEAMED_LENGTHS;
+
+/**
+ * Where an UNBEAMED stem ends (Gould, *Behind Bars*, "Stem length"): the standard length for
+ * the value from the outer notehead in the stem's direction — longer under three or four
+ * flags — and never short of the middle line: a note on the second ledger line or beyond gets
+ * its stem extended to the middle line. The renderer, the tuplet bracket and the vertical
+ * extents all read this one function.
+ *
+ * @param minY - Highest notehead Y (the anchor of an up-stem)
+ * @param maxY - Lowest notehead Y (the anchor of a down-stem)
+ */
+export const unbeamedStemEnd = ({
+  direction,
+  minY,
+  maxY,
+  duration,
+}: {
+  direction: 'up' | 'down';
+  minY: number;
+  maxY: number;
+  duration: string;
+}): number => {
+  const length = STEM_LENGTHS[duration] || STEM_LENGTHS.default;
+  if (direction === 'up') return Math.min(minY - length, MIDDLE_LINE_Y);
+  return Math.max(maxY + length, MIDDLE_LINE_Y);
+};
 
 /**
  * Calculates stem geometry based on beam specifications or default layout.
@@ -42,12 +68,12 @@ export const calculateStemGeometry = ({
     return { startY: stemStartY, endY: stemEndY };
   }
 
-  // Standard Stem Logic
-  const length = STEM_LENGTHS[duration] || STEM_LENGTHS.default;
+  // Standard stem: from the near notehead to the shared unbeamed stem end.
+  const endY = unbeamedStemEnd({ direction, minY, maxY, duration });
   if (direction === 'up') {
     // Up-stem: starts at note (maxY), extends upward
-    return { startY: maxY, endY: minY - length };
+    return { startY: maxY, endY };
   }
   // Down-stem: starts at note (minY), extends downward
-  return { startY: minY, endY: maxY + length };
+  return { startY: minY, endY };
 };

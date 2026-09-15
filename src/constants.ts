@@ -360,6 +360,20 @@ export const NOTE_SPACING = {
     sixteenth: 20,
     eighth: 24,
   } as Record<string, number>,
+  /**
+   * Glyph ink around an event's x (Bravura at 100%), for the ink-aware advance in ink.ts: a
+   * flag hangs to the right of an up-stem (left of a down-stem), noteheads and rests are
+   * centred on x. `GAP` is the clearance kept between one event's ink and the next's.
+   */
+  INK: {
+    FLAG_RIGHT: { up: 19, down: 8 } as Record<'up' | 'down', number>,
+    HEAD_HALF: 7,
+    REST_HALF: { eighth: 6, sixteenth: 8, thirtysecond: 9, sixtyfourth: 10.5 } as Record<
+      string,
+      number
+    >,
+    GAP: 6,
+  },
 };
 export const WHOLE_REST_WIDTH = 12;
 export const DEFAULT_SCALE = 0.75;
@@ -410,10 +424,15 @@ export const LAYOUT = {
 // =============================================================================
 
 export const STEM = {
+  /**
+   * Unbeamed stem length by duration (px at 100%; 44 ≈ 3.7 spaces). Third and fourth flags
+   * need a longer stem so the flag clears the notehead. A stem that would not reach the middle
+   * line (notes from the second ledger line outward) is extended to it — see `unbeamedStemEnd`.
+   */
   LENGTHS: {
     default: 44,
-    thirtysecond: 44,
-    sixtyfourth: 44,
+    thirtysecond: 48,
+    sixtyfourth: 56,
   } as Record<string, number>,
   BEAMED_LENGTHS: {
     default: 44,

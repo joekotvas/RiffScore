@@ -50,9 +50,19 @@ export function useMeasureLayout(
       forcedEventPositions,
       stretchFactor,
       keySignature,
-      tieStops
+      tieStops,
+      timeSignature
     );
-  }, [events, clef, isPickup, forcedEventPositions, stretchFactor, keySignature, tieStops]);
+  }, [
+    events,
+    clef,
+    isPickup,
+    forcedEventPositions,
+    stretchFactor,
+    keySignature,
+    tieStops,
+    timeSignature,
+  ]);
 
   const { hitZones, eventPositions, totalWidth, processedEvents } = measureLayout;
 

@@ -153,6 +153,14 @@ system reserves the vertical room its interactive and chord areas need.
   inner notes away from the chord's centre, and a note tied across a barline no longer re-shows
   its accidental (a later note on that line that reverts still gets its natural). On justified
   page-view systems of a grand staff, tie ends now land on the noteheads.
+- **Stem lengths follow the engraving rule** — an unbeamed note on the second ledger line or
+  beyond has its stem extended to the middle line instead of a fixed length, and 32nd and 64th
+  notes get longer stems so their flags clear the notehead. Tuplet brackets and staff spacing
+  see the same stems.
+- **Flags and short rests no longer collide with what follows** — an unbeamed 16th, 32nd or
+  64th note now leaves room for its flag before the next event, and 32nd and 64th rests (whose
+  glyphs are wider than their rhythmic share) leave room for their glyph. Beamed runs are
+  unchanged.
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -232,6 +240,18 @@ system reserves the vertical room its interactive and chord areas need.
   and `Measure` take the resulting `tieStops` so width reservation and the drawn glyph agree.
   `Staff.renderTies` re-lays justified measures out with their synchronized positions. `Stem`
   renders `line.riff-Stem[data-testid="stem"]`.
+- `unbeamedStemEnd` (engines/layout/stems.ts): value-dependent length (`STEM.LENGTHS`:
+  default 44, thirtysecond 48, sixtyfourth 56) extended to `MIDDLE_LINE_Y` when short of it;
+  used by `calculateStemGeometry`, `calculateMeasureExtent` and the tuplet bracket's stem tips.
+- `engines/layout/ink.ts` `inkAdvance`: minimum advance from an event's rightmost ink
+  (`NOTE_SPACING.INK`: flag extent by stem side, rest and head half-widths, plus a gap; the next event's left ink counts too),
+  applied in `getEventMetrics` and the grand-staff synchronizer's segment widths. Beaming's
+  grouping is exposed as `groupBeamableEvents` / `beamedEventIds` (meter-dependent, x-free) so
+  both engines know which notes carry flags; `calculateMeasureLayout` and `calculateSystemLayout`
+  take a `timeSignature` for it, and the synchronizer's measures carry their staff's `clef` so a
+  flagged note reserves the flag on its actual stem side (a tuplet member's: the tuplet's unified
+  direction, via `getTupletUnifiedDirection`, now exported from `tuplets.ts`; tuplet widths are
+  raised to the bound too).
 
 ## [1.0.0-alpha.16] - 2026-06-13
 

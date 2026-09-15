@@ -176,7 +176,13 @@ a whole ≈ 7.3 staff spaces, half ≈ 5.2, quarter ≈ 3.7, eighth ≈ 2.6, six
 pixel floors for 32nds and 64ths. Calibrated so a 4/4 bar at the 60% page-view default (a
 7.6 mm staff) matches engraved density: eight eighths ≈ 43 mm, four quarters ≈ 32 mm, sixteen
 sixteenths ≈ 60 mm. `CONFIG.measurePaddingLeft` (2 spaces) sits between the barline and the
-first note. Grand-staff synchronisation (`system.ts`) spaces each time segment by the same
+first note. **Ink bound:** an unbeamed 16th–64th note's flag and a 32nd/64th rest's
+glyph are wider than their rhythmic share, so `inkAdvance` (ink.ts) raises the advance to the
+glyph's extent plus `NOTE_SPACING.INK.GAP` plus the next glyph's left half; which notes carry flags comes from the beaming
+grouping (`beamedEventIds`, meter-dependent), so beamed runs are not bound. A flag's extent
+depends on its side (an up-stem flag reaches further right than a down-stem one), so both
+engines take the staff's clef and use the note's actual stem direction — a tuplet member's is
+its tuplet's unified direction, and a tuplet's compressed width is raised to the bound as well. Grand-staff synchronisation (`system.ts`) spaces each time segment by the same
 table, so both staves agree. Glyph paddings (accidentals, dots, lookahead) are separate and
 stay on `NOTE_SPACING_BASE_UNIT`. `noteSpacing.test.ts` pins these ranges.
 
@@ -303,9 +309,16 @@ The `stems.ts` module determines stem direction:
 
 ### Stem Length
 
-- Standard: 3.5 staff spaces
-- Extended for beam groups
-- Shortened for notes with many ledger lines
+`unbeamedStemEnd` (stems.ts) is the one rule for unbeamed stems, read by the renderer, the
+tuplet bracket and the vertical extents:
+
+- Standard length `STEM.LENGTHS.default` (44 px ≈ 3.7 spaces) from the outer notehead in the
+  stem's direction; longer for a third or fourth flag (`thirtysecond` 48, `sixtyfourth` 56) so
+  the flag clears the head.
+- **Never short of the middle line:** a note on the second ledger line or beyond has its stem
+  extended to the middle line (Gould), so far-out notes get proportionally longer stems.
+- Beamed stems end on their beam (`calculateStemGeometry` with a `beamSpec`); wide beamed groups
+  may shorten the stems nearest the beam (see §4).
 
 ---
 
