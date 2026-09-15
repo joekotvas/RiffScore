@@ -78,7 +78,7 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 *   **Embeddable**: Drop it into any React application.
 *   **Configurable**: Full control over UI, interactions, and score content.
 *   **SMuFL Compliance**: Beautiful engraving using the [Bravura](https://github.com/steinbergmedia/bravura) font.
-*   **Export Options**: JSON, MusicXML, and ABC notation export.
+*   **Import & Export**: JSON, MusicXML and ABC notation export; ABC notation and JSON import from the File menu, the API, or config ([details](./docs/ABC_IMPORT.md)).
 *   **Theming**: Built-in dark, light, cool, and warm themes.
 
 ### Chord Symbols
@@ -251,6 +251,6 @@ npm run demo:dev
 
 ## Coming Soon
 
-*   **Import**: ABC and MusicXML import
+*   **Import**: MusicXML import
 *   **Clipboard API**: Copy, cut, and paste operations
 *   **Move Operations**: Drag-and-drop and keyboard-based event moving

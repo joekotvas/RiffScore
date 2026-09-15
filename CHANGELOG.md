@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+ABC import (#10). Tunes written in ABC notation — the text format of folk and session archives —
+can now be brought into the editor, and the editor's own ABC and JSON exports round-trip back in.
+
+### For musicians
+- **Import ABC notation** — File menu → Import (paste, or open a `.abc` file) previews the tune's
+  title, staves and bars and lists anything it cannot represent before you commit; importing is a
+  single undo step. Notes, rests, chords, ties, tuplets, broken rhythm, keys and modes, pickups,
+  several voices and chord symbols are all understood. Repeats, slurs, grace notes, ornaments and
+  lyrics are skipped with a warning.
+- **Re-open your exports** — the same dialog accepts the JSON the editor exports.
+
+### For developers
+- `api.import('abc' | 'json', text)` replaces the score with structured feedback: `info`,
+  `IMPORT_WARNINGS` (with `details.warnings`), or `IMPORT_FAILED` leaving the score untouched.
+  `config.score.abc` seeds a `<RiffScore />` from ABC.
+- `src/importers/abcImporter.ts` is a dependency-free ABC 2.1-subset parser; `importScoreText`
+  is the shared ABC/JSON entry point. abcjs (dev-only) serves as a reference oracle in tests,
+  alongside exporter round-trip tests over every bundled melody and a fast-check fuzz. See
+  [docs/ABC_IMPORT.md](./docs/ABC_IMPORT.md).
+
 M3 export & engraving fidelity. This closes the remaining practical gaps between the score model,
 the rendered page, and the MusicXML/ABC that users share with notation apps.
 

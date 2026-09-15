@@ -345,7 +345,9 @@ export const generateABC = (score: Score, bpm: number): string => {
       abc += isLastMeasure ? '|]' : '| ';
       if ((measureIndex + 1) % 4 === 0) abc += '\n';
     });
-    abc += '\n'; // Newline after each voice/staff block
+    // End the voice block on exactly one newline. A blank line ends the tune in ABC, so a voice
+    // whose bar count is a multiple of four used to cut every later voice off for other readers.
+    if (!abc.endsWith('\n')) abc += '\n';
   });
 
   return abc;

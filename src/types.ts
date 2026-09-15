@@ -972,6 +972,13 @@ export interface RiffScoreConfig {
 
     // Explicit Content (Overrides Generator Options)
     staves?: Staff[];
+
+    /**
+     * ABC notation to import as the initial score (see docs/ABC_IMPORT.md). Takes precedence
+     * over `staves` and the generator options; the tune's own title, key, meter and tempo are
+     * used. If the text cannot be parsed the generator options apply and a warning is logged.
+     */
+    abc?: string;
   };
 
   /** Chord track configuration */

@@ -1,7 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Menu, Copy, Check, Download, FileJson, Music, FileCode } from 'lucide-react';
+import { Menu, Copy, Check, Download, FileJson, Music, FileCode, Upload } from 'lucide-react';
 import ToolbarButton from './ToolbarButton';
 import DropdownOverlay from './Menus/DropdownOverlay';
+import Portal from '@/components/Layout/Portal';
+import { ImportDialog } from '@/components/Dialog/ImportDialog';
 import { useTheme } from '@/context/ThemeContext';
 import { useExport, ExportFormat } from '@/hooks/api';
 import { Score } from '@/types';
@@ -112,8 +114,42 @@ const ExportRow: React.FC<ExportRowProps> = ({
   );
 };
 
+// Full-width menu row that opens the Import dialog
+const ImportRow: React.FC<{ onClick: () => void }> = ({ onClick }) => {
+  const { theme } = useTheme();
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="riff-ControlGroup riff-ImportRow"
+      style={{
+        width: '100%',
+        padding: '0.5rem 1rem',
+        border: 'none',
+        borderBottom: `1px solid ${theme.border}`,
+        backgroundColor: isHovered ? theme.buttonHoverBackground : 'transparent',
+        color: theme.text,
+        fontSize: '0.875rem',
+        cursor: 'pointer',
+        textAlign: 'left',
+      }}
+    >
+      <span style={{ color: theme.secondaryText }}>
+        <Upload size={14} />
+      </span>
+      ABC Notation or JSON…
+    </button>
+  );
+};
+
 const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = 'h-9', variant = 'default' }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const { copyToClipboard, downloadFile } = useExport(score, bpm);
@@ -161,6 +197,15 @@ const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = 'h-9', variant
           width={220}
         >
           <div className="riff-DropdownHeader">
+            <h3 className="riff-DropdownHeader__title">Import</h3>
+          </div>
+          <ImportRow
+            onClick={() => {
+              handleClose();
+              setIsImportOpen(true);
+            }}
+          />
+          <div className="riff-DropdownHeader">
             <h3 className="riff-DropdownHeader__title">Export</h3>
           </div>
           <ExportRow
@@ -188,6 +233,16 @@ const FileMenu: React.FC<FileMenuProps> = ({ score, bpm, height = 'h-9', variant
             feedback={feedback}
           />
         </DropdownOverlay>
+      )}
+
+      {isImportOpen && (
+        <Portal>
+          <ImportDialog
+            isOpen
+            onClose={() => setIsImportOpen(false)}
+            returnFocusRef={buttonRef as React.RefObject<HTMLElement>}
+          />
+        </Portal>
       )}
     </div>
   );

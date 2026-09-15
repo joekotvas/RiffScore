@@ -240,7 +240,8 @@ predates those fixes); the gaps above remain open.
 
 ### M6 — Post-1.0 expansion · *after stable 1.0*
 
-New capabilities, sequenced by demand: ABC/MusicXML import (#10/#11), copy/paste (#36),
+New capabilities, sequenced by demand: MusicXML import (#11; ABC import #10 shipped ahead of
+schedule — see [ABC_IMPORT.md](./ABC_IMPORT.md)), copy/paste (#36),
 dynamics (#20/#21), slurs (#19), lyrics (#30), repeats (#28), inline key/time changes
 (#26/#27), multi-staff with per-staff instruments (#25), UMD build for non-React sites
 (#194), marketing/demo page (#6).

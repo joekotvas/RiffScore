@@ -1,0 +1,233 @@
+/**
+ * ImportDialog Styles
+ *
+ * BEM-named, themed through the --riff-* variables from theme.css; the frame mirrors the
+ * Score Setup dialog so the two read as one family.
+ *
+ * @module components/Dialog/ImportDialog
+ */
+
+.riff-ImportDialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: var(--riff-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--riff-color-backdrop);
+}
+
+.riff-ImportDialog {
+  background-color: var(--riff-color-bg);
+  border-radius: var(--riff-border-radius-lg);
+  box-shadow: var(--riff-shadow-xl);
+  width: 560px;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.riff-ImportDialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--riff-spacing-4) var(--riff-spacing-6);
+  border-bottom: var(--riff-border-width) solid var(--riff-color-border);
+}
+
+.riff-ImportDialog__title {
+  margin: 0;
+  font-size: var(--riff-font-size-lg);
+  font-weight: var(--riff-font-weight-semibold);
+  color: var(--riff-color-text);
+}
+
+.riff-ImportDialog__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--riff-color-text-secondary);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--riff-border-radius);
+  transition:
+    background-color var(--riff-transition-fast),
+    color var(--riff-transition-fast);
+}
+
+.riff-ImportDialog__close:hover {
+  background-color: var(--riff-color-hover-bg);
+  color: var(--riff-color-text);
+}
+
+.riff-ImportDialog__close:focus-visible,
+.riff-ImportDialog__button:focus-visible {
+  outline: 2px solid var(--riff-color-primary);
+  outline-offset: 2px;
+}
+
+.riff-ImportDialog__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--riff-spacing-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--riff-spacing-3);
+}
+
+.riff-ImportDialog__hint {
+  margin: 0;
+  font-size: var(--riff-font-size-sm);
+  color: var(--riff-color-text-secondary);
+  line-height: var(--riff-line-height-normal);
+}
+
+.riff-ImportDialog__hint code {
+  font-family: var(--riff-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.9em;
+}
+
+.riff-ImportDialog__file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--riff-spacing-3);
+}
+
+.riff-ImportDialog__file-name {
+  font-size: var(--riff-font-size-sm);
+  color: var(--riff-color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.riff-ImportDialog__file-input {
+  display: none;
+}
+
+.riff-ImportDialog__label {
+  font-size: var(--riff-font-size-sm);
+  font-weight: var(--riff-font-weight-medium);
+  color: var(--riff-color-text);
+}
+
+.riff-ImportDialog__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 8rem;
+  padding: var(--riff-spacing-2) var(--riff-spacing-3);
+  font-family: var(--riff-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--riff-font-size-sm);
+  line-height: var(--riff-line-height-normal);
+  color: var(--riff-color-text);
+  background-color: var(--riff-color-bg);
+  border: var(--riff-border-width) solid var(--riff-color-border);
+  border-radius: var(--riff-border-radius-md);
+  transition:
+    border-color var(--riff-transition-fast),
+    box-shadow var(--riff-transition-fast);
+}
+
+.riff-ImportDialog__textarea:focus {
+  outline: none;
+  border-color: var(--riff-color-primary);
+  box-shadow: 0 0 0 3px rgba(29, 165, 156, 0.2);
+}
+
+.riff-ImportDialog__textarea::placeholder {
+  color: var(--riff-color-muted);
+}
+
+.riff-ImportDialog__status {
+  min-height: 1.5rem;
+  font-size: var(--riff-font-size-sm);
+  line-height: var(--riff-line-height-normal);
+}
+
+.riff-ImportDialog__ready {
+  margin: 0;
+  color: var(--riff-color-text);
+}
+
+.riff-ImportDialog__error {
+  margin: 0;
+  color: var(--riff-color-danger);
+}
+
+.riff-ImportDialog__warnings {
+  margin-top: var(--riff-spacing-2);
+  padding: var(--riff-spacing-2) var(--riff-spacing-3);
+  border-left: 3px solid var(--riff-color-warning);
+  background-color: var(--riff-color-hover-bg);
+  border-radius: var(--riff-border-radius);
+  color: var(--riff-color-text);
+}
+
+.riff-ImportDialog__warnings-title {
+  margin: 0 0 var(--riff-spacing-1);
+  font-weight: var(--riff-font-weight-medium);
+}
+
+.riff-ImportDialog__warnings-list {
+  margin: 0;
+  padding-left: var(--riff-spacing-4);
+  max-height: 9rem;
+  overflow-y: auto;
+}
+
+.riff-ImportDialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--riff-spacing-3);
+  padding: var(--riff-spacing-4) var(--riff-spacing-6);
+  border-top: var(--riff-border-width) solid var(--riff-color-border);
+}
+
+.riff-ImportDialog__button {
+  padding: var(--riff-spacing-2) var(--riff-spacing-4);
+  font-size: var(--riff-font-size-sm);
+  font-weight: var(--riff-font-weight-medium);
+  border-radius: var(--riff-border-radius-md);
+  cursor: pointer;
+  transition:
+    background-color var(--riff-transition-fast),
+    opacity var(--riff-transition-fast);
+  border: none;
+}
+
+.riff-ImportDialog__button:hover {
+  opacity: 0.9;
+}
+
+.riff-ImportDialog__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.riff-ImportDialog__button--primary {
+  background-color: var(--riff-color-primary);
+  color: var(--riff-color-active-text);
+}
+
+.riff-ImportDialog__button--secondary {
+  background-color: transparent;
+  color: var(--riff-color-text);
+  border: var(--riff-border-width) solid var(--riff-color-border);
+}
+
+.riff-ImportDialog__button--secondary:hover {
+  background-color: var(--riff-color-hover-bg);
+  opacity: 1;
+}

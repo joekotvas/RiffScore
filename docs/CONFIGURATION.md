@@ -46,6 +46,7 @@ interface RiffScoreConfig {
     staff?: StaffTemplate;   // 'grand' | 'treble' | 'bass' | 'alto' | 'tenor'
     measureCount?: number;   // Number of measures to generate
     staves?: Staff[];        // Explicit content (overrides generator); staff.clef: 'treble' | 'bass' | 'alto' | 'tenor' | 'grand'
+    abc?: string;            // ABC notation to import as the initial score (overrides staves and generator options)
   };
   chord?: {
     display?: {
@@ -78,6 +79,7 @@ interface RiffScoreConfig {
 | `score.keySignature` | `'C'` |
 | `score.staff` | `'grand'` |
 | `score.measureCount` | `4` |
+| `score.abc` | — |
 | `chord.display.notation` | `'letter'` |
 | `chord.display.useSymbols` | `false` |
 | `chord.playback.enabled` | `true` |
@@ -127,6 +129,26 @@ const myComposition = {
   score: { staves: myComposition.staves }
 }} />
 ```
+
+### ABC Mode
+
+Seed the editor from a tune in [ABC notation](./ABC_IMPORT.md). The tune's own title, key, meter
+and tempo are used; `abc` takes precedence over `staves` and the generator options. If the text
+contains no music, the generator options apply and a warning is logged.
+
+```tsx
+<RiffScore config={{
+  score: {
+    abc: `X:1
+T:The Kesh
+M:6/8
+L:1/8
+K:G
+G3 GAB|A3 ABd|edd gdd|edB dBA|G3 GAB|A3 ABd|edd gdB|AGF G3|`,
+  },
+}} />
+```
+
 
 ---
 

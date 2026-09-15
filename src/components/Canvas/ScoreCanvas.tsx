@@ -165,6 +165,9 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   // Handle Enter key to start editing selected chord
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Typing in a text field (a dialog's textarea, a metadata input) is never a chord command.
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       // Only handle when chord is selected but not already editing
       if (
         selection.chordTrackFocused &&
