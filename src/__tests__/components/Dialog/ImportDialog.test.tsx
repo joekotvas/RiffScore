@@ -67,11 +67,11 @@ describe('ImportDialog', () => {
     await user.click(screen.getByLabelText('Score text'));
     await user.paste(TUNE);
 
-    expect(screen.getByTestId('import-summary')).toHaveTextContent(
+    expect(await screen.findByTestId('import-summary')).toHaveTextContent(
       'Ready to import Pasted Tune — 1 staff, 4 bars, ABC notation.'
     );
-    expect(screen.getByTestId('import-warnings')).toHaveTextContent('1 thing to know:');
-    expect(screen.getByTestId('import-warnings')).toHaveTextContent(
+    expect(await screen.findByTestId('import-warnings')).toHaveTextContent('1 thing to know:');
+    expect(await screen.findByTestId('import-warnings')).toHaveTextContent(
       /Repeat signs are not supported/
     );
 
@@ -102,7 +102,7 @@ describe('ImportDialog', () => {
     await user.click(screen.getByLabelText('Score text'));
     await user.paste('X:1\nT:Header only\n');
 
-    expect(screen.getByTestId('import-error')).toHaveTextContent(
+    expect(await screen.findByTestId('import-error')).toHaveTextContent(
       'Could not read this as ABC notation: No music found in the ABC input'
     );
     expect(screen.getByRole('button', { name: 'Import' })).toBeDisabled();
@@ -117,7 +117,7 @@ describe('ImportDialog', () => {
     await user.click(screen.getByLabelText('Score text'));
     await user.paste(JSON.stringify(score));
 
-    expect(screen.getByTestId('import-summary')).toHaveTextContent(
+    expect(await screen.findByTestId('import-summary')).toHaveTextContent(
       'Ready to import JSON Score — 2 staves, 2 bars, JSON.'
     );
     await user.click(screen.getByRole('button', { name: 'Import' }));
@@ -132,7 +132,7 @@ describe('ImportDialog', () => {
     await user.click(screen.getByLabelText('Score text'));
     await user.paste(MUSICXML);
 
-    expect(screen.getByTestId('import-summary')).toHaveTextContent(
+    expect(await screen.findByTestId('import-summary')).toHaveTextContent(
       'Ready to import XML Score — 2 staves, 2 bars, MusicXML.'
     );
     await user.click(screen.getByRole('button', { name: 'Import' }));
@@ -151,7 +151,7 @@ describe('ImportDialog', () => {
 
     await waitFor(() => expect(screen.getByLabelText('Score text')).toHaveValue(MUSICXML));
     expect(screen.getByText('score.mxl')).toBeInTheDocument();
-    expect(screen.getByTestId('import-summary')).toHaveTextContent('XML Score');
+    expect(await screen.findByTestId('import-summary')).toHaveTextContent('XML Score');
   });
 
   it('explains a file it cannot unpack', async () => {
@@ -178,7 +178,7 @@ describe('ImportDialog', () => {
 
     await waitFor(() => expect(screen.getByLabelText('Score text')).toHaveValue(TUNE));
     expect(screen.getByText('kesh.abc')).toBeInTheDocument();
-    expect(screen.getByTestId('import-summary')).toHaveTextContent('Pasted Tune');
+    expect(await screen.findByTestId('import-summary')).toHaveTextContent('Pasted Tune');
   });
 
   it('stays open when a drag that started in the text box ends on the backdrop', async () => {
