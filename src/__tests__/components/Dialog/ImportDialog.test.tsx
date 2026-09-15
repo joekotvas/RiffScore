@@ -12,8 +12,11 @@ import FileMenu from '@/components/Toolbar/FileMenu';
 import { ScoreProvider, useScoreContext } from '@/context/ScoreContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { createDefaultScore } from '@/types';
+import { generateMusicXML } from '@/exporters/musicXmlExporter';
+import { mxl as mxlBytes } from '../../helpers/zip';
 
 const TUNE = 'X:1\nT:Pasted Tune\nM:4/4\nL:1/8\nK:G\n|: G2 GAB | d2 dBA | G2 GAB | A2 A2 :|';
+const MUSICXML = generateMusicXML({ ...createDefaultScore(), title: 'XML Score' });
 
 /** Reads the live score so the test can see what the dialog loaded. */
 const ScoreProbe: React.FC = () => {
@@ -37,7 +40,7 @@ const renderMenu = () =>
 
 const openDialog = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(screen.getByRole('button', { name: 'File Menu' }));
-  await user.click(screen.getByRole('menuitem', { name: /ABC Notation or JSON/ }));
+  await user.click(screen.getByRole('menuitem', { name: /ABC, MusicXML or JSON/ }));
   return screen.getByRole('dialog', { name: /Import Score/ });
 };
 
@@ -64,11 +67,11 @@ describe('ImportDialog', () => {
     await user.click(screen.getByLabelText('Score text'));
     await user.paste(TUNE);
 
-    expect(screen.getByTestId('import-summary')).toHaveTextContent(
+    expect(await screen.findByTestId('import-summary')).toHaveTextContent(
       'Ready to import Pasted Tune — 1 staff, 4 bars, ABC notation.'
     );
-    expect(screen.getByTestId('import-warnings')).toHaveTextContent('1 thing to know:');
-    expect(screen.getByTestId('import-warnings')).toHaveTextContent(
+    expect(await screen.findByTestId('import-warnings')).toHaveTextContent('1 thing to know:');
+    expect(await screen.findByTestId('import-warnings')).toHaveTextContent(
       /Repeat signs are not supported/
     );
 
@@ -99,7 +102,7 @@ describe('ImportDialog', () => {
     await user.click(screen.getByLabelText('Score text'));
     await user.paste('X:1\nT:Header only\n');
 
-    expect(screen.getByTestId('import-error')).toHaveTextContent(
+    expect(await screen.findByTestId('import-error')).toHaveTextContent(
       'Could not read this as ABC notation: No music found in the ABC input'
     );
     expect(screen.getByRole('button', { name: 'Import' })).toBeDisabled();
@@ -114,11 +117,55 @@ describe('ImportDialog', () => {
     await user.click(screen.getByLabelText('Score text'));
     await user.paste(JSON.stringify(score));
 
-    expect(screen.getByTestId('import-summary')).toHaveTextContent(
+    expect(await screen.findByTestId('import-summary')).toHaveTextContent(
       'Ready to import JSON Score — 2 staves, 2 bars, JSON.'
     );
     await user.click(screen.getByRole('button', { name: 'Import' }));
     expect(screen.getByTestId('probe')).toHaveTextContent('JSON Score|2');
+  });
+
+  it('recognises pasted MusicXML', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    await openDialog(user);
+
+    await user.click(screen.getByLabelText('Score text'));
+    await user.paste(MUSICXML);
+
+    expect(await screen.findByTestId('import-summary')).toHaveTextContent(
+      'Ready to import XML Score — 2 staves, 2 bars, MusicXML.'
+    );
+    await user.click(screen.getByRole('button', { name: 'Import' }));
+    expect(screen.getByTestId('probe')).toHaveTextContent('XML Score|2');
+  });
+
+  it('unpacks a compressed .mxl file into the text box', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    await openDialog(user);
+
+    const file = new File([mxlBytes(MUSICXML)], 'score.mxl', {
+      type: 'application/vnd.recordare.musicxml',
+    });
+    await user.upload(screen.getByLabelText('Score file'), file);
+
+    await waitFor(() => expect(screen.getByLabelText('Score text')).toHaveValue(MUSICXML));
+    expect(screen.getByText('score.mxl')).toBeInTheDocument();
+    expect(await screen.findByTestId('import-summary')).toHaveTextContent('XML Score');
+  });
+
+  it('explains a file it cannot unpack', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    await openDialog(user);
+
+    const file = new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0])], 'broken.mxl');
+    await user.upload(screen.getByLabelText('Score file'), file);
+
+    expect(
+      await screen.findByText(/Could not read broken\.mxl: not a readable \.mxl archive/)
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Score text')).toHaveValue('');
   });
 
   it('loads a chosen file into the text box', async () => {
@@ -131,7 +178,7 @@ describe('ImportDialog', () => {
 
     await waitFor(() => expect(screen.getByLabelText('Score text')).toHaveValue(TUNE));
     expect(screen.getByText('kesh.abc')).toBeInTheDocument();
-    expect(screen.getByTestId('import-summary')).toHaveTextContent('Pasted Tune');
+    expect(await screen.findByTestId('import-summary')).toHaveTextContent('Pasted Tune');
   });
 
   it('stays open when a drag that started in the text box ends on the backdrop', async () => {

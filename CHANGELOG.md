@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+MusicXML import (#11). Scores exported from MuseScore, Finale, Sibelius, Dorico and the like —
+plain `.musicxml` / `.xml` or compressed `.mxl` — can now be brought into the editor, and the
+editor's own MusicXML export round-trips back in.
+
+### For musicians
+- **Import MusicXML** — File menu → Import (paste, or open a `.musicxml` / `.xml` / `.mxl` file)
+  previews the score's title, staves and bars and lists anything it cannot represent before you
+  commit; importing is a single undo step. Parts and grand staves, keys and modes, meters, clefs,
+  tempo, notes, chords, rests, ties, tuplets, accidentals and courtesy accidentals, pickups and
+  chord symbols are all understood. Extra voices, repeats, slurs, dynamics, articulations, text
+  and lyrics are skipped with a warning.
+- **MusicXML exports carry the tempo** — the score's BPM is written as a metronome mark and a
+  `<sound tempo>` so other apps (and a re-import) play it at the right speed. Augmented-seventh,
+  minor-major-seventh and power chords now export with their own `<kind>` (they were written as
+  plain augmented, minor and major).
+
+### For developers
+- `api.import('musicxml', content)` accepts the document text or the bytes (`ArrayBuffer` /
+  `Uint8Array`) of a `.musicxml` or `.mxl` file, with the same structured feedback as ABC.
+  `config.score.musicxml` seeds a `<RiffScore />` from MusicXML; `importScoreData(bytes)` is the
+  bytes-aware sibling of `importScoreText`.
+- `src/importers/musicXmlImporter.ts` is a dependency-free partwise/timewise reader, with its own
+  small XML parser and a DEFLATE/ZIP decoder for `.mxl` (nothing new is bundled). Shared importer
+  helpers (fractions, warnings, quant decomposition, parity padding, pickup inference, clean-up)
+  moved to `importUtils.ts`; the pickup rule is now score-wide for ABC too (every staff's first
+  bar under-full, flagged on every staff). The MusicXML chord-kind table is shared by the
+  exporter and importer (`MUSICXML_CHORD_KINDS`), and both derive clef signs from the clef
+  geometry in `utils/clef.ts`. Tested
+  by an exporter round trip over every bundled melody and synthetic fixtures, first-principles
+  semantics, a MuseScore-style file, zlib as the inflate oracle, and fast-check fuzzing. See
+  [docs/MUSICXML_IMPORT.md](./docs/MUSICXML_IMPORT.md).
+
 ABC import (#10). Tunes written in ABC notation — the text format of folk and session archives —
 can now be brought into the editor, and the editor's own ABC and JSON exports round-trip back in.
 

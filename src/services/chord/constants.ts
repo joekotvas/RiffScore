@@ -76,3 +76,41 @@ export const QUALITY_NAMES: Record<string, string> = {
   '13': 'thirteenth',
   add9: 'add nine',
 };
+
+// ============================================================================
+// MUSICXML CHORD KINDS
+// ============================================================================
+
+/**
+ * MusicXML `<kind>` of each canonical chord-symbol suffix (the parser's output vocabulary).
+ * The MusicXML exporter writes from this table and the importer reads its inverse, so the two
+ * cannot drift apart. Where two suffixes share a kind ('' and 'maj'), the first is canonical.
+ */
+export const MUSICXML_CHORD_KINDS: Record<string, string> = {
+  '': 'major',
+  maj: 'major',
+  m: 'minor',
+  aug: 'augmented',
+  dim: 'diminished',
+  '7': 'dominant',
+  maj7: 'major-seventh',
+  m7: 'minor-seventh',
+  dim7: 'diminished-seventh',
+  aug7: 'augmented-seventh',
+  m7b5: 'half-diminished',
+  mmaj7: 'major-minor',
+  '6': 'major-sixth',
+  m6: 'minor-sixth',
+  '9': 'dominant-ninth',
+  maj9: 'major-ninth',
+  m9: 'minor-ninth',
+  '11': 'dominant-11th',
+  maj11: 'major-11th',
+  m11: 'minor-11th',
+  '13': 'dominant-13th',
+  maj13: 'major-13th',
+  m13: 'minor-13th',
+  sus2: 'suspended-second',
+  sus4: 'suspended-fourth',
+  '5': 'power',
+};

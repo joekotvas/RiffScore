@@ -22,7 +22,8 @@ export interface UseRiffScoreResult {
  *
  * Logic:
  * 1. Merge user config with defaults
- * 2. If config.score.abc is provided, import it (ABC Mode); on failure fall through
+ * 2. If config.score.abc or config.score.musicxml is provided, import it (Import Mode); on
+ *    failure fall through
  * 3. If config.score.staves is provided, use it directly (Render Mode)
  * 4. Otherwise, generate staves from template (Generator Mode)
  */
@@ -30,44 +31,37 @@ export const useRiffScore = (userConfig: DeepPartial<RiffScoreConfig> = {}): Use
   // 1. Merge with defaults
   const config = useMemo(() => mergeRiffConfig(userConfig), [userConfig]);
 
-  // 2. Derive initial score
+  // 2. Derive initial score. The memo keys on the seed values themselves, not the merged config
+  //    object (rebuilt on every host render), so a multi-megabyte MusicXML seed is parsed once.
+  const { abc, musicxml, staves, staff, measureCount, title, timeSignature, keySignature, bpm } =
+    config.score;
   const initialScore = useMemo((): Score => {
-    const { score: scoreConfig } = config;
-
-    // ABC Mode: the tune carries its own title, key, meter and tempo.
-    if (scoreConfig.abc) {
-      const result = importScoreText(scoreConfig.abc, 'abc');
+    // Import Mode: the tune carries its own title, key, meter and tempo.
+    const seeds: [string, string | undefined, 'abc' | 'musicxml'][] = [
+      ['ABC', abc, 'abc'],
+      ['MusicXML', musicxml, 'musicxml'],
+    ];
+    for (const [label, text, format] of seeds) {
+      if (!text) continue;
+      const result = importScoreText(text, format);
       if (result.ok) {
-        result.warnings.forEach((w) => logger.log(`ABC import: ${w}`, undefined, LogLevel.WARN));
+        result.warnings.forEach((w) =>
+          logger.log(`${label} import: ${w}`, undefined, LogLevel.WARN)
+        );
         return result.score;
       }
-      logger.log(`ABC import failed: ${result.error}`, undefined, LogLevel.WARN);
+      logger.log(`${label} import failed: ${result.error}`, undefined, LogLevel.WARN);
     }
 
     // Render Mode: Use explicit staves if provided
-    if (scoreConfig.staves && scoreConfig.staves.length > 0) {
-      return {
-        title: scoreConfig.title,
-        timeSignature: scoreConfig.timeSignature,
-        keySignature: scoreConfig.keySignature,
-        bpm: scoreConfig.bpm,
-        staves: scoreConfig.staves,
-      };
+    if (staves && staves.length > 0) {
+      return { title, timeSignature, keySignature, bpm, staves };
     }
 
     // Generator Mode: Generate staves from template
-    const template = scoreConfig.staff ?? 'grand';
-    const measureCount = scoreConfig.measureCount ?? 2;
-    const generatedStaves = generateStaves(template, measureCount, scoreConfig.keySignature);
-
-    return {
-      title: scoreConfig.title,
-      timeSignature: scoreConfig.timeSignature,
-      keySignature: scoreConfig.keySignature,
-      bpm: scoreConfig.bpm,
-      staves: generatedStaves,
-    };
-  }, [config]);
+    const generatedStaves = generateStaves(staff ?? 'grand', measureCount ?? 2, keySignature);
+    return { title, timeSignature, keySignature, bpm, staves: generatedStaves };
+  }, [abc, musicxml, staves, staff, measureCount, title, timeSignature, keySignature, bpm]);
 
   return { config, initialScore };
 };

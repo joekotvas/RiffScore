@@ -1,20 +1,26 @@
 /**
  * ImportDialog
  *
- * Modal for bringing a score in from text: ABC notation (typed, pasted, or opened from a
- * .abc file) or the editor's own JSON export. The text is parsed as it changes so the user
- * sees what will load — title, staves, bars — and every warning before committing.
+ * Modal for bringing a score in: ABC notation or MusicXML (typed, pasted, or opened from a
+ * .abc / .musicxml / .xml / compressed .mxl file) or the editor's own JSON export. The text is
+ * parsed as it changes so the user sees what will load — title, staves, bars — and every
+ * warning before committing.
  * Importing replaces the score through LoadScoreCommand, so it is a single undo step.
  *
  * @module components/Dialog/ImportDialog
  * @tested src/__tests__/components/Dialog/ImportDialog.test.tsx
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useScoreContext } from '@/context/ScoreContext';
 import { useFocusTrap } from '@/hooks/layout';
 import { LoadScoreCommand } from '@/commands/LoadScoreCommand';
-import { importScoreText, type ImportTextResult } from '@/importers';
+import {
+  IMPORT_FORMAT_LABELS,
+  importScoreText,
+  unpackScoreFile,
+  type ImportTextResult,
+} from '@/importers';
 import { getModifierKey } from '@/utils/platform';
 import './ImportDialog.css';
 
@@ -36,14 +42,42 @@ const PLACEHOLDER = [
   '|: G2 GAB | d2 dBA | G2 GAB | A2 A2 :|',
 ].join('\n');
 
-/** Read a picked file as text (FileReader keeps this working in older browsers and jsdom). */
+/**
+ * Read a picked file as bytes (FileReader keeps this working in older browsers and jsdom), then
+ * unpack it to text: a compressed .mxl archive is unzipped, anything else is decoded as it is.
+ */
 const readFileText = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onload = () => {
+      try {
+        const bytes =
+          reader.result instanceof ArrayBuffer ? new Uint8Array(reader.result) : new Uint8Array(0);
+        const unpacked = unpackScoreFile(bytes);
+        if (unpacked.ok) resolve(unpacked.text);
+        else reject(new Error(`Could not read ${file.name}: ${unpacked.error}`));
+      } catch (e) {
+        reject(e instanceof Error ? e : new Error('Could not read the file'));
+      }
+    };
     reader.onerror = () => reject(reader.error ?? new Error('Could not read the file'));
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   });
+
+const FILE_TYPES = [
+  '.abc',
+  '.txt',
+  '.json',
+  '.musicxml',
+  '.xml',
+  '.mxl',
+  'text/plain',
+  'application/json',
+  'application/xml',
+  'text/xml',
+  'application/vnd.recordare.musicxml+xml',
+  'application/vnd.recordare.musicxml',
+].join(',');
 
 /** The parse result for the current text, or null while the text box is empty. */
 const analyze = (text: string): ImportTextResult | null =>
@@ -66,7 +100,9 @@ const ImportDialogContent: React.FC<Omit<ImportDialogProps, 'isOpen'>> = ({
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
 
-  const result = useMemo(() => analyze(text), [text]);
+  // A multi-megabyte document is parsed at transition priority, so typing stays responsive.
+  const deferredText = useDeferredValue(text);
+  const result = useMemo(() => analyze(deferredText), [deferredText]);
 
   useFocusTrap({
     containerRef: dialogRef,
@@ -151,8 +187,9 @@ const ImportDialogContent: React.FC<Omit<ImportDialogProps, 'isOpen'>> = ({
 
         <div className="riff-ImportDialog__content">
           <p className="riff-ImportDialog__hint">
-            Paste ABC notation or the JSON this editor exports, or open a <code>.abc</code> /{' '}
-            <code>.json</code> file. Importing replaces the current score (you can undo it).
+            Paste ABC notation, MusicXML or the JSON this editor exports, or open a{' '}
+            <code>.abc</code> / <code>.musicxml</code> / <code>.mxl</code> / <code>.json</code>{' '}
+            file. Importing replaces the current score (you can undo it).
           </p>
 
           <div className="riff-ImportDialog__file-row">
@@ -169,7 +206,7 @@ const ImportDialogContent: React.FC<Omit<ImportDialogProps, 'isOpen'>> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".abc,.txt,.json,text/plain,application/json"
+              accept={FILE_TYPES}
               className="riff-ImportDialog__file-input"
               aria-label="Score file"
               onChange={handleFile}
@@ -204,7 +241,7 @@ const ImportDialogContent: React.FC<Omit<ImportDialogProps, 'isOpen'>> = ({
                     ? '1 staff'
                     : `${result.score.staves.length} staves`}
                   , {result.score.staves[0]?.measures.length ?? 0} bars,{' '}
-                  {result.format === 'abc' ? 'ABC notation' : 'JSON'}.
+                  {IMPORT_FORMAT_LABELS[result.format]}.
                 </p>
                 {result.warnings.length > 0 && (
                   <div className="riff-ImportDialog__warnings" data-testid="import-warnings">
@@ -224,8 +261,7 @@ const ImportDialogContent: React.FC<Omit<ImportDialogProps, 'isOpen'>> = ({
               </>
             ) : (
               <p className="riff-ImportDialog__error" data-testid="import-error">
-                Could not read this as {result.format === 'abc' ? 'ABC notation' : 'JSON'}:{' '}
-                {result.error}
+                Could not read this as {IMPORT_FORMAT_LABELS[result.format]}: {result.error}
               </p>
             )}
           </div>

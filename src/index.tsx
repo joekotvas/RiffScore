@@ -15,9 +15,22 @@ export { ScoreProvider, useScoreContext } from './context/ScoreContext';
 // UI Components
 export { default as ConfigMenu } from '../demo/app/ConfigMenu';
 
-// Importers (ABC notation / JSON text → Score), usable without a mounted editor
-export { importScoreText, parseABC, detectImportFormat } from './importers';
-export type { ImportFormat, ImportTextResult, AbcImportResult } from './importers';
+// Importers (ABC notation / MusicXML / JSON → Score), usable without a mounted editor
+export {
+  importScoreText,
+  importScoreData,
+  parseABC,
+  parseMusicXML,
+  unpackScoreFile,
+  detectImportFormat,
+} from './importers';
+export type {
+  ImportFormat,
+  ImportContent,
+  ImportTextResult,
+  AbcImportResult,
+  MusicXmlImportResult,
+} from './importers';
 
 // Types
 export type {

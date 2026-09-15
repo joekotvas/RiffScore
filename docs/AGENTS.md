@@ -119,7 +119,10 @@ Key patterns:
 | File | Purpose |
 |------|---------|
 | `src/importers/abcImporter.ts` | ABC notation → `Score` (dependency-free ABC 2.1 subset; see [ABC_IMPORT.md](./ABC_IMPORT.md)) |
-| `src/importers/index.ts` | `importScoreText` — shared ABC/JSON text entry point for the API, File menu and `config.score.abc` |
+| `src/importers/musicXmlImporter.ts` | MusicXML → `Score` (partwise/timewise; see [MUSICXML_IMPORT.md](./MUSICXML_IMPORT.md)) |
+| `src/importers/xml.ts`, `inflate.ts`, `mxl.ts` | Dependency-free XML reader, DEFLATE decoder and `.mxl` (ZIP) container reader behind the MusicXML importer |
+| `src/importers/importUtils.ts` | Fractions, deduplicated warnings, quant decomposition and post-parse clean-up shared by the importers |
+| `src/importers/index.ts` | `importScoreText` / `importScoreData` — shared ABC/MusicXML/JSON entry points for the API, File menu and `config.score.abc` / `.musicxml` |
 | `src/exporters/` | `Score` → JSON, ABC, MusicXML |
 
 ### Components
