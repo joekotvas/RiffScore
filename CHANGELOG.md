@@ -19,7 +19,9 @@ editor's own MusicXML export round-trips back in.
   chord symbols are all understood. Extra voices, repeats, slurs, dynamics, articulations, text
   and lyrics are skipped with a warning.
 - **MusicXML exports carry the tempo** — the score's BPM is written as a metronome mark and a
-  `<sound tempo>` so other apps (and a re-import) play it at the right speed.
+  `<sound tempo>` so other apps (and a re-import) play it at the right speed. Augmented-seventh,
+  minor-major-seventh and power chords now export with their own `<kind>` (they were written as
+  plain augmented, minor and major).
 
 ### For developers
 - `api.import('musicxml', content)` accepts the document text or the bytes (`ArrayBuffer` /
@@ -28,7 +30,11 @@ editor's own MusicXML export round-trips back in.
   bytes-aware sibling of `importScoreText`.
 - `src/importers/musicXmlImporter.ts` is a dependency-free partwise/timewise reader, with its own
   small XML parser and a DEFLATE/ZIP decoder for `.mxl` (nothing new is bundled). Shared importer
-  helpers (fractions, warnings, quant decomposition, clean-up) moved to `importUtils.ts`. Tested
+  helpers (fractions, warnings, quant decomposition, parity padding, pickup inference, clean-up)
+  moved to `importUtils.ts`; the pickup rule is now score-wide for ABC too (every staff's first
+  bar under-full, flagged on every staff). The MusicXML chord-kind table is shared by the
+  exporter and importer (`MUSICXML_CHORD_KINDS`), and both derive clef signs from the clef
+  geometry in `utils/clef.ts`. Tested
   by an exporter round trip over every bundled melody and synthetic fixtures, first-principles
   semantics, a MuseScore-style file, zlib as the inflate oracle, and fast-check fuzzing. See
   [docs/MUSICXML_IMPORT.md](./docs/MUSICXML_IMPORT.md).

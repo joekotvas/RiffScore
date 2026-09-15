@@ -14,6 +14,8 @@ import { isRestEvent, getNoteDuration } from '@/utils/core';
 import { findTieTarget } from '@/utils/ties';
 import { Note } from 'tonal';
 import { canonicalizeKeySignature } from '@/utils/keyResolution';
+import { getClefReference } from '@/utils/clef';
+import { MUSICXML_CHORD_KINDS } from '@/services/chord/constants';
 import { MeasureAccidentalState, keySignatureAltForLetter } from '@/utils/accidentalContext';
 import { quantizeChordAnchor } from '@/services/chord/ChordQuants';
 
@@ -181,34 +183,8 @@ const exportMetadataToXML = (metadata: ScoreMetadata): string => {
 // CHORD SYMBOL TO MUSICXML HARMONY MAPPING
 // ============================================================================
 
-/**
- * Maps chord quality suffixes to MusicXML <kind> values.
- */
-const CHORD_KIND_MAP: Record<string, string> = {
-  '': 'major',
-  maj13: 'major-13th',
-  maj11: 'major-11th',
-  maj9: 'major-ninth',
-  dim7: 'diminished-seventh',
-  m7b5: 'half-diminished',
-  maj7: 'major-seventh',
-  m13: 'minor-13th',
-  m11: 'minor-11th',
-  m9: 'minor-ninth',
-  m7: 'minor-seventh',
-  m6: 'minor-sixth',
-  sus4: 'suspended-fourth',
-  sus2: 'suspended-second',
-  maj: 'major',
-  dim: 'diminished',
-  aug: 'augmented',
-  '13': 'dominant-13th',
-  '11': 'dominant-11th',
-  '9': 'dominant-ninth',
-  '7': 'dominant',
-  '6': 'major-sixth',
-  m: 'minor',
-};
+/** Chord quality suffix → MusicXML <kind>: the table shared with the importer. */
+const CHORD_KIND_MAP = MUSICXML_CHORD_KINDS;
 
 type MusicXmlDegreeType = 'add' | 'alter' | 'subtract';
 
@@ -362,32 +338,11 @@ const generateHarmonyElement = (chord: ChordSymbol): string => {
 // CLEF GEOMETRY
 // ============================================================================
 
-/** MusicXML <sign> for a riffscore clef. C-clef for alto/tenor, F for bass. */
-const getClefSign = (c: string): string => {
-  switch (c) {
-    case 'bass':
-      return 'F';
-    case 'alto':
-    case 'tenor':
-      return 'C';
-    default:
-      return 'G';
-  }
-};
+/** MusicXML <sign> for a riffscore clef: the letter of its reference pitch (unknown → treble). */
+const getClefSign = (c: string): string => getClefReference(c).referencePitch[0];
 
-/** MusicXML clef <line> for a riffscore clef. */
-const getClefLine = (c: string): string => {
-  switch (c) {
-    case 'bass':
-      return '4';
-    case 'alto':
-      return '3';
-    case 'tenor':
-      return '4';
-    default:
-      return '2';
-  }
-};
+/** MusicXML clef <line> for a riffscore clef: the line its reference pitch sits on. */
+const getClefLine = (c: string): string => String(getClefReference(c).referenceLine);
 
 // ============================================================================
 // NOTE / EVENT RENDERING

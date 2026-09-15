@@ -16,7 +16,11 @@ export interface XmlElement {
   name: string;
   attrs: Record<string, string>;
   children: XmlElement[];
-  /** Character data directly inside this element, in document order (untrimmed). */
+  /**
+   * Character data directly inside this element, in document order. Runs that are nothing but
+   * whitespace (the indentation between child elements) are dropped; any other run keeps its
+   * surrounding whitespace.
+   */
   text: string;
 }
 
@@ -45,8 +49,16 @@ export const decodeXmlEntities = (s: string): string => {
         ? String.fromCodePoint(code)
         : match;
     }
-    return ENTITIES[body] ?? match;
+    return Object.prototype.hasOwnProperty.call(ENTITIES, body) ? ENTITIES[body] : match;
   });
+};
+
+/** XML whitespace: space, tab, CR, LF. */
+const isWs = (code: number): boolean => code === 32 || code === 10 || code === 13 || code === 9;
+
+const isBlank = (s: string, from: number, to: number): boolean => {
+  for (let i = from; i < to; i++) if (!isWs(s.charCodeAt(i))) return false;
+  return true;
 };
 
 const localName = (qualified: string): string => {
@@ -80,10 +92,9 @@ export const parseXml = (input: string): XmlParseResult => {
   while (pos < len) {
     const lt = s.indexOf('<', pos);
     const textEnd = lt === -1 ? len : lt;
-    if (textEnd > pos) {
-      const t = s.slice(pos, textEnd);
-      if (stack.length > 0) addText(decodeXmlEntities(t));
-      else if (t.trim() !== '') return fail('Text outside the root element');
+    if (textEnd > pos && !isBlank(s, pos, textEnd)) {
+      if (stack.length > 0) addText(decodeXmlEntities(s.slice(pos, textEnd)));
+      else return fail('Text outside the root element');
     }
     if (lt === -1) break;
     pos = lt;
@@ -117,6 +128,11 @@ export const parseXml = (input: string): XmlParseResult => {
         const c = s[i];
         if (quote) {
           if (c === quote) quote = null;
+        } else if (c === '<' && s.startsWith('<!--', i)) {
+          // A comment inside the internal subset: its quotes and brackets mean nothing.
+          const end = s.indexOf('-->', i + 4);
+          if (end === -1) return fail('Unterminated comment', i);
+          i = end + 2;
         } else if (c === '"' || c === "'") quote = c;
         else if (c === '[') depth += 1;
         else if (c === ']') depth -= 1;
@@ -152,7 +168,7 @@ export const parseXml = (input: string): XmlParseResult => {
     };
     let selfClosing = false;
     for (;;) {
-      while (pos < len && /\s/.test(s[pos])) pos += 1;
+      while (pos < len && isWs(s.charCodeAt(pos))) pos += 1;
       if (pos >= len) return fail(`Unterminated tag <${element.name}>`, tagStart);
       if (s[pos] === '>') {
         pos += 1;
@@ -167,10 +183,10 @@ export const parseXml = (input: string): XmlParseResult => {
       const attrMatch = NAME_RE.exec(s);
       if (!attrMatch) return fail(`Malformed attribute in <${element.name}>`);
       pos = NAME_RE.lastIndex;
-      while (pos < len && /\s/.test(s[pos])) pos += 1;
+      while (pos < len && isWs(s.charCodeAt(pos))) pos += 1;
       if (s[pos] !== '=') return fail(`Attribute "${attrMatch[0]}" has no value`);
       pos += 1;
-      while (pos < len && /\s/.test(s[pos])) pos += 1;
+      while (pos < len && isWs(s.charCodeAt(pos))) pos += 1;
       const quote = s[pos];
       if (quote !== '"' && quote !== "'")
         return fail(`Unquoted value for attribute "${attrMatch[0]}"`);

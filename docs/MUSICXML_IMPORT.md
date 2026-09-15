@@ -9,7 +9,8 @@
 RiffScore reads [MusicXML](https://www.w3.org/2021/06/musicxml40/) — the interchange format every
 major notation app (MuseScore, Finale, Sibelius, Dorico) exports — both as plain `.musicxml` /
 `.xml` documents and as compressed `.mxl` archives. The editor's own MusicXML export round-trips
-back in losslessly. The importer is dependency-free (`src/importers/musicXmlImporter.ts`, with
+back in losslessly (the one exception is a note's `'hide'` accidental policy, which MusicXML has
+no way to say). The importer is dependency-free (`src/importers/musicXmlImporter.ts`, with
 its own small XML reader in `xml.ts` and a DEFLATE decoder for `.mxl` in `inflate.ts` / `mxl.ts`);
 nothing is bundled from an XML or zip library.
 
@@ -63,8 +64,9 @@ still created (with empty bars). Staves are padded with empty bars to the same l
 The score model holds **one voice per staff**. When a staff carries several voices (`<voice>`),
 the first voice heard on it is imported and the others are dropped with a warning naming the
 staff. Time the kept voice skips (a `<forward>`, or bars where only another voice plays) is
-filled with rests, so the bar's timeline stays intact. Notes that overlap an earlier note in the
-same voice are dropped (warning).
+filled with rests — including the time after its last note that the bar still spans — so the
+bar's timeline stays intact and a bar the file wrote as full never reads as a pickup. Notes that
+overlap an earlier note in the same voice are dropped (warning).
 
 Part names are not stored (the model has no per-staff instruments, #25); transposing
 instruments keep their written pitches, as on the page.
@@ -127,7 +129,7 @@ tempi are ignored (warning); without any, the default is 120.
 | `<chord/>` | Joins the note to the preceding one; the first note's value is the chord's. |
 | `<tie type="start"/>`, `<notations><tied type="start"/>` | `tied: true`, also across the bar line. A tie with no same-pitch note to reach is dropped (warning). |
 | `<accidental>` | The **visible glyph**, kept as the note's display policy (#236): a glyph the engraving rules would omit anyway → `accidentalDisplay: 'show'`; `parentheses="yes"` → `'courtesy'`; otherwise the rules decide (`'auto'`). A missing `<accidental>` never hides a glyph the rules require. |
-| `<time-modification>` + `<notations><tuplet>` | `tuplet: { ratio: [actual, normal], groupSize, position }`. Groups run from `<tuplet type="start"/>` to `stop`; in files without bracket notations, consecutive notes with the same ratio are grouped until they span `actual` × `normal-type` (or the first member's value). Rests and mixed values are fine. A group whose footprint is not a whole number of beats (a bracket cut off, an incomplete tuplet) imports as plain notes (warning), as in ABC. Nested tuplets keep only the combined ratio (warning). |
+| `<time-modification>` + `<notations><tuplet>` | `tuplet: { ratio: [actual, normal], groupSize, position, baseDuration }`. Groups run from `<tuplet type="start"/>` to `stop` (a notation on any member of a chord counts); in files without bracket notations, consecutive notes with the same ratio are grouped until they span `actual` × `normal-type` (or the first member's value). `baseDuration` is `<normal-type>` when the file names it, else the first member's value. Rests and mixed values are fine. A group whose footprint is not a whole number of beats (a bracket cut off, an incomplete tuplet) imports as plain notes (warning), as in ABC. Nested tuplets keep only the combined ratio, so the inner groups usually lose their brackets the same way (warning). |
 | `<backup>` / `<forward>` | Move the cursor; gaps in the kept voice become rests. |
 | `<grace/>` notes | Ignored (warning). |
 | `<cue/>` notes | Ignored; their time becomes a rest (warning). |
@@ -135,7 +137,8 @@ tempi are ignored (warning); without any, the default is 120.
 | `<stem>`, `<beam>`, `<notehead>`, `<staff-details>`, `print-object`, positions | Ignored silently — layout is recomputed. |
 
 **Pickups.** When every staff's first bar is under-full (or empty) and more music follows, it is
-imported as a pickup (`isPickup`), whether the file marks it `implicit="yes"` or not.
+imported as a pickup (`isPickup`) on every staff — whether the file marks it `implicit="yes"`
+or not, though a first bar that holds nothing but rests is a pickup only when the file does.
 
 **Bar fullness.** Under-full bars are valid (the editor renders the remainder as an implicit
 rest). Over-full bars — a meter change the model cannot hold, a tuplet without its ratio — import
@@ -162,8 +165,12 @@ individually and the rest as a count) so they can be fixed in the editor.
 `<root-alter>` and `<bass>` give `Bb`, `F#` and `C/E`; `<degree>` adds `add9`, `#5`, `b9` and
 so on. `none` (N.C.) has no entry; `other` uses the `text` attribute; Neapolitan, Tristan and
 the other special kinds are dropped (warning), as are functional (`<function>` / `<numeral>`)
-symbols and anything the chord parser rejects. The first symbol wins when two land on the same
-beat.
+symbols. The chord parser has a finite vocabulary: a spelling it does not know is simplified
+rather than lost — first without its added tones, then without its bass, then to the nearest
+kind it holds (`major-ninth` / `-11th` / `-13th` become `maj7`, since the parser reads `maj9`
+as a dominant ninth) — with a warning naming both spellings. Symbols anchor on the note of the
+top staff they precede (or `<offset>` points at); one that lands between notes moves back to
+the note sounding there (warning), and the first symbol wins when two land on the same beat.
 
 ---
 
@@ -184,8 +191,10 @@ category with the bar it first occurred in and an occurrence count:
 | Octave shifts `<octave-shift>`, transposing clefs | Ignored; written pitches are kept. |
 | Pedal marks, brackets and other directions | Ignored. |
 | Lyrics `<lyric>` | Ignored (lyrics are roadmap #30). |
+| Figured bass `<figured-bass>` | Ignored. |
 | Grace notes, cue notes, unpitched notes | See [§6](#6-notes). |
 | Non-traditional keys, senza misura | C major / 4/4. |
+| A note's `'hide'` accidental policy (in the editor's own export) | Comes back as `'auto'` — MusicXML has no way to say "sound the alteration but draw nothing". |
 
 ---
 

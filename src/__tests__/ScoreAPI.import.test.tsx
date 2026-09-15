@@ -212,6 +212,27 @@ describe('ScoreAPI import()', () => {
     expect(last()).toMatchObject({ ok: true, method: 'import', details: { format: 'musicxml' } });
   });
 
+  test('accepts bytes from another realm (a Node Buffer under jsdom) and refuses non-content', () => {
+    const { api, last } = setup('import-musicxml-realm');
+
+    act(() => {
+      api.import('musicxml', Buffer.from(MUSICXML, 'utf8'));
+    });
+    expect(api.getScore().title).toBe('From XML');
+    expect(last()).toMatchObject({ ok: true, method: 'import' });
+
+    const before = api.getScore();
+    act(() => {
+      api.import('musicxml', undefined as unknown as string);
+    });
+    expect(api.getScore()).toEqual(before);
+    expect(last()).toMatchObject({
+      ok: false,
+      code: 'IMPORT_FAILED',
+      message: 'Import failed: content must be text, an ArrayBuffer or a Uint8Array',
+    });
+  });
+
   test('leaves the score untouched and reports IMPORT_FAILED for MusicXML it cannot read', () => {
     const { api, last } = setup('import-musicxml-bad');
     const before = api.getScore();

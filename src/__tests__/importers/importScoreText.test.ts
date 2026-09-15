@@ -3,76 +3,14 @@
  * JSON as text; a compressed .mxl or any score file as bytes).
  */
 
-import { deflateRawSync } from 'zlib';
 import { detectImportFormat, importScoreData, importScoreText } from '@/importers';
 import { generateJSON } from '@/exporters/jsonExporter';
 import { generateMusicXML } from '@/exporters/musicXmlExporter';
 import { createDefaultScore } from '@/types';
+import { mxl } from '../helpers/zip';
 
 const MUSICXML =
   '<?xml version="1.0" encoding="UTF-8"?>\n<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>P</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><key><fifths>2</fifths></key><time><beats>2</beats><beat-type>4</beat-type></time><clef><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>D</step><octave>3</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>';
-
-/** A minimal .mxl: a stored container.xml and a deflated score, with a central directory. */
-const mxl = (xml: string): Uint8Array => {
-  const u16 = (v: number) => [v & 0xff, (v >> 8) & 0xff];
-  const u32 = (v: number) => [v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >>> 24) & 0xff];
-  const files: [string, Uint8Array, number][] = [
-    [
-      'META-INF/container.xml',
-      new Uint8Array(
-        Buffer.from(
-          '<container><rootfiles><rootfile full-path="score.xml"/></rootfiles></container>'
-        )
-      ),
-      0,
-    ],
-    ['score.xml', new Uint8Array(Buffer.from(xml)), 8],
-  ];
-  const out: number[] = [];
-  const central: number[] = [];
-  for (const [name, data, method] of files) {
-    const nameBytes = [...Buffer.from(name)];
-    const packed = method === 8 ? new Uint8Array(deflateRawSync(data)) : data;
-    const offset = out.length;
-    const common = [
-      ...u16(20),
-      ...u16(0),
-      ...u16(method),
-      ...u16(0),
-      ...u16(0),
-      ...u32(0),
-      ...u32(packed.length),
-      ...u32(data.length),
-      ...u16(nameBytes.length),
-    ];
-    out.push(...u32(0x04034b50), ...common, ...u16(0), ...nameBytes, ...packed);
-    central.push(
-      ...u32(0x02014b50),
-      ...u16(20),
-      ...common,
-      ...u16(0),
-      ...u16(0),
-      ...u16(0),
-      ...u16(0),
-      ...u32(0),
-      ...u32(offset),
-      ...nameBytes
-    );
-  }
-  const directoryOffset = out.length;
-  out.push(
-    ...central,
-    ...u32(0x06054b50),
-    ...u16(0),
-    ...u16(0),
-    ...u16(files.length),
-    ...u16(files.length),
-    ...u32(central.length),
-    ...u32(directoryOffset),
-    ...u16(0)
-  );
-  return new Uint8Array(out);
-};
 
 describe('detectImportFormat', () => {
   it('reads an object literal as JSON, a tag as MusicXML and anything else as ABC', () => {
@@ -197,12 +135,33 @@ describe('importScoreData', () => {
     expect(importScoreData(json)).toMatchObject({ ok: true, format: 'json' });
   });
 
+  it('accepts a Node Buffer (a Uint8Array from another realm) and refuses other content', () => {
+    const buffer = Buffer.from(MUSICXML, 'utf8');
+    expect(buffer instanceof Uint8Array).toBe(false); // jsdom's Uint8Array is not Node's
+    expect(importScoreData(buffer)).toMatchObject({ ok: true, format: 'musicxml' });
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    expect(importScoreData(view as unknown as Uint8Array)).toMatchObject({ ok: true });
+    expect(importScoreData(undefined as unknown as string, 'abc')).toEqual({
+      ok: false,
+      format: 'abc',
+      error: 'content must be text, an ArrayBuffer or a Uint8Array',
+      warnings: [],
+    });
+    expect(importScoreData(42 as unknown as string)).toMatchObject({
+      ok: false,
+      format: 'musicxml',
+    });
+  });
+
   it('reports an archive it cannot read', () => {
     expect(importScoreData(new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]))).toMatchObject({
       ok: false,
       format: 'musicxml',
       error: expect.stringMatching(/not a readable .mxl archive/),
     });
+    // An archive is MusicXML whatever format the caller named.
+    const zipBytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]);
+    expect(importScoreData(zipBytes, 'abc').format).toBe('musicxml');
   });
 
   it('round-trips the exporter through the bytes path', () => {

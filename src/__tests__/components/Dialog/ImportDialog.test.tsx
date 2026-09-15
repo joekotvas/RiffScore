@@ -13,54 +13,10 @@ import { ScoreProvider, useScoreContext } from '@/context/ScoreContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { createDefaultScore } from '@/types';
 import { generateMusicXML } from '@/exporters/musicXmlExporter';
-import { deflateRawSync } from 'zlib';
+import { mxl as mxlBytes } from '../../helpers/zip';
 
 const TUNE = 'X:1\nT:Pasted Tune\nM:4/4\nL:1/8\nK:G\n|: G2 GAB | d2 dBA | G2 GAB | A2 A2 :|';
 const MUSICXML = generateMusicXML({ ...createDefaultScore(), title: 'XML Score' });
-
-/** A minimal compressed MusicXML archive holding `xml` as score.xml. */
-const mxlBytes = (xml: string): Uint8Array<ArrayBuffer> => {
-  const u16 = (v: number) => [v & 0xff, (v >> 8) & 0xff];
-  const u32 = (v: number) => [v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >>> 24) & 0xff];
-  const name = [...Buffer.from('score.xml')];
-  const data = new Uint8Array(Buffer.from(xml));
-  const packed = new Uint8Array(deflateRawSync(data));
-  const common = [
-    ...u16(20),
-    ...u16(0),
-    ...u16(8),
-    ...u16(0),
-    ...u16(0),
-    ...u32(0),
-    ...u32(packed.length),
-    ...u32(data.length),
-    ...u16(name.length),
-  ];
-  const local = [...u32(0x04034b50), ...common, ...u16(0), ...name, ...packed];
-  const central = [
-    ...u32(0x02014b50),
-    ...u16(20),
-    ...common,
-    ...u16(0),
-    ...u16(0),
-    ...u16(0),
-    ...u16(0),
-    ...u32(0),
-    ...u32(0),
-    ...name,
-  ];
-  const end = [
-    ...u32(0x06054b50),
-    ...u16(0),
-    ...u16(0),
-    ...u16(1),
-    ...u16(1),
-    ...u32(central.length),
-    ...u32(local.length),
-    ...u16(0),
-  ];
-  return new Uint8Array([...local, ...central, ...end]);
-};
 
 /** Reads the live score so the test can see what the dialog loaded. */
 const ScoreProbe: React.FC = () => {

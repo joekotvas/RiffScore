@@ -154,7 +154,7 @@ G3 GAB|A3 ABd|edd gdd|edB dBA|G3 GAB|A3 ABd|edd gdB|AGF G3|`,
 ### MusicXML Mode
 
 Seed the editor from a [MusicXML](./MUSICXML_IMPORT.md) document (the text of a `.musicxml` /
-`.xml` file; unpack a compressed `.mxl` first with `importScoreData`, or use the File menu). The
+`.xml` file; unpack a compressed `.mxl` first with `unpackScoreFile(bytes).text`, or use the File menu). The
 document's own title, key, meter and tempo are used; `musicxml` takes precedence over `staves`
 and the generator options, and `abc` over both. If the text is not a MusicXML score, the
 generator options apply and a warning is logged.

@@ -46,7 +46,8 @@ const utf8Decode = (bytes: Uint8Array): string => {
       if ((b & 0xc0) !== 0x80) valid = false;
       else code = (code << 6) | (b & 0x3f);
     }
-    if (!valid) {
+    // Beyond U+10FFFF (lead bytes F4 90.., F5–F7) or a surrogate: not a character.
+    if (!valid || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) {
       out += '\ufffd';
       i += 1;
       continue;
@@ -84,32 +85,38 @@ const declaredEncoding = (bytes: Uint8Array): string | null => {
   return m ? m[1].toLowerCase() : null;
 };
 
+/** The platform decoder for `label`, or null where it is missing or does not know the label. */
+const decodeWith = (label: string, bytes: Uint8Array): string | null => {
+  if (typeof TextDecoder === 'undefined') return null;
+  try {
+    return new TextDecoder(label).decode(bytes);
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Decode a score file's bytes to text: UTF-16 with a byte-order mark, an XML declaration's
- * ISO-8859-1 / Windows-1252 (read as Latin-1), else UTF-8 (a BOM is dropped).
+ * ISO-8859-1 / Windows-1252, else UTF-8 (a BOM is dropped). The platform's TextDecoder does
+ * the work where it exists; the manual decoders cover environments without one.
  */
 export const decodeScoreText = (bytes: Uint8Array): string => {
   if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
-    return utf16Decode(bytes.subarray(2), true);
+    const body = bytes.subarray(2);
+    return decodeWith('utf-16le', body) ?? utf16Decode(body, true);
   }
   if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
-    return utf16Decode(bytes.subarray(2), false);
+    const body = bytes.subarray(2);
+    return decodeWith('utf-16be', body) ?? utf16Decode(body, false);
   }
   if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
     bytes = bytes.subarray(3);
   }
   const encoding = declaredEncoding(bytes);
   if (encoding && /^(iso-8859-1|latin-?1|windows-1252|cp1252|us-ascii|ascii)$/.test(encoding)) {
-    return latin1Decode(bytes);
+    return decodeWith('windows-1252', bytes) ?? latin1Decode(bytes);
   }
-  if (typeof TextDecoder !== 'undefined') {
-    try {
-      return new TextDecoder('utf-8').decode(bytes);
-    } catch {
-      // fall through to the manual decoder
-    }
-  }
-  return utf8Decode(bytes);
+  return decodeWith('utf-8', bytes) ?? utf8Decode(bytes);
 };
 
 // ============================================================================

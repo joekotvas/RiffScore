@@ -67,7 +67,8 @@ const FIXED_DISTANCE = buildHuffman(new Uint8Array(30).fill(5), 30);
  * pre-sizes the output buffer.
  */
 export const inflateRaw = (input: Uint8Array, sizeHint?: number): Uint8Array => {
-  let out = new Uint8Array(Math.max(sizeHint ?? 0, input.length * 4, 1024));
+  // The hint comes from an untrusted header: cap it, and let `ensure` grow past it if needed.
+  let out = new Uint8Array(Math.max(Math.min(sizeHint ?? 0, 64 << 20), input.length * 4, 1024));
   let outLen = 0;
   let pos = 0;
   let bitBuf = 0;

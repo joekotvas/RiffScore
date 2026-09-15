@@ -115,11 +115,8 @@ export const createIOMethods = (
         return this;
       }
 
-      const isBinary = content instanceof ArrayBuffer || content instanceof Uint8Array;
-      const result = importScoreData(
-        isBinary ? content : typeof content === 'string' ? content : '',
-        format
-      );
+      // Text, or the bytes of a file in any realm; anything else is refused by the importer.
+      const result = importScoreData(content, format);
       if (!result.ok) {
         // Nothing was loaded: the current score is untouched.
         setResult({

@@ -18,118 +18,13 @@ import { MELODIES } from '@/data/melodies';
 import { generateMusicXML } from '@/exporters/musicXmlExporter';
 import { padMeasureForExport } from '@/exporters/exportNormalize';
 import { parseMusicXML } from '@/importers/musicXmlImporter';
-import type { Measure, Score, ScoreEvent } from '@/types';
+import type { Measure, Score } from '@/types';
+import { ev, score, tuplet } from '../helpers/roundTripFixtures';
 import { migrateScore } from '@/types';
 import { getMeasureCapacity } from '@/constants';
 import { sumQuants } from '@/utils/tuplet';
 import { quantizeChordAnchor } from '@/services/chord/ChordQuants';
 import { resolveScoreMetadata } from '@/services/MetadataService';
-
-// ---------------------------------------------------------------------------
-// Fixture builders
-// ---------------------------------------------------------------------------
-
-let seq = 0;
-const nid = () => `n${++seq}`;
-
-type Spec = string | { rest: string } | string[]; // 'C4:q' | { rest: 'q' } | ['C4:q', 'E4'] (chord)
-
-const DUR: Record<string, string> = {
-  w: 'whole',
-  h: 'half',
-  q: 'quarter',
-  '8': 'eighth',
-  '16': 'sixteenth',
-  '32': 'thirtysecond',
-  '64': 'sixtyfourth',
-};
-
-/** 'F#4:q.' → a quarter, dotted; a trailing '-' ties; '!' forces the glyph; '?' a courtesy. */
-const ev = (spec: Spec, tuplet?: ScoreEvent['tuplet']): ScoreEvent => {
-  const parse = (s: string) => {
-    const m = s.match(/^([^:]+?)(-)?([!?])?(?::([a-z0-9]+?)(\.)?)?$/)!;
-    return {
-      pitch: m[1],
-      tied: !!m[2],
-      display: m[3] === '!' ? 'show' : m[3] === '?' ? 'courtesy' : undefined,
-      duration: DUR[m[4] ?? 'q'],
-      dotted: !!m[5],
-    };
-  };
-  if (typeof spec === 'object' && !Array.isArray(spec)) {
-    const d = spec.rest.replace('.', '');
-    const id = nid();
-    return {
-      id,
-      duration: DUR[d],
-      dotted: spec.rest.endsWith('.'),
-      isRest: true,
-      notes: [{ id: `${id}-rest`, pitch: null, isRest: true }],
-      ...(tuplet ? { tuplet } : {}),
-    };
-  }
-  const specs = (Array.isArray(spec) ? spec : [spec]).map(parse);
-  return {
-    id: nid(),
-    duration: specs[0].duration,
-    dotted: specs[0].dotted,
-    notes: specs.map((s) => ({
-      id: nid(),
-      pitch: s.pitch,
-      ...(s.tied ? { tied: true } : {}),
-      ...(s.display ? { accidentalDisplay: s.display as 'show' | 'courtesy' } : {}),
-    })),
-    ...(tuplet ? { tuplet } : {}),
-  };
-};
-
-const specDuration = (spec: Spec): string => {
-  const text = typeof spec === 'string' ? spec : Array.isArray(spec) ? spec[0] : `z:${spec.rest}`;
-  return DUR[text.split(':')[1]?.replace('.', '') ?? 'q'];
-};
-
-const tuplet = (ratio: [number, number], specs: Spec[]): ScoreEvent[] => {
-  const id = `t${++seq}`;
-  const baseDuration = specDuration(specs[0]);
-  return specs.map((s, position) =>
-    ev(s, { ratio, groupSize: specs.length, position, id, baseDuration })
-  );
-};
-
-interface StaffSpec {
-  clef: 'treble' | 'bass' | 'alto' | 'tenor';
-  measures: (ScoreEvent[] | { pickup: ScoreEvent[] })[];
-}
-
-const score = (
-  opts: {
-    title?: string;
-    timeSignature?: string;
-    keySignature?: string;
-    bpm?: number;
-    chords?: [number, number, string][];
-  },
-  ...staves: StaffSpec[]
-): Score => ({
-  title: opts.title ?? 'Fixture',
-  timeSignature: opts.timeSignature ?? '4/4',
-  keySignature: opts.keySignature ?? 'C',
-  bpm: opts.bpm ?? 120,
-  staves: staves.map((st) => ({
-    id: nid(),
-    clef: st.clef,
-    keySignature: opts.keySignature ?? 'C',
-    measures: st.measures.map((m) =>
-      Array.isArray(m) ? { id: nid(), events: m } : { id: nid(), events: m.pickup, isPickup: true }
-    ),
-  })),
-  chordTrack: (opts.chords ?? []).map(([measure, quant, symbol]) => ({
-    id: nid(),
-    measure,
-    quant,
-    symbol,
-  })),
-});
 
 // ---------------------------------------------------------------------------
 // Normalization and projection
@@ -301,7 +196,7 @@ const fixtures: Record<string, Score> = {
         ],
         [...tuplet([3, 2], ['C4:8', { rest: '8' }, 'E4:8']), ev('F4:q'), ev('G4:h')],
         [
-          ...tuplet([3, 2], ['C4:q', 'D4:8']),
+          ...tuplet([3, 2], ['C4:q', 'D4:8'], 'eighth'),
           ev('E4:h'),
           ...tuplet([3, 2], ['F4:8', 'G4:8', 'A4:8']),
         ],
@@ -321,6 +216,10 @@ const fixtures: Record<string, Score> = {
         [2, 16, 'Gm7b5'],
         [2, 32, 'C/E'],
         [2, 48, 'Dsus4'],
+        [3, 0, 'Caug7'],
+        [3, 16, 'Cmmaj7'],
+        [3, 32, 'C5'],
+        [3, 48, 'Cadd9'],
       ],
     },
     {
@@ -329,8 +228,14 @@ const fixtures: Record<string, Score> = {
         [ev('G4:q'), ev('A4:q'), ...tuplet([3, 2], ['B4:8', 'C5:8', 'D5:8']), ev('E5:q')],
         [ev('C5:q.'), ev('B4:8'), ev('A4:q'), ev({ rest: 'q' })],
         [ev('Bb4:q'), ev('G4:q'), ev('E4:q'), ev('D4:q')],
+        [ev('C4:q'), ev('E4:q'), ev('G4:q'), ev('B4:q')],
       ],
     }
+  ),
+  'a pickup bar that is nothing but rests on every staff': score(
+    { timeSignature: '4/4' },
+    { clef: 'treble', measures: [{ pickup: [ev({ rest: 'q' })] }, [ev('C4:w')], [ev('D4:w')]] },
+    { clef: 'bass', measures: [{ pickup: [] }, [ev('C3:w')], [ev('D3:w')]] }
   ),
   'pickup bar, 3/4, grand staff with an empty bass bar': score(
     { timeSignature: '3/4', keySignature: 'F', bpm: 96, title: 'Waltz' },
@@ -408,6 +313,23 @@ describe('MusicXML round trip — synthetic fixtures', () => {
     expect(bar1.events[1].notes[0]).toMatchObject({ pitch: 'Bb4', accidentalDisplay: 'show' });
     expect(bar1.events[0].notes[0].accidentalDisplay).toBeUndefined();
     expect(bar2.events[1].notes[0]).toMatchObject({ pitch: 'Bb4', accidentalDisplay: 'courtesy' });
+  });
+
+  it('keeps the base value of a non-uniform tuplet from <normal-type>', () => {
+    const { imported } = roundTrip(
+      fixtures['tuplets: eighth triplet, quintuplet sixteenths, triplet with a rest']
+    );
+    const [first, second] = imported.staves[0].measures[2].events;
+    expect(first.tuplet).toMatchObject({ ratio: [3, 2], baseDuration: 'eighth' });
+    expect(second.tuplet).toMatchObject({ ratio: [3, 2], baseDuration: 'eighth' });
+  });
+
+  it('restores a rest-only pickup from the implicit measure marker', () => {
+    const { imported } = roundTrip(
+      fixtures['a pickup bar that is nothing but rests on every staff']
+    );
+    expect(imported.staves.map((s) => s.measures[0].isPickup)).toEqual([true, true]);
+    expect(imported.staves.map((s) => s.measures[0].events.length)).toEqual([0, 0]);
   });
 
   it('flags the pickup on every staff of a grand staff', () => {

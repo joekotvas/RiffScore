@@ -11,7 +11,7 @@
  * @tested src/__tests__/components/Dialog/ImportDialog.test.tsx
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useScoreContext } from '@/context/ScoreContext';
 import { useFocusTrap } from '@/hooks/layout';
 import { LoadScoreCommand } from '@/commands/LoadScoreCommand';
@@ -50,11 +50,15 @@ const readFileText = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const bytes =
-        reader.result instanceof ArrayBuffer ? new Uint8Array(reader.result) : new Uint8Array(0);
-      const unpacked = unpackScoreFile(bytes);
-      if (unpacked.ok) resolve(unpacked.text);
-      else reject(new Error(`Could not read ${file.name}: ${unpacked.error}`));
+      try {
+        const bytes =
+          reader.result instanceof ArrayBuffer ? new Uint8Array(reader.result) : new Uint8Array(0);
+        const unpacked = unpackScoreFile(bytes);
+        if (unpacked.ok) resolve(unpacked.text);
+        else reject(new Error(`Could not read ${file.name}: ${unpacked.error}`));
+      } catch (e) {
+        reject(e instanceof Error ? e : new Error('Could not read the file'));
+      }
     };
     reader.onerror = () => reject(reader.error ?? new Error('Could not read the file'));
     reader.readAsArrayBuffer(file);
@@ -96,7 +100,9 @@ const ImportDialogContent: React.FC<Omit<ImportDialogProps, 'isOpen'>> = ({
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
 
-  const result = useMemo(() => analyze(text), [text]);
+  // A multi-megabyte document is parsed at transition priority, so typing stays responsive.
+  const deferredText = useDeferredValue(text);
+  const result = useMemo(() => analyze(deferredText), [deferredText]);
 
   useFocusTrap({
     containerRef: dialogRef,

@@ -64,6 +64,25 @@ describe('parseXml', () => {
     expect(decodeXmlEntities('no entities')).toBe('no entities');
   });
 
+  it('never resolves an entity name to an Object.prototype member', () => {
+    expect(decodeXmlEntities('Tom &constructor; Jerry &toString; &__proto__;')).toBe(
+      'Tom &constructor; Jerry &toString; &__proto__;'
+    );
+  });
+
+  it('drops whitespace-only runs between elements but keeps the whitespace around real text', () => {
+    const root = ok('<a>\n  <b> x </b>\n  <c/>\n</a>');
+    expect(root.text).toBe('');
+    expect(root.children[0].text).toBe(' x ');
+  });
+
+  it('ignores quotes and brackets inside a comment in the DOCTYPE internal subset', () => {
+    const root = ok(
+      `<!DOCTYPE score-partwise [ <!-- don't do this --> <!ENTITY x "y"> ]>\n<score-partwise/>`
+    );
+    expect(root.name).toBe('score-partwise');
+  });
+
   it('strips namespace prefixes, keeps CRLF text and drops a byte-order mark', () => {
     const root = ok('﻿<m:score xmlns:m="urn:x"><m:part id="P1">a\r\nb</m:part></m:score>');
     expect(root.name).toBe('score');

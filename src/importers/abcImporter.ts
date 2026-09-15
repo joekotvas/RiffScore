@@ -39,6 +39,7 @@ import { parseChord } from '@/services/ChordService';
 import { quantizeChordAnchor } from '@/services/chord/ChordQuants';
 import { createMetadata } from '@/services/MetadataService';
 import {
+  ALT_SUFFIX,
   ONE,
   WHOLE_QUANTS,
   Warnings,
@@ -48,6 +49,7 @@ import {
   inferPickup,
   keyNameForFifths,
   mulFrac,
+  padStavesToParity,
   reportValidationWarnings,
   type Frac,
 } from './importUtils';
@@ -757,8 +759,6 @@ interface VoiceState {
   skipUntilBar: boolean;
 }
 
-const ALT_SUFFIX: Record<number, string> = { 2: '##', 1: '#', 0: '', [-1]: 'b', [-2]: 'bb' };
-
 class TuneBuilder {
   readonly warnings = new Warnings();
 
@@ -1302,26 +1302,19 @@ class TuneBuilder {
     const keySignature = this.key ?? 'C';
     const capacity = getMeasureCapacity(timeSignature);
 
-    // Grand-staff parity: every staff must have the same number of bars.
-    const barCount = Math.max(...voices.map((v) => v.measures.length));
-    for (const voice of voices) {
-      if (voice.measures.length < barCount) {
-        this.warnings.add(
-          `pad:${voice.id}`,
-          `Voice ${voice.id} has ${voice.measures.length} bars where another voice has ${barCount}; it was padded with empty bars`
-        );
-        while (voice.measures.length < barCount)
-          voice.measures.push({ id: measureId(), events: [] });
-      }
-      inferPickup(voice.measures, capacity);
-    }
-
     const staves: Staff[] = voices.map((v) => ({
       id: staffId(),
       clef: v.clef ?? this.defaultClef ?? 'treble',
       keySignature,
       measures: v.measures,
     }));
+    padStavesToParity(
+      staves,
+      voices.map((v) => `Voice ${v.id}`),
+      this.warnings,
+      'voice'
+    );
+    inferPickup(staves, capacity);
 
     dropDanglingTies(staves, this.warnings);
 

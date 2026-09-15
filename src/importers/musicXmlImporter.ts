@@ -3,7 +3,8 @@
  *
  * Parses a MusicXML document (partwise or timewise, any 1.x–4.x version) into a {@link Score}.
  * The dialect the MusicXML exporter writes (src/exporters/musicXmlExporter.ts) round-trips
- * losslessly; on top of that the importer accepts what notation apps (MuseScore, Finale,
+ * losslessly (the one exception is a note's 'hide' accidental policy, which MusicXML cannot
+ * express); on top of that the importer accepts what notation apps (MuseScore, Finale,
  * Sibelius, Dorico) and converters write. Compressed .mxl containers are unpacked by mxl.ts
  * before the text reaches this module.
  *
@@ -18,8 +19,10 @@
  *    values the model lacks become tied notes), <time-modification> tuplets with or without
  *    <tuplet> notations, <chord/>, rests and whole-measure rests, ties (<tie>/<tied>), visible
  *    <accidental> glyphs as the note's display policy, <backup>/<forward> (gaps become rests).
- *  - Directions: <sound tempo> and <metronome> (the first tempo), <harmony> chord symbols.
- *  - A pickup bar (implicit or under-full) is inferred.
+ *  - Directions: <sound tempo> and <metronome> (the first tempo), <harmony> chord symbols
+ *    (anchored on the note they precede).
+ *  - A pickup bar is inferred: every staff's first bar under-full (or empty and marked
+ *    `implicit="yes"`) with more music after it.
  *
  * Not representable in the score model, imported with a warning: repeats and endings, extra
  * voices on a staff, key/meter/tempo/clef changes after the first, slurs, articulations and
@@ -27,13 +30,14 @@
  * octave-transposing clefs and octave shifts (written pitches are kept).
  *
  * Every problem is reported through `warnings`; the parser fails outright only when the input
- * is not a MusicXML score at all. It never throws on malformed input.
+ * is not a MusicXML score at all. It never throws on malformed input, and hostile numbers (a
+ * duration of 1e308, a billion staves) are clamped rather than allocated.
  *
  * @tested src/__tests__/importers/musicXmlImporter.test.ts
  * @tested src/__tests__/importers/musicXmlRoundTrip.test.ts
  */
 
-import { KEY_SIGNATURES, getMeasureCapacity } from '@/constants';
+import { CLEF_TYPES, KEY_SIGNATURES, NOTE_TYPES, getMeasureCapacity } from '@/constants';
 import type {
   AccidentalDisplay,
   ChordSymbol,
@@ -46,26 +50,32 @@ import type {
 } from '@/types';
 import { chordId, eventId, measureId, noteId, staffId, tupletId } from '@/utils/id';
 import { getNoteDuration } from '@/utils/core';
+import { getClefReference } from '@/utils/clef';
 import { MeasureAccidentalState, keySignatureAltForLetter } from '@/utils/accidentalContext';
-import { sumQuants } from '@/utils/tuplet';
 import { clampBpm } from '@/utils/validation';
 import { parseChord } from '@/services/ChordService';
+import { MUSICXML_CHORD_KINDS } from '@/services/chord/constants';
 import { quantizeChordAnchor } from '@/services/chord/ChordQuants';
 import { createMetadata } from '@/services/MetadataService';
 import { parseXml, xmlChild, xmlChildren, xmlNumber, xmlText, type XmlElement } from './xml';
 import {
+  ALT_SUFFIX,
   ZERO,
   Warnings,
   addFrac,
+  clampAlt,
   cmpFrac,
   decomposeQuants,
   dropDanglingTies,
   frac,
   fracFromDecimals,
   fracToNumber,
-  gcd,
+  inferPickup,
   keyNameForFifths,
+  lcm,
   mulFrac,
+  own,
+  padStavesToParity,
   reportValidationWarnings,
   subFrac,
   type DurationPart,
@@ -95,41 +105,46 @@ export type MusicXmlImportResult = MusicXmlImportSuccess | MusicXmlImportFailure
 // Note values, clefs, keys
 // ============================================================================
 
-/** Quants of each MusicXML <type>, exact (a 128th is half a quant). */
+/**
+ * Quants of each MusicXML <type>, exact (a 128th is half a quant): the model's own values come
+ * from NOTE_TYPES (the table the exporter writes from), the rest are the values it lacks.
+ */
 const TYPE_QUANTS: Record<string, Frac> = {
+  ...Object.fromEntries(Object.values(NOTE_TYPES).map((t) => [t.xmlType, frac(t.duration, 1)])),
   maxima: frac(512, 1),
   long: frac(256, 1),
   breve: frac(128, 1),
-  whole: frac(64, 1),
-  half: frac(32, 1),
-  quarter: frac(16, 1),
-  eighth: frac(8, 1),
-  '16th': frac(4, 1),
-  '32nd': frac(2, 1),
-  '64th': frac(1, 1),
   '128th': frac(1, 2),
   '256th': frac(1, 4),
   '512th': frac(1, 8),
   '1024th': frac(1, 16),
 };
 
+/** Model duration name of each MusicXML <type> the model has ('16th' → 'sixteenth'). */
+const DURATION_BY_TYPE: Record<string, string> = Object.fromEntries(
+  Object.entries(NOTE_TYPES).map(([name, t]) => [t.xmlType, name])
+);
+
 /** The quants of a written value (`type` with `dots` dots), or null for an unknown type. */
 const writtenQuants = (type: string, dots: number): Frac | null => {
-  const base = TYPE_QUANTS[type];
+  const base = own(TYPE_QUANTS, type);
   if (!base) return null;
-  const k = Math.pow(2, dots); // n dots multiply by (2^(n+1) − 1) / 2^n
+  const k = Math.pow(2, Math.min(dots, 3)); // n dots multiply by (2^(n+1) − 1) / 2^n
   return mulFrac(base, frac(2 * k - 1, k));
 };
 
-const ALT_SUFFIX: Record<number, string> = { 2: '##', 1: '#', 0: '', [-1]: 'b', [-2]: 'bb' };
-const clampAlt = (alt: number): number => Math.max(-2, Math.min(2, alt));
+/** A part can only sensibly hold this many staves; larger numbers are hostile input. */
+const MAX_STAVES = 16;
 
-const CLEF_BY_SIGN_LINE: Record<string, ClefType> = {
-  G2: 'treble',
-  F4: 'bass',
-  C3: 'alto',
-  C4: 'tenor',
-};
+/** MusicXML sign+line of every model clef, from the shared clef geometry (ADR-007). */
+const CLEF_BY_SIGN_LINE: Record<string, ClefType> = Object.fromEntries(
+  Object.keys(CLEF_TYPES)
+    .filter((c) => !CLEF_TYPES[c].isGrand)
+    .map((c) => {
+      const ref = getClefReference(c);
+      return [`${ref.referencePitch[0]}${ref.referenceLine}`, c as ClefType];
+    })
+);
 /** Clefs the model lacks, mapped to the staff-position-nearest one it has. */
 const NEAREST_CLEF: Record<string, ClefType> = {
   G1: 'treble',
@@ -146,9 +161,9 @@ const readClef = (el: XmlElement, warnings: Warnings, where: string): ClefType =
   const upper = sign.toUpperCase();
   const defaultLine = upper === 'G' ? 2 : upper === 'F' ? 4 : upper === 'C' ? 3 : '';
   const key = `${upper}${line ?? defaultLine}`;
-  let clef = CLEF_BY_SIGN_LINE[key];
+  let clef = own(CLEF_BY_SIGN_LINE, key);
   if (!clef) {
-    clef = NEAREST_CLEF[key] ?? 'treble';
+    clef = own(NEAREST_CLEF, key) ?? 'treble';
     warnings.add(
       `clef:${key}`,
       `Unsupported clef "${sign}${line ?? ''}" was imported as ${clef}`,
@@ -165,8 +180,6 @@ const readClef = (el: XmlElement, warnings: Warnings, where: string): ClefType =
   return clef;
 };
 
-const lcm = (a: number, b: number): number => (a * b) / gcd(a, b);
-
 /** <time> → 'n/d', or null when it carries no usable meter (a warning is added when so). */
 const readTime = (el: XmlElement, warnings: Warnings, where: string): string | null => {
   if (xmlChild(el, 'senza-misura')) {
@@ -175,14 +188,18 @@ const readTime = (el: XmlElement, warnings: Warnings, where: string): string | n
   }
   const beats = xmlChildren(el, 'beats');
   const types = xmlChildren(el, 'beat-type');
-  if (beats.length === 0 || types.length === 0) return null;
+  if (beats.length === 0 && types.length === 0) return null;
+  if (beats.length === 0 || types.length === 0) {
+    warnings.add('meter-invalid', 'An unsupported time signature was imported as 4/4', where);
+    return null;
+  }
   const pairs = beats.map((b, i) => ({
     n: xmlText(b)
       .split('+')
       .reduce((sum, part) => sum + (parseInt(part, 10) || 0), 0),
     d: parseInt(xmlText(types[Math.min(i, types.length - 1)]), 10),
   }));
-  if (pairs.some((p) => !(p.n > 0) || !(p.d > 0) || (p.d & (p.d - 1)) !== 0)) {
+  if (pairs.some((p) => !(p.n > 0) || !(p.d > 0) || p.d > 1024 || (p.d & (p.d - 1)) !== 0)) {
     warnings.add('meter-invalid', 'An unsupported time signature was imported as 4/4', where);
     return null;
   }
@@ -190,6 +207,14 @@ const readTime = (el: XmlElement, warnings: Warnings, where: string): string | n
   const den = pairs.reduce((l, p) => lcm(l, p.d), 1);
   const num = pairs.reduce((sum, p) => sum + (p.n * den) / p.d, 0);
   return `${num}/${den}`;
+};
+
+/** The `tempo` attribute of a <sound> element (quarter notes per minute), or null. */
+const soundTempo = (el: XmlElement | undefined): number | null => {
+  const raw = el ? own(el.attrs, 'tempo') : undefined;
+  if (raw === undefined) return null;
+  const tempo = Number(raw);
+  return Number.isFinite(tempo) && tempo > 0 ? tempo : null;
 };
 
 /** <metronome> → quarter notes per minute, or null when it states no rate. */
@@ -213,34 +238,23 @@ const MODE_LABELS: Record<string, string> = {
 
 const keyLabel = (name: string): string => KEY_SIGNATURES[name]?.label ?? name;
 
-/** MusicXML <kind> → the chord-symbol suffix the chord parser reads. */
-const KIND_SUFFIX: Record<string, string> = {
-  major: '',
-  minor: 'm',
-  augmented: 'aug',
-  diminished: 'dim',
-  dominant: '7',
-  'major-seventh': 'maj7',
-  'minor-seventh': 'm7',
-  'diminished-seventh': 'dim7',
-  'augmented-seventh': 'aug7',
-  'half-diminished': 'm7b5',
-  'major-minor': 'mmaj7',
-  'major-sixth': '6',
-  'minor-sixth': 'm6',
-  'dominant-ninth': '9',
-  'major-ninth': 'maj9',
-  'minor-ninth': 'm9',
-  'dominant-11th': '11',
-  'major-11th': 'maj11',
-  'minor-11th': 'm11',
-  'dominant-13th': '13',
-  'major-13th': 'maj13',
-  'minor-13th': 'm13',
-  'suspended-second': 'sus2',
-  'suspended-fourth': 'sus4',
-  power: '5',
-};
+/**
+ * MusicXML <kind> → the chord-symbol suffix the chord parser reads: the inverse of the table
+ * the exporter writes from (the first, canonical suffix wins where two share a kind), except
+ * that the parser only accepts the minor-major seventh spelled 'mMaj7' (it canonicalizes it to
+ * 'mmaj7' itself).
+ */
+const KIND_SUFFIX: Record<string, string> = Object.create(null);
+for (const [suffix, kind] of Object.entries(MUSICXML_CHORD_KINDS)) {
+  if (!(kind in KIND_SUFFIX)) KIND_SUFFIX[kind] = suffix === 'mmaj7' ? 'mMaj7' : suffix;
+}
+
+/** Kinds the chord parser cannot hold as written, and the nearest kind it can (a warning is added). */
+const KIND_FALLBACK: Record<string, string> = Object.assign(Object.create(null), {
+  'major-ninth': 'major-seventh',
+  'major-11th': 'major-seventh',
+  'major-13th': 'major-seventh',
+});
 
 const DYNAMICS_WARNING = 'Dynamics and hairpins are not supported and were ignored';
 const NAVIGATION_WARNING =
@@ -269,6 +283,8 @@ interface TimeModification {
   normal: number;
   /** Quants of <normal-type> (with its dots), when the file states it. */
   normalQuants: Frac | null;
+  /** The model duration <normal-type> names, when it is one the model has (tuplet base). */
+  normalDuration: string | null;
 }
 
 interface RawEvent {
@@ -292,6 +308,8 @@ interface RawMeasure {
   number: string;
   implicit: boolean;
   events: RawEvent[];
+  /** How far the cursor reached in the measure, in quants: its extent in the file's own timing. */
+  extent: Frac;
 }
 
 // ============================================================================
@@ -305,6 +323,8 @@ class DocState {
   bpm: number | null = null;
   private rawBpm: number | null = null;
   readonly chords: ChordSymbol[] = [];
+  /** `${measure}:${quant}` of every chord kept, so a second symbol at the same beat is skipped. */
+  private readonly chordSlots = new Set<string>();
 
   applyKey(el: XmlElement, where: string): void {
     if (xmlChild(el, 'key-step')) {
@@ -322,10 +342,11 @@ class DocState {
     const name = keyNameForFifths(fifths, MINOR_MODES.has(mode));
     if (this.key === null) {
       this.key = { name, fifths };
-      if (MODE_LABELS[mode]) {
+      const modeLabel = own(MODE_LABELS, mode);
+      if (modeLabel) {
         this.warnings.add(
           `mode:${mode}`,
-          `${MODE_LABELS[mode]} mode has no equivalent key; imported as ${keyLabel(name)} (same key signature)`,
+          `${modeLabel} mode has no equivalent key; imported as ${keyLabel(name)} (same key signature)`,
           where
         );
       } else if (!['major', 'minor', 'ionian', 'aeolian', 'none'].includes(mode)) {
@@ -379,6 +400,10 @@ class DocState {
   /** <harmony> at `at` quants into measure `measureIndex` → a chord-track entry. */
   addHarmony(el: XmlElement, measureIndex: number, at: Frac, where: string): void {
     const w = this.warnings;
+    // Two parts may carry the same symbol at the same beat: keep the first (before parsing it).
+    const quant = quantizeChordAnchor(Math.max(0, fracToNumber(at)));
+    const slot = `${measureIndex}:${quant}`;
+    if (this.chordSlots.has(slot)) return;
     const root = xmlChild(el, 'root');
     if (!root) {
       if (xmlChild(el, 'function') || xmlChild(el, 'numeral')) {
@@ -395,7 +420,7 @@ class DocState {
     const kindEl = xmlChild(el, 'kind');
     const kind = xmlText(kindEl) || 'major';
     if (kind === 'none') return; // "N.C." — the chord track has no entry for silence
-    let suffix = KIND_SUFFIX[kind];
+    let suffix = own(KIND_SUFFIX, kind);
     if (suffix === undefined) {
       const kindText = kindEl?.attrs.text?.trim();
       if (!kindText) {
@@ -408,14 +433,19 @@ class DocState {
       }
       suffix = kindText;
     }
+    let degrees = '';
     for (const degree of xmlChildren(el, 'degree')) {
       const value = xmlNumber(degree, 'degree-value');
-      if (value === null) continue;
+      if (value === null || !Number.isInteger(value) || value < 1 || value > 13) continue;
       const alter = Math.round(xmlNumber(degree, 'degree-alter') ?? 0);
       const type = xmlText(degree, 'degree-type') || 'add';
       const sign = alter > 0 ? '#'.repeat(Math.min(alter, 2)) : 'b'.repeat(Math.min(-alter, 2));
-      if (type === 'add') suffix += sign ? `${sign}${value}` : `add${value}`;
-      else if (type === 'alter') suffix += `${sign}${value}`;
+      // An accidental straight after a bare root would re-spell the root ("C" + "b9" = Cb9), so
+      // an altered tone on a plain triad is always written as an "add".
+      const bareRoot = suffix === '' && degrees === '';
+      if (type === 'add' || (type === 'alter' && bareRoot)) {
+        degrees += sign && !bareRoot ? `${sign}${value}` : `add${sign}${value}`;
+      } else if (type === 'alter') degrees += `${sign}${value}`;
       // 'subtract' has no symbol-level spelling; the remaining tones are kept.
     }
     const bass = xmlChild(el, 'bass');
@@ -423,16 +453,44 @@ class DocState {
     const bassPart = /^[A-G]$/.test(bassStep)
       ? `/${bassStep}${ALT_SUFFIX[clampAlt(Math.round(xmlNumber(bass, 'bass-alter') ?? 0))]}`
       : '';
-    const symbol = `${rootStep}${ALT_SUFFIX[rootAlter]}${suffix}${bassPart}`;
-    const parsed = parseChord(symbol, this.key?.name ?? 'C');
-    if (!parsed.ok) {
-      w.add(`chord:${symbol}`, `Unrecognized chord symbol "${symbol}" was ignored`, where);
+    const rootName = `${rootStep}${ALT_SUFFIX[rootAlter]}`;
+    // The chord parser knows a finite vocabulary: when the full spelling is not in it (or the
+    // parser would change its quality — it reads "maj9" as a dominant ninth), fall back to the
+    // chord without its added tones, then without its bass, then to the nearest kind it can hold.
+    // A simpler symbol beats a missing one.
+    const canonicalOf = (spelled: string): string => (spelled === 'mMaj7' ? 'mmaj7' : spelled);
+    const spellings = [suffix];
+    const fallback = own(KIND_FALLBACK, kind);
+    if (fallback) spellings.push(KIND_SUFFIX[fallback]);
+    const candidates: { symbol: string; canonical: string }[] = [];
+    for (const spelled of spellings) {
+      const stem = `${rootName}${spelled}`;
+      const canonical = `${rootName}${canonicalOf(spelled)}`;
+      candidates.push({ symbol: `${stem}${degrees}${bassPart}`, canonical });
+      if (degrees) candidates.push({ symbol: `${stem}${bassPart}`, canonical });
+      if (bassPart) candidates.push({ symbol: stem, canonical });
+    }
+    const wanted = candidates[0].symbol;
+    for (const [i, { symbol, canonical }] of candidates.entries()) {
+      const parsed = parseChord(symbol, this.key?.name ?? 'C');
+      if (!parsed.ok) continue;
+      // The parser must keep the root and the quality: "Cb9" reads as a C-flat chord, "Cmaj9" as C9.
+      const rest = parsed.symbol.startsWith(canonical)
+        ? parsed.symbol.slice(canonical.length)
+        : null;
+      if (rest === null || /^[#b]/.test(rest)) continue;
+      if (i > 0) {
+        w.add(
+          `chord-simplified:${wanted}`,
+          `Chord symbol "${wanted}" was simplified to "${parsed.symbol}"`,
+          where
+        );
+      }
+      this.chordSlots.add(slot);
+      this.chords.push({ id: chordId(), measure: measureIndex, quant, symbol: parsed.symbol });
       return;
     }
-    const quant = quantizeChordAnchor(Math.max(0, fracToNumber(at)));
-    // Two parts may carry the same symbol at the same beat: keep the first.
-    if (this.chords.some((c) => c.measure === measureIndex && c.quant === quant)) return;
-    this.chords.push({ id: chordId(), measure: measureIndex, quant, symbol: parsed.symbol });
+    w.add(`chord:${wanted}`, `Unrecognized chord symbol "${wanted}" was ignored`, where);
   }
 }
 
@@ -447,24 +505,48 @@ class PartReader {
   readonly measures: RawMeasure[] = [];
   /** The last note read in the current measure; a following <chord/> note joins it. */
   private lastNote: RawEvent | null = null;
+  /** The last note was skipped (grace, cue): its <chord/> companions are skipped with it. */
+  private skipChordTail = false;
 
   constructor(
     private readonly doc: DocState,
     readonly label: string
   ) {}
 
-  /** A <duration>/<offset> value in the part's current divisions → quants. */
+  /** A <duration> value in the part's current divisions → quants (durations are positive). */
   private toQuants(divisions: number | null): Frac {
     if (divisions === null || !(divisions > 0)) return ZERO;
     return fracFromDecimals(divisions * 16, this.divisions);
   }
 
+  /** A signed <offset> in the part's current divisions → quants. */
+  private toSignedQuants(divisions: number | null): Frac {
+    if (divisions === null) return ZERO;
+    return fracFromDecimals(divisions * 16, this.divisions);
+  }
+
+  /** Register a staff number seen in the part (clamped to a sane range); returns the number. */
+  private noteStaff(raw: number | null): number {
+    const staff = Math.min(MAX_STAVES, Math.max(1, Math.round(raw ?? 1) || 1));
+    if (staff > this.staffCount) this.staffCount = staff;
+    return staff;
+  }
+
   readMeasure(el: XmlElement, index: number): void {
     const number = el.attrs.number ?? String(index + 1);
     const where = `bar ${number}`;
-    const measure: RawMeasure = { number, implicit: el.attrs.implicit === 'yes', events: [] };
+    const measure: RawMeasure = {
+      number,
+      implicit: el.attrs.implicit === 'yes',
+      events: [],
+      extent: ZERO,
+    };
     let cursor = ZERO;
     this.lastNote = null;
+    this.skipChordTail = false;
+    const reach = (): void => {
+      if (cmpFrac(cursor, measure.extent) > 0) measure.extent = cursor;
+    };
     for (const child of el.children) {
       switch (child.name) {
         case 'attributes':
@@ -472,16 +554,20 @@ class PartReader {
           break;
         case 'note':
           cursor = this.readNote(child, cursor, measure, where);
+          reach();
           break;
         case 'backup': {
           const back = this.toQuants(xmlNumber(child, 'duration'));
           cursor = cmpFrac(back, cursor) > 0 ? ZERO : subFrac(cursor, back);
           this.lastNote = null;
+          this.skipChordTail = false;
           break;
         }
         case 'forward':
           cursor = addFrac(cursor, this.toQuants(xmlNumber(child, 'duration')));
+          reach();
           this.lastNote = null;
+          this.skipChordTail = false;
           break;
         case 'direction':
           this.readDirection(child, where);
@@ -493,15 +579,18 @@ class PartReader {
           this.doc.addHarmony(
             child,
             index,
-            addFrac(cursor, this.toQuants(xmlNumber(child, 'offset'))),
+            addFrac(cursor, this.toSignedQuants(xmlNumber(child, 'offset'))),
             where
           );
           break;
         case 'barline':
           this.readBarline(child, where);
           break;
+        case 'figured-bass':
+          this.doc.warnings.add('figured-bass', 'Figured bass was ignored', where);
+          break;
         default:
-          break; // print, figured-bass, grouping, link, bookmark, listening
+          break; // print, grouping, link, bookmark, listening
       }
     }
     this.measures.push(measure);
@@ -512,11 +601,11 @@ class PartReader {
     const divisions = xmlNumber(el, 'divisions');
     if (divisions !== null && divisions > 0) this.divisions = divisions;
     const staves = xmlNumber(el, 'staves');
-    if (staves !== null && staves > this.staffCount) this.staffCount = Math.round(staves);
+    if (staves !== null) this.noteStaff(staves);
     for (const key of xmlChildren(el, 'key')) this.doc.applyKey(key, where);
     for (const time of xmlChildren(el, 'time')) this.doc.applyTime(time, where);
     for (const clefEl of xmlChildren(el, 'clef')) {
-      const n = Math.max(1, Math.round(Number(clefEl.attrs.number ?? '1')) || 1);
+      const n = this.noteStaff(Number(clefEl.attrs.number ?? '1'));
       const clef = readClef(clefEl, w, where);
       const existing = this.clefs.get(n);
       if (existing === undefined) this.clefs.set(n, clef);
@@ -527,25 +616,30 @@ class PartReader {
           where
         );
       }
-      if (n > this.staffCount) this.staffCount = n;
     }
   }
 
   /** Read a <note>; returns the cursor after it. */
   private readNote(el: XmlElement, cursor: Frac, measure: RawMeasure, where: string): Frac {
     const w = this.doc.warnings;
+    const isChord = xmlChild(el, 'chord') !== undefined;
+    // The <chord/> companions of a skipped note (a grace or cue chord) go with it.
+    if (isChord && this.skipChordTail) return cursor;
     if (xmlChild(el, 'grace')) {
       w.add('grace', 'Grace notes are not supported and were ignored', where);
+      this.lastNote = null;
+      this.skipChordTail = true;
       return cursor;
     }
-    const isChord = xmlChild(el, 'chord') !== undefined;
     const duration = this.toQuants(xmlNumber(el, 'duration'));
     const advanced = isChord ? cursor : addFrac(cursor, duration);
     if (xmlChild(el, 'cue')) {
       w.add('cue', 'Cue notes were ignored', where);
       this.lastNote = null;
+      this.skipChordTail = true;
       return advanced;
     }
+    if (!isChord) this.skipChordTail = false;
     if (xmlChild(el, 'lyric')) w.add('lyrics', 'Lyrics are not supported and were ignored', where);
 
     let tupletStart = false;
@@ -561,7 +655,7 @@ class PartReader {
             if (Number(item.attrs.number ?? '1') > 1) {
               w.add(
                 'tuplet-nested',
-                'Nested tuplets are not supported; only the combined ratio was kept',
+                'Nested tuplets are not supported; only the combined ratio was kept, so a group that no longer adds up loses its bracket',
                 where
               );
             } else if (item.attrs.type === 'start') tupletStart = true;
@@ -591,8 +685,7 @@ class PartReader {
       }
     }
 
-    const staff = Math.max(1, Math.round(xmlNumber(el, 'staff') ?? 1));
-    if (staff > this.staffCount) this.staffCount = staff;
+    const staff = this.noteStaff(xmlNumber(el, 'staff'));
 
     const restEl = xmlChild(el, 'rest');
     let spec: NoteSpec | null = null;
@@ -608,6 +701,11 @@ class PartReader {
       if (spec && this.lastNote && !this.lastNote.isRest) this.lastNote.notes.push(spec);
       else if (spec)
         w.add('chord-orphan', 'A chord note with nothing to attach to was ignored', where);
+      if (this.lastNote) {
+        // A bracket notation may sit on any member of the chord; it belongs to the chord's event.
+        this.lastNote.tupletStart ||= tupletStart;
+        this.lastNote.tupletStop ||= tupletStop;
+      }
       return cursor; // chord members share the first note's position and length
     }
 
@@ -687,6 +785,7 @@ class PartReader {
       normalQuants: normalType
         ? writtenQuants(normalType, xmlChildren(el, 'normal-dot').length)
         : null,
+      normalDuration: normalType ? (own(DURATION_BY_TYPE, normalType) ?? null) : null,
     };
   }
 
@@ -694,19 +793,16 @@ class PartReader {
     const w = this.doc.warnings;
     const sound = xmlChild(el, 'sound');
     const items = xmlChildren(el, 'direction-type').flatMap((dt) => dt.children);
-    let tempoHere = sound?.attrs.tempo !== undefined;
-    for (const item of items) {
-      if (item.name !== 'metronome') continue;
-      const bpm = metronomeBpm(item);
-      if (bpm !== null) {
-        this.doc.setTempo(bpm, where);
-        tempoHere = true;
-      }
-    }
+    const tempoHere =
+      soundTempo(sound) !== null ||
+      items.some((item) => item.name === 'metronome' && metronomeBpm(item) !== null);
     for (const item of items) {
       switch (item.name) {
-        case 'metronome':
+        case 'metronome': {
+          const bpm = metronomeBpm(item);
+          if (bpm !== null) this.doc.setTempo(bpm, where);
           break;
+        }
         case 'words':
         case 'rehearsal':
         case 'symbol':
@@ -739,11 +835,9 @@ class PartReader {
   }
 
   private readSound(el: XmlElement, where: string): void {
-    const tempo = Number(el.attrs.tempo);
-    if (el.attrs.tempo !== undefined && Number.isFinite(tempo) && tempo > 0) {
-      this.doc.setTempo(tempo, where);
-    }
-    if (['dacapo', 'dalsegno', 'fine', 'tocoda', 'segno', 'coda'].some((a) => a in el.attrs)) {
+    const tempo = soundTempo(el);
+    if (tempo !== null) this.doc.setTempo(tempo, where);
+    if (['dacapo', 'dalsegno', 'fine', 'tocoda', 'segno', 'coda'].some((a) => own(el.attrs, a))) {
       this.doc.warnings.add('navigation', NAVIGATION_WARNING, where);
     }
   }
@@ -803,7 +897,7 @@ const resolveWritten = (
     const quants = Math.max(1, Math.round(exact));
     if (Math.abs(exact - quants) > 1e-9) {
       warnings.add(
-        'grid',
+        'grid-length',
         'Some note lengths were not on the 64th-note grid and were rounded',
         where
       );
@@ -831,14 +925,23 @@ const resolveWritten = (
     if (ev.duration.n === 0 || cmpFrac(written, ev.duration) === 0) {
       return { quants: roundQuants(written), tuplet: null };
     }
-    // The two disagree without a tuplet ratio to explain it: the sounding length wins when it
-    // is notatable, since it is what keeps the bar's timeline intact.
+    // The two disagree without a tuplet ratio to explain it. A sounding length on the grid wins,
+    // since it is what keeps the bar's timeline intact; one off the grid (a tuplet missing its
+    // ratio) would only round to nonsense, so the written value stays.
+    if (ev.duration.d === 1) {
+      warnings.add(
+        'duration-mismatch',
+        "Some notes' written values disagreed with their durations; the durations were used",
+        where
+      );
+      return { quants: ev.duration.n, tuplet: null };
+    }
     warnings.add(
-      'duration-mismatch',
-      "Some notes' written values disagreed with their durations; the durations were used",
+      'duration-mismatch-written',
+      "Some notes' durations were not on the 64th-note grid and disagreed with their written values; the written values were used",
       where
     );
-    return { quants: roundQuants(ev.duration), tuplet: null };
+    return { quants: roundQuants(written), tuplet: null };
   }
   if (ev.duration.n <= 0) {
     warnings.add('note-empty', 'Notes with neither a type nor a duration were ignored', where);
@@ -850,14 +953,20 @@ const resolveWritten = (
 interface TupletGroup {
   actual: number;
   normal: number;
-  /** Quants of the note the ratio is "in the time of"; the completion test needs it. */
-  unit: Frac | null;
+  /**
+   * Quants of the note the ratio is "in the time of", for closing a group that has no bracket
+   * notations once it spans its ratio; null when a <tuplet type="start"/> opened the group, since
+   * only its stop (or a ratio change) may close that.
+   */
+  unit: number | null;
+  /** The model duration the ratio is "in the time of" (tuplet base), when the file names it. */
+  normalDuration: string | null;
   members: ScoreEvent[];
-  writtenSum: number;
-  /** Opened by a <tuplet type="start"/>: only a stop (or a ratio change) closes it. */
-  byNotation: boolean;
   where: string;
 }
+
+const writtenSum = (events: ScoreEvent[]): number =>
+  events.reduce((sum, e) => sum + getNoteDuration(e.duration, e.dotted), 0);
 
 const restEvent = (part: DurationPart): ScoreEvent => {
   const id = eventId();
@@ -903,7 +1012,7 @@ const buildMeasure = (raw: RawEvent[], m: RawMeasure, ctx: BuildContext): Measur
     );
     if (g.members.length > 0 && footprint.d === 1) {
       const id = tupletId();
-      const baseDuration = g.members[0].duration;
+      const baseDuration = g.normalDuration ?? g.members[0].duration;
       g.members.forEach((e, position) => {
         e.tuplet = {
           ratio: [g.actual, g.normal],
@@ -939,7 +1048,7 @@ const buildMeasure = (raw: RawEvent[], m: RawMeasure, ctx: BuildContext): Measur
       const restQuants = Math.round(gap);
       if (Math.abs(gap - restQuants) > 1e-9) {
         warnings.add(
-          'grid',
+          'grid-position',
           'Some note positions were not on the 64th-note grid and were rounded',
           where
         );
@@ -966,13 +1075,13 @@ const buildMeasure = (raw: RawEvent[], m: RawMeasure, ctx: BuildContext): Measur
         closeGroup();
       }
       if (!group) {
+        const unit = tm.normalQuants ?? (ev.type ? writtenQuants(ev.type, ev.dots) : null);
         group = {
           actual: tm.actual,
           normal: tm.normal,
-          unit: tm.normalQuants ?? (ev.type ? writtenQuants(ev.type, ev.dots) : null),
+          unit: ev.tupletStart || !unit ? null : fracToNumber(unit),
+          normalDuration: tm.normalDuration,
           members: [],
-          writtenSum: 0,
-          byNotation: ev.tupletStart,
           where,
         };
       }
@@ -1000,18 +1109,14 @@ const buildMeasure = (raw: RawEvent[], m: RawMeasure, ctx: BuildContext): Measur
         };
       }
       events.push(event);
-      if (group) {
-        group.members.push(event);
-        group.writtenSum += getNoteDuration(part.duration, part.dotted);
-      }
+      if (group) group.members.push(event);
     });
 
     if (group) {
       if (ev.tupletStop) closeGroup();
       else if (
-        !group.byNotation &&
-        group.unit &&
-        group.writtenSum >= group.actual * fracToNumber(group.unit) - 1e-9
+        group.unit !== null &&
+        writtenSum(group.members) >= group.actual * group.unit - 1e-9
       ) {
         // No bracket notations in this file: the group is complete once it spans its ratio.
         closeGroup();
@@ -1019,7 +1124,56 @@ const buildMeasure = (raw: RawEvent[], m: RawMeasure, ctx: BuildContext): Measur
     }
   }
   closeGroup();
+  // Time after the voice's last event that the bar still spans — a trailing <forward>, or another
+  // voice playing on — is a rest too, so a bar the file wrote as full does not read as a pickup.
+  const tail = fracToNumber(subFrac(m.extent, end));
+  if (tail >= 0.5)
+    decomposeQuants(Math.round(tail)).forEach((part) => events.push(restEvent(part)));
   return { id: measureId(), events };
+};
+
+// ============================================================================
+// Chord anchors
+// ============================================================================
+
+/**
+ * The chord track anchors on event starts of the top staff. A symbol that landed elsewhere —
+ * an <offset>, a note in another voice, a position rounded away — moves back to the start of
+ * the event sounding there (a later symbol already on that beat wins). Symbols past the last
+ * bar are dropped.
+ */
+const anchorChords = (
+  chords: ChordSymbol[],
+  topStaff: Staff,
+  barCount: number,
+  warnings: Warnings
+): ChordSymbol[] => {
+  const kept: ChordSymbol[] = [];
+  const taken = new Set<string>();
+  for (const chord of chords) {
+    if (chord.measure >= barCount) continue;
+    const starts: number[] = [0];
+    let at = 0;
+    for (const event of topStaff.measures[chord.measure].events) {
+      at += getNoteDuration(event.duration, event.dotted, event.tuplet);
+      starts.push(quantizeChordAnchor(at));
+    }
+    starts.pop(); // the bar's end is not a start
+    let quant = chord.quant;
+    if (!starts.some((q) => Math.abs(q - quant) < 1e-6)) {
+      quant = starts.filter((q) => q <= quant + 1e-6).pop() ?? 0;
+      warnings.add(
+        'harmony-anchor',
+        'Chord symbols that did not fall on a note of the top staff were moved to the note sounding there',
+        `bar ${chord.measure + 1}`
+      );
+    }
+    const slot = `${chord.measure}:${quant}`;
+    if (taken.has(slot)) continue;
+    taken.add(slot);
+    kept.push(quant === chord.quant ? chord : { ...chord, quant });
+  }
+  return kept.sort((a, b) => a.measure - b.measure || a.quant - b.quant);
 };
 
 // ============================================================================
@@ -1190,32 +1344,16 @@ export const parseMusicXML = (input: string): MusicXmlImportResult => {
     }
   }
 
-  const barCount = Math.max(0, ...staves.map((s) => s.measures.length));
-  if (barCount === 0) return fail('No music found in the MusicXML input');
-
-  // Grand-staff parity: every staff must have the same number of bars.
-  staves.forEach((staff, i) => {
-    if (staff.measures.length === barCount) return;
-    doc.warnings.add(
-      `pad:${i}`,
-      `${labels[i]} has ${staff.measures.length} bars where another has ${barCount}; it was padded with empty bars`
-    );
-    while (staff.measures.length < barCount) staff.measures.push({ id: measureId(), events: [] });
-  });
-
-  // An under-full first bar (in every staff) followed by more music is an anacrusis.
-  if (barCount > 1) {
-    const firsts = staves.map((s) => s.measures[0]);
-    const underFull = firsts.every((m) => {
-      if (m.events.length === 0) return true;
-      const { quants, partialTuplet } = sumQuants(m.events);
-      return !partialTuplet && quants < capacity - 1e-6;
-    });
-    if (underFull && firsts.some((m) => m.events.length > 0)) {
-      firsts.forEach((m) => (m.isPickup = true));
-    }
+  if (staves.every((s) => s.measures.length === 0)) {
+    return fail('No music found in the MusicXML input');
   }
-
+  const barCount = padStavesToParity(staves, labels, doc.warnings);
+  // The file's own pickup marker counts even when the pickup bar holds nothing but rests.
+  inferPickup(
+    staves,
+    capacity,
+    readers.some((r) => r.measures[0]?.implicit)
+  );
   dropDanglingTies(staves, doc.warnings);
 
   const score: Score = {
@@ -1224,9 +1362,7 @@ export const parseMusicXML = (input: string): MusicXmlImportResult => {
     keySignature,
     bpm: doc.bpm ?? 120,
     staves,
-    chordTrack: doc.chords
-      .filter((c) => c.measure < barCount)
-      .sort((a, b) => a.measure - b.measure || a.quant - b.quant),
+    chordTrack: anchorChords(doc.chords, staves[0], barCount, doc.warnings),
     metadata: createMetadata({ title, composer, lyricist, copyright }),
   };
   reportValidationWarnings(score, doc.warnings);

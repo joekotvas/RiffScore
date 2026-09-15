@@ -95,6 +95,22 @@ export const importScoreText = (
 };
 
 /**
+ * The bytes of `content`, whatever realm its buffer came from (an iframe's ArrayBuffer, a Node
+ * Buffer under jsdom): `instanceof` is not enough, so views and buffers are recognized by shape.
+ */
+const toBytes = (content: unknown): Uint8Array | null => {
+  if (content instanceof Uint8Array) return content;
+  if (ArrayBuffer.isView(content)) {
+    return new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
+  }
+  const tag = Object.prototype.toString.call(content);
+  if (tag === '[object ArrayBuffer]' || tag === '[object SharedArrayBuffer]') {
+    return new Uint8Array(content as ArrayBuffer);
+  }
+  return null;
+};
+
+/**
  * Parse score text or a score file's bytes. A compressed MusicXML archive (`.mxl`) is unpacked
  * first; other bytes are decoded as text and handled like {@link importScoreText}. Never throws.
  */
@@ -103,10 +119,16 @@ export const importScoreData = (
   format?: ImportFormat
 ): ImportTextResult => {
   if (typeof content === 'string') return importScoreText(content, format);
-  const bytes = content instanceof Uint8Array ? content : new Uint8Array(content);
-  const unpacked = unpackScoreFile(bytes);
-  if (!unpacked.ok) {
-    return { ok: false, format: format ?? 'musicxml', error: unpacked.error, warnings: [] };
+  const bytes = toBytes(content);
+  if (!bytes) {
+    return {
+      ok: false,
+      format: format ?? 'musicxml',
+      error: 'content must be text, an ArrayBuffer or a Uint8Array',
+      warnings: [],
+    };
   }
+  const unpacked = unpackScoreFile(bytes);
+  if (!unpacked.ok) return { ok: false, format: 'musicxml', error: unpacked.error, warnings: [] };
   return importScoreText(unpacked.text, format);
 };

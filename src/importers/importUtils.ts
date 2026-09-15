@@ -11,6 +11,7 @@
 import { KEY_SIGNATURES } from '@/constants';
 import type { Measure, Score, Staff } from '@/types';
 import { getBreakdownOfQuants } from '@/utils/core';
+import { measureId } from '@/utils/id';
 import { hasTieTarget } from '@/utils/ties';
 import { sumQuants } from '@/utils/tuplet';
 import { validateScore } from '@/utils/validation';
@@ -25,10 +26,30 @@ export interface Frac {
   d: number;
 }
 
-export const gcd = (a: number, b: number): number => (b === 0 ? Math.abs(a) : gcd(b, a % b));
+export const ONE: Frac = { n: 1, d: 1 };
+export const ZERO: Frac = { n: 0, d: 1 };
 
-/** A normalized fraction (lowest terms, positive denominator). Integer inputs only. */
+/** Greatest common divisor (iterative Euclid; 1 for a non-finite operand so callers never loop). */
+export const gcd = (a: number, b: number): number => {
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 1;
+  a = Math.abs(a);
+  b = Math.abs(b);
+  while (b !== 0) {
+    const t = a % b;
+    a = b;
+    b = t;
+  }
+  return a;
+};
+
+export const lcm = (a: number, b: number): number => (a === 0 || b === 0 ? 0 : (a * b) / gcd(a, b));
+
+/**
+ * A normalized fraction (lowest terms, positive denominator). Integer inputs only; a non-finite
+ * term or a zero denominator (only reachable from hostile input) yields zero.
+ */
 export const frac = (n: number, d: number): Frac => {
+  if (!Number.isFinite(n) || !Number.isFinite(d) || d === 0) return ZERO;
   if (d < 0) {
     n = -n;
     d = -d;
@@ -42,13 +63,9 @@ export const frac = (n: number, d: number): Frac => {
  * sloppy MusicXML `<duration>`/`<divisions>` decimals still yield an exact ratio.
  */
 export const fracFromDecimals = (n: number, d: number): Frac => {
+  if (!Number.isFinite(n) || !Number.isFinite(d) || d === 0) return ZERO;
   let scale = 1;
-  while (
-    scale < 1e6 &&
-    (!Number.isInteger(n * scale) || !Number.isInteger(d * scale)) &&
-    Number.isFinite(n * scale) &&
-    Number.isFinite(d * scale)
-  ) {
+  while (scale < 1e6 && (!Number.isInteger(n * scale) || !Number.isInteger(d * scale))) {
     scale *= 10;
   }
   return frac(Math.round(n * scale), Math.round(d * scale));
@@ -61,11 +78,25 @@ export const subFrac = (a: Frac, b: Frac): Frac => frac(a.n * b.d - b.n * a.d, a
 export const cmpFrac = (a: Frac, b: Frac): number => Math.sign(a.n * b.d - b.n * a.d);
 export const fracToNumber = (a: Frac): number => a.n / a.d;
 
-export const ONE: Frac = { n: 1, d: 1 };
-export const ZERO: Frac = { n: 0, d: 1 };
-
 /** Internal quant grid: 64 quants per whole note. */
 export const WHOLE_QUANTS = 64;
+
+/** Longest length any one written note or rest can take: 64 whole notes. Longer is hostile input. */
+export const MAX_QUANTS = WHOLE_QUANTS * 64;
+
+/**
+ * Own-property lookup for tables indexed by document text. `table['constructor']` would find
+ * `Object.prototype.constructor`, so a file naming a note type or chord kind after a prototype
+ * member must miss instead of getting a function back.
+ */
+export const own = <T>(table: Record<string, T>, key: string): T | undefined =>
+  Object.prototype.hasOwnProperty.call(table, key) ? table[key] : undefined;
+
+/** Pitch-spelling suffix of an alteration: 'C' + ALT_SUFFIX[1] + '4' → 'C#4'. */
+export const ALT_SUFFIX: Record<number, string> = { 2: '##', 1: '#', 0: '', [-1]: 'b', [-2]: 'bb' };
+
+/** The model spells at most a double sharp or flat. */
+export const clampAlt = (alt: number): number => Math.max(-2, Math.min(2, alt));
 
 // ============================================================================
 // Warnings — deduplicated by category so a tune full of slurs yields one line
@@ -128,11 +159,16 @@ export const SINGLE_DURATIONS: Record<number, DurationPart> = {
   1: { duration: 'sixtyfourth', dotted: false },
 };
 
-/** A quant count as one note when possible, else the greedy largest-first breakdown (tied). */
+/**
+ * A quant count as one note when possible, else the greedy largest-first breakdown (tied). The
+ * count is clamped to {@link MAX_QUANTS} so a hostile length cannot allocate without bound.
+ */
 export const decomposeQuants = (quants: number): DurationPart[] => {
-  const single = SINGLE_DURATIONS[quants];
+  if (!Number.isFinite(quants) || quants < 1) return [];
+  const clamped = Math.min(Math.round(quants), MAX_QUANTS);
+  const single = SINGLE_DURATIONS[clamped];
   if (single) return [single];
-  return getBreakdownOfQuants(quants).map((p) => ({ duration: p.duration, dotted: p.dotted }));
+  return getBreakdownOfQuants(clamped).map((p) => ({ duration: p.duration, dotted: p.dotted }));
 };
 
 // ============================================================================
@@ -149,10 +185,11 @@ export const KEY_FIFTHS: Record<string, number> = Object.fromEntries(
 
 /** The canonical key name carrying `fifths` accidentals, major or (relative) minor. */
 export const keyNameForFifths = (fifths: number, minor: boolean): string => {
-  let f = fifths;
+  if (!Number.isFinite(fifths)) return 'C';
   // Beyond 7 accidentals a key is theoretical; its only notation is the enharmonic twin.
-  while (f > 7) f -= 12;
-  while (f < -7) f += 12;
+  let f = Math.round(fifths) % 12;
+  if (f > 7) f -= 12;
+  if (f < -7) f += 12;
   const match = Object.entries(KEY_FIFTHS).find(
     ([name, v]) => v === f && (KEY_SIGNATURES[name].mode === 'minor') === minor
   );
@@ -163,13 +200,46 @@ export const keyNameForFifths = (fifths: number, minor: boolean): string => {
 // Post-parse clean-up
 // ============================================================================
 
-/** An under-full first bar followed by more music is an anacrusis: flag it as a pickup. */
-export const inferPickup = (measures: Measure[], capacity: number): void => {
-  const first = measures[0];
-  if (measures.length > 1 && first && first.events.length > 0) {
-    const { quants, partialTuplet } = sumQuants(first.events);
-    if (!partialTuplet && quants < capacity - 1e-6) first.isPickup = true;
+/**
+ * An under-full first bar followed by more music is an anacrusis. A pickup is a property of the
+ * bar, not of one staff: every staff's first bar must be under-full or empty, and at least one
+ * must hold music — or the file must mark the bar as a pickup (`markedAsPickup`) — for the flag
+ * to be set, on every staff at once.
+ */
+export const inferPickup = (staves: Staff[], capacity: number, markedAsPickup = false): void => {
+  const firsts = staves.map((s) => s.measures[0]).filter((m): m is Measure => m !== undefined);
+  if (firsts.length === 0 || staves.some((s) => s.measures.length < 2)) return;
+  const underFull = firsts.every((m) => {
+    if (m.events.length === 0) return true;
+    const { quants, partialTuplet } = sumQuants(m.events);
+    return !partialTuplet && quants < capacity - 1e-6;
+  });
+  if (underFull && (markedAsPickup || firsts.some((m) => m.events.length > 0))) {
+    firsts.forEach((m) => (m.isPickup = true));
   }
+};
+
+/**
+ * Grand-staff parity: every staff must have the same number of bars. Shorter staves are padded
+ * with empty bars (one warning each, naming the staff by `labels[i]` and its peers by
+ * `noun`). Returns the bar count.
+ */
+export const padStavesToParity = (
+  staves: Staff[],
+  labels: string[],
+  warnings: Warnings,
+  noun = 'staff'
+): number => {
+  const barCount = Math.max(0, ...staves.map((s) => s.measures.length));
+  staves.forEach((staff, i) => {
+    if (staff.measures.length === barCount) return;
+    warnings.add(
+      `pad:${i}`,
+      `${labels[i]} has ${staff.measures.length} bars where another ${noun} has ${barCount}; it was padded with empty bars`
+    );
+    while (staff.measures.length < barCount) staff.measures.push({ id: measureId(), events: [] });
+  });
+  return barCount;
 };
 
 /** A tie only means something when the very next event has the same pitch; drop the rest. */

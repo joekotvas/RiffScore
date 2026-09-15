@@ -17,7 +17,7 @@ ABC 2.1 subset below (`src/importers/abcImporter.ts`); nothing is bundled from a
 
 | Entry point | Use it for |
 | :--- | :--- |
-| **File menu → Import → ABC Notation or JSON…** | Paste ABC (or the editor's JSON) or open a `.abc` / `.json` file. The dialog previews the title, staves and bar count and lists every warning before you commit. Importing replaces the score as **one undo step**. |
+| **File menu → Import → ABC, MusicXML or JSON…** | Paste ABC (or the editor's JSON) or open a `.abc` / `.json` file. The dialog previews the title, staves and bar count and lists every warning before you commit. Importing replaces the score as **one undo step**. |
 | **`api.import('abc', text)`** / **`api.import('json', text)`** | Programmatic import with structured feedback (see [§5](#5-api-and-feedback)). |
 | **`<RiffScore config={{ score: { abc } }} />`** | Seed a component from an ABC string. The tune's own title, key, meter and tempo are used; on failure the generator options apply and a warning is logged. |
 
@@ -140,7 +140,7 @@ api.import('json', jsonText); // the JSON that export('json') writes
 
 Both parsers are also exported from the package for use without a mounted editor (validation,
 server-side conversion): `importScoreText(text, format?)` is the shared entry point (format
-auto-detected: an object literal is JSON, anything else ABC) and `parseABC(text)` the raw parser,
+auto-detected: an object literal is JSON, text starting with `<` is MusicXML, anything else ABC) and `parseABC(text)` the raw parser,
 returning `{ ok, score, warnings }` / `{ ok: false, error, warnings }`.
 
 ```typescript

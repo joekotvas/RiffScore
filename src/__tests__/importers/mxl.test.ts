@@ -5,6 +5,7 @@
 
 import fc from 'fast-check';
 import { deflateRawSync } from 'zlib';
+import { container as CONTAINER, utf8, zip } from '../helpers/zip';
 import { inflateRaw } from '@/importers/inflate';
 import {
   decodeScoreText,
@@ -14,75 +15,8 @@ import {
   unpackScoreFile,
 } from '@/importers/mxl';
 
-// ---------------------------------------------------------------------------
-// A minimal ZIP writer (local headers + central directory + end record)
-// ---------------------------------------------------------------------------
-
-interface ZipFile {
-  name: string;
-  data: Uint8Array;
-  method?: 0 | 8 | 12;
-}
-
-const u16 = (v: number) => [v & 0xff, (v >> 8) & 0xff];
-const u32 = (v: number) => [v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >>> 24) & 0xff];
-
-const zip = (files: ZipFile[], comment = ''): Uint8Array => {
-  const out: number[] = [];
-  const central: number[] = [];
-  for (const f of files) {
-    const name = [...Buffer.from(f.name, 'utf8')];
-    const method = f.method ?? 8;
-    const packed = method === 8 ? new Uint8Array(deflateRawSync(f.data)) : f.data;
-    const offset = out.length;
-    const common = [
-      ...u16(20),
-      ...u16(0),
-      ...u16(method),
-      ...u16(0),
-      ...u16(0),
-      ...u32(0),
-      ...u32(packed.length),
-      ...u32(f.data.length),
-      ...u16(name.length),
-    ];
-    out.push(...u32(0x04034b50), ...common, ...u16(0), ...name, ...packed);
-    central.push(
-      ...u32(0x02014b50),
-      ...u16(20),
-      ...common,
-      ...u16(0),
-      ...u16(0),
-      ...u16(0),
-      ...u16(0),
-      ...u32(0),
-      ...u32(offset),
-      ...name
-    );
-  }
-  const commentBytes = [...Buffer.from(comment, 'utf8')];
-  const directoryOffset = out.length;
-  out.push(...central);
-  out.push(
-    ...u32(0x06054b50),
-    ...u16(0),
-    ...u16(0),
-    ...u16(files.length),
-    ...u16(files.length),
-    ...u32(central.length),
-    ...u32(directoryOffset),
-    ...u16(commentBytes.length),
-    ...commentBytes
-  );
-  return new Uint8Array(out);
-};
-
-const utf8 = (s: string) => new Uint8Array(Buffer.from(s, 'utf8'));
-
 const SCORE_XML =
   '<?xml version="1.0" encoding="UTF-8"?>\n<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>P</part-name></score-part></part-list><part id="P1"><measure number="1"><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>';
-const CONTAINER = (path: string) =>
-  `<?xml version="1.0" encoding="UTF-8"?><container><rootfiles><rootfile full-path="${path}" media-type="application/vnd.recordare.musicxml+xml"/></rootfiles></container>`;
 
 // ---------------------------------------------------------------------------
 // inflate
@@ -226,13 +160,37 @@ describe('decodeScoreText', () => {
     expect(decodeScoreText(new Uint8Array(Buffer.from(text, 'latin1')))).toBe(text);
   });
 
-  it('works without TextDecoder and replaces invalid UTF-8 bytes', () => {
+  it('works without TextDecoder and replaces invalid UTF-8 bytes instead of throwing', () => {
     const original = globalThis.TextDecoder;
     // @ts-expect-error — simulate an environment without TextDecoder
     delete globalThis.TextDecoder;
     try {
       expect(decodeScoreText(utf8(sample))).toBe(sample);
-      expect(decodeScoreText(new Uint8Array([0x61, 0xff, 0x62, 0xc3]))).toBe('a�b�');
+      expect(decodeScoreText(new Uint8Array([0x61, 0xff, 0x62, 0xc3]))).toBe('a\ufffdb\ufffd');
+      // Beyond U+10FFFF (F4 90…, F5–F7 leads) and encoded surrogates are not characters.
+      expect(decodeScoreText(new Uint8Array([0x3c, 0xf4, 0x90, 0x80, 0x80, 0x3e]))).toMatch(
+        /^<\ufffd/
+      );
+      expect(decodeScoreText(new Uint8Array([0xf5, 0x80, 0x80, 0x80]))).toMatch(/^\ufffd/);
+      expect(decodeScoreText(new Uint8Array([0xed, 0xa0, 0x80]))).toMatch(/^\ufffd/);
+      expect(() => unpackScoreFile(new Uint8Array([0xf7, 0xbf, 0xbf, 0xbf]))).not.toThrow();
+    } finally {
+      globalThis.TextDecoder = original;
+    }
+  });
+
+  it('uses the platform decoder for UTF-16 and Windows-1252 when there is one', () => {
+    const original = globalThis.TextDecoder;
+    // jsdom has no TextDecoder; borrow Node's to exercise the platform path.
+    globalThis.TextDecoder = require('util').TextDecoder;
+    try {
+      const le = new Uint8Array(
+        Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(sample, 'utf16le')])
+      );
+      expect(decodeScoreText(le)).toBe(sample);
+      const latin = '<?xml version="1.0" encoding="windows-1252"?><t>Fr\u00e8re \u20ac</t>';
+      const bytes = new Uint8Array(Buffer.from(latin.replace('\u20ac', '\x80'), 'latin1'));
+      expect(decodeScoreText(bytes)).toBe(latin);
     } finally {
       globalThis.TextDecoder = original;
     }

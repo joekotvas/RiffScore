@@ -276,7 +276,7 @@ describe('MusicXML importer — parts and staves', () => {
     );
     expect(r.ok && r.score.staves.map((s) => s.measures.length)).toEqual([2, 2]);
     expect(r.warnings).toEqual([
-      'Part "B" has 1 bars where another has 2; it was padded with empty bars',
+      'Part "B" has 1 bars where another staff has 2; it was padded with empty bars',
     ]);
   });
 
@@ -402,6 +402,16 @@ describe('MusicXML importer — attributes', () => {
         )
       )
     ).toEqual(['An unsupported time signature was imported as 4/4 (bar 1)']);
+  });
+
+  it('reports a <time> missing its beats or beat-type', () => {
+    const r = parseMusicXML(
+      doc(
+        measure(1, ATTRIBUTES('', undefined, '<time><beats>3</beats></time>') + note('C4', 'whole'))
+      )
+    );
+    expect(r.ok && r.score.timeSignature).toBe('4/4');
+    expect(r.warnings).toEqual(['An unsupported time signature was imported as 4/4 (bar 1)']);
   });
 
   it('keeps the first meter and reports a later change', () => {
@@ -779,6 +789,35 @@ describe('MusicXML importer — chords, rests and bars', () => {
     expect(r.warnings).toEqual(['Bar 1 holds more than a full bar (80/64 quants)']);
   });
 
+  it('fills the time the bar still spans after the kept voice stops, so a full bar is no pickup', () => {
+    const xml = tune(
+      note('C4', 'half', { voice: '1' }) +
+        '<forward><duration>32</duration></forward>' +
+        '<backup><duration>64</duration></backup>' +
+        note('C3', 'whole', { voice: '2' }),
+      note('D4', 'whole', { voice: '1' })
+    );
+    const score = ok(xml);
+    expect(bars(score)).toEqual(['C4h zh', 'D4w']);
+    expect(score.staves[0].measures[0].isPickup).toBeUndefined();
+  });
+
+  it('marks a rest-only first bar the file calls implicit as a pickup', () => {
+    const score = ok(
+      doc(
+        measure(
+          0,
+          ATTRIBUTES() + '<note><rest measure="yes"/><duration>16</duration></note>',
+          ' implicit="yes"'
+        ) +
+          measure(1, note('C5', 'whole')) +
+          measure(2, note('D5', 'whole'))
+      )
+    );
+    expect(score.staves[0].measures.map((m) => !!m.isPickup)).toEqual([true, false, false]);
+    expect(score.staves[0].measures[0].events).toEqual([]);
+  });
+
   it('infers a pickup from an implicit or under-full first bar', () => {
     const implicit = ok(
       doc(
@@ -952,15 +991,28 @@ describe('MusicXML importer — tuplets', () => {
         rest('quarter')
     );
     expect(bars(ok(xml))).toEqual(['C48 D48 zh zq']);
-    expect(warningsOf(xml)).toEqual(
-      [
-        'A tuplet did not add up to a whole number of beats (its bracket was probably cut off); its notes were imported without the tuplet (bar 1)',
-        'Bar 1 holds more than a full bar (64/64 quants)'.replace('64/64', '64/64'),
-      ]
-        .filter((w) => !w.startsWith('Bar 1 holds'))
-        .concat(warningsOf(xml).filter((w) => w.startsWith('Bar 1 holds')))
-    );
+    expect(warningsOf(xml)).toEqual([
+      'A tuplet did not add up to a whole number of beats (its bracket was probably cut off); its notes were imported without the tuplet (bar 1)',
+    ]);
     expect(validateScore(ok(xml)).valid).toBe(true);
+  });
+
+  it('reads a bracket notation that sits on a chord member', () => {
+    const tm: [number, number, string] = [3, 2, 'eighth'];
+    expect(
+      body(
+        note('C4', 'eighth', { timeMod: tm, tuplet: 'start' }) +
+          note('D4', 'eighth', { timeMod: tm }) +
+          note('E4', 'eighth', { timeMod: tm }) +
+          note('G4', 'eighth', { timeMod: tm, chord: true, tuplet: 'stop' }) +
+          note('F4', 'eighth', { timeMod: tm }) +
+          note('G4', 'eighth', { timeMod: tm }) +
+          note('A4', 'eighth', { timeMod: tm }) +
+          rest('half')
+      )
+    ).toEqual([
+      'C48(3:2/3#0) D48(3:2/3#1) E4+G48(3:2/3#2) F48(3:2/3#0) G48(3:2/3#1) A48(3:2/3#2) zh',
+    ]);
   });
 
   it('warns once about nested tuplets and malformed time modifications', () => {
@@ -976,7 +1028,7 @@ describe('MusicXML importer — tuplets', () => {
         })
     );
     expect(warningsOf(nested)).toContain(
-      'Nested tuplets are not supported; only the combined ratio was kept (2 occurrences, first at bar 1)'
+      'Nested tuplets are not supported; only the combined ratio was kept, so a group that no longer adds up loses its bracket (2 occurrences, first at bar 1)'
     );
     const malformed = tune(
       '<note><pitch><step>C</step><octave>4</octave></pitch><duration>64</duration><type>whole</type><time-modification><actual-notes>0</actual-notes><normal-notes>2</normal-notes></time-modification></note>'
@@ -1027,6 +1079,43 @@ describe('MusicXML importer — harmony', () => {
     expect(score.chordTrack?.map((c) => c.symbol)).toEqual([symbol]);
   });
 
+  it.each([
+    [harmony('C', 'augmented-seventh'), 'Caug7'],
+    [harmony('C', 'major-minor'), 'Cmmaj7'],
+    [harmony('C', 'power'), 'C5'],
+    [harmony('C', 'major-sixth'), 'C6'],
+    [harmony('C', 'minor-ninth'), 'Cm9'],
+  ])('%s → %s (kinds the exporter also writes)', (xml, symbol) => {
+    expect(ok(tune(xml + note('C4', 'whole'))).chordTrack?.map((c) => c.symbol)).toEqual([symbol]);
+  });
+
+  it('simplifies a symbol the chord parser cannot hold instead of dropping it', () => {
+    const add9OverA = harmony(
+      'F',
+      'major',
+      '<degree><degree-value>9</degree-value><degree-alter>0</degree-alter><degree-type>add</degree-type></degree><bass><bass-step>A</bass-step></bass>'
+    );
+    const r = parseMusicXML(tune(add9OverA + note('F4', 'whole')));
+    expect(r.ok && r.score.chordTrack?.map((c) => c.symbol)).toEqual(['F/A']);
+    expect(r.warnings).toEqual(['Chord symbol "Fadd9/A" was simplified to "F/A" (bar 1)']);
+    // The parser reads "maj9" as a dominant ninth, so the major quality is kept at the seventh.
+    const maj9 = parseMusicXML(tune(harmony('C', 'major-ninth') + note('C4', 'whole')));
+    expect(maj9.ok && maj9.score.chordTrack?.map((c) => c.symbol)).toEqual(['Cmaj7']);
+    expect(maj9.warnings).toEqual(['Chord symbol "Cmaj9" was simplified to "Cmaj7" (bar 1)']);
+  });
+
+  it('never lets an altered tone re-spell the root', () => {
+    const flatNine = harmony(
+      'C',
+      'major',
+      '<degree><degree-value>9</degree-value><degree-alter>-1</degree-alter><degree-type>add</degree-type></degree>'
+    );
+    const r = parseMusicXML(tune(flatNine + note('C4', 'whole')));
+    const symbols = r.ok ? r.score.chordTrack?.map((c) => c.symbol) : [];
+    expect(symbols).toHaveLength(1);
+    expect(symbols?.[0]).toMatch(/^C(?![#b])/);
+  });
+
   it('anchors symbols at the cursor (plus <offset>), keeps the first at a beat, and skips "none"', () => {
     const score = ok(
       tune(
@@ -1040,10 +1129,33 @@ describe('MusicXML importer — harmony', () => {
         harmony('C', 'none') + note('F4', 'whole')
       )
     );
+    // G7 was written 16 quants into the half note: no note starts there, so it moves back to it.
     expect(score.chordTrack?.map((c) => [c.measure, c.quant, c.symbol])).toEqual([
       [0, 0, 'C'],
       [0, 16, 'F'],
-      [0, 48, 'G7'],
+      [0, 32, 'G7'],
+    ]);
+  });
+
+  it('moves a symbol that is not on a note of the top staff to the note sounding there', () => {
+    const r = parseMusicXML(
+      tune(
+        harmony('C', 'major') +
+          note('C4', 'half') +
+          harmony('G', 'dominant', '<offset>8</offset>') +
+          note('D4', 'half') +
+          harmony('F', 'major', '<offset>-16</offset>')
+      )
+    );
+    // G7 was placed 8 quants after the second note began → back to that note (quant 32); the
+    // negative offset puts F at quant 48, where no note starts → back to quant 32 too, where G7
+    // already sits, so it is dropped.
+    expect(r.ok && r.score.chordTrack?.map((c) => [c.measure, c.quant, c.symbol])).toEqual([
+      [0, 0, 'C'],
+      [0, 32, 'G7'],
+    ]);
+    expect(r.warnings).toEqual([
+      'Chord symbols that did not fall on a note of the top staff were moved to the note sounding there (2 occurrences, first at bar 1)',
     ]);
   });
 
@@ -1078,6 +1190,31 @@ describe('MusicXML importer — unsupported constructs', () => {
       'Grace notes are not supported and were ignored (bar 1)',
       'Cue notes were ignored (bar 1)',
     ]);
+  });
+
+  it('skips the chord members of a skipped cue or grace note with it', () => {
+    const xml = tune(
+      '<note><cue/><pitch><step>C</step><octave>5</octave></pitch><duration>16</duration><type>quarter</type></note>' +
+        '<note><chord/><pitch><step>E</step><octave>5</octave></pitch><duration>16</duration><type>quarter</type></note>' +
+        '<note><grace/><pitch><step>B</step><octave>4</octave></pitch><type>16th</type></note>' +
+        '<note><chord/><grace/><pitch><step>D</step><octave>5</octave></pitch><type>16th</type></note>' +
+        note('C4', 'half') +
+        note('E4', 'half', { chord: true })
+    );
+    expect(bars(ok(xml))).toEqual(['zq C4+E4h']);
+    expect(warningsOf(xml)).toEqual([
+      'Cue notes were ignored (bar 1)',
+      'Grace notes are not supported and were ignored (bar 1)',
+    ]);
+  });
+
+  it('reports figured bass', () => {
+    const xml = tune(
+      '<figured-bass><figure><figure-number>6</figure-number></figure></figured-bass>' +
+        note('C4', 'whole')
+    );
+    expect(bars(ok(xml))).toEqual(['C4w']);
+    expect(warningsOf(xml)).toEqual(['Figured bass was ignored (bar 1)']);
   });
 
   it('reports lyrics, slurs, articulations and repeats once per category', () => {
@@ -1224,6 +1361,72 @@ describe('MusicXML importer — failures', () => {
     );
     expect(score.staves[0].measures.map((m) => m.events.length)).toEqual([0, 0]);
     expect(validateScore(score).valid).toBe(true);
+  });
+
+  it.each([
+    [
+      'a note type named after a prototype member',
+      '<note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>constructor</type></note>',
+    ],
+    [
+      'a chord kind named after a prototype member',
+      '<harmony><root><root-step>C</root-step></root><kind>constructor</kind></harmony>' +
+        '<note><pitch><step>C</step><octave>4</octave></pitch><duration>64</duration><type>whole</type></note>',
+    ],
+    [
+      'a mode named after a prototype member',
+      '<attributes><key><fifths>0</fifths><mode>constructor</mode></key></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>64</duration><type>whole</type></note>',
+    ],
+    [
+      'a beat unit named after a prototype member',
+      '<direction><direction-type><metronome><beat-unit>constructor</beat-unit><per-minute>100</per-minute></metronome></direction-type></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>64</duration><type>whole</type></note>',
+    ],
+    [
+      'an astronomically long duration',
+      '<note><pitch><step>C</step><octave>4</octave></pitch><duration>1e308</duration><type>whole</type></note>',
+    ],
+    [
+      'a huge integer duration',
+      '<attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>100000000</duration></note>',
+    ],
+    [
+      'an astronomical fifths count',
+      '<attributes><key><fifths>1e300</fifths></key></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>64</duration><type>whole</type></note>',
+    ],
+    [
+      'a billion staves',
+      '<attributes><staves>1000000000</staves></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>64</duration><type>whole</type><staff>1000000000</staff></note>',
+    ],
+    [
+      'eleven hundred dots',
+      '<note><pitch><step>C</step><octave>4</octave></pitch><duration>64</duration><type>whole</type>' +
+        '<dot/>'.repeat(1100) +
+        '</note>',
+    ],
+    [
+      'vanishing divisions',
+      '<attributes><divisions>0.0000001</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>64</duration></note>',
+    ],
+    [
+      'a huge forward',
+      '<forward><duration>1e12</duration></forward><note><pitch><step>C</step><octave>4</octave></pitch><duration>64</duration><type>whole</type></note>',
+    ],
+    [
+      'an entity named after a prototype member',
+      '<note><pitch><step>C</step><octave>4</octave></pitch><duration>64</duration><type>whole</type><lyric><text>&constructor;</text></lyric></note>',
+    ],
+  ])('survives %s quickly and without throwing', (_name, content) => {
+    const t0 = Date.now();
+    const r = parseMusicXML(
+      `<score-partwise><part-list/><part id="P1"><measure number="1"><attributes><divisions>16</divisions></attributes>${content}</measure></part></score-partwise>`
+    );
+    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(typeof r.ok).toBe('boolean');
+    if (r.ok) {
+      expect(r.score.staves.length).toBeLessThanOrEqual(16);
+      expect(JSON.stringify(r.score)).not.toMatch(/native code/);
+      expect(r.score.staves[0].measures[0].events.length).toBeLessThan(200);
+    }
   });
 
   it('never throws, whatever the input', () => {
