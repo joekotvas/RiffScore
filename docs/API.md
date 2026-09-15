@@ -165,7 +165,7 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 | :--- | :--- | :--- | :--- |
 | `setClef` | `setClef(clef)` | ✅ | `'treble'`, `'bass'`, `'alto'`, `'tenor'`, `'grand'`. |
 | `setScoreTitle` | `setScoreTitle(title)` | ✅ | Update title. |
-| `setBpm` | `setBpm(number)` | ✅ | Set tempo. |
+| `setBpm` | `setBpm(number)` | ✅ | Set the score tempo. The toolbar tempo follows it (see [Tempo](./CONFIGURATION.md#tempo)). |
 | `setTheme` | `setTheme(theme)` | ✅ | `'LIGHT'`, `'DARK'`, `'WARM'`, `'COOL'`. |
 | `setScale` | `setScale(number)` | ✅ | Zoom factor. |
 | `setStaffLayout` | `setStaffLayout(type)` | ✅ | `'grand'`, `'single'`. |
