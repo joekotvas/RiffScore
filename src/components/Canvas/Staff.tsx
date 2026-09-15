@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
 import {
@@ -9,7 +9,9 @@ import {
 } from '@/engines/layout';
 import { StaffLayout } from '@/engines/layout/types';
 import { isNoteSelected } from '@/utils/selection';
-import { findTieTarget } from '@/utils/ties';
+import { findTieTarget, collectTieStops } from '@/utils/ties';
+import { tieCurveDirection } from '@/engines/layout/ties';
+import { calculateChordLayout } from '@/engines/layout/positioning';
 import Measure from './Measure';
 import Tie from './Tie';
 import ScoreHeader from './ScoreHeader';
@@ -31,6 +33,8 @@ interface TieNote {
   x: number;
   y: number;
   id: string;
+  /** Curve side (Gould: away from the stem; outer chord notes outward). */
+  direction: 'up' | 'down';
 }
 
 interface TieSource {
@@ -116,6 +120,10 @@ const Staff: React.FC<StaffProps> = ({
   onKeySigClick,
   onTimeSigClick,
 }) => {
+  // Tie continuations on this staff (whole score, not just this system's slice): they draw no
+  // accidental, and the width engines must agree with the renderer about that.
+  const tieStops = useMemo(() => collectTieStops(allMeasures ?? measures), [allMeasures, measures]);
+
   const { theme } = useTheme();
 
   // Calculate vertical offset for this staff relative to the standard position
@@ -181,6 +189,7 @@ const Staff: React.FC<StaffProps> = ({
         forcedEventPositions={forcedPositions}
         measureLayout={measureLayoutV2}
         stretchFactor={stretchFactor}
+        tieStops={tieStops}
         layout={{
           scale,
           baseY: CONFIG.baseY,
@@ -267,6 +276,9 @@ const Staff: React.FC<StaffProps> = ({
 
     measures.forEach((measure, mIndex: number) => {
       const actualMeasureIndex = measureIndices?.[mIndex] ?? mIndex;
+      const measureLayoutV2 = staffLayout?.measures[actualMeasureIndex];
+      // A justified system re-lays the measure out at its stretch, with the same cross-staff
+      // synchronized positions the noteheads use, so tie ends land on the drawn heads.
       const layout =
         stretchFactor !== 1.0
           ? calculateMeasureLayout(
@@ -274,11 +286,12 @@ const Staff: React.FC<StaffProps> = ({
               undefined,
               clef,
               measure.isPickup ?? false,
-              undefined,
+              measureLayoutV2?.syncedEventPositions,
               stretchFactor,
-              keySignature
+              keySignature,
+              tieStops
             )
-          : (staffLayout?.measures[actualMeasureIndex]?.legacyLayout ??
+          : (measureLayoutV2?.legacyLayout ??
             calculateMeasureLayout(
               measure.events,
               undefined,
@@ -286,15 +299,27 @@ const Staff: React.FC<StaffProps> = ({
               measure.isPickup ?? false,
               undefined,
               1.0,
-              keySignature
+              keySignature,
+              tieStops
             ));
       const measureX = measureStartXs[mIndex];
+      // Stem direction each event is drawn with: its beam's when beamed, else its chord's.
+      const beamDirectionByEvent = new Map<string, 'up' | 'down'>();
+      measureLayoutV2?.beamGroups.forEach((group) =>
+        group.ids.forEach((id) => beamDirectionByEvent.set(id, group.direction))
+      );
       measure.events.forEach((event, eIndex: number) => {
         const eventX = measureX + layout.eventPositions[event.id];
+        const pitched = event.notes.filter((n) => n.pitch !== null);
+        const chordNoteYs = pitched.map((n) => CONFIG.baseY + getOffsetForPitch(n.pitch!, clef));
+        const stemDirection =
+          beamDirectionByEvent.get(event.id) ??
+          (pitched.length > 0 ? calculateChordLayout(event.notes, clef).direction : 'up');
         event.notes.forEach((note, nIndex: number) => {
           // Skip rest notes (which have null pitch) - they can't have ties
           if (note.pitch === null) return;
 
+          const y = CONFIG.baseY + getOffsetForPitch(note.pitch, clef); // normalized coords
           allNotes.push({
             localMeasureIndex: mIndex,
             measureIndex: actualMeasureIndex,
@@ -304,8 +329,9 @@ const Staff: React.FC<StaffProps> = ({
             pitch: note.pitch,
             tied: !!note.tied,
             x: eventX,
-            y: CONFIG.baseY + getOffsetForPitch(note.pitch, clef), // Use CONFIG.baseY for normalized coords
+            y,
             id: note.id,
+            direction: tieCurveDirection({ noteY: y, chordNoteYs, stemDirection }),
           });
         });
       });
@@ -314,7 +340,7 @@ const Staff: React.FC<StaffProps> = ({
     allNotes.forEach((note) => {
       const incomingSource = findTieSource(note);
       if (incomingSource && !currentMeasureIndices.has(incomingSource.measureIndex)) {
-        const direction = getOffsetForPitch(note.pitch, clef) > 24 ? 'down' : 'up';
+        const direction = note.direction;
         ties.push(
           <Tie
             key={`tie-in-${incomingSource.noteId}-${note.id}`}
@@ -348,7 +374,7 @@ const Staff: React.FC<StaffProps> = ({
             )
           : null;
 
-        const direction = getOffsetForPitch(note.pitch, clef) > 24 ? 'down' : 'up';
+        const direction = note.direction;
 
         // Render a tie ONLY when it resolves — no hanging stub. A tied flag whose target was
         // deleted or turned into a rest draws nothing (and reconnects if the target returns).

@@ -26,6 +26,7 @@ import {
   getNoteWidth,
 } from '@/engines/layout';
 import { calculateTupletBrackets } from '@/engines/layout/tuplets';
+import { collectTieStops } from '@/utils/ties';
 import {
   ScoreLayout,
   StaffLayout,
@@ -45,6 +46,7 @@ import {
  * Returns an array of widths and an array of forced positioning maps.
  */
 const calculateSystemMetrics = (staves: Staff[], keySignature: string = 'C') => {
+  const tieStopsPerStaff = staves.map((staff) => collectTieStops(staff.measures));
   const maxMeasures = Math.max(...staves.map((s) => s.measures.length));
   const widths: number[] = [];
   const forcedPositions: Record<number, number>[] = [];
@@ -59,7 +61,11 @@ const calculateSystemMetrics = (staves: Staff[], keySignature: string = 'C') => 
       continue;
     }
 
-    const currentForcedPositions = calculateSystemLayout(measuresAtIndices, keySignature);
+    const currentForcedPositions = calculateSystemLayout(
+      measuresAtIndices,
+      keySignature,
+      tieStopsPerStaff
+    );
     const maxX = Math.max(...Object.values(currentForcedPositions));
 
     // Determine minimum width based on content (pickup vs regular)
@@ -206,6 +212,7 @@ const buildMeasureGeometries = (
 ): MeasureGeometry[][] =>
   score.staves.map((staff, staffIdx) => {
     const clef = staff.clef || (staffIdx === 0 ? 'treble' : 'bass');
+    const tieStops = collectTieStops(staff.measures);
     return staff.measures.map((measure, measureIdx) => {
       const relativeLayout = calculateMeasureLayout(
         measure.events,
@@ -214,7 +221,8 @@ const buildMeasureGeometries = (
         measure.isPickup || false,
         forcedPositions[measureIdx],
         stretchFor(measureIdx),
-        keySignature
+        keySignature,
+        tieStops
       );
       const beamGroups = calculateBeamingGroups(
         measure.events,

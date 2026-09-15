@@ -88,6 +88,7 @@ const Measure: React.FC<MeasureProps> = ({
   layout,
   measureLayout, // V2 Layout (SSOT)
   stretchFactor = 1.0, // Justification stretch factor
+  tieStops,
   interaction,
 }) => {
   const { theme } = useTheme();
@@ -111,7 +112,8 @@ const Measure: React.FC<MeasureProps> = ({
     forcedWidth,
     stretchFactor,
     keySignature,
-    timeSignature
+    timeSignature,
+    tieStops
   );
 
   // Extract layout data
@@ -143,7 +145,7 @@ const Measure: React.FC<MeasureProps> = ({
     : (measureLayout?.tupletGroups ?? fallbackLayout.tupletGroups);
 
   // 2. Accidental Logic
-  const accidentalOverrides = useAccidentalContext(events, keySignature);
+  const accidentalOverrides = useAccidentalContext(events, keySignature, tieStops);
 
   // Signature of this measure's content (event + note ids). When it changes — e.g.
   // a notehead is deleted, which unmounts it WITHOUT firing onMouseLeave — the

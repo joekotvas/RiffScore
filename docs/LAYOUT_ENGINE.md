@@ -269,6 +269,24 @@ per-system slot heights. `staffSpacing.test.tsx` and `e2e/bench/staff-spacing` p
 
 ---
 
+## 4b. Ties
+
+`Staff.renderTies` resolves every tie with `findTieTarget` (utils/ties.ts) — the single
+definition of "the same-pitch note in the immediate next event", across barlines and system
+breaks (split into an out-arc and an in-arc at the system edges). Endpoints come from the same
+measure layout the noteheads use, including a justified system's stretch and its cross-staff
+synchronized positions.
+
+- **Curve side** (`tieCurveDirection`, ties.ts): away from the stem the note is drawn with — the
+  beam's direction for a beamed note, the chord's otherwise; in a chord the outer ties curve
+  outward and inner ties away from the chord's centre.
+- **Continuations** (`collectTieStops`): a note that is a tie target carries its predecessor's
+  accidental, so the accidental resolver draws no glyph for it (its alteration still enters the
+  measure memory). The tie-stop set is threaded through both width engines and the renderer so
+  reserved width and drawn glyphs never disagree.
+
+---
+
 ## 5. Stem Direction
 
 The `stems.ts` module determines stem direction:

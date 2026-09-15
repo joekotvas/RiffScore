@@ -7,12 +7,7 @@ import type { AccidentalDisplay } from '@/types';
 /**
  * The full chromatic accidental of a pitch, including double sharps/flats.
  */
-export type EffectiveAccidental =
-  | 'doubleSharp'
-  | 'sharp'
-  | 'natural'
-  | 'flat'
-  | 'doubleFlat';
+export type EffectiveAccidental = 'doubleSharp' | 'sharp' | 'natural' | 'flat' | 'doubleFlat';
 
 /**
  * Returns the effective accidental of a pitch, derived SOLELY from the pitch
@@ -205,12 +200,24 @@ interface ResolvableEvent {
   notes?: ResolvableNote[];
 }
 
+export interface ResolveAccidentalsOptions {
+  /**
+   * Ids of notes that are tie continuations (`collectTieStops`). A continuation sounds its
+   * predecessor's pitch, so under the 'auto' policy no glyph is drawn for it even at the start
+   * of a new measure; its alteration still enters the measure memory, so a later note on the
+   * same line that reverts gets its cancelling natural.
+   */
+  tieStops?: ReadonlySet<string>;
+}
+
 export const resolveMeasureAccidentals = (
   events: ResolvableEvent[],
-  keySignature: string
+  keySignature: string,
+  options: ResolveAccidentalsOptions = {}
 ): Record<string, AccidentalGlyphDecision | null> => {
   const state = new MeasureAccidentalState();
   const overrides: Record<string, AccidentalGlyphDecision | null> = {};
+  const tieStops = options.tieStops;
 
   for (const event of events) {
     if (!event.notes) continue;
@@ -231,9 +238,13 @@ export const resolveMeasureAccidentals = (
       const alt = Number.isFinite(parsed.alt) ? parsed.alt : 0;
       const keyAlt = keySignatureAltForLetter(letter, keySignature);
 
-      const decision = state.resolve(letter, octave, alt, keyAlt, note.accidentalDisplay ?? 'auto');
+      const display = note.accidentalDisplay ?? 'auto';
+      const decision = state.resolve(letter, octave, alt, keyAlt, display);
+      // A tie continuation is the same sounding note: no glyph under 'auto' (the memory was
+      // still updated above); an explicit 'show'/'courtesy' policy is honoured as usual.
+      const suppressed = display === 'auto' && tieStops?.has(note.id) === true;
       overrides[note.id] =
-        decision === null
+        decision === null || suppressed
           ? null
           : { glyph: ACCIDENTAL_GLYPH_BY_ALT[decision.alt], parenthesized: decision.parenthesized };
     }

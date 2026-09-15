@@ -470,7 +470,8 @@ export const calculateMeasureLayout = (
   isPickup: boolean = false,
   forcedEventPositions?: Record<number, number>,
   stretchFactor: number = 1.0,
-  keySignature: string = 'C'
+  keySignature: string = 'C',
+  tieStops?: ReadonlySet<string>
 ): MeasureLayout => {
   // 1. Handle Empty Measure
   if (events.length === 0) {
@@ -480,7 +481,7 @@ export const calculateMeasureLayout = (
   // Resolve, once per measure, which accidental glyph the renderer will draw for
   // each note (with full measure memory) — the SAME engine the exporters use — so
   // width reservation matches the rendered glyph, cancelling naturals included.
-  const accidentalGlyphs = resolveMeasureAccidentals(events, keySignature);
+  const accidentalGlyphs = resolveMeasureAccidentals(events, keySignature, { tieStops });
 
   // 2. Initialize State
   const hitZones: HitZone[] = [];

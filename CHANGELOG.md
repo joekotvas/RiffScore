@@ -116,6 +116,11 @@ system reserves the vertical room its interactive and chord areas need.
   lower staff moves down just enough to keep one staff space clear (per system in page view;
   systems and pages grow to match). Staves that need no room stay where they were. Space for
   lyrics is reserved the same way (`lyricLines` on a staff) ahead of the lyrics feature itself.
+- **Ties engraved by the rules** — a tie now curves away from the stem the note is actually
+  drawn with (a beamed note follows its beam), the outer notes of a tied chord curve outward and
+  inner notes away from the chord's centre, and a note tied across a barline no longer re-shows
+  its accidental (a later note on that line that reverts still gets its natural). On justified
+  page-view systems of a grand staff, tie ends now land on the noteheads.
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -189,6 +194,12 @@ system reserves the vertical room its interactive and chord areas need.
   `height`, `paddingTop`/`paddingBottom` carry it per system in page view, and
   `distributeSystemsToPages` now packs per-system slot heights (the uniform `systemHeight`
   argument is gone). `Staff.lyricLines?: number` is the model hook for the reserved band.
+- `engines/layout/ties.ts` `tieCurveDirection` (stem-aware, chord-aware). `utils/ties.ts`
+  `collectTieStops` resolves tie continuations once per staff; `resolveMeasureAccidentals`,
+  `calculateMeasureLayout`, `calculateSystemLayout`, `useMeasureLayout`, `useAccidentalContext`
+  and `Measure` take the resulting `tieStops` so width reservation and the drawn glyph agree.
+  `Staff.renderTies` re-lays justified measures out with their synchronized positions. `Stem`
+  renders `line.riff-Stem[data-testid="stem"]`.
 
 ## [1.0.0-alpha.16] - 2026-06-13
 

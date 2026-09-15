@@ -27,6 +27,7 @@ import { BeamGroup } from '@/engines/layout/types';
  *   glyph (cancelling naturals included); default 'C'. This is the page-view
  *   (justified) layout path, so it must thread the key like scoreLayout does (#234).
  * @param timeSignature - Optional time signature for meter-aware beam grouping (default: '4/4')
+ * @param tieStops - Ids of tie-continuation notes (no accidental glyph; see collectTieStops)
  */
 export function useMeasureLayout(
   events: ScoreEvent[],
@@ -36,7 +37,8 @@ export function useMeasureLayout(
   forcedWidth?: number,
   stretchFactor: number = 1.0,
   keySignature: string = 'C',
-  timeSignature: string = '4/4'
+  timeSignature: string = '4/4',
+  tieStops?: ReadonlySet<string>
 ) {
   // Core measure layout
   const measureLayout = useMemo(() => {
@@ -47,9 +49,10 @@ export function useMeasureLayout(
       isPickup,
       forcedEventPositions,
       stretchFactor,
-      keySignature
+      keySignature,
+      tieStops
     );
-  }, [events, clef, isPickup, forcedEventPositions, stretchFactor, keySignature]);
+  }, [events, clef, isPickup, forcedEventPositions, stretchFactor, keySignature, tieStops]);
 
   const { hitZones, eventPositions, totalWidth, processedEvents } = measureLayout;
 

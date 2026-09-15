@@ -152,7 +152,8 @@ const getSegmentWidthRequirement = (
  */
 export const calculateSystemLayout = (
   measures: { events: ScoreEvent[] }[],
-  keySignature: string = 'C'
+  keySignature: string = 'C',
+  tieStopsByStaff?: ReadonlyArray<ReadonlySet<string> | undefined>
 ): Record<number, number> => {
   const timePoints = getSystemTimePoints(measures);
   const quantToX: Record<number, number> = { [timePoints[0]]: CONFIG.measurePaddingLeft };
@@ -160,8 +161,8 @@ export const calculateSystemLayout = (
   // Resolve each measure's rendered accidental glyphs once (full measure memory),
   // so segment-width reservation matches the drawn glyph including cancelling
   // naturals — same engine as the renderer and exporters (#234).
-  const accidentalGlyphsByMeasure = measures.map((m) =>
-    resolveMeasureAccidentals(m.events, keySignature)
+  const accidentalGlyphsByMeasure = measures.map((m, staffIndex) =>
+    resolveMeasureAccidentals(m.events, keySignature, { tieStops: tieStopsByStaff?.[staffIndex] })
   );
 
   let currentX = CONFIG.measurePaddingLeft;
