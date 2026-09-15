@@ -303,9 +303,16 @@ The `stems.ts` module determines stem direction:
 
 ### Stem Length
 
-- Standard: 3.5 staff spaces
-- Extended for beam groups
-- Shortened for notes with many ledger lines
+`unbeamedStemEnd` (stems.ts) is the one rule for unbeamed stems, read by the renderer, the
+tuplet bracket and the vertical extents:
+
+- Standard length `STEM.LENGTHS.default` (44 px ≈ 3.7 spaces) from the outer notehead in the
+  stem's direction; longer for a third or fourth flag (`thirtysecond` 48, `sixtyfourth` 56) so
+  the flag clears the head.
+- **Never short of the middle line:** a note on the second ledger line or beyond has its stem
+  extended to the middle line (Gould), so far-out notes get proportionally longer stems.
+- Beamed stems end on their beam (`calculateStemGeometry` with a `beamSpec`); wide beamed groups
+  may shorten the stems nearest the beam (see §4).
 
 ---
 

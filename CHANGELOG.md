@@ -153,6 +153,10 @@ system reserves the vertical room its interactive and chord areas need.
   inner notes away from the chord's centre, and a note tied across a barline no longer re-shows
   its accidental (a later note on that line that reverts still gets its natural). On justified
   page-view systems of a grand staff, tie ends now land on the noteheads.
+- **Stem lengths follow the engraving rule** — an unbeamed note on the second ledger line or
+  beyond has its stem extended to the middle line instead of a fixed length, and 32nd and 64th
+  notes get longer stems so their flags clear the notehead. Tuplet brackets and staff spacing
+  see the same stems.
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -232,6 +236,9 @@ system reserves the vertical room its interactive and chord areas need.
   and `Measure` take the resulting `tieStops` so width reservation and the drawn glyph agree.
   `Staff.renderTies` re-lays justified measures out with their synchronized positions. `Stem`
   renders `line.riff-Stem[data-testid="stem"]`.
+- `unbeamedStemEnd` (engines/layout/stems.ts): value-dependent length (`STEM.LENGTHS`:
+  default 44, thirtysecond 48, sixtyfourth 56) extended to `MIDDLE_LINE_Y` when short of it;
+  used by `calculateStemGeometry`, `calculateMeasureExtent` and the tuplet bracket's stem tips.
 
 ## [1.0.0-alpha.16] - 2026-06-13
 

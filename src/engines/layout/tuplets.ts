@@ -3,7 +3,8 @@ import { getNoteDuration } from '@/utils/core';
 import { getOffsetForPitch } from './positioning';
 import { CONFIG } from '@/config';
 
-import { TUPLET, STEM } from '@/constants';
+import { TUPLET } from '@/constants';
+import { unbeamedStemEnd } from './stems';
 
 /**
  * Helper to determine the events belonging to a tuplet group starting at a given index.
@@ -93,7 +94,7 @@ export const calculateTupletBrackets = (
     // unbeamed notes), so we resolve each event's real stem tip individually:
     //  - If the event belongs to a beam, its stem tip sits ON that beam's line at the
     //    event's x (so the bracket tracks the actual beamed stems, whatever their slope).
-    //  - Otherwise (unbeamed: quarters, lone eighths) use the default stem length.
+    //  - Otherwise (unbeamed: quarters, lone eighths) use its real unbeamed stem end.
     const chordDir = event.chordLayout?.direction || 'down';
     const beam = beamOf(event);
 
@@ -106,9 +107,15 @@ export const calculateTupletBrackets = (
       if (beam.direction === 'up') topY = Math.min(topY, beamY);
       else bottomY = Math.max(bottomY, beamY);
     } else {
-      const stemLen = STEM.LENGTHS.default;
-      if (chordDir === 'up') topY = Math.min(topY, minNoteY - stemLen);
-      else bottomY = Math.max(bottomY, maxNoteY + stemLen);
+      // Unbeamed: the real stem end (value-dependent length, middle-line extension).
+      const end = unbeamedStemEnd({
+        direction: chordDir,
+        minY: minNoteY,
+        maxY: maxNoteY,
+        duration: event.duration,
+      });
+      if (chordDir === 'up') topY = Math.min(topY, end);
+      else bottomY = Math.max(bottomY, end);
     }
 
     return { topY, bottomY };

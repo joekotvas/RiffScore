@@ -19,7 +19,8 @@
  */
 
 import { CONFIG } from '@/config';
-import { BEAMING, LYRICS, STAFF_DISTANCE, STAFF_HEIGHT, STEM, TUPLET } from '@/constants';
+import { BEAMING, LYRICS, STAFF_DISTANCE, STAFF_HEIGHT, TUPLET } from '@/constants';
+import { unbeamedStemEnd } from './stems';
 import type { BeamGroup, MeasureLayout, TupletBracketGroup } from './types';
 
 const HALF_SPACE = CONFIG.lineHeight / 2;
@@ -69,9 +70,14 @@ export const calculateMeasureExtent = (
         bottom = Math.max(bottom, Math.max(beam.startY, beam.endY) + BEAMING.THICKNESS / 2);
       }
     } else if (event.duration !== 'whole') {
-      const length = STEM.LENGTHS[event.duration] ?? STEM.LENGTHS.default;
-      if (chord.direction === 'up') top = Math.min(top, chord.minY - length);
-      else bottom = Math.max(bottom, chord.maxY + length);
+      const end = unbeamedStemEnd({
+        direction: chord.direction,
+        minY: chord.minY,
+        maxY: chord.maxY,
+        duration: event.duration,
+      });
+      if (chord.direction === 'up') top = Math.min(top, end);
+      else bottom = Math.max(bottom, end);
     }
   });
 

@@ -410,10 +410,15 @@ export const LAYOUT = {
 // =============================================================================
 
 export const STEM = {
+  /**
+   * Unbeamed stem length by duration (px at 100%; 44 ≈ 3.7 spaces). Third and fourth flags
+   * need a longer stem so the flag clears the notehead. A stem that would not reach the middle
+   * line (notes from the second ledger line outward) is extended to it — see `unbeamedStemEnd`.
+   */
   LENGTHS: {
     default: 44,
-    thirtysecond: 44,
-    sixtyfourth: 44,
+    thirtysecond: 48,
+    sixtyfourth: 56,
   } as Record<string, number>,
   BEAMED_LENGTHS: {
     default: 44,
