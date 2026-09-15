@@ -56,7 +56,17 @@ const calculateSystemMetrics = (
   const forcedPositions: Record<number, number>[] = [];
 
   for (let i = 0; i < maxMeasures; i++) {
-    const measuresAtIndices = staves.map((s) => s.measures[i]).filter(Boolean);
+    // Each measure carries its staff's clef so the synchronizer can tell which side a flagged
+    // note's flag falls on (the ink bound differs between up- and down-stems).
+    const measuresAtIndices = staves
+      .map(
+        (s, staffIdx) =>
+          s.measures[i] && {
+            ...s.measures[i],
+            clef: s.clef || (staffIdx === 0 ? 'treble' : 'bass'),
+          }
+      )
+      .filter(Boolean);
 
     if (measuresAtIndices.length === 0) {
       widths[i] =

@@ -174,6 +174,63 @@ describe('the grand-staff synchronizer reserves the same ink', () => {
       REST_HALF.sixtyfourth + GAP + REST_HALF.thirtysecond
     );
   });
+  test('the flag side follows the stem: a middle-line B4 (stem down) reserves the narrower flag', () => {
+    const rests = [
+      rest('r', 'sixtyfourth'),
+      rest('t', 'thirtysecond'),
+      rest('s', 'sixteenth'),
+      rest('e', 'eighth'),
+      rest('q', 'quarter'),
+      rest('h', 'half'),
+    ];
+    const down = calculateSystemLayout(
+      [{ events: [note('n', 'sixtyfourth', 'B4'), ...rests], clef: 'treble' }],
+      'C',
+      undefined,
+      '4/4'
+    );
+    expect(down[1] - down[0]).toBe(FLAG_RIGHT.down + GAP + REST_HALF.sixtyfourth);
+    // A4 sits below the middle line in the treble clef (stem up, the wider flag) but high above
+    // the bass staff (stem down), so the clef decides the reservation.
+    const treble = calculateSystemLayout(
+      [{ events: [note('n', 'sixtyfourth', 'A4'), ...rests], clef: 'treble' }],
+      'C',
+      undefined,
+      '4/4'
+    );
+    expect(treble[1] - treble[0]).toBe(FLAG_RIGHT.up + GAP + REST_HALF.sixtyfourth);
+    const bass = calculateSystemLayout(
+      [{ events: [note('n', 'sixtyfourth', 'A4'), ...rests], clef: 'bass' }],
+      'C',
+      undefined,
+      '4/4'
+    );
+    expect(bass[1] - bass[0]).toBe(FLAG_RIGHT.down + GAP + REST_HALF.sixtyfourth);
+    // Without a clef the synchronizer assumes treble for the first staff and bass below it.
+    const second = calculateSystemLayout(
+      [{ events: [rest('w', 'whole')] }, { events: [note('n', 'sixtyfourth', 'A4'), ...rests] }],
+      'C',
+      undefined,
+      '4/4'
+    );
+    expect(second[1] - second[0]).toBe(FLAG_RIGHT.down + GAP + REST_HALF.sixtyfourth);
+  });
+  test('both engines reserve the same advance after up- and down-stem flags', () => {
+    for (const pitch of ['A4', 'B4', 'C5', 'F5']) {
+      const events = [
+        note('n', 'sixtyfourth', pitch),
+        rest('r', 'sixtyfourth'),
+        rest('t', 'thirtysecond'),
+        rest('s', 'sixteenth'),
+        rest('e', 'eighth'),
+        rest('q', 'quarter'),
+        rest('h', 'half'),
+      ];
+      const synced = calculateSystemLayout([{ events, clef: 'treble' }], 'C', undefined, '4/4');
+      const measured = calculateMeasureLayout(events, undefined, 'treble');
+      expect(synced[1] - synced[0]).toBe(advance(measured, 'n', 'r'));
+    }
+  });
   test('meter matters: six eighths in 6/8 beam in threes, so none reserve a flag', () => {
     const events = Array.from({ length: 6 }, (_, i) => note(`e${i}`, 'eighth'));
     expect(beamedEventIds(events, '6/8').size).toBe(6);

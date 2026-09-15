@@ -179,7 +179,9 @@ sixteenths ≈ 60 mm. `CONFIG.measurePaddingLeft` (2 spaces) sits between the ba
 first note. **Ink bound:** an unbeamed 16th–64th note's flag and a 32nd/64th rest's
 glyph are wider than their rhythmic share, so `inkAdvance` (ink.ts) raises the advance to the
 glyph's extent plus `NOTE_SPACING.INK.GAP` plus the next glyph's left half; which notes carry flags comes from the beaming
-grouping (`beamedEventIds`, meter-dependent), so beamed runs are not bound. Grand-staff synchronisation (`system.ts`) spaces each time segment by the same
+grouping (`beamedEventIds`, meter-dependent), so beamed runs are not bound. A flag's extent
+depends on its side (an up-stem flag reaches further right than a down-stem one), so both
+engines take the staff's clef and use the note's actual stem direction. Grand-staff synchronisation (`system.ts`) spaces each time segment by the same
 table, so both staves agree. Glyph paddings (accidentals, dots, lookahead) are separate and
 stay on `NOTE_SPACING_BASE_UNIT`. `noteSpacing.test.ts` pins these ranges.
 

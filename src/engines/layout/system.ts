@@ -116,7 +116,7 @@ const calculateEventPadding = (
 const getSegmentWidthRequirement = (
   startQuant: number,
   endQuant: number,
-  measures: { events: ScoreEvent[] }[],
+  measures: { events: ScoreEvent[]; clef?: string }[],
   accidentalGlyphsByMeasure?: Record<string, AccidentalGlyphDecision | null>[],
   beamedIdsByMeasure?: ReadonlySet<string>[]
 ): number => {
@@ -133,10 +133,13 @@ const getSegmentWidthRequirement = (
     maxSegmentWidth = Math.max(maxSegmentWidth, minWidth);
 
     // Ink: an unbeamed note's flag or a short rest's glyph must clear the next event's glyph.
-    // The stem side is clef-dependent and unknown here, so reserve for the wider (up-stem) flag.
+    // The flag's side follows the stem, which the clef decides (same rule as the renderer and
+    // measure.ts), so a down-stem flag reserves only its narrower extent.
     const flagged = !event.isRest && !(beamedIdsByMeasure?.[idx]?.has(event.id) ?? false);
     const next = findEventAtQuant(measure.events, endQuant) ?? undefined;
-    maxSegmentWidth = Math.max(maxSegmentWidth, inkAdvance(event, next, flagged, 'up'));
+    const clef = measure.clef ?? (idx === 0 ? 'treble' : 'bass');
+    const stemDirection = flagged ? calculateChordLayout(event.notes, clef).direction : 'up';
+    maxSegmentWidth = Math.max(maxSegmentWidth, inkAdvance(event, next, flagged, stemDirection));
 
     // Calculate padding requirements
     const padding = calculateEventPadding(event, accidentalGlyphsByMeasure?.[idx]);
@@ -156,11 +159,13 @@ const getSegmentWidthRequirement = (
  * 2. For each time segment, calculate the maximum required width
  * 3. Build a mapping from quant position to X coordinate
  *
- * @param measures - Array of measures at the same index across all staves
+ * @param measures - Array of measures at the same index across all staves, each with its
+ *   staff's clef (decides flagged notes' stem side; defaults to treble for the first staff and
+ *   bass below it, as the score layout does)
  * @returns Map of Quant -> X Position for synchronized positioning
  */
 export const calculateSystemLayout = (
-  measures: { events: ScoreEvent[] }[],
+  measures: { events: ScoreEvent[]; clef?: string }[],
   keySignature: string = 'C',
   tieStopsByStaff?: ReadonlyArray<ReadonlySet<string> | undefined>,
   timeSignature: string = '4/4'
