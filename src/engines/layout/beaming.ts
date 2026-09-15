@@ -81,14 +81,23 @@ const BEAM_LEVELS: Record<string, number> = {
 
 const beamLevelForDuration = (duration: string): number => BEAM_LEVELS[duration] ?? 0;
 
+/** The fields grouping reads; both the score model's and the layout engine's event types fit. */
+export interface BeamableEvent {
+  id: string;
+  duration: string;
+  dotted?: boolean;
+  isRest?: boolean;
+  tuplet?: ScoreEvent['tuplet'];
+}
+
 /** A run of beamable events with its quant span, before any geometry is computed. */
-interface RawBeamGroup {
-  events: ScoreEvent[];
+interface RawBeamGroup<T extends BeamableEvent> {
+  events: T[];
   startQuant: number;
   endQuant: number;
 }
 
-const isPlainEighth = (event: ScoreEvent): boolean =>
+const isPlainEighth = (event: BeamableEvent): boolean =>
   beamLevelForDuration(event.duration) === 1 && !event.dotted && !event.tuplet;
 
 /**
@@ -112,14 +121,17 @@ const beamsEighthsByHalfBar = (timeSignature: string): boolean => {
  * keeps its beat-level grouping so the beat stays legible; a group that is not exactly one
  * beat of eighths (a single eighth, or one that already crosses a beat) never joins.
  */
-const mergeHalfBarEighths = (groups: RawBeamGroup[], beatQuants: number): RawBeamGroup[] => {
+const mergeHalfBarEighths = <T extends BeamableEvent>(
+  groups: RawBeamGroup<T>[],
+  beatQuants: number
+): RawBeamGroup<T>[] => {
   const halfBarQuants = beatQuants * 2;
-  const isOneBeatOfEighths = (group: RawBeamGroup): boolean =>
+  const isOneBeatOfEighths = (group: RawBeamGroup<T>): boolean =>
     group.events.every(isPlainEighth) &&
     group.endQuant - group.startQuant === beatQuants &&
     group.startQuant % beatQuants === 0;
 
-  const merged: RawBeamGroup[] = [];
+  const merged: RawBeamGroup<T>[] = [];
   groups.forEach((group) => {
     const previous = merged[merged.length - 1];
     if (
@@ -156,9 +168,22 @@ export const calculateBeamingGroups = (
   eventPositions: Record<string, number>,
   clef = 'treble',
   timeSignature = '4/4'
-): BeamGroup[] => {
-  const rawGroups: RawBeamGroup[] = [];
-  let currentGroup: ScoreEvent[] = [];
+): BeamGroup[] =>
+  groupBeamableEvents(events, timeSignature).map((group) =>
+    processBeamGroup(group, eventPositions, clef)
+  );
+
+/**
+ * The beam groups of a measure as arrays of events — the grouping half of
+ * `calculateBeamingGroups`, which depends only on the events and the meter (never on x), so
+ * the width engines can know which notes will be beamed and which will carry a flag.
+ */
+export const groupBeamableEvents = <T extends BeamableEvent>(
+  events: T[],
+  timeSignature = '4/4'
+): T[][] => {
+  const rawGroups: RawBeamGroup<T>[] = [];
+  let currentGroup: T[] = [];
   let currentGroupStart = 0;
 
   let currentQuant = 0;
@@ -180,7 +205,7 @@ export const calculateBeamingGroups = (
   // simple meters use one denominator unit (e.g. quarter in 4/4, 3/4, 2/4).
   const beatQuants = getBeamBeatQuants(timeSignature);
 
-  events.forEach((event: ScoreEvent) => {
+  events.forEach((event: T) => {
     const beamLevel = beamLevelForDuration(event.duration);
     const durationQuants = getNoteDuration(event.duration, event.dotted, event.tuplet);
 
@@ -226,8 +251,16 @@ export const calculateBeamingGroups = (
     ? mergeHalfBarEighths(rawGroups, beatQuants)
     : rawGroups;
 
-  return groups.map((group) => processBeamGroup(group.events, eventPositions, clef));
+  return groups.map((group) => group.events);
 };
+
+/** Ids of every event that is drawn beamed (member of a group of two or more). */
+export const beamedEventIds = (events: BeamableEvent[], timeSignature = '4/4'): Set<string> =>
+  new Set(
+    groupBeamableEvents(events, timeSignature)
+      .flat()
+      .map((event) => event.id)
+  );
 
 import { STEM_BEAMED_LENGTHS } from './stems';
 

@@ -11,6 +11,8 @@ import { getNoteDuration } from '@/utils/core';
 import { MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT, WHOLE_REST_WIDTH, LAYOUT } from '@/constants';
 import { ScoreEvent, MeasureLayout, HitZone, Note, ChordLayout } from './types';
 import { getNoteWidth, calculateChordLayout, getOffsetForPitch } from './positioning';
+import { beamedEventIds } from './beaming';
+import { inkAdvance } from './ink';
 import { getTupletGroup } from './tuplets';
 import { pitchHasAlteration } from '@/services/MusicService';
 import { resolveMeasureAccidentals, type AccidentalGlyphDecision } from '@/utils/accidentalContext';
@@ -93,6 +95,10 @@ interface ProcessingContext {
    * including a cancelling natural whose pitch carries no alteration.
    */
   accidentalGlyphs?: Record<string, AccidentalGlyphDecision | null>;
+  /** Ids of events drawn beamed (no flag) — see beamedEventIds. Absent = nothing is beamed. */
+  beamedIds?: ReadonlySet<string>;
+  /** The event after the one being processed (undefined at the barline), for ink clearance. */
+  nextEvent?: ScoreEvent;
 }
 
 // --- HELPER: Hit Zone Management ---
@@ -174,7 +180,9 @@ const createEventHitZones = (
 const getEventMetrics = (
   event: ScoreEvent,
   clef: string,
-  accidentalGlyphs?: Record<string, AccidentalGlyphDecision | null>
+  accidentalGlyphs?: Record<string, AccidentalGlyphDecision | null>,
+  beamed = false,
+  nextEvent?: ScoreEvent
 ) => {
   const chordLayout = calculateChordLayout(event.notes, clef);
   // Reserve accidental width for the glyph the renderer will actually DRAW.
@@ -195,7 +203,14 @@ const getEventMetrics = (
   const secondSpace = hasSecond ? LAYOUT.SECOND_INTERVAL_SPACE : 0;
   const secondAccidentalSpace = hasSecond && hasAccidental ? ACCIDENTAL_PADDING * 0.5 : 0;
 
-  const totalWidth = accidentalSpace + baseWidth + secondSpace + secondAccidentalSpace;
+  // The next event's ink must also clear this event's ink: an unbeamed note's flag or a short
+  // rest's glyph, plus a gap, plus the next glyph's own left half — more than the rhythmic
+  // width for 16th–64th values.
+  const ink = inkAdvance(event, nextEvent, !beamed && !event.isRest, chordLayout.direction);
+  const totalWidth = Math.max(
+    accidentalSpace + baseWidth + secondSpace + secondAccidentalSpace,
+    accidentalSpace + ink
+  );
 
   const minOffset = offsets.length > 0 ? Math.min(0, ...offsets) : 0;
   const maxOffset = offsets.length > 0 ? Math.max(0, ...offsets) : 0;
@@ -281,7 +296,13 @@ const processRegularEvent = (
   eventIndex: number,
   ctx: ProcessingContext
 ): EventProcessResult => {
-  const metrics = getEventMetrics(event, ctx.clef, ctx.accidentalGlyphs);
+  const metrics = getEventMetrics(
+    event,
+    ctx.clef,
+    ctx.accidentalGlyphs,
+    ctx.beamedIds?.has(event.id) ?? false,
+    ctx.nextEvent
+  );
 
   // Apply sync override if provided
   let baseX = ctx.currentX;
@@ -471,7 +492,8 @@ export const calculateMeasureLayout = (
   forcedEventPositions?: Record<number, number>,
   stretchFactor: number = 1.0,
   keySignature: string = 'C',
-  tieStops?: ReadonlySet<string>
+  tieStops?: ReadonlySet<string>,
+  timeSignature: string = '4/4'
 ): MeasureLayout => {
   // 1. Handle Empty Measure
   if (events.length === 0) {
@@ -482,6 +504,9 @@ export const calculateMeasureLayout = (
   // each note (with full measure memory) — the SAME engine the exporters use — so
   // width reservation matches the rendered glyph, cancelling naturals included.
   const accidentalGlyphs = resolveMeasureAccidentals(events, keySignature, { tieStops });
+  // Which events will be beamed (grouping depends on the meter, never on x): the others carry
+  // flags and reserve room for them.
+  const beamedIds = beamedEventIds(events, timeSignature);
 
   // 2. Initialize State
   const hitZones: HitZone[] = [];
@@ -505,6 +530,8 @@ export const calculateMeasureLayout = (
       clef,
       forcedEventPositions,
       accidentalGlyphs,
+      beamedIds,
+      nextEvent: events[index + 1],
     };
 
     const isTupletStart = event.tuplet && event.tuplet.position === 0;

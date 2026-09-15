@@ -360,6 +360,20 @@ export const NOTE_SPACING = {
     sixteenth: 20,
     eighth: 24,
   } as Record<string, number>,
+  /**
+   * Glyph ink around an event's x (Bravura at 100%), for the ink-aware advance in ink.ts: a
+   * flag hangs to the right of an up-stem (left of a down-stem), noteheads and rests are
+   * centred on x. `GAP` is the clearance kept between one event's ink and the next's.
+   */
+  INK: {
+    FLAG_RIGHT: { up: 19, down: 8 } as Record<'up' | 'down', number>,
+    HEAD_HALF: 7,
+    REST_HALF: { eighth: 6, sixteenth: 8, thirtysecond: 9, sixtyfourth: 10.5 } as Record<
+      string,
+      number
+    >,
+    GAP: 6,
+  },
 };
 export const WHOLE_REST_WIDTH = 12;
 export const DEFAULT_SCALE = 0.75;

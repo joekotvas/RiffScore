@@ -45,7 +45,11 @@ import {
  * Calculates the synchronized widths for every measure column across the system.
  * Returns an array of widths and an array of forced positioning maps.
  */
-const calculateSystemMetrics = (staves: Staff[], keySignature: string = 'C') => {
+const calculateSystemMetrics = (
+  staves: Staff[],
+  keySignature: string = 'C',
+  timeSignature: string = '4/4'
+) => {
   const tieStopsPerStaff = staves.map((staff) => collectTieStops(staff.measures));
   const maxMeasures = Math.max(...staves.map((s) => s.measures.length));
   const widths: number[] = [];
@@ -64,7 +68,8 @@ const calculateSystemMetrics = (staves: Staff[], keySignature: string = 'C') => 
     const currentForcedPositions = calculateSystemLayout(
       measuresAtIndices,
       keySignature,
-      tieStopsPerStaff
+      tieStopsPerStaff,
+      timeSignature
     );
     const maxX = Math.max(...Object.values(currentForcedPositions));
 
@@ -91,7 +96,7 @@ const calculateSystemMetrics = (staves: Staff[], keySignature: string = 'C') => 
 export const calculateSynchronizedMeasureWidths = (score: Score): number[] => {
   if (!score.staves || score.staves.length === 0) return [];
   const keySignature = score.keySignature || score.staves[0].keySignature || 'C';
-  return calculateSystemMetrics(score.staves, keySignature).widths;
+  return calculateSystemMetrics(score.staves, keySignature, score.timeSignature || '4/4').widths;
 };
 
 // --- Phase 2: Atomic Event/Note Helper ---
@@ -222,7 +227,8 @@ const buildMeasureGeometries = (
         forcedPositions[measureIdx],
         stretchFor(measureIdx),
         keySignature,
-        tieStops
+        tieStops,
+        timeSignature
       );
       const beamGroups = calculateBeamingGroups(
         measure.events,
@@ -259,7 +265,7 @@ export const calculateMeasureExtents = (
   if (!score.staves || score.staves.length === 0) return [];
   const keySignature = score.keySignature || score.staves[0].keySignature || 'C';
   const timeSignature = score.timeSignature || '4/4';
-  const { forcedPositions } = calculateSystemMetrics(score.staves, keySignature);
+  const { forcedPositions } = calculateSystemMetrics(score.staves, keySignature, timeSignature);
   return buildMeasureGeometries(
     score,
     keySignature,
@@ -324,7 +330,7 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
 
   // 1. Calculate System Metrics (Grand Staff Logic)
   const { widths: synchronizedWidths, forcedPositions: synchronizedForcedPositions } =
-    calculateSystemMetrics(score.staves, scoreKeySignature);
+    calculateSystemMetrics(score.staves, scoreKeySignature, scoreTimeSignature);
 
   // 2. Per-measure geometry (event positions, beams, tuplet brackets, drawn extent), computed
   //    once per staff so the vertical layout can be settled before any absolute Y is assigned.

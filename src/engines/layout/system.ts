@@ -8,6 +8,8 @@
 import { CONFIG } from '@/config';
 import { getNoteDuration } from '@/utils/core';
 import { NOTE_SPACING, NOTE_SPACING_BASE_UNIT, LAYOUT } from '@/constants';
+import { beamedEventIds } from './beaming';
+import { inkAdvance } from './ink';
 import { ScoreEvent, Note } from './types';
 import { calculateChordLayout } from './positioning';
 import { pitchHasAlteration } from '@/services/MusicService';
@@ -115,7 +117,8 @@ const getSegmentWidthRequirement = (
   startQuant: number,
   endQuant: number,
   measures: { events: ScoreEvent[] }[],
-  accidentalGlyphsByMeasure?: Record<string, AccidentalGlyphDecision | null>[]
+  accidentalGlyphsByMeasure?: Record<string, AccidentalGlyphDecision | null>[],
+  beamedIdsByMeasure?: ReadonlySet<string>[]
 ): number => {
   const segmentDuration = endQuant - startQuant;
   let maxSegmentWidth = NOTE_SPACING.UNIT * Math.sqrt(segmentDuration);
@@ -128,6 +131,12 @@ const getSegmentWidthRequirement = (
     // Check minimum width for short notes (same floor as getNoteWidth)
     const minWidth = NOTE_SPACING.MIN_WIDTH[event.duration] ?? 0;
     maxSegmentWidth = Math.max(maxSegmentWidth, minWidth);
+
+    // Ink: an unbeamed note's flag or a short rest's glyph must clear the next event's glyph.
+    // The stem side is clef-dependent and unknown here, so reserve for the wider (up-stem) flag.
+    const flagged = !event.isRest && !(beamedIdsByMeasure?.[idx]?.has(event.id) ?? false);
+    const next = findEventAtQuant(measure.events, endQuant) ?? undefined;
+    maxSegmentWidth = Math.max(maxSegmentWidth, inkAdvance(event, next, flagged, 'up'));
 
     // Calculate padding requirements
     const padding = calculateEventPadding(event, accidentalGlyphsByMeasure?.[idx]);
@@ -153,7 +162,8 @@ const getSegmentWidthRequirement = (
 export const calculateSystemLayout = (
   measures: { events: ScoreEvent[] }[],
   keySignature: string = 'C',
-  tieStopsByStaff?: ReadonlyArray<ReadonlySet<string> | undefined>
+  tieStopsByStaff?: ReadonlyArray<ReadonlySet<string> | undefined>,
+  timeSignature: string = '4/4'
 ): Record<number, number> => {
   const timePoints = getSystemTimePoints(measures);
   const quantToX: Record<number, number> = { [timePoints[0]]: CONFIG.measurePaddingLeft };
@@ -164,6 +174,7 @@ export const calculateSystemLayout = (
   const accidentalGlyphsByMeasure = measures.map((m, staffIndex) =>
     resolveMeasureAccidentals(m.events, keySignature, { tieStops: tieStopsByStaff?.[staffIndex] })
   );
+  const beamedIdsByMeasure = measures.map((m) => beamedEventIds(m.events, timeSignature));
 
   let currentX = CONFIG.measurePaddingLeft;
 
@@ -175,7 +186,8 @@ export const calculateSystemLayout = (
       startQuant,
       endQuant,
       measures,
-      accidentalGlyphsByMeasure
+      accidentalGlyphsByMeasure,
+      beamedIdsByMeasure
     );
 
     currentX += segmentWidth;

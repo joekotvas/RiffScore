@@ -157,6 +157,10 @@ system reserves the vertical room its interactive and chord areas need.
   beyond has its stem extended to the middle line instead of a fixed length, and 32nd and 64th
   notes get longer stems so their flags clear the notehead. Tuplet brackets and staff spacing
   see the same stems.
+- **Flags and short rests no longer collide with what follows** — an unbeamed 16th, 32nd or
+  64th note now leaves room for its flag before the next event, and 32nd and 64th rests (whose
+  glyphs are wider than their rhythmic share) leave room for their glyph. Beamed runs are
+  unchanged.
 
 ### For developers
 - `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
@@ -239,6 +243,12 @@ system reserves the vertical room its interactive and chord areas need.
 - `unbeamedStemEnd` (engines/layout/stems.ts): value-dependent length (`STEM.LENGTHS`:
   default 44, thirtysecond 48, sixtyfourth 56) extended to `MIDDLE_LINE_Y` when short of it;
   used by `calculateStemGeometry`, `calculateMeasureExtent` and the tuplet bracket's stem tips.
+- `engines/layout/ink.ts` `inkAdvance`: minimum advance from an event's rightmost ink
+  (`NOTE_SPACING.INK`: flag extent by stem side, rest and head half-widths, plus a gap; the next event's left ink counts too),
+  applied in `getEventMetrics` and the grand-staff synchronizer's segment widths. Beaming's
+  grouping is exposed as `groupBeamableEvents` / `beamedEventIds` (meter-dependent, x-free) so
+  both engines know which notes carry flags; `calculateMeasureLayout` and `calculateSystemLayout`
+  take a `timeSignature` for it.
 
 ## [1.0.0-alpha.16] - 2026-06-13
 
