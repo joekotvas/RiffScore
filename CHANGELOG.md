@@ -249,7 +249,9 @@ system reserves the vertical room its interactive and chord areas need.
   grouping is exposed as `groupBeamableEvents` / `beamedEventIds` (meter-dependent, x-free) so
   both engines know which notes carry flags; `calculateMeasureLayout` and `calculateSystemLayout`
   take a `timeSignature` for it, and the synchronizer's measures carry their staff's `clef` so a
-  flagged note reserves the flag on its actual stem side.
+  flagged note reserves the flag on its actual stem side (a tuplet member's: the tuplet's unified
+  direction, via `getTupletUnifiedDirection`, now exported from `tuplets.ts`; tuplet widths are
+  raised to the bound too).
 
 ## [1.0.0-alpha.16] - 2026-06-13
 

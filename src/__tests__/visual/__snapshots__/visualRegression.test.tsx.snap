@@ -17047,7 +17047,7 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture tuplet
     },
     {
       "cp": "e0a4",
-      "x": 74.81,
+      "x": 80.4,
       "y": 128,
     },
     {
@@ -17070,8 +17070,8 @@ exports[`Visual regression — Lane A (structured-fact snapshots) fixture tuplet
       "y2": 96,
     },
     {
-      "x1": 81.06,
-      "x2": 81.06,
+      "x1": 86.65,
+      "x2": 86.65,
       "y1": 128,
       "y2": 84,
     },

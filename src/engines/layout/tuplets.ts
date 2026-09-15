@@ -3,8 +3,40 @@ import { getNoteDuration } from '@/utils/core';
 import { getOffsetForPitch } from './positioning';
 import { CONFIG } from '@/config';
 
-import { TUPLET } from '@/constants';
+import { MIDDLE_LINE_Y, TUPLET } from '@/constants';
 import { unbeamedStemEnd } from './stems';
+
+/**
+ * Determines the unified stem direction for a tuplet group.
+ * Finds the note farthest from the middle line and uses that to decide
+ * whether all stems should point up or down.
+ *
+ * @param tupletGroup - Array of events in the tuplet
+ * @param clef - Current clef for pitch-to-Y conversion
+ * @returns 'up' or 'down' direction for all stems in the group
+ */
+export const getTupletUnifiedDirection = (
+  tupletGroup: ScoreEvent[],
+  clef: string
+): 'up' | 'down' => {
+  let maxDist = -1;
+  let direction: 'up' | 'down' = 'down';
+
+  tupletGroup.forEach((te) => {
+    te.notes.forEach((n) => {
+      // Skip rest notes (null pitch)
+      if (n.pitch === null) return;
+      const y = CONFIG.baseY + getOffsetForPitch(n.pitch, clef);
+      const dist = Math.abs(y - MIDDLE_LINE_Y);
+      if (dist > maxDist) {
+        maxDist = dist;
+        direction = y <= MIDDLE_LINE_Y ? 'down' : 'up';
+      }
+    });
+  });
+
+  return direction;
+};
 
 /**
  * Helper to determine the events belonging to a tuplet group starting at a given index.

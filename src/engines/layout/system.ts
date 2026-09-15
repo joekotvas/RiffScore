@@ -12,6 +12,7 @@ import { beamedEventIds } from './beaming';
 import { inkAdvance } from './ink';
 import { ScoreEvent, Note } from './types';
 import { calculateChordLayout } from './positioning';
+import { getTupletGroup, getTupletUnifiedDirection } from './tuplets';
 import { pitchHasAlteration } from '@/services/MusicService';
 import { resolveMeasureAccidentals, type AccidentalGlyphDecision } from '@/utils/accidentalContext';
 
@@ -62,6 +63,24 @@ const findEventAtQuant = (events: ScoreEvent[], targetQuant: number): ScoreEvent
     if (q > targetQuant) return null; // Passed target, no match
   }
   return null;
+};
+
+/**
+ * The stem direction an unbeamed note is drawn with (so which side its flag is on): its
+ * chord's own direction, or its tuplet's unified direction — the same rules measure.ts applies.
+ */
+const drawnStemDirection = (
+  events: ScoreEvent[],
+  event: ScoreEvent,
+  clef: string
+): 'up' | 'down' => {
+  if (event.tuplet) {
+    const index = events.indexOf(event);
+    const startIndex = Math.max(0, index - (event.tuplet.position ?? 0));
+    const group = getTupletGroup(events, startIndex);
+    if (group.includes(event)) return getTupletUnifiedDirection(group, clef);
+  }
+  return calculateChordLayout(event.notes, clef).direction;
 };
 
 /**
@@ -138,7 +157,7 @@ const getSegmentWidthRequirement = (
     const flagged = !event.isRest && !(beamedIdsByMeasure?.[idx]?.has(event.id) ?? false);
     const next = findEventAtQuant(measure.events, endQuant) ?? undefined;
     const clef = measure.clef ?? (idx === 0 ? 'treble' : 'bass');
-    const stemDirection = flagged ? calculateChordLayout(event.notes, clef).direction : 'up';
+    const stemDirection = flagged ? drawnStemDirection(measure.events, event, clef) : 'up';
     maxSegmentWidth = Math.max(maxSegmentWidth, inkAdvance(event, next, flagged, stemDirection));
 
     // Calculate padding requirements

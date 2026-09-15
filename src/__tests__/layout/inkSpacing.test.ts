@@ -149,6 +149,63 @@ describe('measure layout reserves flag and rest ink', () => {
   });
 });
 
+describe('tuplet members reserve their flags too', () => {
+  const triplet = (
+    id: string,
+    duration: string,
+    pitch: string | null,
+    position: number
+  ): ScoreEvent => ({
+    id,
+    duration,
+    dotted: false,
+    isRest: pitch === null,
+    notes: pitch === null ? [] : [{ id: `${id}n`, pitch }],
+    tuplet: { id: 'tp', ratio: [3, 2], baseDuration: duration, groupSize: 3, position },
+  });
+  const bar = (first: string, third: string): ScoreEvent[] => [
+    triplet('k1', 'eighth', first, 0),
+    triplet('k2', 'eighth', null, 1),
+    triplet('k3', 'eighth', third, 2),
+    rest('s', 'sixteenth'),
+    note('n', 'sixteenth', 'A4'),
+    note('q', 'eighth', 'A4'),
+    note('h', 'half', 'A4'),
+  ];
+  const segments = (quantToX: Record<number, number>) => {
+    const xs = Object.keys(quantToX)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map((q) => quantToX[q]);
+    return xs.slice(1).map((x, i) => x - xs[i]);
+  };
+  test('a flagged tuplet eighth clears the eighth rest that follows it inside the tuplet', () => {
+    const layout = calculateMeasureLayout(bar('G4', 'A4'), undefined, 'treble');
+    // Compressed width (≈25 px) is less than flag + gap + rest half, so the ink bound wins.
+    expect(advance(layout, 'k1', 'k2')).toBe(FLAG_RIGHT.up + GAP + REST_HALF.eighth);
+  });
+  test("a member's flag follows the tuplet's unified direction, in both engines", () => {
+    // G4 is farther from the middle line than C5, so the whole triplet is drawn stem-up and
+    // C5's flag (naturally down) reaches the up-stem extent before the 16th rest.
+    const up = bar('G4', 'C5');
+    const upLayout = calculateMeasureLayout(up, undefined, 'treble');
+    expect(advance(upLayout, 'k3', 's')).toBe(FLAG_RIGHT.up + GAP + REST_HALF.sixteenth);
+    expect(segments(calculateSystemLayout([{ events: up, clef: 'treble' }]))[2]).toBe(
+      FLAG_RIGHT.up + GAP + REST_HALF.sixteenth
+    );
+    // F5 pulls the triplet stem-down: A4's flag is the narrow down-side one, and the
+    // compressed rhythmic width is then the wider of the two, in both engines.
+    const down = bar('F5', 'A4');
+    const downLayout = calculateMeasureLayout(down, undefined, 'treble');
+    const compressed = getNoteWidth('eighth', false) * Math.sqrt(2 / 3);
+    expect(advance(downLayout, 'k3', 's')).toBeCloseTo(compressed, 6);
+    expect(segments(calculateSystemLayout([{ events: down, clef: 'treble' }]))[2]).toBeCloseTo(
+      compressed,
+      6
+    );
+  });
+});
+
 describe('the grand-staff synchronizer reserves the same ink', () => {
   test('a flagged 64th in one staff forces the synchronized segment wide enough', () => {
     const upper = [

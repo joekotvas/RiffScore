@@ -8,12 +8,12 @@
 
 import { CONFIG } from '@/config';
 import { getNoteDuration } from '@/utils/core';
-import { MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT, WHOLE_REST_WIDTH, LAYOUT } from '@/constants';
+import { NOTE_SPACING_BASE_UNIT, WHOLE_REST_WIDTH, LAYOUT } from '@/constants';
 import { ScoreEvent, MeasureLayout, HitZone, Note, ChordLayout } from './types';
-import { getNoteWidth, calculateChordLayout, getOffsetForPitch } from './positioning';
+import { getNoteWidth, calculateChordLayout } from './positioning';
 import { beamedEventIds } from './beaming';
 import { inkAdvance } from './ink';
-import { getTupletGroup } from './tuplets';
+import { getTupletGroup, getTupletUnifiedDirection } from './tuplets';
 import { pitchHasAlteration } from '@/services/MusicService';
 import { resolveMeasureAccidentals, type AccidentalGlyphDecision } from '@/utils/accidentalContext';
 
@@ -342,35 +342,6 @@ const processRegularEvent = (
 // --- EXTRACTED: Tuplet Group Processor ---
 
 /**
- * Determines the unified stem direction for a tuplet group.
- * Finds the note farthest from the middle line and uses that to decide
- * whether all stems should point up or down.
- *
- * @param tupletGroup - Array of events in the tuplet
- * @param clef - Current clef for pitch-to-Y conversion
- * @returns 'up' or 'down' direction for all stems in the group
- */
-const getTupletUnifiedDirection = (tupletGroup: ScoreEvent[], clef: string): 'up' | 'down' => {
-  let maxDist = -1;
-  let direction: 'up' | 'down' = 'down';
-
-  tupletGroup.forEach((te) => {
-    te.notes.forEach((n: Note) => {
-      // Skip rest notes (null pitch)
-      if (n.pitch === null) return;
-      const y = CONFIG.baseY + getOffsetForPitch(n.pitch, clef);
-      const dist = Math.abs(y - MIDDLE_LINE_Y);
-      if (dist > maxDist) {
-        maxDist = dist;
-        direction = y <= MIDDLE_LINE_Y ? 'down' : 'up';
-      }
-    });
-  });
-
-  return direction;
-};
-
-/**
  * Processes a tuplet group starting at the given index.
  * Handles compressed widths, unified stem direction, and generates
  * hit zones for all events in the group.
@@ -406,9 +377,13 @@ const processTupletGroup = (
   tupletGroup.forEach((tupletEvent) => {
     const evtIndex = events.indexOf(tupletEvent);
 
-    // Calculate compressed width for tuplet
+    // Calculate compressed width for tuplet — but never less than the ink bound: a flagged
+    // member (drawn with the group's unified stem direction) or a short rest must still clear
+    // the next event's glyph, inside the tuplet and after it.
     const originalWidth = getNoteWidth(tupletEvent.duration, tupletEvent.dotted);
-    const tupletWidth = originalWidth * Math.sqrt(ratio[1] / ratio[0]);
+    const flagged = !tupletEvent.isRest && !(ctx.beamedIds?.has(tupletEvent.id) ?? false);
+    const ink = inkAdvance(tupletEvent, events[evtIndex + 1], flagged, unifiedDirection);
+    const tupletWidth = Math.max(originalWidth * Math.sqrt(ratio[1] / ratio[0]), ink);
 
     // Recalculate chord layout with unified direction
     const chordLayout = calculateChordLayout(tupletEvent.notes, ctx.clef, unifiedDirection);
