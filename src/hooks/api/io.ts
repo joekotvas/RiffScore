@@ -5,7 +5,7 @@ import { LoadScoreCommand } from '@/commands';
 import { validateScore } from '@/utils/validation';
 import { generateABC } from '@/exporters/abcExporter';
 import { generateMusicXML } from '@/exporters/musicXmlExporter';
-import { importScoreText } from '@/importers';
+import { IMPORT_FORMAT_LABELS, importScoreData } from '@/importers';
 import { generateStaves } from '@/utils/generateScore';
 import { refuse } from '@/refusals';
 
@@ -107,7 +107,7 @@ export const createIOMethods = (
     import(format, content) {
       const { dispatch } = ctx;
 
-      if (format !== 'abc' && format !== 'json') {
+      if (format !== 'abc' && format !== 'json' && format !== 'musicxml') {
         setResult({
           method: 'import',
           ...refuse('IMPORT_NOT_IMPLEMENTED', { messageCtx: { format } }),
@@ -115,7 +115,11 @@ export const createIOMethods = (
         return this;
       }
 
-      const result = importScoreText(typeof content === 'string' ? content : '', format);
+      const isBinary = content instanceof ArrayBuffer || content instanceof Uint8Array;
+      const result = importScoreData(
+        isBinary ? content : typeof content === 'string' ? content : '',
+        format
+      );
       if (!result.ok) {
         // Nothing was loaded: the current score is untouched.
         setResult({
@@ -137,20 +141,21 @@ export const createIOMethods = (
         measures: score.staves[0]?.measures.length ?? 0,
         warnings,
       };
+      const label = format === 'musicxml' ? IMPORT_FORMAT_LABELS.musicxml : format.toUpperCase();
       setResult(
         warnings.length === 0
           ? {
               ok: true,
               status: 'info',
               method: 'import',
-              message: `Imported ${format.toUpperCase()}`,
+              message: `Imported ${label}`,
               details,
             }
           : {
               ok: true,
               status: 'warning',
               method: 'import',
-              message: `Imported ${format.toUpperCase()} with ${warnings.length} warning(s)`,
+              message: `Imported ${label} with ${warnings.length} warning(s)`,
               code: 'IMPORT_WARNINGS',
               details,
             }

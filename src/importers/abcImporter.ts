@@ -32,15 +32,25 @@ import { Key } from 'tonal';
 import { KEY_SIGNATURES, getMeasureCapacity } from '@/constants';
 import type { ChordSymbol, ClefType, Measure, Note, Score, ScoreEvent, Staff } from '@/types';
 import { chordId, eventId, measureId, noteId, staffId, tupletId } from '@/utils/id';
-import { getBreakdownOfQuants, getNoteDuration } from '@/utils/core';
+import { getNoteDuration } from '@/utils/core';
 import { keySignatureAltForLetter } from '@/utils/accidentalContext';
-import { hasTieTarget } from '@/utils/ties';
-import { sumQuants } from '@/utils/tuplet';
-import { clampBpm, validateScore } from '@/utils/validation';
-import { toDisplayMeasureNumber } from '@/utils/measureIndex';
+import { clampBpm } from '@/utils/validation';
 import { parseChord } from '@/services/ChordService';
 import { quantizeChordAnchor } from '@/services/chord/ChordQuants';
 import { createMetadata } from '@/services/MetadataService';
+import {
+  ONE,
+  WHOLE_QUANTS,
+  Warnings,
+  decomposeQuants,
+  dropDanglingTies,
+  frac,
+  inferPickup,
+  keyNameForFifths,
+  mulFrac,
+  reportValidationWarnings,
+  type Frac,
+} from './importUtils';
 
 // ============================================================================
 // Public types
@@ -60,60 +70,6 @@ export interface AbcImportFailure {
 }
 
 export type AbcImportResult = AbcImportSuccess | AbcImportFailure;
-
-// ============================================================================
-// Rational helpers — note lengths are exact fractions until quantized
-// ============================================================================
-
-interface Frac {
-  n: number;
-  d: number;
-}
-
-const gcd = (a: number, b: number): number => (b === 0 ? Math.abs(a) : gcd(b, a % b));
-
-const frac = (n: number, d: number): Frac => {
-  const g = gcd(n, d) || 1;
-  return { n: n / g, d: d / g };
-};
-
-const mulFrac = (a: Frac, b: Frac): Frac => frac(a.n * b.n, a.d * b.d);
-
-const ONE: Frac = { n: 1, d: 1 };
-
-/** Internal quant grid: 64 quants per whole note. */
-const WHOLE_QUANTS = 64;
-
-// ============================================================================
-// Warnings — deduplicated by category so a tune full of slurs yields one line
-// ============================================================================
-
-class Warnings {
-  private entries = new Map<string, { message: string; count: number; line: number }>();
-
-  add(key: string, message: string, line = 0): void {
-    const existing = this.entries.get(key);
-    if (existing) {
-      existing.count += 1;
-      return;
-    }
-    this.entries.set(key, { message, count: 1, line });
-  }
-
-  list(): string[] {
-    return [...this.entries.values()].map(({ message, count, line }) => {
-      const where =
-        line > 0
-          ? count > 1
-            ? `${count} occurrences, first at line ${line}`
-            : `line ${line}`
-          : count > 1
-            ? `${count} occurrences`
-            : '';
-      return where ? `${message} (${where})` : message;
-    });
-  }
-}
 
 // ============================================================================
 // Header field parsers
@@ -184,14 +140,6 @@ const parseTempo = (raw: string, timeSignature: string): number | null => {
 
 // --- Key signatures --------------------------------------------------------
 
-/** Signed accidental count of every canonical key: 'G' → 1, 'Bb' → -2, 'Em' → 1. */
-const KEY_FIFTHS: Record<string, number> = Object.fromEntries(
-  Object.entries(KEY_SIGNATURES).map(([name, sig]) => [
-    name,
-    sig.type === 'flat' ? -sig.count : sig.count,
-  ])
-);
-
 /** Fifths offset of each mode relative to the major (Ionian) scale on the same tonic. */
 const MODE_FIFTHS: Record<string, number> = {
   maj: 0,
@@ -217,18 +165,6 @@ const MODE_LABELS: Record<string, string> = {
 
 /** Modes whose character is minor: imported with the relative minor's key name. */
 const MINOR_MODES = new Set(['min', 'aeo', 'dor', 'phr', 'loc']);
-
-/** The canonical key name carrying `fifths` accidentals, major or (relative) minor. */
-const keyNameForFifths = (fifths: number, minor: boolean): string => {
-  let f = fifths;
-  // Beyond 7 accidentals a key is theoretical; its only notation is the enharmonic twin.
-  while (f > 7) f -= 12;
-  while (f < -7) f += 12;
-  const match = Object.entries(KEY_FIFTHS).find(
-    ([name, v]) => v === f && (KEY_SIGNATURES[name].mode === 'minor') === minor
-  );
-  return match ? match[0] : 'C';
-};
 
 interface VoiceProps {
   clef: ClefType | null;
@@ -757,35 +693,6 @@ const applyBrokenRhythm = (tokens: Token[], warnings: Warnings): Token[] => {
 // ============================================================================
 // Duration quantization
 // ============================================================================
-
-interface DurationPart {
-  duration: string;
-  dotted: boolean;
-}
-
-/** Quant values a single (possibly dotted) note can notate. */
-const SINGLE_DURATIONS: Record<number, DurationPart> = {
-  96: { duration: 'whole', dotted: true },
-  64: { duration: 'whole', dotted: false },
-  48: { duration: 'half', dotted: true },
-  32: { duration: 'half', dotted: false },
-  24: { duration: 'quarter', dotted: true },
-  16: { duration: 'quarter', dotted: false },
-  12: { duration: 'eighth', dotted: true },
-  8: { duration: 'eighth', dotted: false },
-  6: { duration: 'sixteenth', dotted: true },
-  4: { duration: 'sixteenth', dotted: false },
-  3: { duration: 'thirtysecond', dotted: true },
-  2: { duration: 'thirtysecond', dotted: false },
-  1: { duration: 'sixtyfourth', dotted: false },
-};
-
-/** A quant count as one note when possible, else the greedy largest-first breakdown (tied). */
-const decomposeQuants = (quants: number): DurationPart[] => {
-  const single = SINGLE_DURATIONS[quants];
-  if (single) return [single];
-  return getBreakdownOfQuants(quants).map((p) => ({ duration: p.duration, dotted: p.dotted }));
-};
 
 /** ABC's default `q` for `(p` when it is omitted (ABC 2.1 §4.13). */
 const defaultTupletQ = (p: number, timeSignature: string): number => {
@@ -1406,12 +1313,7 @@ class TuneBuilder {
         while (voice.measures.length < barCount)
           voice.measures.push({ id: measureId(), events: [] });
       }
-      // An under-full first bar followed by more music is an anacrusis.
-      const first = voice.measures[0];
-      if (voice.measures.length > 1 && first.events.length > 0) {
-        const { quants, partialTuplet } = sumQuants(first.events);
-        if (!partialTuplet && quants < capacity - 1e-6) first.isPickup = true;
-      }
+      inferPickup(voice.measures, capacity);
     }
 
     const staves: Staff[] = voices.map((v) => ({
@@ -1421,26 +1323,7 @@ class TuneBuilder {
       measures: v.measures,
     }));
 
-    // A tie only means something when the very next event has the same pitch.
-    for (const staff of staves) {
-      staff.measures.forEach((measure, measureIndex) => {
-        measure.events.forEach((event, eventIndex) => {
-          for (const note of event.notes) {
-            if (!note.tied) continue;
-            if (
-              !note.pitch ||
-              !hasTieTarget(staff.measures, { measureIndex, eventIndex, pitch: note.pitch })
-            ) {
-              delete note.tied;
-              this.warnings.add(
-                'tie-dangling',
-                'Ties with no matching note to tie to were dropped'
-              );
-            }
-          }
-        });
-      });
-    }
+    dropDanglingTies(staves, this.warnings);
 
     const title = this.title || 'Untitled';
     const score: Score = {
@@ -1458,38 +1341,7 @@ class TuneBuilder {
       }),
     };
 
-    // One line per bar for the first few problems, then a count — a 4000-bar import must not
-    // produce a 4000-line warning list.
-    const MAX_BAR_WARNINGS = 8;
-    const overflow: Record<string, number> = {};
-    let listed = 0;
-    for (const error of validateScore(score).errors) {
-      if (error.measureIndex < 0) continue; // parity is guaranteed by the padding above
-      const overfull = error.reason.startsWith('overfull');
-      if (listed >= MAX_BAR_WARNINGS) {
-        const kind = overfull ? 'overfull' : 'incomplete';
-        overflow[kind] = (overflow[kind] ?? 0) + 1;
-        continue;
-      }
-      listed += 1;
-      const where = `Bar ${toDisplayMeasureNumber(error.measureIndex)}${staves.length > 1 ? ` (staff ${error.staffIndex + 1})` : ''}`;
-      const what = overfull
-        ? `holds more than a full bar ${error.reason.replace(/^overfull\s*/, '')}`
-        : 'contains an incomplete tuplet';
-      this.warnings.add(`validation:${error.staffIndex}:${error.measureIndex}`, `${where} ${what}`);
-    }
-    if (overflow.overfull) {
-      this.warnings.add(
-        'validation:more-overfull',
-        `${overflow.overfull} more bars hold more than a full bar`
-      );
-    }
-    if (overflow.incomplete) {
-      this.warnings.add(
-        'validation:more-incomplete',
-        `${overflow.incomplete} more bars contain an incomplete tuplet`
-      );
-    }
+    reportValidationWarnings(score, this.warnings);
 
     return { ok: true, score, warnings: this.warnings.list() };
   }

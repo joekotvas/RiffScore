@@ -47,6 +47,7 @@ interface RiffScoreConfig {
     measureCount?: number;   // Number of measures to generate
     staves?: Staff[];        // Explicit content (overrides generator); staff.clef: 'treble' | 'bass' | 'alto' | 'tenor' | 'grand'
     abc?: string;            // ABC notation to import as the initial score (overrides staves and generator options)
+    musicxml?: string;       // MusicXML text to import as the initial score (abc wins when both are given)
   };
   chord?: {
     display?: {
@@ -80,6 +81,7 @@ interface RiffScoreConfig {
 | `score.staff` | `'grand'` |
 | `score.measureCount` | `4` |
 | `score.abc` | — |
+| `score.musicxml` | — |
 | `chord.display.notation` | `'letter'` |
 | `chord.display.useSymbols` | `false` |
 | `chord.playback.enabled` | `true` |
@@ -145,6 +147,33 @@ M:6/8
 L:1/8
 K:G
 G3 GAB|A3 ABd|edd gdd|edB dBA|G3 GAB|A3 ABd|edd gdB|AGF G3|`,
+  },
+}} />
+```
+
+### MusicXML Mode
+
+Seed the editor from a [MusicXML](./MUSICXML_IMPORT.md) document (the text of a `.musicxml` /
+`.xml` file; unpack a compressed `.mxl` first with `importScoreData`, or use the File menu). The
+document's own title, key, meter and tempo are used; `musicxml` takes precedence over `staves`
+and the generator options, and `abc` over both. If the text is not a MusicXML score, the
+generator options apply and a warning is logged.
+
+```tsx
+<RiffScore config={{
+  score: {
+    musicxml: `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <work><work-title>Study</work-title></work>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><key><fifths>1</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note>
+    </measure>
+  </part>
+</score-partwise>`,
   },
 }} />
 ```

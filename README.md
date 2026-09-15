@@ -78,7 +78,7 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 *   **Embeddable**: Drop it into any React application.
 *   **Configurable**: Full control over UI, interactions, and score content.
 *   **SMuFL Compliance**: Beautiful engraving using the [Bravura](https://github.com/steinbergmedia/bravura) font.
-*   **Import & Export**: JSON, MusicXML and ABC notation export; ABC notation and JSON import from the File menu, the API, or config ([details](./docs/ABC_IMPORT.md)).
+*   **Import & Export**: JSON, MusicXML and ABC notation export; MusicXML (`.musicxml` / `.mxl`), ABC notation and JSON import from the File menu, the API, or config ([MusicXML](./docs/MUSICXML_IMPORT.md), [ABC](./docs/ABC_IMPORT.md)).
 *   **Theming**: Built-in dark, light, cool, and warm themes.
 
 ### Chord Symbols

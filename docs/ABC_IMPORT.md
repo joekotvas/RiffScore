@@ -4,7 +4,7 @@
 
 > What the ABC importer understands, how it maps onto the score model, and what it warns about.
 
-> **See also**: [API Reference](./API.md) • [Configuration](./CONFIGURATION.md) • [Data Model](./DATA_MODEL.md)
+> **See also**: [MusicXML Import](./MUSICXML_IMPORT.md) • [API Reference](./API.md) • [Configuration](./CONFIGURATION.md) • [Data Model](./DATA_MODEL.md)
 
 RiffScore reads tunes written in [ABC notation](https://abcnotation.com/wiki/abc:standard:v2.1) —
 the text format used by The Session, abcnotation.com and most folk and traditional archives — and

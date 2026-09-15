@@ -986,10 +986,19 @@ export interface RiffScoreConfig {
 
     /**
      * ABC notation to import as the initial score (see docs/ABC_IMPORT.md). Takes precedence
-     * over `staves` and the generator options; the tune's own title, key, meter and tempo are
-     * used. If the text cannot be parsed the generator options apply and a warning is logged.
+     * over `musicxml`, `staves` and the generator options; the tune's own title, key, meter and
+     * tempo are used. If the text cannot be parsed the generator options apply and a warning is
+     * logged.
      */
     abc?: string;
+
+    /**
+     * MusicXML text to import as the initial score (see docs/MUSICXML_IMPORT.md). Takes
+     * precedence over `staves` and the generator options; the score's own title, key, meter and
+     * tempo are used. If the text cannot be parsed the generator options apply and a warning is
+     * logged.
+     */
+    musicxml?: string;
   };
 
   /** Chord track configuration */

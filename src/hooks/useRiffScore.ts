@@ -22,7 +22,8 @@ export interface UseRiffScoreResult {
  *
  * Logic:
  * 1. Merge user config with defaults
- * 2. If config.score.abc is provided, import it (ABC Mode); on failure fall through
+ * 2. If config.score.abc or config.score.musicxml is provided, import it (Import Mode); on
+ *    failure fall through
  * 3. If config.score.staves is provided, use it directly (Render Mode)
  * 4. Otherwise, generate staves from template (Generator Mode)
  */
@@ -34,14 +35,21 @@ export const useRiffScore = (userConfig: DeepPartial<RiffScoreConfig> = {}): Use
   const initialScore = useMemo((): Score => {
     const { score: scoreConfig } = config;
 
-    // ABC Mode: the tune carries its own title, key, meter and tempo.
-    if (scoreConfig.abc) {
-      const result = importScoreText(scoreConfig.abc, 'abc');
+    // Import Mode: the tune carries its own title, key, meter and tempo.
+    const seeds: [string, string | undefined, 'abc' | 'musicxml'][] = [
+      ['ABC', scoreConfig.abc, 'abc'],
+      ['MusicXML', scoreConfig.musicxml, 'musicxml'],
+    ];
+    for (const [label, text, format] of seeds) {
+      if (!text) continue;
+      const result = importScoreText(text, format);
       if (result.ok) {
-        result.warnings.forEach((w) => logger.log(`ABC import: ${w}`, undefined, LogLevel.WARN));
+        result.warnings.forEach((w) =>
+          logger.log(`${label} import: ${w}`, undefined, LogLevel.WARN)
+        );
         return result.score;
       }
-      logger.log(`ABC import failed: ${result.error}`, undefined, LogLevel.WARN);
+      logger.log(`${label} import failed: ${result.error}`, undefined, LogLevel.WARN);
     }
 
     // Render Mode: Use explicit staves if provided

@@ -142,7 +142,7 @@ const ImportRow: React.FC<{ onClick: () => void }> = ({ onClick }) => {
       <span style={{ color: theme.secondaryText }}>
         <Upload size={14} />
       </span>
-      ABC Notation or JSON…
+      ABC, MusicXML or JSON…
     </button>
   );
 };
