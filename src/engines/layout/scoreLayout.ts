@@ -9,6 +9,12 @@
  */
 import { Score, Staff, ScoreEvent } from '@/types';
 import { CONFIG } from '@/config';
+import {
+  calculateMeasureExtent,
+  calculateStaffOffsets,
+  unionExtents,
+  type StaffExtent,
+} from './vertical';
 import { TIME_SIGNATURES } from '@/constants';
 import { getNoteDuration } from '@/utils/core';
 import {
@@ -24,6 +30,9 @@ import {
   ScoreLayout,
   StaffLayout,
   MeasureLayoutV2,
+  MeasureLayout,
+  BeamGroup,
+  TupletBracketGroup,
   EventLayout,
   NoteLayout,
   YBounds,
@@ -180,6 +189,78 @@ const processEventLayout = (
 
 // --- Phase 3: Main Orchestrator ---
 
+/** Per-measure geometry shared by the SSOT layout and the page layout's vertical model. */
+interface MeasureGeometry {
+  relativeLayout: MeasureLayout;
+  beamGroups: BeamGroup[];
+  tupletGroups: TupletBracketGroup[];
+  extent: StaffExtent;
+}
+
+const buildMeasureGeometries = (
+  score: Score,
+  keySignature: string,
+  timeSignature: string,
+  forcedPositions: Record<number, number>[],
+  stretchFor: (measureIndex: number) => number = () => 1.0
+): MeasureGeometry[][] =>
+  score.staves.map((staff, staffIdx) => {
+    const clef = staff.clef || (staffIdx === 0 ? 'treble' : 'bass');
+    return staff.measures.map((measure, measureIdx) => {
+      const relativeLayout = calculateMeasureLayout(
+        measure.events,
+        undefined,
+        clef,
+        measure.isPickup || false,
+        forcedPositions[measureIdx],
+        stretchFor(measureIdx),
+        keySignature
+      );
+      const beamGroups = calculateBeamingGroups(
+        measure.events,
+        relativeLayout.eventPositions,
+        clef,
+        timeSignature
+      );
+      // Pass the beams so a beamed tuplet's bracket can run parallel to its beam.
+      const tupletGroups = calculateTupletBrackets(
+        relativeLayout.processedEvents,
+        relativeLayout.eventPositions,
+        clef,
+        beamGroups
+      );
+      return {
+        relativeLayout,
+        beamGroups,
+        tupletGroups,
+        extent: calculateMeasureExtent(relativeLayout, beamGroups, tupletGroups),
+      };
+    });
+  });
+
+/**
+ * Drawn extent of every measure of every staff (staff px relative to each staff's top line),
+ * from the same geometry the renderer draws. Page layout unions these per system to space the
+ * staves of each system by their content; pass `stretchFor` so a justified system's measures
+ * are measured at the stretch they are drawn with (beam slopes depend on the run).
+ */
+export const calculateMeasureExtents = (
+  score: Score,
+  stretchFor: (measureIndex: number) => number = () => 1.0
+): StaffExtent[][] => {
+  if (!score.staves || score.staves.length === 0) return [];
+  const keySignature = score.keySignature || score.staves[0].keySignature || 'C';
+  const timeSignature = score.timeSignature || '4/4';
+  const { forcedPositions } = calculateSystemMetrics(score.staves, keySignature);
+  return buildMeasureGeometries(
+    score,
+    keySignature,
+    timeSignature,
+    forcedPositions,
+    stretchFor
+  ).map((measures) => measures.map((m) => m.extent));
+};
+
 /**
  * Calculates the complete layout for the score.
  * This is the SINGLE SOURCE OF TRUTH for where everything is on the canvas.
@@ -204,11 +285,22 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
   };
 
   if (!score.staves || score.staves.length === 0) {
-    return { staves: [], notes: {}, events: {}, getX: emptyGetX, getY: emptyGetY };
+    return {
+      staves: [],
+      notes: {},
+      events: {},
+      vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
+      getX: emptyGetX,
+      getY: emptyGetY,
+    };
   }
 
   // Partial layout that we'll populate
-  const layout: Omit<ScoreLayout, 'getX' | 'getY'> = { staves: [], notes: {}, events: {} };
+  const layout: Omit<ScoreLayout, 'getX' | 'getY' | 'vertical'> = {
+    staves: [],
+    notes: {},
+    events: {},
+  };
 
   const activeStaff = score.staves[0];
   // Single key-signature source for the whole layout pass — the score-level key
@@ -226,9 +318,24 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
   const { widths: synchronizedWidths, forcedPositions: synchronizedForcedPositions } =
     calculateSystemMetrics(score.staves, scoreKeySignature);
 
-  // 2. Build Tree
+  // 2. Per-measure geometry (event positions, beams, tuplet brackets, drawn extent), computed
+  //    once per staff so the vertical layout can be settled before any absolute Y is assigned.
+  const geometries = buildMeasureGeometries(
+    score,
+    scoreKeySignature,
+    scoreTimeSignature,
+    synchronizedForcedPositions
+  );
+
+  // 3. Content-aware staff distance: the default spacing, opened where ink or lyric bands need it.
+  const vertical = calculateStaffOffsets(
+    geometries.map((measures) => unionExtents(measures.map((m) => m.extent))),
+    score.staves.map((staff) => staff.lyricLines ?? 0)
+  );
+
+  // 4. Build Tree
   score.staves.forEach((staff, staffIdx) => {
-    const staffY = CONFIG.baseY + staffIdx * CONFIG.staffSpacing;
+    const staffY = CONFIG.baseY + vertical.offsets[staffIdx];
     const staffClef = staff.clef || (staffIdx === 0 ? 'treble' : 'bass');
 
     const staffLayout: StaffLayout = {
@@ -242,24 +349,7 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
     staff.measures.forEach((measure, measureIdx) => {
       const width = synchronizedWidths[measureIdx];
       const forcedPos = synchronizedForcedPositions[measureIdx];
-
-      // Run sub-engines
-      const relativeLayout = calculateMeasureLayout(
-        measure.events,
-        undefined,
-        staffClef,
-        measure.isPickup || false,
-        forcedPos,
-        1.0,
-        scoreKeySignature
-      );
-
-      const beamGroups = calculateBeamingGroups(
-        measure.events,
-        relativeLayout.eventPositions,
-        staffClef,
-        scoreTimeSignature
-      );
+      const { relativeLayout, beamGroups, tupletGroups } = geometries[staffIdx][measureIdx];
 
       const measureLayout: MeasureLayoutV2 = {
         x: currentMeasureX,
@@ -268,13 +358,7 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
         events: {},
         syncedEventPositions: forcedPos,
         beamGroups,
-        // Pass the beams so a beamed tuplet's bracket can run parallel to its beam.
-        tupletGroups: calculateTupletBrackets(
-          relativeLayout.processedEvents,
-          relativeLayout.eventPositions,
-          staffClef,
-          beamGroups
-        ),
+        tupletGroups,
         legacyLayout: relativeLayout,
       };
 
@@ -371,7 +455,8 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
   // Staff height is 5 lines = 4 gaps
   const staffHeight = CONFIG.lineHeight * 4;
 
-  // Content region bounds
+  // Content region bounds: the staff block (first top line to last bottom line). Ink and lyric
+  // bands that reach further are in `vertical.bottom`; the canvas sizes itself from that.
   const lastStaffLayout = layout.staves[layout.staves.length - 1];
   const contentTop = CONFIG.baseY;
   const contentBottom = lastStaffLayout
@@ -470,5 +555,5 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
     pitch,
   };
 
-  return { ...layout, getX, getY };
+  return { ...layout, vertical, getX, getY };
 };

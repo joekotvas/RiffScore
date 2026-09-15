@@ -440,6 +440,40 @@ export const STEM = {
 };
 
 // =============================================================================
+// VERTICAL LAYOUT — staff distance and lyric bands
+// =============================================================================
+
+/**
+ * Content-aware staff distance. `CONFIG.staffSpacing` (120 px) is the DEFAULT distance between
+ * the top lines of adjacent staves; a staff moves further from the one above only when their
+ * drawn content (ledger notes, stems, beams, tuplet brackets) plus the upper staff's lyric band
+ * would otherwise come closer than `MIN_CLEARANCE`. See `engines/layout/vertical.ts`.
+ */
+export const STAFF_DISTANCE = {
+  /**
+   * Smallest gap kept between the lowest ink of one staff (or its lyric band) and the highest
+   * ink of the next, px at 100% — one staff space.
+   */
+  MIN_CLEARANCE: SPACE,
+};
+
+/**
+ * Lyric band geometry, px at 100%. Lyrics are not rendered yet (roadmap #30); the layout
+ * already reserves this band below any staff whose `lyricLines` is set, so staves, systems and
+ * pages make room, and `lyricLineBaseline` says where each verse's baseline will sit.
+ */
+export const LYRICS = {
+  /** Gap from the lowest ink of the staff (never less than its bottom line) to the first line's ascent. */
+  GAP_ABOVE: SPACE,
+  /** Ascent of the lyric face above its baseline (a 13 px font at 100%). */
+  ASCENT: 10,
+  /** Baseline-to-baseline distance between verses. */
+  LINE_HEIGHT: 15,
+  /** Descent kept clear below the last baseline. */
+  DESCENT: 4,
+};
+
+// =============================================================================
 // BEAMING
 // =============================================================================
 

@@ -148,6 +148,8 @@ export interface MeasureLayoutV2 {
   legacyLayout?: MeasureLayout;
 }
 
+import type { VerticalLayout } from './vertical';
+
 export interface StaffLayout {
   y: number;
   index: number;
@@ -156,6 +158,8 @@ export interface StaffLayout {
 
 export interface ScoreLayout {
   staves: StaffLayout[];
+  /** Content-aware vertical layout of the staves (offsets relative to the first staff's top line). */
+  vertical: VerticalLayout;
   // Flat maps for O(1) lookup during interaction
   // Key format: `${staffIndex}-${measureIndex}-${eventId}-${noteId}`
   notes: Record<string, NoteLayout>;
