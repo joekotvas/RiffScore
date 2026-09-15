@@ -87,6 +87,8 @@ export interface MeasureProps {
   // 3. Justification (Page View)
   /** Stretch factor for justified systems (default: 1.0 = no stretch) */
   stretchFactor?: number;
+  /** Ids of tie-continuation notes on this staff (they draw no accidental; see collectTieStops) */
+  tieStops?: ReadonlySet<string>;
 
   // 4. Contexts (Grouped)
   layout: LayoutConfig;
