@@ -749,6 +749,21 @@ export const generateMusicXML = (score: Score): string => {
       });
       xml += `
     </attributes>`;
+
+      // Tempo: a metronome mark for readers and <sound tempo> for playback, both in quarter
+      // notes per minute (the score's `bpm` unit).
+      if (Number.isFinite(score.bpm) && score.bpm > 0) {
+        xml += `
+    <direction placement="above">
+      <direction-type>
+        <metronome>
+          <beat-unit>quarter</beat-unit>
+          <per-minute>${score.bpm}</per-minute>
+        </metronome>
+      </direction-type>
+      <sound tempo="${score.bpm}"/>
+    </direction>`;
+      }
     }
 
     // Each staff renders its events in sequence; between staves we rewind the
