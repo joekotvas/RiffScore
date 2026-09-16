@@ -1,8 +1,11 @@
 /**
  * Print Stylesheet
  *
- * Optimizes score output for clean PDF printing via native browser print dialog.
- * Hides UI elements, ensures high contrast, and manages page breaks.
+ * Page view prints WYSIWYG: each page SVG is sized to the physical sheet (the on-screen
+ * ui.scale and viewport zoom are removed), one page per sheet, with editor chrome and
+ * transient editing state hidden. PrintService injects the matching `@page { size }` when
+ * printing starts, and the page view already draws with the paper palette on screen, so no
+ * colour overrides are needed here.
  */
 
 /* =============================================================================
@@ -11,146 +14,106 @@
 
 @media print {
   /* ---------------------------------------------------------------------------
-     Hide UI Elements
+     Hide editor chrome, dialogs and transient editing state
      --------------------------------------------------------------------------- */
-  .riff-toolbar,
-  .riff-sidebar,
-  .riff-footer,
-  .riff-dialog,
-  .riff-tooltip,
-  .riff-cursor,
-  .riff-selection-highlight,
-  .riff-playback-cursor,
-  .riff-scrollbar,
-  .riff-zoom-controls,
-  .riff-view-toggle,
-  .riff-score-setup-btn,
+  .riff-Toolbar,
+  .riff-EditorFooter,
+  .riff-ConfirmDialog-backdrop,
+  .riff-ShortcutsOverlay-backdrop,
+  .riff-ScoreSetupDialog-backdrop,
   .riff-MetadataField--preview,
-  .riff-MetadataInput__foreign {
+  .riff-MetadataInput__foreignObject,
+  .riff-GhostPreview,
+  .riff-PlaybackCursor,
+  .riff-LassoRect,
+  .riff-ChordSymbol--preview {
     display: none !important;
   }
 
   /* ---------------------------------------------------------------------------
-     White Backgrounds
+     White paper, no desk, no shadows
      --------------------------------------------------------------------------- */
   html,
   body,
-  .riff-editor,
-  .riff-canvas-container,
-  .riff-canvas {
-    background: white !important;
-  }
-
-  /* ---------------------------------------------------------------------------
-     High Contrast - Black Notation
-     --------------------------------------------------------------------------- */
-
-  /* Lines and barlines */
-  .riff-staff-line,
-  .riff-ledger-line,
-  .riff-barline {
-    stroke: black !important;
-  }
-
-  /* Note elements */
-  .riff-notehead,
-  .riff-stem,
-  .riff-flag,
-  .riff-beam,
-  .riff-accidental,
-  .riff-clef,
-  .riff-rest {
-    fill: black !important;
-    stroke: black !important;
-  }
-
-  /* Text elements */
-  .riff-chord-symbol,
-  .riff-measure-number,
-  .riff-page-number,
-  .riff-MetadataField {
-    fill: black !important;
-    color: black !important;
-  }
-
-  /* ---------------------------------------------------------------------------
-     Page Break Management
-     --------------------------------------------------------------------------- */
-  .riff-system {
-    page-break-inside: avoid;
-  }
-
-  .riff-page-break {
-    page-break-before: always;
-  }
-
-  /* Page wrapper controls page breaks for separate-SVG-per-page structure */
-  .riff-page-wrapper {
-    page-break-after: always;
-    page-break-inside: avoid;
-  }
-
-  /* Last page should not force a break after */
-  .riff-page-wrapper:last-child {
-    page-break-after: auto;
-  }
-
-  /* Hide gaps between pages when printing */
+  .riff-ScoreEditor,
+  .riff-ScoreEditor__viewport,
+  .riff-ScoreCanvas,
+  .riff-ScoreCanvas--page-view,
   .riff-pages {
-    gap: 0 !important;
-    padding: 0 !important;
     background: white !important;
   }
 
-  /* Remove page shadows/borders in print */
   .riff-page-svg {
     box-shadow: none !important;
     border: none !important;
   }
 
+  .riff-PageBoundary {
+    stroke: none !important;
+  }
+
   /* ---------------------------------------------------------------------------
-     Sizing and Overflow
+     Sizing: remove the on-screen zoom and scroll containers, size pages to the sheet
      --------------------------------------------------------------------------- */
-  .riff-editor,
-  .riff-canvas-container,
-  .riff-canvas {
+  .riff-ScoreEditor,
+  .riff-ScoreEditor__viewport,
+  .riff-ScoreEditor__content,
+  .riff-ScoreCanvas {
     width: 100% !important;
     height: auto !important;
     overflow: visible !important;
   }
 
-  /* ---------------------------------------------------------------------------
-     Remove Borders and Shadows
-     --------------------------------------------------------------------------- */
-  .riff-editor,
-  .riff-canvas,
-  .riff-system,
-  .riff-page-boundary {
-    border: none !important;
-    box-shadow: none !important;
+  .riff-ScoreEditor__content {
+    transform: none !important;
+    transform-origin: top left !important;
   }
 
-  .riff-page-boundary {
-    stroke: none !important;
+  /* Page view has no left gutter to keep; the scroll view needs its padding for the
+     grand-staff bracket drawn left of x = 0. */
+  .riff-ScoreCanvas--page-view {
+    padding: 0 !important;
   }
 
-  /* ---------------------------------------------------------------------------
-     Page Settings
-     --------------------------------------------------------------------------- */
+  .riff-pages {
+    gap: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Physical page size (set per page by PageContainer), one page per sheet */
+  .riff-page-svg {
+    width: var(--riff-page-width) !important;
+    height: var(--riff-page-height) !important;
+  }
+
+  .riff-page-wrapper {
+    break-after: page;
+    break-inside: avoid;
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+
+  .riff-page-wrapper:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .riff-system {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Sheet margins are part of the page layout itself */
   @page {
     margin: 0;
   }
 }
 
 /* =============================================================================
-   PRINT MODE CLASS STYLES (for JS preparation)
-
-   These styles are applied when body.riff-printing is set,
-   allowing JS to prepare the document before the print dialog opens.
+   PRINT MODE CLASS STYLES (applied by PrintService before the dialog opens)
    ============================================================================= */
 
-body.riff-printing .riff-toolbar,
-body.riff-printing .riff-sidebar,
-body.riff-printing .riff-footer {
+body.riff-printing .riff-Toolbar,
+body.riff-printing .riff-EditorFooter {
   display: none !important;
 }

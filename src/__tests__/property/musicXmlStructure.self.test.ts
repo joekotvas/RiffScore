@@ -15,6 +15,12 @@ import {
   expectedMeasureDivisions,
   checkDurationSums,
   allDurationsIntegral,
+  checkBackupDurations,
+  checkFullMeasureRests,
+  checkNoteChildOrder,
+  checkStaffDurationSums,
+  checkTupletNotationPlacement,
+  validateMusicXmlStructure,
 } from '../fixtures/musicXmlStructure';
 
 // A correct 4/4 measure at divisions=16: four quarter notes (16 each) sum to 64.
@@ -99,6 +105,98 @@ const BUGGY_TRIPLET_4_4 = `<?xml version="1.0"?>
   </part>
 </score-partwise>`;
 
+const GRAND_STAFF_4_4 = `<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>16</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <staves>2</staves>
+      </attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>64</duration><type>whole</type><staff>1</staff></note>
+      <backup><duration>64</duration></backup>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>64</duration><type>whole</type><staff>2</staff></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+const GRAND_STAFF_PICKUP = `<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="0" implicit="yes">
+      <attributes>
+        <divisions>16</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <staves>2</staves>
+      </attributes>
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>16</duration><type>quarter</type><staff>1</staff></note>
+      <backup><duration>16</duration></backup>
+      <note><pitch><step>G</step><octave>2</octave></pitch><duration>16</duration><type>quarter</type><staff>2</staff></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+const MISSING_SECOND_STAFF = GRAND_STAFF_4_4.replace(
+  '<backup><duration>64</duration></backup>\n      <note><pitch><step>C</step><octave>3</octave></pitch><duration>64</duration><type>whole</type><staff>2</staff></note>',
+  ''
+).replace(
+  '<note><pitch><step>C</step><octave>4</octave></pitch><duration>64</duration><type>whole</type><staff>1</staff></note>',
+  '<note><pitch><step>C</step><octave>4</octave></pitch><duration>64</duration><type>whole</type></note>'
+);
+
+const BAD_BACKUP = GRAND_STAFF_4_4.replace(
+  '<backup><duration>64</duration></backup>',
+  '<backup><duration>32</duration></backup>'
+);
+
+const BAD_NOTE_ORDER = `<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Music</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>16</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+      </attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><type>quarter</type><duration>16</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+const CHORD_WITH_DUPLICATE_TUPLET_NOTATION = `<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Music</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>48</divisions>
+        <time><beats>1</beats><beat-type>4</beat-type></time>
+      </attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>16</duration><type>eighth</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><notations><tuplet type="start" bracket="yes"/></notations></note>
+      <note><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>16</duration><type>eighth</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><notations><tuplet type="start" bracket="yes"/></notations></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>16</duration><type>eighth</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>16</duration><type>eighth</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><notations><tuplet type="stop"/></notations></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+const FULL_MEASURE_REST = `<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Music</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>16</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+      </attributes>
+      <note><rest measure="yes"/><duration>64</duration><type>whole</type></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
 describe('musicXmlStructure helper self-test', () => {
   it('parses parts, measures and notes with correct flags', () => {
     const score = parseMusicXml(CHORD_3_4);
@@ -154,5 +252,66 @@ describe('musicXmlStructure helper self-test', () => {
     expect(allDurationsIntegral(parseMusicXml(CORRECT_4_4))).toBe(true);
     const fractional = CORRECT_4_4.replace('<duration>16</duration>', '<duration>5.33</duration>');
     expect(allDurationsIntegral(parseMusicXml(fractional))).toBe(false);
+  });
+
+  it('inherits time/staves and validates each grand-staff duration stream separately', () => {
+    const score = parseMusicXml(GRAND_STAFF_4_4);
+    expect(score.parts[0].measures[0].staves).toBe(2);
+    expect(checkStaffDurationSums(score)).toEqual([]);
+    expect(validateMusicXmlStructure(GRAND_STAFF_4_4)).toEqual([]);
+  });
+
+  it('allows implicit grand-staff pickups when every staff has the same shortened duration', () => {
+    expect(checkStaffDurationSums(parseMusicXml(GRAND_STAFF_PICKUP))).toEqual([]);
+    expect(validateMusicXmlStructure(GRAND_STAFF_PICKUP)).toEqual([]);
+  });
+
+  it('flags missing staff tags and missing declared staff streams', () => {
+    const issues = checkStaffDurationSums(parseMusicXml(MISSING_SECOND_STAFF));
+    expect(issues.map((i) => i.reason)).toEqual(
+      expect.arrayContaining(['missing-staff-tag', 'missing-staff'])
+    );
+  });
+
+  it('checks <backup> durations against the preceding staff stream', () => {
+    expect(checkBackupDurations(parseMusicXml(GRAND_STAFF_4_4))).toEqual([]);
+    expect(checkBackupDurations(parseMusicXml(BAD_BACKUP))).toEqual([
+      expect.objectContaining({ expected: 64, actual: 32, reason: 'duration-mismatch' }),
+    ]);
+  });
+
+  it('validates the subset of MusicXML <note> DTD child ordering RiffScore emits', () => {
+    expect(checkNoteChildOrder(CORRECT_4_4)).toEqual([]);
+    expect(checkNoteChildOrder(BAD_NOTE_ORDER)).toEqual([
+      expect.objectContaining({ previous: 'type', current: 'duration' }),
+    ]);
+  });
+
+  it('flags tuplet bracket notations duplicated onto secondary <chord/> notes', () => {
+    expect(
+      checkTupletNotationPlacement(parseMusicXml(CHORD_WITH_DUPLICATE_TUPLET_NOTATION))
+    ).toEqual([
+      expect.objectContaining({ noteIndex: 1, reason: 'tuplet-notation-on-chord-member' }),
+    ]);
+  });
+
+  it('requires full-bar rests to use rest measure="yes"', () => {
+    expect(checkFullMeasureRests(parseMusicXml(FULL_MEASURE_REST))).toEqual([]);
+    const plainRest = FULL_MEASURE_REST.replace('<rest measure="yes"/>', '<rest/>');
+    expect(checkFullMeasureRests(parseMusicXml(plainRest))).toEqual([
+      expect.objectContaining({ reason: 'missing-measure-rest-attribute' }),
+    ]);
+  });
+
+  it('aggregates structural validation issues by category', () => {
+    const issues = validateMusicXmlStructure(
+      BAD_NOTE_ORDER.replace(
+        '</measure>',
+        '<note><rest/><duration>40</duration><type>whole</type></note></measure>'
+      )
+    );
+    expect(issues.map((i) => i.category)).toEqual(
+      expect.arrayContaining(['duration', 'note-order'])
+    );
   });
 });

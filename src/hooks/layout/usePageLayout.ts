@@ -10,6 +10,7 @@ import { useScoreContext } from '@/context/ScoreContext';
 import {
   calculatePageLayout,
   getSystemForMeasure,
+  getSystemLayoutForMeasure,
   getMeasureOriginInSystem,
   calculateAllMeasureWidths,
   getPageForMeasure,
@@ -100,7 +101,7 @@ export const usePageLayout = (): UsePageLayoutResult => {
       const systemIndex = getSystemForMeasure(measureIndex, pageLayout);
       if (systemIndex === -1) return null;
 
-      return pageLayout.systems[systemIndex] ?? null;
+      return getSystemLayoutForMeasure(measureIndex, pageLayout);
     },
     [isPageView, pageLayout]
   );

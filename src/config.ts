@@ -28,7 +28,9 @@ export const DEFAULT_SCORE_METADATA: ScoreMetadata = {
 export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
   pageSize: 'letter',
   margins: 'normal',
-  staffSize: 100,
+  // 60% of the 48px canvas staff = 28.8px = 7.6mm at 96dpi: rastral size 3, the standard
+  // staff height for lead sheets, vocal lines and piano music on Letter/A4.
+  staffSize: 60,
   systemSpacing: 'normal',
   viewMode: 'scroll',
 };
@@ -51,7 +53,8 @@ export const PAGE_DIMENSIONS = {
 } as const;
 
 /**
- * System spacing multipliers (relative to staff height).
+ * System spacing multipliers. Page view applies them to the minimum gap between system slots
+ * (see PageLayoutService.distributeSystemsToPages); the 'normal' preset is the unscaled gap.
  */
 export const SYSTEM_SPACING_MULTIPLIERS = {
   compact: 0.5,
@@ -102,7 +105,7 @@ export const CONFIG: EditorConfig = {
   topMargin: 20,
   baseY: 80,
   quantsPerMeasure: 64,
-  measurePaddingLeft: 36,
+  measurePaddingLeft: 24,
   measurePaddingRight: 0,
   scoreMarginLeft: 60,
   staffSpacing: 120,
@@ -111,6 +114,8 @@ export const CONFIG: EditorConfig = {
     minDistanceFromStaff: 40,
     paddingAboveNotes: 20,
     minY: 0,
+    hitBandHalfHeight: 20,
+    noteHitGap: 2,
   },
 
   toolbar: {

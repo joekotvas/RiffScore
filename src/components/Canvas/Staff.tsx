@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
 import {
@@ -9,7 +9,9 @@ import {
 } from '@/engines/layout';
 import { StaffLayout } from '@/engines/layout/types';
 import { isNoteSelected } from '@/utils/selection';
-import { findTieTarget } from '@/utils/ties';
+import { findTieTarget, collectTieStops } from '@/utils/ties';
+import { tieCurveDirection } from '@/engines/layout/ties';
+import { calculateChordLayout } from '@/engines/layout/positioning';
 import Measure from './Measure';
 import Tie from './Tie';
 import ScoreHeader from './ScoreHeader';
@@ -21,14 +23,26 @@ import { Measure as MeasureData } from '@/types';
  * Represents a note with tie information for rendering
  */
 interface TieNote {
+  localMeasureIndex: number;
   measureIndex: number;
   eventIndex: number;
   noteIndex: number;
+  eventId: string;
   pitch: string;
   tied: boolean;
   x: number;
   y: number;
   id: string;
+  /** Curve side (Gould: away from the stem; outer chord notes outward). */
+  direction: 'up' | 'down';
+}
+
+interface TieSource {
+  measureIndex: number;
+  eventIndex: number;
+  noteIndex: number;
+  eventId: string;
+  noteId: string;
 }
 
 /**
@@ -46,6 +60,10 @@ export interface StaffProps {
   // Layout
   baseY?: number; // Y offset for stacking staves (default: CONFIG.baseY)
   staffLayout?: StaffLayout;
+  /**
+   * Pointer-to-staff divisor for mouse interaction: ui scale × viewport zoom, × staffScale in
+   * page view. Rendering scale is applied by the parent transform, not here.
+   */
   scale: number;
 
   // Page view props
@@ -57,6 +75,8 @@ export interface StaffProps {
   isLastSystem?: boolean;
   /** Actual measure indices in the score (for page view). If not provided, uses array index. */
   measureIndices?: number[];
+  /** Full staff measures used to resolve ties that cross page-view system breaks. */
+  allMeasures?: MeasureData[];
   /** Pre-computed stretch factor for justified systems (page view only) */
   stretchFactor?: number;
 
@@ -92,6 +112,7 @@ const Staff: React.FC<StaffProps> = ({
   systemIndex = 0,
   isLastSystem = true,
   measureIndices,
+  allMeasures,
   stretchFactor = 1.0,
   interaction,
   mouseLimits,
@@ -99,6 +120,10 @@ const Staff: React.FC<StaffProps> = ({
   onKeySigClick,
   onTimeSigClick,
 }) => {
+  // Tie continuations on this staff (whole score, not just this system's slice): they draw no
+  // accidental, and the width engines must agree with the renderer about that.
+  const tieStops = useMemo(() => collectTieStops(allMeasures ?? measures), [allMeasures, measures]);
+
   const { theme } = useTheme();
 
   // Calculate vertical offset for this staff relative to the standard position
@@ -135,9 +160,10 @@ const Staff: React.FC<StaffProps> = ({
     // Use centralized layout if available, otherwise calculate
     // Use actual measure index for layout lookup (important for page view)
     const measureLayoutV2 = staffLayout?.measures[actualMeasureIndex];
-    const legacyLayout = measureLayoutV2?.legacyLayout;
 
-    const forcedPositions = legacyLayout?.eventPositions;
+    // Quant-keyed synchronized positions so a justified (stretched) re-layout keeps the
+    // treble/bass columns aligned; the id-keyed legacyLayout.eventPositions would be ignored.
+    const forcedPositions = measureLayoutV2?.syncedEventPositions;
     const stretchedWidth = stretchedWidths[index];
 
     // Only show preview note if it belongs to this staff
@@ -163,11 +189,13 @@ const Staff: React.FC<StaffProps> = ({
         forcedEventPositions={forcedPositions}
         measureLayout={measureLayoutV2}
         stretchFactor={stretchFactor}
+        tieStops={tieStops}
         layout={{
           scale,
           baseY: CONFIG.baseY,
           clef,
           keySignature,
+          timeSignature,
           staffIndex,
           verticalOffset: 0, // Staff is at 0 relative to itself (positioned by parent)
           mouseLimits, // Pass clamping limits
@@ -180,54 +208,160 @@ const Staff: React.FC<StaffProps> = ({
   // Render ties between notes
   const renderTies = () => {
     const ties: React.ReactElement[] = [];
-    // Use same preamble calculation as main measure rendering
-    const { measuresX: tieStartX } = calculateSystemPreamble(keySignature, { isFirstSystem });
-
-    let currentMeasureX = tieStartX;
-
     const allNotes: TieNote[] = [];
+    const tieMeasures = allMeasures ?? measures;
+    const currentMeasureIndices = new Set(
+      measures.map((_, index) => measureIndices?.[index] ?? index)
+    );
+    const systemStartX = measureStartXs[0] ?? measuresX;
+    const systemEndX =
+      measureStartXs.length > 0
+        ? measureStartXs[measureStartXs.length - 1] + stretchedWidths[stretchedWidths.length - 1]
+        : measuresX;
+
+    const findTieSource = (target: TieNote): TieSource | null => {
+      let sourceMeasureIndex = target.measureIndex;
+      let sourceEventIndex = target.eventIndex - 1;
+
+      if (sourceEventIndex < 0) {
+        sourceMeasureIndex = target.measureIndex - 1;
+        const sourceMeasure = tieMeasures[sourceMeasureIndex];
+        if (!sourceMeasure) return null;
+        sourceEventIndex = sourceMeasure.events.length - 1;
+      }
+
+      const sourceEvent = tieMeasures[sourceMeasureIndex]?.events[sourceEventIndex];
+      if (!sourceEvent || sourceEvent.isRest || sourceEvent.reserved) return null;
+
+      const sourceNoteIndex = sourceEvent.notes.findIndex(
+        (candidate) => candidate.pitch === target.pitch && !candidate.isRest && !!candidate.tied
+      );
+      if (sourceNoteIndex === -1) return null;
+
+      const resolvedTarget = findTieTarget(tieMeasures, {
+        measureIndex: sourceMeasureIndex,
+        eventIndex: sourceEventIndex,
+        pitch: target.pitch,
+      });
+
+      if (
+        !resolvedTarget ||
+        resolvedTarget.measureIndex !== target.measureIndex ||
+        resolvedTarget.eventIndex !== target.eventIndex ||
+        resolvedTarget.noteIndex !== target.noteIndex
+      ) {
+        return null;
+      }
+
+      const sourceNote = sourceEvent.notes[sourceNoteIndex];
+      return {
+        measureIndex: sourceMeasureIndex,
+        eventIndex: sourceEventIndex,
+        noteIndex: sourceNoteIndex,
+        eventId: sourceEvent.id,
+        noteId: sourceNote?.id ?? '',
+      };
+    };
+
+    const getTieColor = (source: TieSource | TieNote) => {
+      const isSelected = isNoteSelected(interaction.selection, {
+        staffIndex,
+        measureIndex: source.measureIndex,
+        eventId: source.eventId,
+        noteId: 'noteId' in source ? source.noteId : source.id,
+      });
+
+      return isSelected ? theme.accent : theme.score.note;
+    };
 
     measures.forEach((measure, mIndex: number) => {
-      const layout = calculateMeasureLayout(measure.events, undefined, clef, false);
+      const actualMeasureIndex = measureIndices?.[mIndex] ?? mIndex;
+      const measureLayoutV2 = staffLayout?.measures[actualMeasureIndex];
+      // A justified system re-lays the measure out at its stretch, with the same cross-staff
+      // synchronized positions the noteheads use, so tie ends land on the drawn heads.
+      const layout =
+        stretchFactor !== 1.0
+          ? calculateMeasureLayout(
+              measure.events,
+              undefined,
+              clef,
+              measure.isPickup ?? false,
+              measureLayoutV2?.syncedEventPositions,
+              stretchFactor,
+              keySignature,
+              tieStops,
+              timeSignature
+            )
+          : (measureLayoutV2?.legacyLayout ??
+            calculateMeasureLayout(
+              measure.events,
+              undefined,
+              clef,
+              measure.isPickup ?? false,
+              undefined,
+              1.0,
+              keySignature,
+              tieStops,
+              timeSignature
+            ));
+      const measureX = measureStartXs[mIndex];
+      // Stem direction each event is drawn with: its beam's when beamed, else its chord's.
+      const beamDirectionByEvent = new Map<string, 'up' | 'down'>();
+      measureLayoutV2?.beamGroups.forEach((group) =>
+        group.ids.forEach((id) => beamDirectionByEvent.set(id, group.direction))
+      );
       measure.events.forEach((event, eIndex: number) => {
-        const eventX = currentMeasureX + layout.eventPositions[event.id];
+        const eventX = measureX + layout.eventPositions[event.id];
+        const pitched = event.notes.filter((n) => n.pitch !== null);
+        const chordNoteYs = pitched.map((n) => CONFIG.baseY + getOffsetForPitch(n.pitch!, clef));
+        const stemDirection =
+          beamDirectionByEvent.get(event.id) ??
+          (pitched.length > 0 ? calculateChordLayout(event.notes, clef).direction : 'up');
         event.notes.forEach((note, nIndex: number) => {
           // Skip rest notes (which have null pitch) - they can't have ties
           if (note.pitch === null) return;
 
+          const y = CONFIG.baseY + getOffsetForPitch(note.pitch, clef); // normalized coords
           allNotes.push({
-            measureIndex: mIndex,
+            localMeasureIndex: mIndex,
+            measureIndex: actualMeasureIndex,
             eventIndex: eIndex,
             noteIndex: nIndex,
+            eventId: event.id,
             pitch: note.pitch,
             tied: !!note.tied,
             x: eventX,
-            y: CONFIG.baseY + getOffsetForPitch(note.pitch, clef), // Use CONFIG.baseY for normalized coords
+            y,
             id: note.id,
+            direction: tieCurveDirection({ noteY: y, chordNoteYs, stemDirection }),
           });
         });
       });
-      currentMeasureX += layout.totalWidth;
     });
 
     allNotes.forEach((note) => {
+      const incomingSource = findTieSource(note);
+      if (incomingSource && !currentMeasureIndices.has(incomingSource.measureIndex)) {
+        const direction = note.direction;
+        ties.push(
+          <Tie
+            key={`tie-in-${incomingSource.noteId}-${note.id}`}
+            startX={systemStartX}
+            startY={note.y}
+            endX={note.x}
+            endY={note.y}
+            direction={direction}
+            color={getTieColor(incomingSource)}
+            crossesSystemBreak
+            isEndOfTie
+          />
+        );
+      }
+
       if (note.tied) {
-        // Check Selection using global staffIndex
-        const eventId = measures[note.measureIndex]?.events[note.eventIndex]?.id;
-        const isSelected = isNoteSelected(interaction.selection, {
-          staffIndex, // Staff prop
-          measureIndex: note.measureIndex,
-          eventId,
-          noteId: note.id,
-        });
-
-        // Use accent color if selected
-        // Important: Use theme.score.note as default instead of hardcoded 'black'
-        const tieColor = isSelected ? theme.accent : theme.score.note;
-
         // Lane E: a tie resolves to the same-pitch note in the immediate next event (cross-barline
         // aware; rests and reserved slots are never targets) via the canonical findTieTarget.
-        const target = findTieTarget(measures, {
+        const target = findTieTarget(tieMeasures, {
           measureIndex: note.measureIndex,
           eventIndex: note.eventIndex,
           pitch: note.pitch,
@@ -237,11 +371,12 @@ const Staff: React.FC<StaffProps> = ({
               (n) =>
                 n.measureIndex === target.measureIndex &&
                 n.eventIndex === target.eventIndex &&
+                n.noteIndex === target.noteIndex &&
                 n.pitch === note.pitch
             )
           : null;
 
-        const direction = getOffsetForPitch(note.pitch, clef) > 24 ? 'down' : 'up';
+        const direction = note.direction;
 
         // Render a tie ONLY when it resolves — no hanging stub. A tied flag whose target was
         // deleted or turned into a rest draws nothing (and reconnects if the target returns).
@@ -254,7 +389,21 @@ const Staff: React.FC<StaffProps> = ({
               endX={nextNote.x}
               endY={nextNote.y}
               direction={direction}
-              color={tieColor}
+              color={getTieColor(note)}
+            />
+          );
+        } else if (target && !currentMeasureIndices.has(target.measureIndex)) {
+          ties.push(
+            <Tie
+              key={`tie-out-${note.id}`}
+              startX={note.x + 10}
+              startY={note.y}
+              endX={systemEndX}
+              endY={note.y}
+              direction={direction}
+              color={getTieColor(note)}
+              crossesSystemBreak
+              isStartOfTie
             />
           );
         }

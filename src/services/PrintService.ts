@@ -19,8 +19,44 @@ const PRINTING_CLASS = 'riff-printing';
 /** Attribute set on editor when in print mode */
 const PRINT_MODE_ATTR = 'data-print-mode';
 
-/** Selector for the editor element */
-const EDITOR_SELECTOR = '.riff-editor';
+/** id of the <style> that carries the @page size for the score's page format while printing */
+const PAGE_SIZE_STYLE_ID = 'riff-print-page-size';
+
+/** CSS @page size keywords per LayoutConfig.pageSize */
+const PAGE_SIZE_CSS: Record<string, string> = { letter: 'letter', a4: 'A4' };
+
+/**
+ * Adds an `@page { size }` rule matching the page format the page view is rendering
+ * (read from the `data-page-size` attribute ScoreCanvas sets on its pages container), so the
+ * sheet-sized page SVGs print one per sheet without scaling. No-op in scroll view.
+ */
+const injectPageSizeRule = (): void => {
+  const pageSize = document.querySelector('[data-page-size]')?.getAttribute('data-page-size');
+  const size = pageSize ? PAGE_SIZE_CSS[pageSize] : undefined;
+  if (!size) return;
+
+  let style = document.getElementById(PAGE_SIZE_STYLE_ID) as HTMLStyleElement | null;
+  if (!style) {
+    style = document.createElement('style');
+    style.id = PAGE_SIZE_STYLE_ID;
+    document.head.appendChild(style);
+  }
+  style.textContent = `@page { size: ${size}; margin: 0; }`;
+};
+
+const removePageSizeRule = (): void => {
+  document.getElementById(PAGE_SIZE_STYLE_ID)?.remove();
+};
+
+/** Selectors for editor roots that should receive print-mode state */
+const EDITOR_SELECTORS = ['.riff-ScoreEditor', '.riff-editor'];
+
+const getEditorElements = (): Element[] => {
+  const editors = EDITOR_SELECTORS.flatMap((selector) =>
+    Array.from(document.querySelectorAll(selector))
+  );
+  return Array.from(new Set(editors));
+};
 
 // =============================================================================
 // PRINT STATE FUNCTIONS
@@ -51,11 +87,11 @@ export const isPrinting = (): boolean => {
  */
 export const preparePrint = (): void => {
   document.body.classList.add(PRINTING_CLASS);
+  injectPageSizeRule();
 
-  const editor = document.querySelector(EDITOR_SELECTOR);
-  if (editor) {
+  getEditorElements().forEach((editor) => {
     editor.setAttribute(PRINT_MODE_ATTR, 'true');
-  }
+  });
 };
 
 /**
@@ -69,11 +105,11 @@ export const preparePrint = (): void => {
  */
 export const restoreFromPrint = (): void => {
   document.body.classList.remove(PRINTING_CLASS);
+  removePageSizeRule();
 
-  const editor = document.querySelector(EDITOR_SELECTOR);
-  if (editor) {
+  getEditorElements().forEach((editor) => {
     editor.removeAttribute(PRINT_MODE_ATTR);
-  }
+  });
 };
 
 // =============================================================================
@@ -96,9 +132,10 @@ export const openPrintDialog = (): void => {
   preparePrint();
 
   setTimeout(() => {
-    window.print();
-
-    // Restore after print dialog closes (print or cancel)
+    // Restore after the print dialog closes (print or cancel). Chromium and Firefox dispatch
+    // 'afterprint' synchronously inside window.print(), so the listener must exist beforehand or
+    // print mode (hidden toolbar/footer) leaks until the page is reloaded.
     window.addEventListener('afterprint', () => restoreFromPrint(), { once: true });
+    window.print();
   }, TIMING.printStyleSettleMs);
 };

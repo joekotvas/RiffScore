@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { CONFIG } from '@/config';
-import { MEASURE_HIT_AREA_TOP_OFFSET } from '@/constants';
+import { MEASURE_HIT_AREA_HEIGHT, MEASURE_HIT_AREA_TOP_OFFSET } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
 import { getFirstNoteId } from '@/utils/core';
 import { isRestSelected, isBeamGroupSelected } from '@/utils/selection';
@@ -88,11 +88,12 @@ const Measure: React.FC<MeasureProps> = ({
   layout,
   measureLayout, // V2 Layout (SSOT)
   stretchFactor = 1.0, // Justification stretch factor
+  tieStops,
   interaction,
 }) => {
   const { theme } = useTheme();
   const { events } = measureData;
-  const { scale, baseY, clef, keySignature } = layout;
+  const { scale, baseY, clef, keySignature, timeSignature } = layout;
   const {
     selection,
     previewNote,
@@ -110,7 +111,9 @@ const Measure: React.FC<MeasureProps> = ({
     forcedEventPositions,
     forcedWidth,
     stretchFactor,
-    keySignature
+    keySignature,
+    timeSignature,
+    tieStops
   );
 
   // Extract layout data
@@ -132,12 +135,17 @@ const Measure: React.FC<MeasureProps> = ({
   const centeredEvents = useStretched
     ? fallbackLayout.centeredEvents
     : (measureLayout?.legacyLayout?.processedEvents ?? fallbackLayout.centeredEvents);
-  const beamGroups: BeamGroup[] = measureLayout?.beamGroups ?? fallbackLayout.beamGroups;
-  const tupletGroups: TupletBracketGroup[] =
-    measureLayout?.tupletGroups ?? fallbackLayout.tupletGroups;
+  // Beams and tuplet brackets are geometry over the event positions, so a justified system
+  // must take them from the same stretched layout the stems are drawn from.
+  const beamGroups: BeamGroup[] = useStretched
+    ? fallbackLayout.beamGroups
+    : (measureLayout?.beamGroups ?? fallbackLayout.beamGroups);
+  const tupletGroups: TupletBracketGroup[] = useStretched
+    ? fallbackLayout.tupletGroups
+    : (measureLayout?.tupletGroups ?? fallbackLayout.tupletGroups);
 
   // 2. Accidental Logic
-  const accidentalOverrides = useAccidentalContext(events, keySignature);
+  const accidentalOverrides = useAccidentalContext(events, keySignature, tieStops);
 
   // Signature of this measure's content (event + note ids). When it changes — e.g.
   // a notehead is deleted, which unmounts it WITHOUT firing onMouseLeave — the
@@ -202,7 +210,7 @@ const Measure: React.FC<MeasureProps> = ({
         x={0}
         y={baseY - MEASURE_HIT_AREA_TOP_OFFSET}
         width={effectiveWidth}
-        height={CONFIG.lineHeight * 12}
+        height={MEASURE_HIT_AREA_HEIGHT}
         fill="transparent"
         style={{ cursor: cursorStyle }}
         onClick={handleMeasureClick}

@@ -5,13 +5,14 @@ import { LoadScoreCommand } from '@/commands';
 import { validateScore } from '@/utils/validation';
 import { generateABC } from '@/exporters/abcExporter';
 import { generateMusicXML } from '@/exporters/musicXmlExporter';
+import { IMPORT_FORMAT_LABELS, importScoreData } from '@/importers';
 import { generateStaves } from '@/utils/generateScore';
 import { refuse } from '@/refusals';
 
 /**
  * IO method names provided by this factory
  */
-type IOMethodNames = 'loadScore' | 'reset' | 'export';
+type IOMethodNames = 'loadScore' | 'reset' | 'export' | 'import';
 
 /**
  * Factory for creating I/O and Lifecycle API methods.
@@ -97,6 +98,65 @@ export const createIOMethods = (
         message: 'Score reset',
         details: { template, measures },
       });
+      return this;
+    },
+
+    /**
+     * @tested src/__tests__/ScoreAPI.import.test.tsx
+     */
+    import(format, content) {
+      const { dispatch } = ctx;
+
+      if (format !== 'abc' && format !== 'json' && format !== 'musicxml') {
+        setResult({
+          method: 'import',
+          ...refuse('IMPORT_NOT_IMPLEMENTED', { messageCtx: { format } }),
+        });
+        return this;
+      }
+
+      // Text, or the bytes of a file in any realm; anything else is refused by the importer.
+      const result = importScoreData(content, format);
+      if (!result.ok) {
+        // Nothing was loaded: the current score is untouched.
+        setResult({
+          method: 'import',
+          ...refuse('IMPORT_FAILED', { messageCtx: { error: result.error } }),
+          details: { format, warnings: result.warnings },
+        });
+        return this;
+      }
+
+      const { score, warnings } = result;
+      dispatch(new LoadScoreCommand(score));
+      ctx.selectionEngine.clearPendingRestore(); // wholesale replace invalidates the stash (#257)
+
+      const details = {
+        format,
+        title: score.title,
+        staves: score.staves.length,
+        measures: score.staves[0]?.measures.length ?? 0,
+        warnings,
+      };
+      const label = format === 'musicxml' ? IMPORT_FORMAT_LABELS.musicxml : format.toUpperCase();
+      setResult(
+        warnings.length === 0
+          ? {
+              ok: true,
+              status: 'info',
+              method: 'import',
+              message: `Imported ${label}`,
+              details,
+            }
+          : {
+              ok: true,
+              status: 'warning',
+              method: 'import',
+              message: `Imported ${label} with ${warnings.length} warning(s)`,
+              code: 'IMPORT_WARNINGS',
+              details,
+            }
+      );
       return this;
     },
 

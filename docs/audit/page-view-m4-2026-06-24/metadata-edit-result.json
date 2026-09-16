@@ -1,0 +1,37 @@
+{
+  "ok": true,
+  "metadataTitle": "M4 Metadata After",
+  "renderedTitle": "M4 Metadata After",
+  "pageSvgCount": 3,
+  "inputGone": true,
+  "consoleMessages": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+    },
+    {
+      "type": "log",
+      "text": "[HMR] connected"
+    },
+    {
+      "type": "log",
+      "text": "[07:31:09.246] [INFO] COMMAND: SET_METADATA SetMetadataCommand"
+    },
+    {
+      "type": "log",
+      "text": "[07:31:09.249] [INFO] COMMAND: SET_LAYOUT_CONFIG SetLayoutConfigCommand"
+    },
+    {
+      "type": "log",
+      "text": "[07:31:09.249] [INFO] COMMAND: SET_VIEW_MODE SetViewModeCommand"
+    },
+    {
+      "type": "log",
+      "text": "[07:31:09.735] [INFO] COMMAND: SET_METADATA SetMetadataCommand"
+    }
+  ]
+}

@@ -8,10 +8,12 @@
 
 import { CONFIG } from '@/config';
 import { getNoteDuration } from '@/utils/core';
-import { MIDDLE_LINE_Y, NOTE_SPACING_BASE_UNIT, WHOLE_REST_WIDTH, LAYOUT } from '@/constants';
+import { NOTE_SPACING_BASE_UNIT, WHOLE_REST_WIDTH, LAYOUT } from '@/constants';
 import { ScoreEvent, MeasureLayout, HitZone, Note, ChordLayout } from './types';
-import { getNoteWidth, calculateChordLayout, getOffsetForPitch } from './positioning';
-import { getTupletGroup } from './tuplets';
+import { getNoteWidth, calculateChordLayout } from './positioning';
+import { beamedEventIds } from './beaming';
+import { inkAdvance } from './ink';
+import { getTupletGroup, getTupletUnifiedDirection } from './tuplets';
 import { pitchHasAlteration } from '@/services/MusicService';
 import { resolveMeasureAccidentals, type AccidentalGlyphDecision } from '@/utils/accidentalContext';
 
@@ -34,9 +36,6 @@ const HIT_RADIUS = LAYOUT.HIT_ZONE_RADIUS;
 
 /** Padding added before noteheads when accidentals are present */
 const ACCIDENTAL_PADDING = LAYOUT.ACCIDENTAL_PADDING;
-
-/** Minimum width factors for short-duration notes relative to NOTE_SPACING_BASE_UNIT */
-// const MIN_WIDTH_FACTORS = LAYOUT.MIN_WIDTH_FACTORS;
 
 // --- STRETCH FACTOR CALCULATION ---
 
@@ -67,6 +66,8 @@ export const calculateStretchFactor = (
     return 1.0;
   }
 
+  // May be < 1.0 when a single measure is wider than the system: compress it to fit rather than
+  // let it run past the page edge (system breaks never pack more than fits otherwise).
   return availableWidth / naturalWidth;
 };
 
@@ -94,6 +95,10 @@ interface ProcessingContext {
    * including a cancelling natural whose pitch carries no alteration.
    */
   accidentalGlyphs?: Record<string, AccidentalGlyphDecision | null>;
+  /** Ids of events drawn beamed (no flag) — see beamedEventIds. Absent = nothing is beamed. */
+  beamedIds?: ReadonlySet<string>;
+  /** The event after the one being processed (undefined at the barline), for ink clearance. */
+  nextEvent?: ScoreEvent;
 }
 
 // --- HELPER: Hit Zone Management ---
@@ -175,7 +180,9 @@ const createEventHitZones = (
 const getEventMetrics = (
   event: ScoreEvent,
   clef: string,
-  accidentalGlyphs?: Record<string, AccidentalGlyphDecision | null>
+  accidentalGlyphs?: Record<string, AccidentalGlyphDecision | null>,
+  beamed = false,
+  nextEvent?: ScoreEvent
 ) => {
   const chordLayout = calculateChordLayout(event.notes, clef);
   // Reserve accidental width for the glyph the renderer will actually DRAW.
@@ -196,7 +203,14 @@ const getEventMetrics = (
   const secondSpace = hasSecond ? LAYOUT.SECOND_INTERVAL_SPACE : 0;
   const secondAccidentalSpace = hasSecond && hasAccidental ? ACCIDENTAL_PADDING * 0.5 : 0;
 
-  const totalWidth = accidentalSpace + baseWidth + secondSpace + secondAccidentalSpace;
+  // The next event's ink must also clear this event's ink: an unbeamed note's flag or a short
+  // rest's glyph, plus a gap, plus the next glyph's own left half — more than the rhythmic
+  // width for 16th–64th values.
+  const ink = inkAdvance(event, nextEvent, !beamed && !event.isRest, chordLayout.direction);
+  const totalWidth = Math.max(
+    accidentalSpace + baseWidth + secondSpace + secondAccidentalSpace,
+    accidentalSpace + ink
+  );
 
   const minOffset = offsets.length > 0 ? Math.min(0, ...offsets) : 0;
   const maxOffset = offsets.length > 0 ? Math.max(0, ...offsets) : 0;
@@ -282,7 +296,13 @@ const processRegularEvent = (
   eventIndex: number,
   ctx: ProcessingContext
 ): EventProcessResult => {
-  const metrics = getEventMetrics(event, ctx.clef, ctx.accidentalGlyphs);
+  const metrics = getEventMetrics(
+    event,
+    ctx.clef,
+    ctx.accidentalGlyphs,
+    ctx.beamedIds?.has(event.id) ?? false,
+    ctx.nextEvent
+  );
 
   // Apply sync override if provided
   let baseX = ctx.currentX;
@@ -322,35 +342,6 @@ const processRegularEvent = (
 // --- EXTRACTED: Tuplet Group Processor ---
 
 /**
- * Determines the unified stem direction for a tuplet group.
- * Finds the note farthest from the middle line and uses that to decide
- * whether all stems should point up or down.
- *
- * @param tupletGroup - Array of events in the tuplet
- * @param clef - Current clef for pitch-to-Y conversion
- * @returns 'up' or 'down' direction for all stems in the group
- */
-const getTupletUnifiedDirection = (tupletGroup: ScoreEvent[], clef: string): 'up' | 'down' => {
-  let maxDist = -1;
-  let direction: 'up' | 'down' = 'down';
-
-  tupletGroup.forEach((te) => {
-    te.notes.forEach((n: Note) => {
-      // Skip rest notes (null pitch)
-      if (n.pitch === null) return;
-      const y = CONFIG.baseY + getOffsetForPitch(n.pitch, clef);
-      const dist = Math.abs(y - MIDDLE_LINE_Y);
-      if (dist > maxDist) {
-        maxDist = dist;
-        direction = y <= MIDDLE_LINE_Y ? 'down' : 'up';
-      }
-    });
-  });
-
-  return direction;
-};
-
-/**
  * Processes a tuplet group starting at the given index.
  * Handles compressed widths, unified stem direction, and generates
  * hit zones for all events in the group.
@@ -386,9 +377,13 @@ const processTupletGroup = (
   tupletGroup.forEach((tupletEvent) => {
     const evtIndex = events.indexOf(tupletEvent);
 
-    // Calculate compressed width for tuplet
+    // Calculate compressed width for tuplet — but never less than the ink bound: a flagged
+    // member (drawn with the group's unified stem direction) or a short rest must still clear
+    // the next event's glyph, inside the tuplet and after it.
     const originalWidth = getNoteWidth(tupletEvent.duration, tupletEvent.dotted);
-    const tupletWidth = originalWidth * Math.sqrt(ratio[1] / ratio[0]);
+    const flagged = !tupletEvent.isRest && !(ctx.beamedIds?.has(tupletEvent.id) ?? false);
+    const ink = inkAdvance(tupletEvent, events[evtIndex + 1], flagged, unifiedDirection);
+    const tupletWidth = Math.max(originalWidth * Math.sqrt(ratio[1] / ratio[0]), ink);
 
     // Recalculate chord layout with unified direction
     const chordLayout = calculateChordLayout(tupletEvent.notes, ctx.clef, unifiedDirection);
@@ -471,7 +466,9 @@ export const calculateMeasureLayout = (
   isPickup: boolean = false,
   forcedEventPositions?: Record<number, number>,
   stretchFactor: number = 1.0,
-  keySignature: string = 'C'
+  keySignature: string = 'C',
+  tieStops?: ReadonlySet<string>,
+  timeSignature: string = '4/4'
 ): MeasureLayout => {
   // 1. Handle Empty Measure
   if (events.length === 0) {
@@ -481,7 +478,10 @@ export const calculateMeasureLayout = (
   // Resolve, once per measure, which accidental glyph the renderer will draw for
   // each note (with full measure memory) — the SAME engine the exporters use — so
   // width reservation matches the rendered glyph, cancelling naturals included.
-  const accidentalGlyphs = resolveMeasureAccidentals(events, keySignature);
+  const accidentalGlyphs = resolveMeasureAccidentals(events, keySignature, { tieStops });
+  // Which events will be beamed (grouping depends on the meter, never on x): the others carry
+  // flags and reserve room for them.
+  const beamedIds = beamedEventIds(events, timeSignature);
 
   // 2. Initialize State
   const hitZones: HitZone[] = [];
@@ -505,6 +505,8 @@ export const calculateMeasureLayout = (
       clef,
       forcedEventPositions,
       accidentalGlyphs,
+      beamedIds,
+      nextEvent: events[index + 1],
     };
 
     const isTupletStart = event.tuplet && event.tuplet.position === 0;

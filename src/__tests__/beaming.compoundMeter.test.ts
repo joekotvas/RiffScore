@@ -4,7 +4,7 @@
  * Beam grouping must respect the actual beat structure of the meter, not assume
  * 4/4. Expected groupings below are derived from music theory:
  *
- *   - Simple meters group beams by the denominator beat. In 4/4, 3/4 and 2/4 the
+ *   - Simple meters group beams by the denominator beat. In 3/4 and 2/4 the
  *     beat is the quarter note, so consecutive eighths beam in pairs (two eighths
  *     per quarter beat).
  *   - Compound meters (6/8, 9/8, 12/8) feel a dotted-quarter beat that groups
@@ -183,8 +183,8 @@ describe('simple meter beaming (quarter beat)', () => {
   });
 });
 
-describe('4/4 regression (behavior must be identical to before #241)', () => {
-  test('eight eighths beam in four pairs by the quarter beat', () => {
+describe('4/4 — simple quadruple: plain eighths beam by the half bar', () => {
+  test('eight eighths beam in two groups of four (beats 1–2 and 3–4)', () => {
     const events = makeEvents(8, 'eighth');
 
     // Explicit default (no timeSignature) and explicit '4/4' must match.
@@ -193,14 +193,71 @@ describe('4/4 regression (behavior must be identical to before #241)', () => {
     const explicitGroups = groupIds(events, '4/4');
 
     const expected = [
-      ['e1', 'e2'],
-      ['e3', 'e4'],
-      ['e5', 'e6'],
-      ['e7', 'e8'],
+      ['e1', 'e2', 'e3', 'e4'],
+      ['e5', 'e6', 'e7', 'e8'],
     ];
 
     expect(defaultGroups.map((g) => g.ids)).toEqual(expected);
     expect(explicitGroups).toEqual(expected);
+  });
+
+  test('eighths never beam across the middle of the bar', () => {
+    // q | e e | e e | q — beats 2 and 3 straddle the half bar, so they stay two pairs.
+    const events: ScoreEvent[] = [
+      ...makeEvents(1, 'quarter'),
+      ...makeEvents(4, 'eighth').map((e, i) => ({ ...e, id: `e${i + 2}` })),
+      { ...makeEvents(1, 'quarter')[0], id: 'e6' },
+    ];
+    expect(groupIds(events, '4/4')).toEqual([
+      ['e2', 'e3'],
+      ['e4', 'e5'],
+    ]);
+  });
+
+  test('a beat with sixteenths keeps beat-level grouping; a plain-eighth half bar still joins', () => {
+    // e e | s s s s | e e | e e
+    const events: ScoreEvent[] = [
+      ...makeEvents(2, 'eighth'),
+      ...makeEvents(4, 'sixteenth').map((e, i) => ({ ...e, id: `e${i + 3}` })),
+      ...makeEvents(4, 'eighth').map((e, i) => ({ ...e, id: `e${i + 7}` })),
+    ];
+    expect(groupIds(events, '4/4')).toEqual([
+      ['e1', 'e2'],
+      ['e3', 'e4', 'e5', 'e6'],
+      ['e7', 'e8', 'e9', 'e10'],
+    ]);
+  });
+
+  test('a dotted-eighth beat does not join the next beat', () => {
+    // e. s | e e | (half) — the dotted beat keeps its own group.
+    const events: ScoreEvent[] = [
+      { ...makeEvents(1, 'eighth', true)[0], id: 'e1' },
+      { ...makeEvents(1, 'sixteenth')[0], id: 'e2' },
+      ...makeEvents(2, 'eighth').map((e, i) => ({ ...e, id: `e${i + 3}` })),
+      { ...makeEvents(1, 'half')[0], id: 'e5' },
+    ];
+    expect(groupIds(events, '4/4')).toEqual([
+      ['e1', 'e2'],
+      ['e3', 'e4'],
+    ]);
+  });
+
+  test('a rest inside the half bar leaves the remaining pair alone', () => {
+    // r8 e | e e — the first beat has a single eighth (no group), the second beat is a pair.
+    const events: ScoreEvent[] = [
+      { id: 'r1', duration: 'eighth', dotted: false, isRest: true, notes: [] },
+      { ...makeEvents(1, 'eighth')[0], id: 'e2' },
+      ...makeEvents(2, 'eighth').map((e, i) => ({ ...e, id: `e${i + 3}` })),
+      { ...makeEvents(1, 'half')[0], id: 'e5' },
+    ];
+    expect(groupIds(events, '4/4')).toEqual([['e3', 'e4']]);
+  });
+
+  test('2/2 already beams four eighths per half-note beat', () => {
+    expect(groupIds(makeEvents(8, 'eighth'), '2/2')).toEqual([
+      ['e1', 'e2', 'e3', 'e4'],
+      ['e5', 'e6', 'e7', 'e8'],
+    ]);
   });
 
   test('four sixteenths within one beat beam together', () => {
@@ -209,6 +266,54 @@ describe('4/4 regression (behavior must be identical to before #241)', () => {
 
     // 4 sixteenths = 16 quants = exactly one quarter beat -> single group.
     expect(groups).toEqual([['e1', 'e2', 'e3', 'e4']]);
+  });
+
+  test('mixed eighth + sixteenths share a primary beam with a shorter secondary beam (#245)', () => {
+    const events: ScoreEvent[] = [
+      { id: 'e1', duration: 'eighth', dotted: false, notes: [{ id: 'n1', pitch: 'C4' }] },
+      { id: 'e2', duration: 'sixteenth', dotted: false, notes: [{ id: 'n2', pitch: 'D4' }] },
+      { id: 'e3', duration: 'sixteenth', dotted: false, notes: [{ id: 'n3', pitch: 'E4' }] },
+    ];
+    const [group] = calculateBeamingGroups(events, makePositions(events), 'treble', '4/4');
+
+    expect(group.ids).toEqual(['e1', 'e2', 'e3']);
+    const primary = group.segments?.filter((segment) => segment.level === 1) ?? [];
+    const secondary = group.segments?.filter((segment) => segment.level === 2) ?? [];
+
+    expect(primary).toHaveLength(1);
+    expect(secondary).toHaveLength(1);
+    expect(secondary[0].startX).toBeGreaterThan(primary[0].startX);
+    expect(secondary[0].endX).toBeCloseTo(primary[0].endX, 1);
+  });
+
+  test('dotted eighth + sixteenth beams together with a partial secondary beamlet (#245)', () => {
+    const events: ScoreEvent[] = [
+      { id: 'e1', duration: 'eighth', dotted: true, notes: [{ id: 'n1', pitch: 'C4' }] },
+      { id: 'e2', duration: 'sixteenth', dotted: false, notes: [{ id: 'n2', pitch: 'D4' }] },
+    ];
+    const [group] = calculateBeamingGroups(events, makePositions(events), 'treble', '4/4');
+    const primary = group.segments?.find((segment) => segment.level === 1);
+    const secondary = group.segments?.find((segment) => segment.level === 2);
+
+    expect(group.ids).toEqual(['e1', 'e2']);
+    expect(primary).toBeDefined();
+    expect(secondary).toBeDefined();
+    expect(secondary!.endX - secondary!.startX).toBeLessThan(primary!.endX - primary!.startX);
+    expect(secondary!.startX).toBeGreaterThan(primary!.startX);
+  });
+
+  test('mixed values do not beam across a quarter-beat boundary', () => {
+    const events: ScoreEvent[] = [
+      { id: 'e1', duration: 'eighth', dotted: false, notes: [{ id: 'n1', pitch: 'C4' }] },
+      { id: 's1', duration: 'sixteenth', dotted: false, notes: [{ id: 'n2', pitch: 'D4' }] },
+      { id: 'e2', duration: 'eighth', dotted: false, notes: [{ id: 'n3', pitch: 'E4' }] },
+      { id: 's2', duration: 'sixteenth', dotted: false, notes: [{ id: 'n4', pitch: 'F4' }] },
+    ];
+    const groups = groupIds(events, '4/4');
+
+    // e2 starts inside beat 1 but overruns the quarter boundary; it must not
+    // glue the first beat's beam group to the next beat.
+    expect(groups).toEqual([['e1', 's1']]);
   });
 
   test('quarter note breaks the beam (no group spanning the rest of the beat)', () => {

@@ -99,6 +99,12 @@ export interface Staff {
   clef: ClefType;
   keySignature: string; // e.g., 'C', 'G', 'F', 'Bb'
   measures: Measure[];
+  /**
+   * Number of lyric lines (verses) to reserve vertical space for below this staff. Lyrics are
+   * not rendered yet (roadmap #30); the layout reserves the band (`LYRICS` in constants) so
+   * staves and systems already make room. Default 0.
+   */
+  lyricLines?: number;
 }
 
 // ========== CHORD SYMBOLS ==========
@@ -199,6 +205,10 @@ export interface EditorConfig {
     paddingAboveNotes: number;
     /** Absolute minimum Y position (top of canvas) */
     minY: number;
+    /** Half-height of the chord track's hit band, centred on the track baseline */
+    hitBandHalfHeight: number;
+    /** Vertical gap kept between the hit band's edge and a notehead's hit area */
+    noteHitGap: number;
   };
 
   /** Toolbar sizing */
@@ -298,6 +308,15 @@ export interface SystemLayout {
   y: number;
   /** Total height of system (page coords) */
   height: number;
+  /** Headroom reserved above the staff block (page coords): ledger/clef zone and the chord band */
+  paddingTop: number;
+  /** Headroom reserved below the staff block (page coords): ledger/stem zone, lyric band */
+  paddingBottom: number;
+  /**
+   * Y of each staff's top line relative to `y` (page coords). Content-aware: the default
+   * `CONFIG.staffSpacing` apart, more where a staff's ink or lyric band needs it.
+   */
+  staffOffsets: number[];
   /** X position where measures start (page coords, includes preamble + indent) */
   xOffset: number;
   /** Available width for measures (page coords, preamble already excluded) */
@@ -964,6 +983,22 @@ export interface RiffScoreConfig {
 
     // Explicit Content (Overrides Generator Options)
     staves?: Staff[];
+
+    /**
+     * ABC notation to import as the initial score (see docs/ABC_IMPORT.md). Takes precedence
+     * over `musicxml`, `staves` and the generator options; the tune's own title, key, meter and
+     * tempo are used. If the text cannot be parsed the generator options apply and a warning is
+     * logged.
+     */
+    abc?: string;
+
+    /**
+     * MusicXML text to import as the initial score (see docs/MUSICXML_IMPORT.md). Takes
+     * precedence over `staves` and the generator options; the score's own title, key, meter and
+     * tempo are used. If the text cannot be parsed the generator options apply and a warning is
+     * logged.
+     */
+    musicxml?: string;
   };
 
   /** Chord track configuration */

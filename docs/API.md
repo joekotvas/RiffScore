@@ -6,7 +6,7 @@
 
 > **See also**: [Cookbook](./COOKBOOK.md) • [Configuration](./CONFIGURATION.md) • [Architecture](./ARCHITECTURE.md) • [Coding Patterns](./CODING_PATTERNS.md)
 
-**Version:** 1.0.0-alpha.16  
+**Version:** 1.0.0-alpha.17  
 **Access:**
 -   **React**: `const ref = useRef<MusicEditorAPI>(null)`
 -   **Global**: `window.riffScore.get('my-score-id')` or `window.riffScore.active`
@@ -46,7 +46,7 @@ src/hooks/api/
 ├── modification.ts # setPitch, transpose, structure
 ├── history.ts      # undo, redo, transactions
 ├── playback.ts     # play, pause, stop
-├── io.ts           # loadScore, reset, export
+├── io.ts           # loadScore, reset, export, import
 ├── events.ts       # on() subscription wrapper
 ├── chords.ts       # addChord, updateChord, removeChord, selectChord
 ├── layout.ts       # getViewMode, setViewMode, toggleViewMode, getLayoutConfig
@@ -165,7 +165,7 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 | :--- | :--- | :--- | :--- |
 | `setClef` | `setClef(clef)` | ✅ | `'treble'`, `'bass'`, `'alto'`, `'tenor'`, `'grand'`. |
 | `setScoreTitle` | `setScoreTitle(title)` | ✅ | Update title. |
-| `setBpm` | `setBpm(number)` | ✅ | Set tempo. |
+| `setBpm` | `setBpm(number)` | ✅ | Set the score tempo. The toolbar tempo follows it (see [Tempo](./CONFIGURATION.md#tempo)). |
 | `setTheme` | `setTheme(theme)` | ✅ | `'LIGHT'`, `'DARK'`, `'WARM'`, `'COOL'`. |
 | `setScale` | `setScale(number)` | ✅ | Zoom factor. |
 | `setStaffLayout` | `setStaffLayout(type)` | ✅ | `'grand'`, `'single'`. |
@@ -176,9 +176,10 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `loadScore` | `loadScore(score)` | ✅ | Load a `Score` object. |
+| `loadScore` | `loadScore(score)` | ✅ | Load a `Score` object. A score without `layout` keeps the current layout configuration (view mode, page size, margins, …); a score that carries `layout` replaces it. |
 | `reset` | `reset(template?, measures?)` | ✅ | Reset to blank score/template. |
 | `export` | `export(format)` | ✅ | Returns string (empty on error). `'json' \| 'abc' \| 'musicxml'`. |
+| `import` | `import(format, content)` | ✅ | Replace the score (undoable): `'abc'` (ABC notation — see [ABC Import](./ABC_IMPORT.md)), `'musicxml'` (text, or the `ArrayBuffer` / `Uint8Array` of a `.musicxml` or compressed `.mxl` file — see [MusicXML Import](./MUSICXML_IMPORT.md)) or `'json'` (what `export('json')` writes). Reports `IMPORT_WARNINGS` with `details.warnings` when parts of the input cannot be represented; `IMPORT_FAILED` leaves the score untouched. |
 
 ---
 
@@ -275,7 +276,7 @@ interface LayoutConfig {
   pageSize: 'letter' | 'a4';           // Page dimensions
   margins: 'narrow' | 'normal' | 'wide'; // Margin preset
   staffSize: number;                    // 50-150 (percentage)
-  systemSpacing: 'compact' | 'normal' | 'relaxed';
+  systemSpacing: 'compact' | 'normal' | 'relaxed'; // Gap between systems in page view
   viewMode: 'scroll' | 'page';
 }
 ```

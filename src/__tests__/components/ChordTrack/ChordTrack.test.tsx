@@ -8,7 +8,7 @@
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ChordTrack } from '@/components/Canvas/ChordTrack/ChordTrack';
+import { ChordTrack, clipHitBand } from '@/components/Canvas/ChordTrack/ChordTrack';
 import type { ChordSymbol, ChordDisplayConfig } from '@/types';
 import type { ScoreLayout } from '@/engines/layout/types';
 import { CONFIG } from '@/config';
@@ -171,10 +171,26 @@ describe('ChordTrack', () => {
       };
     }
 
+    // One notehead per mapped quant, so the flat lookup agrees with getY.notes()
+    const notes: ScoreLayout['notes'] = {};
+    noteYByQuant?.forEach((y, quant) => {
+      notes[`0-0-e${quant}-n${quant}`] = {
+        localX: 0,
+        y,
+        noteId: `n${quant}`,
+        eventId: `e${quant}`,
+        measureIndex: 0,
+        staffIndex: 0,
+        pitch: 'C4',
+        hitZone: { startX: 0, endX: 0, index: 0, type: 'EVENT', eventId: `e${quant}` },
+      };
+    });
+
     return {
       staves: [{ y: staffTop, index: 0, measures: [] }],
-      notes: {},
+      notes,
       events: {},
+      vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
       getX: createMockGetX(),
       getY: {
         content: { top: staffTop, bottom: staffBottom },
@@ -253,6 +269,83 @@ describe('ChordTrack', () => {
       expect(screen.getByTestId('chord-symbol-chord-2')).toHaveAttribute('data-x', '98');
       // quant 48 -> x = 50 + 48*2 = 146
       expect(screen.getByTestId('chord-symbol-chord-3')).toHaveAttribute('data-x', '146');
+    });
+
+    it('uses a page coordinate resolver when provided', () => {
+      const resolveX = jest.fn((position: { measure: number; quant: number }) => {
+        return 400 + position.measure * 100 + position.quant;
+      });
+
+      render(
+        <svg>
+          <ChordTrack {...defaultProps} resolveX={resolveX} />
+        </svg>
+      );
+
+      expect(screen.getByTestId('chord-symbol-chord-1')).toHaveAttribute('data-x', '400');
+      expect(screen.getByTestId('chord-symbol-chord-2')).toHaveAttribute('data-x', '424');
+      expect(screen.getByTestId('chord-symbol-chord-3')).toHaveAttribute('data-x', '448');
+    });
+
+    describe('per-chord collision offset', () => {
+      // getChordYOffset lifts a chord only when the note at its quant sits ABOVE the system-wide
+      // note extent the track baseline was computed from. createMockLayout derives that extent
+      // from the same map, so no map can trigger it; report the two directly instead: the note
+      // under chord-1 (quant 0) tops out at 20 while the system-wide extent tops out at 60.
+      const noteTop = 20;
+      const systemTop = 60;
+      const base = createMockLayout();
+      const layoutWithHighNote: ScoreLayout = {
+        ...base,
+        getY: {
+          ...base.getY,
+          notes: (quant?: number) =>
+            quant === 0 ? { top: noteTop, bottom: noteTop } : { top: systemTop, bottom: systemTop },
+        },
+      };
+      const { minDistanceFromStaff, paddingAboveNotes, minY } = CONFIG.chordTrack;
+      // Scroll view: baseline = max(minY, min(systemTop − padding, staffTop − minDistance)) = 40;
+      // chord-1's ideal Y (noteTop − padding = 0) is above it, so it is lifted to minY: −40.
+      const scrollTrackY = Math.max(
+        minY,
+        Math.min(systemTop - paddingAboveNotes, CONFIG.baseY - minDistanceFromStaff)
+      );
+      const scrollOffset = Math.max(minY, noteTop - paddingAboveNotes) - scrollTrackY;
+
+      it('lifts the chord in scroll view (the fixture is not vacuous)', () => {
+        expect(scrollOffset).toBeLessThan(0);
+
+        render(
+          <svg>
+            <ChordTrack {...defaultProps} layout={layoutWithHighNote} />
+          </svg>
+        );
+
+        expect(screen.getByTestId('chord-track')).toHaveAttribute(
+          'transform',
+          `translate(0, ${scrollTrackY})`
+        );
+        // eslint-disable-next-line testing-library/no-node-access
+        expect(screen.getByTestId('chord-symbol-chord-1').parentElement).toHaveAttribute(
+          'transform',
+          `translate(0, ${scrollOffset})`
+        );
+      });
+
+      it('does not apply scroll-layout chord Y offsets in page view', () => {
+        render(
+          <svg>
+            <ChordTrack {...defaultProps} layout={layoutWithHighNote} pageTrackY={500} />
+          </svg>
+        );
+
+        expect(screen.getByTestId('chord-track')).toHaveAttribute('transform', 'translate(0, 500)');
+        // eslint-disable-next-line testing-library/no-node-access
+        expect(screen.getByTestId('chord-symbol-chord-1').parentElement).toHaveAttribute(
+          'transform',
+          'translate(0, 0)'
+        );
+      });
     });
 
     it('marks selected chord correctly', () => {
@@ -378,6 +471,33 @@ describe('ChordTrack', () => {
       setMockCoordinates(194, 0);
 
       fireEvent.click(hitArea, { clientX: 194, clientY: 0 });
+
+      expect(onEmptyClick).toHaveBeenCalledWith({ measure: 1, quant: 8 });
+    });
+
+    it('uses the page coordinate resolver for empty-position hit testing', () => {
+      const onEmptyClick = jest.fn();
+      const validPositions = new Map([[1, new Set([8])]]);
+      const resolveX = jest.fn((position: { measure: number; quant: number }) => {
+        return position.measure === 1 && position.quant === 8 ? 320 : null;
+      });
+
+      render(
+        <svg data-testid="test-svg">
+          <ChordTrack
+            {...defaultProps}
+            chords={[]}
+            validPositions={validPositions}
+            resolveX={resolveX}
+            onEmptyClick={onEmptyClick}
+          />
+        </svg>
+      );
+
+      const hitArea = screen.getByTestId('chord-track-hit-area');
+      setMockCoordinates(320, 0);
+
+      fireEvent.click(hitArea, { clientX: 320, clientY: 0 });
 
       expect(onEmptyClick).toHaveBeenCalledWith({ measure: 1, quant: 8 });
     });
@@ -674,6 +794,58 @@ describe('ChordTrack', () => {
 
       // With high note at Y=30, trackY = 30 - PADDING_ABOVE_NOTES (20) = 10
       expect(trackGroup).toHaveAttribute('transform', 'translate(0, 10)');
+    });
+  });
+
+  describe('hit band', () => {
+    // hitBandHalfHeight 20; a note's hit area reaches HIT_AREA.HEIGHT / 2 + noteHitGap = 8
+    // above and below its centre.
+    describe('clipHitBand', () => {
+      it('keeps the full band when no note is near it', () => {
+        expect(clipHitBand([], 40)).toEqual({ y: -20, height: 40 });
+        expect(clipHitBand([100, 5], 40)).toEqual({ y: -20, height: 40 });
+      });
+
+      it('clips the bottom edge above a note intruding from below', () => {
+        // Band 10..50, note 50 reaches up to 42
+        expect(clipHitBand([50], 30)).toEqual({ y: -20, height: 32 });
+      });
+
+      it('clips the top edge below a note intruding from above', () => {
+        // Band 20..60, note 15 reaches down to 23
+        expect(clipHitBand([15], 40)).toEqual({ y: -17, height: 37 });
+      });
+
+      it('collapses instead of covering notes that leave no room', () => {
+        // Band 20..60, note 30 reaches down to 38, note 45 reaches up to 37
+        expect(clipHitBand([30, 45], 40)).toEqual({ y: -2, height: 0 });
+      });
+    });
+
+    it('ends the hit rect above the highest note in scroll view', () => {
+      // trackY = 30 - 20 = 10, band 10..50, note hit area top at 22
+      render(
+        <svg data-testid="test-svg">
+          <ChordTrack {...defaultProps} layout={createMockLayout(new Map([[0, 30]]))} />
+        </svg>
+      );
+
+      const hitArea = screen.getByTestId('chord-track-hit-area');
+      expect(hitArea).toHaveAttribute('y', '-20');
+      expect(hitArea).toHaveAttribute('height', '32');
+    });
+
+    it('ends the hit rect above the highest note of the system in page view', () => {
+      // Band 20..60 around the given baseline, note hit area top at 42
+      render(
+        <svg data-testid="test-svg">
+          <ChordTrack {...defaultProps} pageTrackY={40} pageNoteYs={[50, 70]} />
+        </svg>
+      );
+
+      const hitArea = screen.getByTestId('chord-track-hit-area');
+      expect(hitArea).toHaveAttribute('y', '-20');
+      expect(hitArea).toHaveAttribute('height', '22');
     });
   });
 });

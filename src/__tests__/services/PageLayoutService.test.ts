@@ -17,8 +17,16 @@ import {
   calculateAvailableContentHeight,
   distributeSystemsToPages,
 } from '@/services/PageLayoutService';
-import { calculateStretchFactor } from '@/engines/layout';
-import { DEFAULT_LAYOUT_CONFIG, FIRST_SYSTEM_INDENT, PAGE_GAP, FOOTER_HEIGHT } from '@/config';
+import { calculateMeasureWidth, calculateStretchFactor } from '@/engines/layout';
+import { calculateScoreLayout } from '@/engines/layout/scoreLayout';
+import {
+  CONFIG,
+  DEFAULT_LAYOUT_CONFIG,
+  FIRST_SYSTEM_INDENT,
+  PAGE_GAP,
+  FOOTER_HEIGHT,
+} from '@/config';
+import { MEASURE_HIT_AREA_HEIGHT, MEASURE_HIT_AREA_TOP_OFFSET, STAFF_GEOMETRY } from '@/constants';
 import type { Score, LayoutConfig } from '@/types';
 
 // ============================================================================
@@ -121,6 +129,58 @@ const createMultiMeasureScore = (measureCount: number = 4): Score => {
     ],
   };
 };
+
+/**
+ * Creates a score whose measures each hold four quarter notes, so a handful of measures wraps
+ * into several systems on one page (and a few hundred spans several pages).
+ */
+const createWrappingScore = (measureCount: number): Score => ({
+  title: 'Wrapping',
+  timeSignature: '4/4',
+  keySignature: 'C',
+  bpm: 120,
+  staves: [
+    {
+      id: 'staff-1',
+      clef: 'treble',
+      keySignature: 'C',
+      measures: Array.from({ length: measureCount }, (_, m) => ({
+        id: `m${m}`,
+        events: ['C4', 'D4', 'E4', 'F4'].map((pitch, e) => ({
+          id: `m${m}-e${e}`,
+          duration: 'quarter',
+          dotted: false,
+          notes: [{ id: `m${m}-n${e}`, pitch }],
+        })),
+      })),
+    },
+  ],
+});
+
+const createOverWideMeasureScore = (): Score => ({
+  title: 'Over-wide Measure',
+  timeSignature: '4/4',
+  keySignature: 'C',
+  bpm: 120,
+  staves: [
+    {
+      id: 'staff-1',
+      clef: 'treble',
+      keySignature: 'C',
+      measures: [
+        {
+          id: 'm0',
+          events: Array.from({ length: 96 }, (_, index) => ({
+            id: `e${index}`,
+            duration: 'quarter',
+            dotted: false,
+            notes: [{ id: `n${index}`, pitch: 'C4' }],
+          })),
+        },
+      ],
+    },
+  ],
+});
 
 /**
  * Creates a grand staff score (treble + bass).
@@ -437,7 +497,7 @@ describe('PageLayoutService - Justification', () => {
       const layout = calculatePageLayout(score);
 
       // Get measure widths from the page layout
-      const measureWidths = calculateAllMeasureWidths(score, 100);
+      const measureWidths = calculateAllMeasureWidths(score, layout.staffScale);
 
       // Check each justified system
       for (const system of layout.systems) {
@@ -466,6 +526,22 @@ describe('PageLayoutService - Justification', () => {
         // Verify stretched width matches contentWidth (within tolerance)
         expect(stretchedWidth).toBeCloseTo(system.contentWidth, 1);
       }
+    });
+
+    it('compresses a single over-wide measure to the system content width instead of clipping', () => {
+      const score = createOverWideMeasureScore();
+      const layout = calculatePageLayout(score);
+      const measureWidths = calculateAllMeasureWidths(score, layout.staffScale);
+      const firstSystem = layout.pages[0].systems[0];
+      const firstMeasurePosition = firstSystem.measurePositions[0];
+
+      // Sanity: the measure really is wider than the system
+      expect(measureWidths[0]).toBeGreaterThan(firstSystem.contentWidth);
+      // It is squeezed to fit rather than allowed past the right margin / page edge
+      expect(firstMeasurePosition.width).toBeCloseTo(firstSystem.contentWidth, 1);
+      expect(firstMeasurePosition.x + firstMeasurePosition.width).toBeLessThanOrEqual(
+        layout.contentArea.x + layout.contentArea.width + 0.01
+      );
     });
 
     it('non-first justified systems have consistent right edge', () => {
@@ -511,12 +587,16 @@ describe('PageLayoutService - Page Layout', () => {
       const score = createEmptyScore();
       const layout = calculatePageLayout(score);
       expect(layout.systems).toEqual([]);
+      expect(layout.pages).toHaveLength(1);
+      expect(layout.pageCount).toBe(1);
     });
 
     it('returns empty systems for score with empty staves', () => {
       const score = createScoreWithEmptyStaves();
       const layout = calculatePageLayout(score);
       expect(layout.systems).toEqual([]);
+      expect(layout.pages).toHaveLength(1);
+      expect(layout.pageCount).toBe(1);
     });
 
     it('creates system for single measure', () => {
@@ -643,6 +723,19 @@ describe('PageLayoutService - Lookup Functions', () => {
       const layout = calculatePageLayout(score);
       expect(getSystemForMeasure(999, layout)).toBe(-1);
     });
+
+    it('finds systems beyond the first page', () => {
+      const score = createMultiMeasureScore(80);
+      const layout = calculatePageLayout(score);
+      const laterPage = layout.pages.find((page) => page.index > 0 && page.systems.length > 0);
+
+      expect(laterPage).toBeDefined();
+
+      const laterSystem = laterPage!.systems[0];
+      const measureIndex = laterSystem.measures[0];
+
+      expect(getSystemForMeasure(measureIndex, layout)).toBe(laterSystem.index);
+    });
   });
 
   describe('getMeasureOriginInSystem', () => {
@@ -682,6 +775,23 @@ describe('PageLayoutService - Lookup Functions', () => {
       const layout = calculatePageLayout(score);
       expect(getMeasureOriginInSystem(0, layout, [])).toBeNull();
     });
+
+    it('returns origins for measures beyond the first page', () => {
+      const score = createMultiMeasureScore(80);
+      const layout = calculatePageLayout(score);
+      const widths = calculateAllMeasureWidths(score);
+      const laterPage = layout.pages.find((page) => page.index > 0 && page.systems.length > 0);
+
+      expect(laterPage).toBeDefined();
+
+      const laterSystem = laterPage!.systems[0];
+      const measureIndex = laterSystem.measures[0];
+      const result = getMeasureOriginInSystem(measureIndex, layout, widths);
+
+      expect(result).not.toBeNull();
+      expect(result!.systemIndex).toBe(laterSystem.index);
+      expect(result!.x).toBeCloseTo(laterSystem.xOffset, 1);
+    });
   });
 });
 
@@ -711,26 +821,32 @@ describe('PageLayoutService - Edge Cases', () => {
     expect(narrowLayout.contentWidth).toBeGreaterThan(wideLayout.contentWidth);
   });
 
-  it('ignores systemSpacing preset in page view (uses vertical justification)', () => {
-    // Page view uses vertical justification instead of fixed spacing presets
-    // All preset values should produce the same layout
-    const score = createMultiMeasureScore(8);
+  it('applies the systemSpacing preset to the gap between systems', () => {
+    const presets: LayoutConfig['systemSpacing'][] = ['compact', 'normal', 'relaxed'];
 
-    const compactLayout = calculatePageLayout(score, {
-      ...DEFAULT_LAYOUT_CONFIG,
-      systemSpacing: 'compact',
+    // A page that is not full is not justified, so the preset sets the gap between systems
+    // directly: compact < normal < relaxed, stepping by the same amount each time.
+    const short = createWrappingScore(12);
+    const gaps = presets.map((systemSpacing) => {
+      const layout = calculatePageLayout(short, { ...DEFAULT_LAYOUT_CONFIG, systemSpacing });
+      expect(layout.pageCount).toBe(1);
+      expect(layout.systems.length).toBeGreaterThan(1);
+      return layout.systems[1].y - layout.systems[0].y;
     });
-    const relaxedLayout = calculatePageLayout(score, {
-      ...DEFAULT_LAYOUT_CONFIG,
-      systemSpacing: 'relaxed',
-    });
+    const [compactGap, normalGap, relaxedGap] = gaps;
+    expect(compactGap).toBeLessThan(normalGap);
+    expect(normalGap).toBeLessThan(relaxedGap);
+    expect(relaxedGap - normalGap).toBeCloseTo(normalGap - compactGap, 5);
 
-    // Both should have the same system positions (vertical justification)
-    if (compactLayout.systems.length > 1 && relaxedLayout.systems.length > 1) {
-      const compactGap = compactLayout.systems[1].y - compactLayout.systems[0].y;
-      const relaxedGap = relaxedLayout.systems[1].y - relaxedLayout.systems[0].y;
-      expect(relaxedGap).toBe(compactGap);
-    }
+    // A wider gap packs fewer systems per page, so page counts never decrease across presets.
+    const long = createWrappingScore(240);
+    const pageCounts = presets.map(
+      (systemSpacing) =>
+        calculatePageLayout(long, { ...DEFAULT_LAYOUT_CONFIG, systemSpacing }).pageCount
+    );
+    expect(pageCounts[0]).toBeGreaterThan(1);
+    expect(pageCounts[0]).toBeLessThanOrEqual(pageCounts[1]);
+    expect(pageCounts[1]).toBeLessThanOrEqual(pageCounts[2]);
   });
 
   it('correctly numbers system indices', () => {
@@ -797,6 +913,9 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         measures: [i],
         y: 0,
         height: systemHeight,
+        paddingTop: 0,
+        paddingBottom: 0,
+        staffOffsets: [0],
         xOffset: 100,
         contentWidth: 500,
         preambleWidth: 100,
@@ -807,25 +926,13 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
       }));
 
     it('returns empty array for no systems', () => {
-      const result = distributeSystemsToPages(
-        [],
-        contentArea,
-        metadataBottom,
-        defaultSpacing,
-        systemHeight
-      );
+      const result = distributeSystemsToPages([], contentArea, metadataBottom, defaultSpacing);
       expect(result).toEqual([]);
     });
 
     it('places single system on single page', () => {
       const systems = createMockSystems(1);
-      const result = distributeSystemsToPages(
-        systems,
-        contentArea,
-        metadataBottom,
-        defaultSpacing,
-        systemHeight
-      );
+      const result = distributeSystemsToPages(systems, contentArea, metadataBottom, defaultSpacing);
 
       expect(result).toHaveLength(1);
       expect(result[0].pageIndex).toBe(0);
@@ -840,8 +947,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         systems,
         smallContentArea,
         metadataBottom,
-        defaultSpacing,
-        systemHeight
+        defaultSpacing
       );
 
       expect(result.length).toBeGreaterThan(1);
@@ -853,13 +959,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
 
     it('sets page-relative Y coordinates', () => {
       const systems = createMockSystems(2);
-      const result = distributeSystemsToPages(
-        systems,
-        contentArea,
-        metadataBottom,
-        defaultSpacing,
-        systemHeight
-      );
+      const result = distributeSystemsToPages(systems, contentArea, metadataBottom, defaultSpacing);
 
       // First system on page 0 should start at metadataBottom
       expect(result[0].systems[0].y).toBe(metadataBottom);
@@ -867,13 +967,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
 
     it('uses defaultSpacing for single-page scores', () => {
       const systems = createMockSystems(2);
-      const result = distributeSystemsToPages(
-        systems,
-        contentArea,
-        metadataBottom,
-        defaultSpacing,
-        systemHeight
-      );
+      const result = distributeSystemsToPages(systems, contentArea, metadataBottom, defaultSpacing);
 
       // Single page with 2 systems should use defaultSpacing
       expect(result).toHaveLength(1);
@@ -883,13 +977,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
 
     it('returns justifiedSpacing for each page', () => {
       const systems = createMockSystems(2);
-      const result = distributeSystemsToPages(
-        systems,
-        contentArea,
-        metadataBottom,
-        defaultSpacing,
-        systemHeight
-      );
+      const result = distributeSystemsToPages(systems, contentArea, metadataBottom, defaultSpacing);
 
       expect(result[0]).toHaveProperty('justifiedSpacing');
       expect(typeof result[0].justifiedSpacing).toBe('number');
@@ -903,13 +991,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
       // Page 1+: available = 400 - 40 = 360
       // Can fit: floor((360 + 12) / (80 + 12)) = 4 systems
       const systems = createMockSystems(7); // 3 on page 0, 4 on page 1
-      const result = distributeSystemsToPages(
-        systems,
-        contentArea,
-        metadataBottom,
-        defaultSpacing,
-        systemHeight
-      );
+      const result = distributeSystemsToPages(systems, contentArea, metadataBottom, defaultSpacing);
 
       // Should span 2 pages
       expect(result.length).toBeGreaterThanOrEqual(2);
@@ -923,27 +1005,88 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
       }
     });
 
-    it('justifies single page when at capacity', () => {
-      // Create a content area that can fit exactly 3 systems with minimum spacing
-      // Available height = 310 (400 - 40 footer - 50 metadata offset)
-      // 3 systems with min spacing: 80 + (80+12) + (80+12) = 264 < 310
-      // 4 systems with min spacing: 264 + (80+12) = 356 > 310
-      // So 3 systems is at capacity
+    it('does not vertically justify a single page even when it is at capacity', () => {
+      // Available height = 330 (400 - 20 footer - 50 metadata offset).
+      // 3 systems with min spacing: 80 + (80+12) + (80+12) = 264 <= 330; a 4th would not fit,
+      // so the page counts as full — but it is also the LAST page, so it keeps the default
+      // spacing (capped so the systems still fit: (330 - 240) / 2 = 45) instead of being
+      // spread to the bottom margin.
       const systems = createMockSystems(3);
+      const result = distributeSystemsToPages(systems, contentArea, metadataBottom, defaultSpacing);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].justifiedSpacing).toBeCloseTo(Math.min(defaultSpacing, 45), 5);
+      const last = result[0].systems[2];
+      expect(last.y + systemHeight).toBeLessThanOrEqual(metadataBottom + 330 + 1e-6);
+    });
+
+    it('justifies full pages before the last one but never the last page', () => {
+      // contentArea.height 250: page 0 has 180 available (250 - 20 - 50) and holds 2 systems
+      // (80 + 92 = 172); page 1 has 230 available and also holds 2 (a 3rd needs 264).
+      // Both pages are "full", but only page 0 is justified; the last page inherits its spacing.
+      const shortContentArea = { x: 50, y: 50, width: 600, height: 250 };
+      const systems = createMockSystems(4);
       const result = distributeSystemsToPages(
+        systems,
+        shortContentArea,
+        metadataBottom,
+        defaultSpacing
+      );
+
+      expect(result).toHaveLength(2);
+      expect(result[0].systems).toHaveLength(2);
+      expect(result[1].systems).toHaveLength(2);
+      // Page 0: justified => (180 - 160) / 1 = 20
+      expect(result[0].justifiedSpacing).toBeCloseTo(20, 5);
+      // Page 1 (last): NOT spread to (230 - 160) = 70; keeps page 0's 20
+      expect(result[1].justifiedSpacing).toBeCloseTo(20, 5);
+    });
+
+    it('scales the packing gap by the spacing multiplier', () => {
+      // Page 0 has 330 available (400 - 20 footer - 50 metadata). With 70px systems, four fit
+      // when the gap is 6 (compact: 280 + 18) or 12 (normal: 280 + 36) but not when it is 18
+      // (relaxed: 280 + 54 = 334), which pushes the fourth system onto a second page.
+      const shortSystems = createMockSystems(4).map((system) => ({ ...system, height: 70 }));
+      const run = (multiplier: number) =>
+        distributeSystemsToPages(
+          shortSystems,
+          contentArea,
+          metadataBottom,
+          12 * multiplier,
+          multiplier
+        );
+
+      const compact = run(0.5);
+      const normal = run(1);
+      const relaxed = run(1.5);
+
+      expect(compact).toHaveLength(1);
+      expect(normal).toHaveLength(1);
+      expect(relaxed).toHaveLength(2);
+      expect(relaxed[0].systems).toHaveLength(3);
+
+      // The (last, hence unjustified) page keeps the preset's gap between slots.
+      expect(compact[0].justifiedSpacing).toBeCloseTo(6, 5);
+      expect(normal[0].justifiedSpacing).toBeCloseTo(12, 5);
+      expect(normal[0].systems[1].y - normal[0].systems[0].y).toBeCloseTo(70 + 12, 5);
+    });
+
+    it('defaults the spacing multiplier to 1', () => {
+      const systems = createMockSystems(5);
+      const implicit = distributeSystemsToPages(
+        systems,
+        contentArea,
+        metadataBottom,
+        defaultSpacing
+      );
+      const explicit = distributeSystemsToPages(
         systems,
         contentArea,
         metadataBottom,
         defaultSpacing,
-        systemHeight
+        1
       );
-
-      // Should be single page
-      expect(result).toHaveLength(1);
-      // Should be justified (spacing > minimum) because page is at capacity
-      const spacing = result[0].justifiedSpacing;
-      // Justified spacing = (310 - 3*80) / 2 = 35
-      expect(spacing).toBeGreaterThan(12); // MIN_SYSTEM_SPACING = 12
+      expect(explicit).toEqual(implicit);
     });
 
     it('final page uses previous page spacing', () => {
@@ -954,8 +1097,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
         systems,
         largeContentArea,
         metadataBottom,
-        defaultSpacing,
-        systemHeight
+        defaultSpacing
       );
 
       if (result.length > 1) {
@@ -1033,8 +1175,7 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
       if (layout.pageCount > 1) {
         // Multiple pages: totalHeight = (pageCount * pageHeight) + ((pageCount - 1) * pageGap)
         const expectedHeight =
-          layout.pageCount * layout.dimensions.height +
-          (layout.pageCount - 1) * PAGE_GAP;
+          layout.pageCount * layout.dimensions.height + (layout.pageCount - 1) * PAGE_GAP;
         expect(layout.totalHeight).toBe(expectedHeight);
       }
     });
@@ -1106,5 +1247,188 @@ describe('PageLayoutService - Multi-Page Pagination', () => {
       // footer should equal first page footer
       expect(layout.footer).toEqual(layout.pages[0]?.footer);
     });
+  });
+});
+
+// ============================================================================
+// SYSTEM HEADROOM (page view)
+// Systems reserve the measure hit-area ledger zones (and the chord band when the score has
+// chord symbols) above and below the staff block, so neighbouring systems' interactive areas
+// and chord tracks never overlap and nothing is packed past the page edge.
+// ============================================================================
+
+describe('PageLayoutService - System headroom', () => {
+  type Clef = Score['staves'][number]['clef'];
+
+  const createQuarterNoteScore = (
+    measureCount: number,
+    withChords: boolean,
+    staves: number = 1
+  ): Score => ({
+    title: 'Headroom',
+    timeSignature: '4/4',
+    keySignature: 'C',
+    bpm: 120,
+    staves: Array.from({ length: staves }, (_, s) => ({
+      id: `staff-${s}`,
+      clef: (s === 0 ? 'treble' : 'bass') as Clef,
+      keySignature: 'C',
+      measures: Array.from({ length: measureCount }, (_, m) => ({
+        id: `s${s}-m${m}`,
+        events: ['C4', 'D4', 'E4', 'F4'].map((pitch, e) => ({
+          id: `s${s}-m${m}-e${e}`,
+          duration: 'quarter' as const,
+          dotted: false,
+          notes: [{ id: `s${s}-m${m}-e${e}-n`, pitch }],
+        })),
+      })),
+    })),
+    chordTrack: withChords
+      ? Array.from({ length: measureCount }, (_, m) => ({
+          id: `c${m}`,
+          measure: m,
+          quant: 0,
+          symbol: 'C',
+        }))
+      : undefined,
+  });
+
+  const staffScale = DEFAULT_LAYOUT_CONFIG.staffSize / 100;
+  const ledgerAbove = MEASURE_HIT_AREA_TOP_OFFSET * staffScale;
+  const ledgerBelow =
+    (MEASURE_HIT_AREA_HEIGHT - MEASURE_HIT_AREA_TOP_OFFSET - STAFF_GEOMETRY.height) * staffScale;
+
+  it('reports the drawn grand-staff height (staff spacing + one staff), not one staff per stave', () => {
+    const layout = calculatePageLayout(createQuarterNoteScore(4, false, 2));
+    expect(layout.systems[0].height).toBeCloseTo(
+      (CONFIG.staffSpacing + STAFF_GEOMETRY.height) * staffScale,
+      5
+    );
+  });
+
+  it('reserves the measure hit-area ledger zones above and below every system', () => {
+    const layout = calculatePageLayout(createQuarterNoteScore(24, false));
+    const systems = layout.pages.flatMap((page) => page.systems);
+    expect(systems.length).toBeGreaterThan(1);
+    for (const system of systems) {
+      expect(system.paddingTop).toBeCloseTo(ledgerAbove, 5);
+      expect(system.paddingBottom).toBeCloseTo(ledgerBelow, 5);
+    }
+  });
+
+  it('reserves the chord band above systems when the score has chord symbols', () => {
+    const layout = calculatePageLayout(createQuarterNoteScore(24, true));
+    const { minDistanceFromStaff, hitBandHalfHeight } = CONFIG.chordTrack;
+    for (const system of layout.pages.flatMap((page) => page.systems)) {
+      expect(system.paddingTop).toBeGreaterThanOrEqual(
+        (minDistanceFromStaff + hitBandHalfHeight) * staffScale
+      );
+    }
+  });
+
+  it.each([[false], [true]])(
+    'never overlaps consecutive systems on a page, staff block or chord band (chords: %s)',
+    (withChords) => {
+      const { minDistanceFromStaff, hitBandHalfHeight } = CONFIG.chordTrack;
+      for (const measureCount of [8, 16, 24, 40]) {
+        const layout = calculatePageLayout(createQuarterNoteScore(measureCount, withChords));
+        for (const page of layout.pages) {
+          for (let i = 1; i < page.systems.length; i++) {
+            const prev = page.systems[i - 1];
+            const next = page.systems[i];
+            const prevSlotBottom = prev.y + prev.height + prev.paddingBottom;
+            const nextSlotTop = next.y - next.paddingTop;
+            expect(nextSlotTop).toBeGreaterThanOrEqual(prevSlotBottom - 1e-6);
+            // The chord band at its default position clears the previous staff block
+            const chordBandTop = next.y - (minDistanceFromStaff + hitBandHalfHeight) * staffScale;
+            expect(chordBandTop).toBeGreaterThanOrEqual(prev.y + prev.height - 1e-6);
+          }
+        }
+      }
+    }
+  );
+
+  it('keeps every system inside the available content height, including not-full pages', () => {
+    for (const measureCount of [4, 8, 12, 16, 18, 20, 22, 24, 30, 40, 60]) {
+      const layout = calculatePageLayout(createQuarterNoteScore(measureCount, false));
+      for (const page of layout.pages) {
+        const available = calculateAvailableContentHeight(
+          page.index,
+          layout.contentArea,
+          layout.metadata.bottom
+        );
+        const top = page.index === 0 ? layout.metadata.bottom : layout.contentArea.y;
+        for (const system of page.systems) {
+          expect(system.y - system.paddingTop).toBeGreaterThanOrEqual(top - 1e-6);
+          expect(system.y + system.height + system.paddingBottom).toBeLessThanOrEqual(
+            top + available + 1e-6
+          );
+        }
+      }
+    }
+  });
+});
+
+// ============================================================================
+// WIDTH SOURCE — page layout must size measures exactly as the renderer draws them
+// ============================================================================
+
+describe('PageLayoutService - Width source', () => {
+  type Clef = Score['staves'][number]['clef'];
+  const note = (id: string, pitch: string, duration: 'quarter' | 'eighth') => ({
+    id,
+    duration,
+    dotted: false,
+    notes: [{ id: `${id}-n`, pitch }],
+  });
+  /** D major (F#/C# carry no accidental glyphs) with differing rhythms across staves. */
+  const sharpKeyGrandStaff = (measureCount = 6): Score => ({
+    title: 'Widths',
+    timeSignature: '4/4',
+    keySignature: 'D',
+    bpm: 120,
+    staves: [
+      {
+        id: 's0',
+        clef: 'treble' as Clef,
+        keySignature: 'D',
+        measures: Array.from({ length: measureCount }, (_, m) => ({
+          id: `s0-m${m}`,
+          events: ['F#4', 'A4', 'C#5', 'D5'].map((p, e) => note(`s0-m${m}-e${e}`, p, 'quarter')),
+        })),
+      },
+      {
+        id: 's1',
+        clef: 'bass' as Clef,
+        keySignature: 'D',
+        measures: Array.from({ length: measureCount }, (_, m) => ({
+          id: `s1-m${m}`,
+          events: ['D3', 'E3', 'F#3', 'G3', 'A3', 'B3', 'C#4', 'D4'].map((p, e) =>
+            note(`s1-m${m}-e${e}`, p, 'eighth')
+          ),
+        })),
+      },
+    ],
+  });
+
+  it('sizes measures with the synchronized, key-aware widths the renderer uses', () => {
+    const score = sharpKeyGrandStaff();
+    const rendered = calculateScoreLayout(score);
+    const widths = calculateAllMeasureWidths(score, 0.7);
+    expect(widths).toHaveLength(6);
+    widths.forEach((width, i) => {
+      expect(width).toBeCloseTo(rendered.staves[0].measures[i].width * 0.7, 5);
+      expect(width).toBeCloseTo(rendered.staves[1].measures[i].width * 0.7, 5);
+    });
+    expect(calculateSingleMeasureWidth(score, 3, 0.7)).toBeCloseTo(
+      rendered.staves[0].measures[3].width * 0.7,
+      5
+    );
+  });
+
+  it('is not the per-staff natural width (which assumes key C and one staff)', () => {
+    const score = sharpKeyGrandStaff();
+    const naturalTreble = calculateMeasureWidth(score.staves[0].measures[0].events);
+    expect(calculateAllMeasureWidths(score, 1)[0]).not.toBeCloseTo(naturalTreble, 0);
   });
 });

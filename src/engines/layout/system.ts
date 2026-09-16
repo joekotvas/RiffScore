@@ -7,9 +7,12 @@
 
 import { CONFIG } from '@/config';
 import { getNoteDuration } from '@/utils/core';
-import { NOTE_SPACING_BASE_UNIT, LAYOUT } from '@/constants';
+import { NOTE_SPACING, NOTE_SPACING_BASE_UNIT, LAYOUT } from '@/constants';
+import { beamedEventIds } from './beaming';
+import { inkAdvance } from './ink';
 import { ScoreEvent, Note } from './types';
 import { calculateChordLayout } from './positioning';
+import { getTupletGroup, getTupletUnifiedDirection } from './tuplets';
 import { pitchHasAlteration } from '@/services/MusicService';
 import { resolveMeasureAccidentals, type AccidentalGlyphDecision } from '@/utils/accidentalContext';
 
@@ -19,7 +22,6 @@ import { resolveMeasureAccidentals, type AccidentalGlyphDecision } from '@/utils
 const ACCIDENTAL_PADDING = LAYOUT.ACCIDENTAL_PADDING;
 
 /** Minimum width factors for short-duration notes */
-const MIN_WIDTH_FACTORS = LAYOUT.MIN_WIDTH_FACTORS;
 
 // --- HELPERS ---
 
@@ -61,6 +63,24 @@ const findEventAtQuant = (events: ScoreEvent[], targetQuant: number): ScoreEvent
     if (q > targetQuant) return null; // Passed target, no match
   }
   return null;
+};
+
+/**
+ * The stem direction an unbeamed note is drawn with (so which side its flag is on): its
+ * chord's own direction, or its tuplet's unified direction — the same rules measure.ts applies.
+ */
+const drawnStemDirection = (
+  events: ScoreEvent[],
+  event: ScoreEvent,
+  clef: string
+): 'up' | 'down' => {
+  if (event.tuplet) {
+    const index = events.indexOf(event);
+    const startIndex = Math.max(0, index - (event.tuplet.position ?? 0));
+    const group = getTupletGroup(events, startIndex);
+    if (group.includes(event)) return getTupletUnifiedDirection(group, clef);
+  }
+  return calculateChordLayout(event.notes, clef).direction;
 };
 
 /**
@@ -115,22 +135,30 @@ const calculateEventPadding = (
 const getSegmentWidthRequirement = (
   startQuant: number,
   endQuant: number,
-  measures: { events: ScoreEvent[] }[],
-  accidentalGlyphsByMeasure?: Record<string, AccidentalGlyphDecision | null>[]
+  measures: { events: ScoreEvent[]; clef?: string }[],
+  accidentalGlyphsByMeasure?: Record<string, AccidentalGlyphDecision | null>[],
+  beamedIdsByMeasure?: ReadonlySet<string>[]
 ): number => {
   const segmentDuration = endQuant - startQuant;
-  let maxSegmentWidth = NOTE_SPACING_BASE_UNIT * Math.sqrt(segmentDuration);
+  let maxSegmentWidth = NOTE_SPACING.UNIT * Math.sqrt(segmentDuration);
   let maxExtraPadding = 0;
 
   measures.forEach((measure, idx) => {
     const event = findEventAtQuant(measure.events, startQuant);
     if (!event) return;
 
-    // Check minimum width for short notes
-    const minFactor = MIN_WIDTH_FACTORS[event.duration] || 0;
-    if (minFactor > 0) {
-      maxSegmentWidth = Math.max(maxSegmentWidth, minFactor * NOTE_SPACING_BASE_UNIT);
-    }
+    // Check minimum width for short notes (same floor as getNoteWidth)
+    const minWidth = NOTE_SPACING.MIN_WIDTH[event.duration] ?? 0;
+    maxSegmentWidth = Math.max(maxSegmentWidth, minWidth);
+
+    // Ink: an unbeamed note's flag or a short rest's glyph must clear the next event's glyph.
+    // The flag's side follows the stem, which the clef decides (same rule as the renderer and
+    // measure.ts), so a down-stem flag reserves only its narrower extent.
+    const flagged = !event.isRest && !(beamedIdsByMeasure?.[idx]?.has(event.id) ?? false);
+    const next = findEventAtQuant(measure.events, endQuant) ?? undefined;
+    const clef = measure.clef ?? (idx === 0 ? 'treble' : 'bass');
+    const stemDirection = flagged ? drawnStemDirection(measure.events, event, clef) : 'up';
+    maxSegmentWidth = Math.max(maxSegmentWidth, inkAdvance(event, next, flagged, stemDirection));
 
     // Calculate padding requirements
     const padding = calculateEventPadding(event, accidentalGlyphsByMeasure?.[idx]);
@@ -150,12 +178,16 @@ const getSegmentWidthRequirement = (
  * 2. For each time segment, calculate the maximum required width
  * 3. Build a mapping from quant position to X coordinate
  *
- * @param measures - Array of measures at the same index across all staves
+ * @param measures - Array of measures at the same index across all staves, each with its
+ *   staff's clef (decides flagged notes' stem side; defaults to treble for the first staff and
+ *   bass below it, as the score layout does)
  * @returns Map of Quant -> X Position for synchronized positioning
  */
 export const calculateSystemLayout = (
-  measures: { events: ScoreEvent[] }[],
-  keySignature: string = 'C'
+  measures: { events: ScoreEvent[]; clef?: string }[],
+  keySignature: string = 'C',
+  tieStopsByStaff?: ReadonlyArray<ReadonlySet<string> | undefined>,
+  timeSignature: string = '4/4'
 ): Record<number, number> => {
   const timePoints = getSystemTimePoints(measures);
   const quantToX: Record<number, number> = { [timePoints[0]]: CONFIG.measurePaddingLeft };
@@ -163,9 +195,10 @@ export const calculateSystemLayout = (
   // Resolve each measure's rendered accidental glyphs once (full measure memory),
   // so segment-width reservation matches the drawn glyph including cancelling
   // naturals — same engine as the renderer and exporters (#234).
-  const accidentalGlyphsByMeasure = measures.map((m) =>
-    resolveMeasureAccidentals(m.events, keySignature)
+  const accidentalGlyphsByMeasure = measures.map((m, staffIndex) =>
+    resolveMeasureAccidentals(m.events, keySignature, { tieStops: tieStopsByStaff?.[staffIndex] })
   );
+  const beamedIdsByMeasure = measures.map((m) => beamedEventIds(m.events, timeSignature));
 
   let currentX = CONFIG.measurePaddingLeft;
 
@@ -177,7 +210,8 @@ export const calculateSystemLayout = (
       startQuant,
       endQuant,
       measures,
-      accidentalGlyphsByMeasure
+      accidentalGlyphsByMeasure,
+      beamedIdsByMeasure
     );
 
     currentX += segmentWidth;

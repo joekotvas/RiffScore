@@ -1,6 +1,6 @@
 # RiffScore Roadmap
 
-> **Generated:** 2026-06-13 · **Living document** · reflects state through **v1.0.0-alpha.16**: M1 (truth-in-advertising) shipped in **alpha.13**; M2's **#239 (transpose spelling)** shipped in **alpha.14**; M2's **#242 (interactive correctness / structural invariants)** and the **#252 visual-regression harness** shipped in **alpha.15**; M2's deferred follow-ups **#261/#263/#264/#257** + pre-release QA hardening shipped in **alpha.16** (which also re-scoped **#245**).
+> **Generated:** 2026-06-23 · **Living document** · reflects state through **v1.0.0-alpha.17**: M1 (truth-in-advertising) shipped in **alpha.13**; M2's **#239 (transpose spelling)** shipped in **alpha.14**; M2's **#242 (interactive correctness / structural invariants)** and the **#252 visual-regression harness** shipped in **alpha.15**; M2's deferred follow-ups **#261/#263/#264/#257** + pre-release QA hardening shipped in **alpha.16**; **M3 export/engraving fidelity** (PR #295), **M4 page view** (hardened after the 2026-09 QA pass, PRs #298–#307, then the beaming/spacing/stem/tie/staff-spacing engraving pass #308–#320) and **ABC (#10) / MusicXML (#11) import** shipped in **alpha.17**, with M4's remaining gaps listed under M4.
 > Grounded in the 2026-06 correctness audit ([CORRECTNESS_AUDIT_2026-06.md](audit/CORRECTNESS_AUDIT_2026-06.md),
 > [AUDIT_QA_2026-06.md](audit/AUDIT_QA_2026-06.md)) and re-sequenced per the audit's
 > own second-pass QA. Every load-bearing claim below was independently fact-checked
@@ -44,6 +44,28 @@ release now on `dev` / [PR #248](https://github.com/joekotvas/RiffScore/pull/248
   `<divisions>` (LCM of tuplet denominators), grand-staff as one `<part>` with
   `<staves>` + `<backup>`, pickup `implicit="yes"`, score-level `<fifths>`; ABC
   measure-local accidental cancellation (#240, #238, #234).
+- **M3 export/engraving tail** *(Unreleased / pending release)* — MusicXML key `<mode>`,
+  whole-measure rests for empty grand-staff staves, richer `<harmony>`/`<degree>` for
+  extended/altered chords (export layer only — display/playback normalization stays open,
+  cluster 7), stricter note-order/tuplet/rest structural validation, ABC pickup-bar meters
+  and fractional-tuplet chord anchors, cross-measure key/stretch-aware tie layout, and
+  mixed-value secondary/partial beams. *(The official MusicXML-4.0-XSD-in-CI gate is not
+  delivered — see M3 below.)*
+- **M4 page view hardening** *(Unreleased / pending release)* — Page View is committed,
+  no longer cut/experimental: grand-staff multi-system engraving uses page-aware measure
+  coordinates, cross-system ties split at wraps, chord editing resolves page/system X
+  positions, lasso selection and playback cursor use page-local coordinates, empty scores
+  still render a page shell, and print mode removes editor chrome/zoom transforms. The
+  2026-09 QA pass then hardened it in PRs #298, #302, #303, #304: system headroom so chord
+  tracks and hit areas never overlap neighbouring systems; the last page is never vertically
+  justified; over-wide measures compress to fit; print restores the toolbar; grand staves stay
+  synchronised in justified systems; page-layout widths equal rendered widths; the pointer maps
+  through `staffScale` and viewport zoom; pages print at physical size on the paper palette;
+  a 7.6mm default staff (`staffSize: 60`). **Known gaps:** no auto-scroll to the playback
+  cursor/selection across pages; `api.play()`/`rewind()` do not drive the on-canvas cursor;
+  printing from scroll view is not paginated (print from page view). Rendered QA evidence lives
+  in [docs/audit/page-view-m4-2026-06-24/](audit/page-view-m4-2026-06-24/) (predates the
+  2026-09 fixes).
 - **Transpose lossless undo** — both transpose commands snapshot the pre-image and
   restore verbatim (contract C3).
 - **Migration versioning** — `SCHEMA_VERSION` bumped to **2** so scores saved at v1
@@ -120,39 +142,85 @@ silently; transpose preserves spelling; partial tuplets can't corrupt capacity/a
 
 ---
 
-### M3 — Export & engraving fidelity · *medium*
+### M3 — Export & engraving fidelity · ✅ *done (Unreleased / pending release)*
 
 With a trustworthy model, make what gets shared and printed match it exactly.
 
-- **MusicXML tail** — `<tie>`/`<dot>` DTD child-ordering (strict parsers like Finale
-  reject the current order); tuplet `<duration>` sums to `divisions·beats`; #246
-  (empty grand-staff staff emits a whole-measure rest; **MusicXML 4.0 XSD validation in
-  CI**); #216 slash-chord `<harmony>`.
-- **ABC tail** — quintuplet ratio, final barline `|]`, and the export test coverage the
-  audit found missing.
-- **Beaming sub-grouping #245 (the no-dependency half)** — dotted-rhythm grouping and
-  secondary/partial beams (16th-within-8th). *The tuplet-beaming half of #245 depends on
-  #237 and is deferred with it.*
-- **Tie layout key (#249)** — cross-measure tie endpoint X is computed with the default
-  key `'C'` (`Staff.tsx`), so tie ends can diverge slightly from noteheads in non-C keys.
-  One-line fix (thread the score key); parallels the #245 `useMeasureLayout` gap.
+- ✅ **MusicXML tail** — note child-ordering remains parser-safe; tuplet durations sum to
+  `divisions·beats`; #246 empty grand-staff staves emit `<rest measure="yes"/>`; minor
+  keys emit `<mode>`; tuplet bracket notations are primary-note only; extended/altered
+  chords (9/11/13, add/alter tones) map into richer `<harmony>` / `<degree>` output.
+  *(Export layer only — the internal chord-symbol normalization and slash-bass voicing
+  are still wrong on screen and in playback (cluster 7, LIVE). Slash `<bass>` **export**
+  predates M3 and is unchanged here.)*
+- ✅ **MusicXML structural validation** — representative real exporter output, **including a
+  tuplet-containing score**, now runs through a deterministic Jest gate that checks staff
+  duration streams, `<backup>` durations, note child order, tuplet notation placement, and
+  full-measure rests. This catches the *musical-corruption* defect class (e.g. duration-sum
+  errors an XSD would happily pass) better than a schema check.
+- ⏳ **Official MusicXML 4.0 XSD validation in CI** — *still owed (audit Phase 2 gate, not
+  delivered by M3).* The audit requires validating a representative export against the
+  official XSD via `xmllint` in CI; the committed reduced `.xsd` fixture is documentation
+  only and is wired to no test. The structural gate above substitutes for the corruption
+  class but does **not** discharge this verification requirement.
+- ✅ **ABC tail** — pickup bars emit their own temporary `[M:n/d]` meter and chord symbols
+  on fractional tuplet positions are no longer dropped (shared chord-anchor quantizer).
+  *(Quintuplet ratios and the final barline `|]` shipped earlier in alpha.16, not M3.)*
+- ✅ **Beaming sub-grouping #245 (the no-dependency half)** — dotted-rhythm grouping and
+  secondary/partial beam segments now render from layout data (for example 8th+16th+16th
+  and dotted-8th+16th). *The tuplet-beaming half of #245 depends on #237 and remains
+  deferred with it. Of the audit finding #9 siblings, mean-Y stem direction and the 45°
+  `MAX_SLOPE` clamp were resolved in M4 (farthest-note direction, rise-capped slant, half-bar
+  eighth groups in 4/4); beamed-over-rests stays LIVE.*
+- ✅ **Tie layout key (#249)** — cross-measure tie endpoint X now uses the same key-aware
+  measure layout as rendered noteheads, in both the unstretched and justified
+  (stretch ≠ 1.0) paths, regression-tested at tie-X == notehead-X. *(Cross-SYSTEM tie arcs
+  — #270 — are separate and still open: Tie.tsx's split-arc props stay unwired.)*
 
-**Done when:** a representative export validates against the MusicXML 4.0 XSD in CI;
-round-trips are pinned; ABC/MusicXML are musically identical to the render.
+**Done when:** exports are internally consistent (durations sum, DTD child order,
+tuplet/rest placement) under structural CI tests, tie endpoints match noteheads, and beams
+render from layout data. — ✅ **Met** for the scoped M3 tail. Two verification items remain
+explicitly open: the audit's official-MusicXML-4.0-XSD-in-CI gate (above), and true
+export↔render *round-trip* agreement, which is untestable until an import path exists
+(there is none today).
 
 ---
 
-### M4 — Page View: commit or cut · *medium-large (decision point)*
+### M4 — Page View · hardened *(Unreleased / pending release; remaining gaps listed)*
 
-Either make it a real feature or leave it experimental and out of the promise set.
+Page View stays in the promise set. The hardening pass closes the defects that made it a
+decision point:
 
-- If committing: #229 (grand-staff brace off-canvas on non-first systems), #231 (chord X
-  uses scroll coordinates on wrapped systems), #232 (lasso select is a no-op), plus the
-  print-zoom / over-wide-compression / page-aware-cursor defects — built on a unified
-  page/system coordinate accessor (#204). Depends on M2's tie model for cross-system ties.
+- Page/system coordinate access is now used for measure origins, chord tracks, note hit
+  testing, playback cursor placement, and system lookup.
+- Grand-staff multi-system engraving keeps brackets, ties, chords, and notes inside the
+  printable page bounds, including continuation tie arcs across wraps.
+- Page-view editing covers note click/edit, chord inline edit, metadata inline edit, and
+  lasso selection against page-local coordinates.
 
-**Done when:** page view is WYSIWYG-correct for grand-staff multi-system scores, **or**
-stays clearly labeled experimental and outside the promise set.
+The 2026-09 QA pass found the first cut short of WYSIWYG and hardened it in PRs #298, #302,
+#303, #304:
+
+- Each system reserves vertical headroom for its ledger zone and chord band, so chord tracks and
+  measure hit areas never overlap neighbouring systems; the last page is never vertically
+  justified; an over-wide measure is compressed to fit rather than clipped by the page.
+- Grand staves stay synchronised in justified systems; page-layout widths equal the rendered
+  widths; the pointer maps through `staffScale` and viewport zoom.
+- Print mode targets the current editor shell, hides toolbar/footer chrome (and restores the
+  toolbar afterwards), removes zoom transforms, and prints pages at physical sheet size on the
+  paper palette.
+- The default staff is 7.6mm (`staffSize: 60`, the lead-sheet/vocal/piano standard).
+
+**Known remaining gaps:**
+
+- No auto-scroll to the playback cursor or the selection across pages.
+- `api.play()` / `rewind()` do not drive the on-canvas cursor.
+- Printing from scroll view is not paginated — print from page view.
+
+**Done when:** page view is WYSIWYG-correct for grand-staff multi-system scores. — **Hardened**
+(unit/visual regressions for each 2026-09 fix, plus the earlier rendered Playwright QA on a
+4-page, 15-system grand-staff score — [audit note](audit/page-view-m4-2026-06-24/), which
+predates those fixes); the gaps above remain open.
 
 ---
 
@@ -172,7 +240,9 @@ stays clearly labeled experimental and outside the promise set.
 
 ### M6 — Post-1.0 expansion · *after stable 1.0*
 
-New capabilities, sequenced by demand: ABC/MusicXML import (#10/#11), copy/paste (#36),
+New capabilities, sequenced by demand: copy/paste (#36) (ABC import #10 and MusicXML import #11
+shipped ahead of schedule — see [ABC_IMPORT.md](./ABC_IMPORT.md) and
+[MUSICXML_IMPORT.md](./MUSICXML_IMPORT.md)),
 dynamics (#20/#21), slurs (#19), lyrics (#30), repeats (#28), inline key/time changes
 (#26/#27), multi-staff with per-staff instruments (#25), UMD build for non-React sites
 (#194), marketing/demo page (#6).
@@ -182,15 +252,17 @@ dynamics (#20/#21), slurs (#19), lyrics (#30), repeats (#28), inline key/time ch
 ## Critical path
 
 ```
-M1 (truth) ✅  →  M2 (#239 ✅ → #242 ✅)  →  M3 (export/engraving)  →  (M4 decision)  →  M5
+M1 (truth) ✅  →  M2 (#239 ✅ → #242 ✅)  →  M3 (export/engraving) ✅  →  M4 (page view) ✅  →  M5
 ```
 
 **M2 is shipped** (#239 in alpha.14, #242 in alpha.15) — it was the long pole. Its deferred
-follow-ups **#261, #263, #264, #257 shipped in alpha.16** (close-the-loop), which also re-scoped
-**#245** (tuplet rendering verified). **M3 (export/engraving) is next.** M4 (page view) and M5 (chord
-theory) are largely independent of each other and can run in parallel. Remaining M2-adjacent
-follow-ups: #255 (chord reflow re-anchoring / pickup playback), the capacity SSOT #254, and the
-partials #246/#237 — plus QA-pass items #268–#272.
+follow-ups **#261, #263, #264, #257 shipped in alpha.16** (close-the-loop). **M3 shipped in
+alpha.17** (PR #295: export/engraving tail; #249 and #282 closed; #245/#246/#278 narrowed to their
+post-M3 remainders), and **M4 shipped in alpha.17** (2026-09 QA pass → PRs #298–#307, then the
+engraving pass #308–#320; remaining gaps listed under M4), alongside ABC and MusicXML import
+(#10, #11). M5 (chord theory) is next.
+Remaining M2/M3-adjacent follow-ups: #255 (chord reflow re-anchoring / pickup playback), the
+capacity SSOT #254, full #237 quant migration, and full official MusicXML XSD CI.
 
 ## Cross-cutting — testing & CI (continuous, not a phase)
 
@@ -210,7 +282,10 @@ partials #246/#237 — plus QA-pass items #268–#272.
   suite; Lane B Playwright harness runs in CI against **committed linux baselines** (seeded
   via the "Visual regression (Lane B)" dispatch). Both lanes verified to catch a seeded
   regression. See [VISUAL_TESTING.md](VISUAL_TESTING.md).
-- Add **MusicXML 4.0 XSD validation** to CI (with M3 / #246).
+- ✅ **MusicXML structural validation gate** — shipped with M3 in the normal Jest/CI path
+  using `fast-xml-parser` plus semantic checks for duration/staff/backup/order/tuplet/rest
+  invariants. Add the full official **MusicXML 4.0 XSD** bundle to CI as a follow-up
+  hardening layer when the CI image/dependency choice is settled.
 - Ongoing: unit-coverage (#17), E2E harness (#15), hit-detection test robustness
   (#211/#210), keep the theory/geometry oracles green.
 
@@ -220,7 +295,7 @@ partials #246/#237 — plus QA-pass items #268–#272.
 |---|---|---|
 | #242 (invariants) | ✅ done (alpha.15) | Shipped with the #237 integrality guard inside it (capacity/anchoring math); full ×LCM migration still deferred. |
 | #237 (full ×LCM migration) | — (`SCHEMA_VERSION` now at **2**) | Deferred until tuplet-heavy editing demonstrates a concrete bug. Use base ≥ 210, not 105; its migration bumps `SCHEMA_VERSION` to 3. |
-| #245 dotted/secondary beams | — | No #237 dependency; lands in M3. |
+| #245 dotted/secondary beams | ✅ done with M3 | No #237 dependency; mixed-value primary/secondary/partial segments now render from layout data. |
 | #245 tuplet beaming | #237 | Beat-boundary `% beatQuants` is unreliable with non-integer tuplet quants; deferred with #237. |
 | M4 cross-system ties | M2 (#242 tie model) | Page-view tie rendering needs the corrected tie model. |
 | #239 (transpose) | ✅ done (alpha.14) | Key-aware spelling + steps rename + coercion removal shipped. |
@@ -235,9 +310,10 @@ and folds in the promise-gaps:
   #237 guard).
 - Audit **Phase 3** (transpose) → **M2** (#239).
 - Audit **Phase 4** (invariants) → **M2** (#242).
-- Audit **Phase 2** (export) → **M3** — *de-prioritized* because its high-impact items
-  already shipped; only the tail remains.
-- Audit **Phase 5** (engraving) → **M3** (#245 non-tuplet half) + banked beaming.
+- Audit **Phase 2** (export) → **M3** — ✅ tail complete for the scoped exporter defects;
+  official full-XSD CI remains hardening.
+- Audit **Phase 5** (engraving) → **M3** — ✅ #245 non-tuplet half + #249 complete; tuplet
+  beaming still follows #237.
 - Audit **Phase 6** (page view) → **M4**.
 - Audit **Phase 7** (chord theory) → **M5**.
 
@@ -246,7 +322,7 @@ and folds in the promise-gaps:
 ## Verification
 
 This roadmap's load-bearing claims were independently fact-checked against the code
-(2026-06-04; **M1 status updated post-M1 on `dev`**). Confirmed: `SCHEMA_VERSION` is
+(2026-06-04; **M1 status updated post-M1 on `dev`; M3 merged to `dev` 2026-06-24**). Confirmed: `SCHEMA_VERSION` is
 stamped by `migrateScore` and was bumped to **2** in alpha.12 so v1 scores re-run the new
 migration steps (#237 unblocked); the export wins above are all present (`<fifths>` is score-level, which
 is correct for the single-key model); `api.play()` now plays the chord track via
@@ -255,4 +331,6 @@ shipped in alpha.13); `setChordDisplay`/`setChordPlayback` are stubs; transpose 
 key-aware with lossless undo (#239 shipped in alpha.14 — `spellPitchInKey`, octave
 coercion removed); and the
 tuplet-grid dependency for #242/#245 is real (partial-tuplet quants are non-integer and
-`getBreakdownOfQuants` drops the remainder), making the integrality guard mandatory.
+`getBreakdownOfQuants` drops the remainder), making the integrality guard mandatory; and
+M3's scoped export/engraving tail is covered by exporter, layout, visual-structure, and
+MusicXML structural validation tests.

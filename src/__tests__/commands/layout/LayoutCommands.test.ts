@@ -359,6 +359,17 @@ describe('SetMetadataCommand', () => {
       expect(result.metadata?.title).toBe('My Song');
     });
 
+    it('merges over the top-level title when the score has no metadata block', () => {
+      const score = createTestScore(); // title 'Test Score', no metadata
+      const command = new SetMetadataCommand({ composer: 'Someone' });
+
+      const result = command.execute(score);
+
+      // Editing the composer must not flip the displayed title to "Untitled".
+      expect(result.metadata).toEqual({ title: 'Test Score', composer: 'Someone' });
+      expect(command.undo(result).metadata).toEqual({ title: 'Test Score' });
+    });
+
     it('defaults empty title to Untitled', () => {
       const score = createScoreWithMetadata({ title: 'Original' });
       const command = new SetMetadataCommand({ title: '' });
@@ -429,14 +440,15 @@ describe('SetMetadataCommand', () => {
       expect(afterUndo.metadata).toEqual(originalMetadata);
     });
 
-    it('restores default when original had no metadata', () => {
-      const score = createTestScore();
+    it('restores the score-title fallback when original had no metadata', () => {
+      const score = createTestScore(); // title 'Test Score', no metadata block
       const command = new SetMetadataCommand({ title: 'New Title' });
 
       const afterExecute = command.execute(score);
       const afterUndo = command.undo(afterExecute);
 
-      expect(afterUndo.metadata).toEqual(DEFAULT_SCORE_METADATA);
+      // Without a metadata block the score displayed its top-level title, so undo returns to it.
+      expect(afterUndo.metadata).toEqual({ ...DEFAULT_SCORE_METADATA, title: 'Test Score' });
     });
   });
 
@@ -472,12 +484,12 @@ describe('Layout Commands - Integration', () => {
     score = metadataCmd.execute(score);
     expect(score.metadata?.title).toBe('New Title');
 
-    // Undo in reverse order
+    // Undo in reverse order: no metadata block existed, so it falls back to the score title
     score = metadataCmd.undo(score);
-    expect(score.metadata?.title).toBe('Untitled');
+    expect(score.metadata?.title).toBe('Test Score');
 
     score = layoutCmd.undo(score);
-    expect(score.layout?.staffSize).toBe(100);
+    expect(score.layout?.staffSize).toBe(DEFAULT_LAYOUT_CONFIG.staffSize);
 
     score = viewModeCmd.undo(score);
     expect(score.layout?.viewMode).toBe('scroll');

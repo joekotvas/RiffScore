@@ -78,7 +78,7 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 *   **Embeddable**: Drop it into any React application.
 *   **Configurable**: Full control over UI, interactions, and score content.
 *   **SMuFL Compliance**: Beautiful engraving using the [Bravura](https://github.com/steinbergmedia/bravura) font.
-*   **Export Options**: JSON, MusicXML, and ABC notation export.
+*   **Import & Export**: JSON, MusicXML and ABC notation export; MusicXML (`.musicxml` / `.mxl`), ABC notation and JSON import from the File menu, the API, or config ([MusicXML](./docs/MUSICXML_IMPORT.md), [ABC](./docs/ABC_IMPORT.md)).
 *   **Theming**: Built-in dark, light, cool, and warm themes.
 
 ### Chord Symbols
@@ -88,18 +88,13 @@ See the [Cookbook](./docs/COOKBOOK.md) for more recipes.
 *   **Playback**: Chord voicings play back alongside the score.
 *   **Full API**: CRUD, selection, and navigation via `addChord()`, `selectChord()`, etc.
 
-### Page View & Print _(Experimental)_
+### Page View & Print
 
-> ⚠️ **Experimental — not part of the stable feature set yet.** Page View is in active
-> development with known layout defects on multi-system grand-staff scores. It is being
-> hardened in a dedicated milestone (see the [roadmap](./docs/ROADMAP.md)). The scroll-based
-> editor is the supported default; the items below describe the in-progress capability.
-
-*   **Multi-System Layout**: Automatic system breaks with first system indent and justified measures.
-*   **Multi-Page Pagination**: True page breaks with visual gaps between pages.
-*   **Layout Options**: Letter/A4 page sizes, margin presets, staff size (50-150%), system spacing.
+*   **WYSIWYG Page Layout**: Automatic system breaks with first system indent and justified measures.
+*   **Multi-Page Pagination**: True page breaks with visual gaps between printable pages.
+*   **Layout Options**: Letter/A4 page sizes, margin presets, staff size (50-150%, defaulting to a standard 7.6mm staff), system spacing.
 *   **Score Setup Dialog**: Configure metadata (title, composer, copyright) and layout via `Cmd+,`.
-*   **Inline Editing**: Click directly on title, composer, or copyright to edit in place.
+*   **Interactive Editing**: Edit notes, chords, and metadata directly in page view, with lasso selection and playback cursor support.
 *   **Print Support**: Professional PDF output via native browser dialog (`Cmd+P`).
 
 ### Machine-Addressable API
@@ -256,6 +251,5 @@ npm run demo:dev
 
 ## Coming Soon
 
-*   **Import**: ABC and MusicXML import
 *   **Clipboard API**: Copy, cut, and paste operations
 *   **Move Operations**: Drag-and-drop and keyboard-based event moving

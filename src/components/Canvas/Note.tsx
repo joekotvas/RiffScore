@@ -214,6 +214,7 @@ const HitArea = ({
       onClick={onClick}
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
+      data-note-hit-area="true"
       data-testid={testId}
     />
   );

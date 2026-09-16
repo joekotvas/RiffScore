@@ -9,7 +9,8 @@
  */
 
 import { LoadScoreCommand } from '@/commands/LoadScoreCommand';
-import { Score, SCHEMA_VERSION } from '@/types';
+import { LayoutConfig, Score, SCHEMA_VERSION } from '@/types';
+import { DEFAULT_LAYOUT_CONFIG } from '@/config';
 
 // A legacy score as a host app might pass to loadScore: NO schemaVersion field.
 const legacyScore = (): Score =>
@@ -24,7 +25,12 @@ const legacyScore = (): Score =>
         clef: 'treble',
         keySignature: 'C',
         measures: [
-          { id: 'm1', events: [{ id: 'e1', duration: 'quarter', dotted: false, notes: [{ id: 'n1', pitch: 'C4' }] }] },
+          {
+            id: 'm1',
+            events: [
+              { id: 'e1', duration: 'quarter', dotted: false, notes: [{ id: 'n1', pitch: 'C4' }] },
+            ],
+          },
         ],
       },
     ],
@@ -54,5 +60,44 @@ describe('LoadScoreCommand migrates at the load boundary', () => {
     const cmd = new LoadScoreCommand(legacyScore());
     cmd.execute(previous);
     expect(cmd.undo(legacyScore())).toBe(previous);
+  });
+});
+
+describe('LoadScoreCommand keeps the current layout when the loaded score has none', () => {
+  // An embedder in page view loads host JSON that (like most scores) carries no `layout`; the
+  // editor must stay in page view instead of falling back to the scroll-view defaults.
+  const pageLayout: LayoutConfig = { ...DEFAULT_LAYOUT_CONFIG, viewMode: 'page', pageSize: 'a4' };
+  const currentScore = (): Score => ({ ...legacyScore(), title: 'current', layout: pageLayout });
+
+  it('carries the current layout over to a score loaded without one', () => {
+    const incoming = legacyScore();
+    expect(incoming.layout).toBeUndefined();
+
+    const result = new LoadScoreCommand(incoming).execute(currentScore());
+
+    expect(result.title).toBe('Legacy');
+    expect(result.layout).toEqual(pageLayout);
+  });
+
+  it('uses the loaded layout when the score carries one', () => {
+    const scrollLayout: LayoutConfig = { ...DEFAULT_LAYOUT_CONFIG, viewMode: 'scroll' };
+    const incoming: Score = { ...legacyScore(), layout: scrollLayout };
+
+    const result = new LoadScoreCommand(incoming).execute(currentScore());
+
+    expect(result.layout).toEqual(scrollLayout);
+  });
+
+  it('undo restores the exact previous score in both cases', () => {
+    const previous = currentScore();
+
+    const withoutLayout = new LoadScoreCommand(legacyScore());
+    expect(withoutLayout.undo(withoutLayout.execute(previous))).toBe(previous);
+
+    const withLayout = new LoadScoreCommand({
+      ...legacyScore(),
+      layout: { ...DEFAULT_LAYOUT_CONFIG },
+    });
+    expect(withLayout.undo(withLayout.execute(previous))).toBe(previous);
   });
 });

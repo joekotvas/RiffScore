@@ -4,8 +4,7 @@
 
 import { Command } from '../types';
 import { Score, ScoreMetadata } from '@/types';
-import { DEFAULT_SCORE_METADATA } from '@/config';
-import { normalizeMetadata } from '@/services/MetadataService';
+import { normalizeMetadata, resolveScoreMetadata } from '@/services/MetadataService';
 
 export class SetMetadataCommand implements Command {
   readonly type = 'SET_METADATA';
@@ -14,7 +13,9 @@ export class SetMetadataCommand implements Command {
   constructor(private updates: Partial<ScoreMetadata>) {}
 
   execute(score: Score): Score {
-    this.previousMetadata = score.metadata ?? { ...DEFAULT_SCORE_METADATA };
+    // Merge over what the score already shows: without a metadata block that is its top-level
+    // title, so editing the composer never flips the title to "Untitled".
+    this.previousMetadata = resolveScoreMetadata(score);
 
     // Merge updates with previous metadata
     const merged = { ...this.previousMetadata, ...this.updates };

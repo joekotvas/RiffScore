@@ -40,7 +40,9 @@ export const findTieTarget = (
   if (!event || event.isRest || event.reserved) return null;
 
   const noteIndex = event.notes.findIndex((n) => n.pitch === loc.pitch && !n.isRest);
-  return noteIndex === -1 ? null : { measureIndex: targetMeasure, eventIndex: targetEvent, noteIndex };
+  return noteIndex === -1
+    ? null
+    : { measureIndex: targetMeasure, eventIndex: targetEvent, noteIndex };
 };
 
 /** Whether a tie from `loc` resolves to a valid same-pitch successor. */
@@ -48,3 +50,27 @@ export const hasTieTarget = (
   measures: Measure[],
   loc: { measureIndex: number; eventIndex: number; pitch: string }
 ): boolean => findTieTarget(measures, loc) !== null;
+
+/**
+ * Ids of every note that is the TARGET of a tie (a tie continuation), resolved with
+ * `findTieTarget` so it can never disagree with rendering or export. A continuation carries
+ * its predecessor's accidental, so the accidental resolver draws no glyph for it even when it
+ * starts a new measure.
+ */
+export const collectTieStops = (measures: Measure[]): Set<string> => {
+  const stops = new Set<string>();
+  measures.forEach((measure, measureIndex) => {
+    measure.events.forEach((event, eventIndex) => {
+      if (event.isRest) return;
+      event.notes.forEach((note) => {
+        if (!note.tied || note.pitch == null) return;
+        const target = findTieTarget(measures, { measureIndex, eventIndex, pitch: note.pitch });
+        if (!target) return;
+        const targetNote =
+          measures[target.measureIndex].events[target.eventIndex].notes[target.noteIndex];
+        if (targetNote) stops.add(targetNote.id);
+      });
+    });
+  });
+  return stops;
+};

@@ -7,6 +7,265 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0-alpha.17] - 2026-09-16
+
+MusicXML import (#11). Scores exported from MuseScore, Finale, Sibelius, Dorico and the like —
+plain `.musicxml` / `.xml` or compressed `.mxl` — can now be brought into the editor, and the
+editor's own MusicXML export round-trips back in.
+
+### For musicians
+- **Import MusicXML** — File menu → Import (paste, or open a `.musicxml` / `.xml` / `.mxl` file)
+  previews the score's title, staves and bars and lists anything it cannot represent before you
+  commit; importing is a single undo step. Parts and grand staves, keys and modes, meters, clefs,
+  tempo, notes, chords, rests, ties, tuplets, accidentals and courtesy accidentals, pickups and
+  chord symbols are all understood. Extra voices, repeats, slurs, dynamics, articulations, text
+  and lyrics are skipped with a warning.
+- **MusicXML exports carry the tempo** — the score's BPM is written as a metronome mark and a
+  `<sound tempo>` so other apps (and a re-import) play it at the right speed. Augmented-seventh,
+  minor-major-seventh and power chords now export with their own `<kind>` (they were written as
+  plain augmented, minor and major).
+
+### For developers
+- `api.import('musicxml', content)` accepts the document text or the bytes (`ArrayBuffer` /
+  `Uint8Array`) of a `.musicxml` or `.mxl` file, with the same structured feedback as ABC.
+  `config.score.musicxml` seeds a `<RiffScore />` from MusicXML; `importScoreData(bytes)` is the
+  bytes-aware sibling of `importScoreText`.
+- `src/importers/musicXmlImporter.ts` is a dependency-free partwise/timewise reader, with its own
+  small XML parser and a DEFLATE/ZIP decoder for `.mxl` (nothing new is bundled). Shared importer
+  helpers (fractions, warnings, quant decomposition, parity padding, pickup inference, clean-up)
+  moved to `importUtils.ts`; the pickup rule is now score-wide for ABC too (every staff's first
+  bar under-full, flagged on every staff). The MusicXML chord-kind table is shared by the
+  exporter and importer (`MUSICXML_CHORD_KINDS`), and both derive clef signs from the clef
+  geometry in `utils/clef.ts`. Tested
+  by an exporter round trip over every bundled melody and synthetic fixtures, first-principles
+  semantics, a MuseScore-style file, zlib as the inflate oracle, and fast-check fuzzing. See
+  [docs/MUSICXML_IMPORT.md](./docs/MUSICXML_IMPORT.md).
+
+ABC import (#10). Tunes written in ABC notation — the text format of folk and session archives —
+can now be brought into the editor, and the editor's own ABC and JSON exports round-trip back in.
+
+### For musicians
+- **Import ABC notation** — File menu → Import (paste, or open a `.abc` file) previews the tune's
+  title, staves and bars and lists anything it cannot represent before you commit; importing is a
+  single undo step. Notes, rests, chords, ties, tuplets, broken rhythm, keys and modes, pickups,
+  several voices and chord symbols are all understood. Repeats, slurs, grace notes, ornaments and
+  lyrics are skipped with a warning.
+- **Re-open your exports** — the same dialog accepts the JSON the editor exports.
+- **The toolbar tempo follows the score** — loading a score (a melody from the library, an ABC
+  or JSON import, `loadScore`, `reset`) or calling `setBpm` now updates the toolbar's tempo, so
+  the toolbar Play button plays at the score's tempo (an ABC jig with `Q:3/8=120` plays at 180
+  instead of a stale 120). A tempo typed into the toolbar is a practice tempo: it changes only
+  what the toolbar transport plays and never rewrites the score's BPM (#22).
+
+### For developers
+- `api.import('abc' | 'json', text)` replaces the score with structured feedback: `info`,
+  `IMPORT_WARNINGS` (with `details.warnings`), or `IMPORT_FAILED` leaving the score untouched.
+  `config.score.abc` seeds a `<RiffScore />` from ABC.
+- `src/importers/abcImporter.ts` is a dependency-free ABC 2.1-subset parser; `importScoreText`
+  is the shared ABC/JSON entry point. abcjs (dev-only) serves as a reference oracle in tests,
+  alongside exporter round-trip tests over every bundled melody and a fast-check fuzz. See
+  [docs/ABC_IMPORT.md](./docs/ABC_IMPORT.md).
+- The toolbar tempo is seeded from `score.bpm` and re-synced on every `LOAD_SCORE`, `SET_BPM`
+  and an undo/redo of either (one-way, per #22). `SetBpmCommand` returns a new `Score` instead
+  of writing `bpm` in place, since the engine's `setScore` bails out on an identical reference.
+  A load whose tempo equals the current `score.bpm` does not clear a toolbar override. The
+  tempo input carries `aria-label="Tempo (BPM)"`; `ScoreAPI.bpmSync.test.tsx` drives the real
+  toolbar.
+
+M3 export & engraving fidelity. This closes the remaining practical gaps between the score model,
+the rendered page, and the MusicXML/ABC that users share with notation apps.
+
+### For musicians
+- **MusicXML exports import more faithfully** — minor keys now carry `<mode>`, empty grand-staff
+  staves export explicit whole-measure rests, tuplet chord members no longer duplicate bracket
+  notations, and extended/altered chord symbols (9ths, 11ths, 13ths, add/alter tones) export with
+  more of their harmonic detail. *(This affects the exported file only — how chords look and play
+  inside the editor is unchanged.)*
+- **ABC exports handle pickups and tuplets better** — pickup bars now emit their own temporary
+  meter, and chord symbols anchored on fractional tuplet positions are no longer dropped.
+- **Ties and beams line up with what you see** — cross-measure ties use the same key-aware/stretched
+  layout as noteheads, and mixed dotted/16th rhythms now render primary, secondary, and partial beams
+  instead of splitting the beat.
+
+### For developers
+- MusicXML/ABC chord anchors now quantize through the shared chord quantizer, so fractional tuplet
+  positions are stable across exporters.
+- MusicXML harmony export adds broader kind mapping and `<degree>` output for add/alter tones, plus
+  stricter note-order/tuplet/rest behavior covered by exporter tests.
+- `BeamGroup` now carries explicit per-level beam segments; the renderer draws primary, secondary,
+  and beamlet spans from layout data instead of inferring full-width inner beams from duration.
+- The MusicXML structural helper now validates staff duration streams, `<backup>` durations, note
+  child order, tuplet notation placement, and full-measure rests; representative real exporter
+  outputs — including a tuplet-containing score — run through this validator in Jest/CI. The
+  official MusicXML 4.0 XSD-in-CI check (audit Phase 2) is **not** part of this release and remains
+  an open verification item.
+
+M4 page view. Page View leaves the experimental bucket: coordinates, ties, chord symbols, lasso
+selection, the playback cursor and printing work on wrapped systems and later pages, and every
+system reserves the vertical room its interactive and chord areas need.
+
+### For musicians
+- **Page View is no longer experimental** — notes, chords and the title/composer can be edited
+  directly on the page, lasso selection and the playback cursor follow wrapped systems and later
+  pages, and ties that cross a system or page break are drawn as two arcs.
+- **Systems keep their distance** — each system reserves headroom for ledger notes, clefs and chord
+  symbols, so chord symbols no longer land on the staff above and clicking a note near the bottom of
+  a staff no longer opens a chord editor for the next system.
+- **Over-wide bars fit the page** — a bar wider than the page is squeezed to fit instead of running
+  off the right edge.
+- **Printing keeps the editor usable** — the toolbar and footer come back after the print dialog
+  closes, and page numbers and copyright print on every page.
+- **Short scores stay compact** — the last page of a score (including a single-page score) is no
+  longer stretched to fill the sheet; only full pages before it are vertically justified.
+- **Measures line up with the page** — page layout now sizes bars exactly as they are drawn (same
+  key-aware, cross-staff spacing), so justified systems end at the right margin and clicks, the
+  playback cursor and chord symbols land where the notes are, in every key.
+- **A standard page size by default** — the default staff size in page view is now 60% (a 7.6 mm
+  staff, the standard for lead sheets, vocal lines and piano music), and chord symbols scale with
+  the staff. A 32-bar lead sheet fits on one page plus a few bars instead of four; a 24-bar piano
+  piece takes three pages instead of nine. Existing scores keep whatever staff size they saved.
+- **Pages print at their real size** — each page prints at the physical Letter/A4 size, one page
+  per sheet (it used to print at 75%), and the notation is always black on white regardless of the
+  editor theme. Selected notes, the hover ghost, the playback cursor and lasso never print.
+- **Loading a score keeps your view** — `loadScore()` with a score that has no layout keeps the
+  current view mode, page size and margins instead of dropping back to scroll view.
+- **Page view shows the score's title** — a score with a top-level title but no metadata block no
+  longer shows "Untitled" in page view or print (and `getTitle()` agrees with the scroll view).
+- **System spacing works** — the compact/normal/relaxed setting now changes the gap between
+  systems in page view.
+- **Clicks near chord symbols select the note** — the chord-symbol hit band now yields to any
+  notehead it would otherwise cover (both views), and lasso selection in scroll view uses boxes
+  centred on the noteheads, so a rectangle over the left half of a note selects it.
+- **Beams read like engraved music** — in 4/4, four plain eighths on beats 1–2 or 3–4 share one
+  beam (never across the middle of the bar; sixteenths and dotted rhythms still beam by the
+  beat). A beamed group's stems follow the note farthest from the middle line, so adjacent
+  groups no longer flip up/down, and beams slant gently — a step slants a quarter space and no
+  leap slants more than one space; a group whose inner notes go beyond its outer ones is
+  horizontal. In page view, beams and tuplet brackets now start and end on their stems in
+  justified systems (they were drawn at the unstretched positions).
+- **Engraved note spacing** — notes take the room engraved music gives them: a quarter about
+  3.7 staff spaces, an eighth 2.6, a sixteenth 1.8 (they were roughly a third wider, eighths
+  most of all), and the gap after a barline is two spaces instead of three. At the default page
+  size a bar of eight eighths is now about 43 mm instead of 63, so a 32-bar lead sheet fits one
+  page and a piano piece with running eighths gets three bars per system instead of two.
+  Systems in page view are still justified to the margins.
+- **Tuplet brackets sit on the beam side** — a beamed triplet whose notes straddle the middle line
+  (G4–B4–D5) drew its beam below the notes but its bracket and "3" above them; the bracket now
+  follows the beam, as engraved music does — also for a tuplet inside a longer beam (the third
+  triplet of a 6/8 bar). Unbeamed tuplets are unchanged.
+- **Beamed stems never come up short** — in a wide beamed group (a run that leaps more than a
+  stem's length past its first note) the notes on the far side of the beam kept a stem as short
+  as one staff space; every stem now reaches the minimum beamed length.
+- **Staves make room for each other** — on a grand staff the distance between staves is no
+  longer fixed: when beams, stems or ledger notes from both staves would meet in the gap, the
+  lower staff moves down just enough to keep one staff space clear (per system in page view;
+  systems and pages grow to match). Staves that need no room stay where they were. Space for
+  lyrics is reserved the same way (`lyricLines` on a staff) ahead of the lyrics feature itself.
+- **Ties engraved by the rules** — a tie now curves away from the stem the note is actually
+  drawn with (a beamed note follows its beam), the outer notes of a tied chord curve outward and
+  inner notes away from the chord's centre, and a note tied across a barline no longer re-shows
+  its accidental (a later note on that line that reverts still gets its natural). On justified
+  page-view systems of a grand staff, tie ends now land on the noteheads.
+- **Stem lengths follow the engraving rule** — an unbeamed note on the second ledger line or
+  beyond has its stem extended to the middle line instead of a fixed length, and 32nd and 64th
+  notes get longer stems so their flags clear the notehead. Tuplet brackets and staff spacing
+  see the same stems.
+- **Flags and short rests no longer collide with what follows** — an unbeamed 16th, 32nd or
+  64th note now leaves room for its flag before the next event, and 32nd and 64th rests (whose
+  glyphs are wider than their rhythmic share) leave room for their glyph. Beamed runs are
+  unchanged.
+
+### For developers
+- `SystemLayout` gains `paddingTop`/`paddingBottom` (reserved headroom, page coords); `height` is
+  now the drawn extent of the staff block (staff spacing plus one staff height) instead of one staff
+  height per stave. `distributeSystemsToPages` positions system slots and never lets a not-full page
+  overflow the content area.
+- `CONFIG.chordTrack.hitBandHalfHeight` and `MEASURE_HIT_AREA_HEIGHT` are the single source for the
+  chord band and measure hit-area extents used by both rendering and page layout.
+- `calculateStretchFactor` may return < 1.0 again for a single over-wide measure (compression
+  instead of clipping).
+- `useDragToSelect.handleMouseDown` accepts `{ svgElement, pageIndex }` for page-local lassos and
+  blurs an open inline editor before `preventDefault()`; the measure hit area no longer stops
+  `mousedown` propagation, so host click-outside handlers fire again. Page background clicks clear
+  the selection and focus the editor like the scroll view.
+- Lasso note boxes are ±10 px (under a staff space) around the notehead in both views; a
+  regression test pins that a rectangle from a beamed bass group's beam to its lowest notehead
+  selects only that staff. Browser-side checks must measure noteheads from the note hit-area rect
+  or stems, not a `<text>` `boundingBox()`, which is Bravura's 4 em line box (~16 staff spaces).
+- `openPrintDialog` registers `afterprint` before calling `window.print()`.
+- `calculateAllMeasureWidths` / `calculateSingleMeasureWidth` derive from
+  `calculateSynchronizedMeasureWidths` (exported from `scoreLayout.ts`), the same widths
+  `Staff` renders with; `distributeSystemsToPages` never vertically justifies the last page.
+- `DEFAULT_LAYOUT_CONFIG.staffSize` is 60. In page view the per-system chord track renders inside
+  a `scale(staffScale)` group (positions in staff units), and `PageLayoutService` reserves the
+  chord band scaled likewise.
+- Page view renders inside a `ThemeOverride` with the light palette (`themeCSSVariables` and
+  `ThemeOverride` are exported from `ThemeContext`). `PageContainer` sets `--riff-page-width/height`
+  and `ScoreCanvas` sets `data-page-size`; `PrintService.preparePrint` injects the matching
+  `@page { size }` rule and `ScoreEditor` calls it from `beforeprint` (flushing selection/hover
+  state with `flushSync`), so browser-menu printing behaves like the Print button. `print.css` no
+  longer carries dead selectors; transient overlays have stable classes (`riff-GhostPreview`,
+  `riff-PlaybackCursor`, `riff-LassoRect`).
+- `resolveScoreMetadata(score)` (MetadataService) is the single fallback for a score without a
+  metadata block, used by the metadata track, `getMetadata`/`getTitle`, `SetMetadataCommand` and
+  the Score Setup dialog. `TimelineService` no longer warns for rests on play.
+  `distributeSystemsToPages` takes a `spacingMultiplier` (from `SYSTEM_SPACING_MULTIPLIERS`).
+- `ChordTrack.clipHitBand` (with `CONFIG.chordTrack.noteHitGap`) clips the chord hit rect around
+  intruding noteheads; page view passes each system's note Ys as `pageNoteYs`. `ScoreCanvas`
+  lasso `notePositions` are top-left boxes in both views; the page-top chord inset constant is
+  gone (the reserved system headroom already keeps chord text inside the content area).
+- New tests: `useDragToSelect` hook contract, page-view interaction (propagation, lasso page
+  placement, chord-track clearance), system headroom and pagination bounds, print restore in both
+  event orderings.
+- `calculateBeamingGroups` joins plain-eighth beat groups by the half bar in 4/4; `beaming.ts`
+  exports `beamGroupDirection` (farthest note, mean tiebreak, on-line ⇒ down) and `beamRise`
+  (concave ⇒ 0, `BEAMING.MAX_RISE_SPACES` by interval, `BEAMING.MAX_SLOPE` = 0.35;
+  `TUPLET.MAX_SLOPE` follows it). Lane A/B fixtures `beaming-4-4-mixed` and
+  `beaming-direction-slope` pin the rules. `Measure` takes `beamGroups`/`tupletGroups` from the
+  stretched fallback layout whenever `stretchFactor !== 1`, like its other geometry.
+- `NOTE_SPACING` (constants.ts) is the single spacing table: `UNIT` 11 px per √quant and
+  pixel `MIN_WIDTH` floors, used by `getNoteWidth` and the grand-staff synchroniser
+  (`system.ts`); `LAYOUT.MIN_WIDTH_FACTORS` is gone. `CONFIG.measurePaddingLeft` is 24.
+  `noteSpacing.test.ts` pins widths in staff spaces, bar widths in mm at the 60% default, and
+  synchroniser parity. All Lane A structured-fact snapshots and Lane B pixel baselines were
+  regenerated (only horizontal facts changed).
+- `calculateTupletBrackets` votes a bracket's side from each member's *effective* stem direction —
+  its beam group's direction when beamed (the side `ChordGroup` draws the stem on), else its own
+  `chordLayout.direction` — instead of the chord layout alone, whose tuplet-unified direction
+  (`getTupletUnifiedDirection`) can disagree with `beamGroupDirection`. `tupletBracketSide.test.ts`
+  pins it, including the `tuplet-mixed-stems` and `tuplet-triplets-6-8` fixtures run through
+  `calculateMeasureLayout`. Lane A facts do not capture brackets (no snapshot change); those two
+  fixtures' Lane B pixel baselines must be regenerated (`update_baselines=true`).
+- `processBeamGroup`'s clearance pass measures each stem SIGNED (negative when the first-anchor
+  beam line falls on the far side of a note) instead of with `Math.abs`, so the shift always
+  restores `STEM.BEAMED_LENGTHS`; `beamingRules.test.ts` and a fourth bar of the
+  `beaming-direction-slope` fixture pin both directions.
+- `engines/layout/vertical.ts`: `calculateMeasureExtent` / `unionExtents` (drawn extent per
+  measure), `lyricBandHeight` / `lyricLineBaseline` (from `LYRICS`), and `calculateStaffOffsets`
+  (content-aware distance, floor `CONFIG.staffSpacing`, gap `STAFF_DISTANCE.MIN_CLEARANCE`).
+  `ScoreLayout.vertical` and `StaffLayout.y` carry it in scroll view; `SystemLayout.staffOffsets`,
+  `height`, `paddingTop`/`paddingBottom` carry it per system in page view, and
+  `distributeSystemsToPages` now packs per-system slot heights (the uniform `systemHeight`
+  argument is gone). `Staff.lyricLines?: number` is the model hook for the reserved band.
+- `engines/layout/ties.ts` `tieCurveDirection` (stem-aware, chord-aware). `utils/ties.ts`
+  `collectTieStops` resolves tie continuations once per staff; `resolveMeasureAccidentals`,
+  `calculateMeasureLayout`, `calculateSystemLayout`, `useMeasureLayout`, `useAccidentalContext`
+  and `Measure` take the resulting `tieStops` so width reservation and the drawn glyph agree.
+  `Staff.renderTies` re-lays justified measures out with their synchronized positions. `Stem`
+  renders `line.riff-Stem[data-testid="stem"]`.
+- `unbeamedStemEnd` (engines/layout/stems.ts): value-dependent length (`STEM.LENGTHS`:
+  default 44, thirtysecond 48, sixtyfourth 56) extended to `MIDDLE_LINE_Y` when short of it;
+  used by `calculateStemGeometry`, `calculateMeasureExtent` and the tuplet bracket's stem tips.
+- `engines/layout/ink.ts` `inkAdvance`: minimum advance from an event's rightmost ink
+  (`NOTE_SPACING.INK`: flag extent by stem side, rest and head half-widths, plus a gap; the next event's left ink counts too),
+  applied in `getEventMetrics` and the grand-staff synchronizer's segment widths. Beaming's
+  grouping is exposed as `groupBeamableEvents` / `beamedEventIds` (meter-dependent, x-free) so
+  both engines know which notes carry flags; `calculateMeasureLayout` and `calculateSystemLayout`
+  take a `timeSignature` for it, and the synchronizer's measures carry their staff's `clef` so a
+  flagged note reserves the flag on its actual stem side (a tuplet member's: the tuplet's unified
+  direction, via `getTupletUnifiedDirection`, now exported from `tuplets.ts`; tuplet widths are
+  raised to the bound too).
+
 ## [1.0.0-alpha.16] - 2026-06-13
 
 Closes the loop on the M2 interactive-correctness work — the four deferred follow-ups (#261, #263,

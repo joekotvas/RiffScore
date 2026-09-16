@@ -39,6 +39,11 @@ import type { RefusalCode, RefusalSeverity } from './refusals';
 /** Unsubscribe function returned by event subscriptions */
 export type Unsubscribe = () => void;
 
+import type { ImportContent, ImportFormat } from './importers';
+
+/** Formats {@link MusicEditorAPI.import} accepts, and what it takes as content. */
+export type { ImportContent, ImportFormat };
+
 /** Supported API event types */
 export type APIEventType = 'score' | 'selection' | 'playback' | 'batch' | 'operation' | 'error';
 
@@ -530,6 +535,17 @@ export interface MusicEditorAPI {
    * @status implemented
    */
   export(format: 'json' | 'abc' | 'musicxml'): string;
+  /**
+   * Import a score and replace the current one (undoable, like {@link loadScore}).
+   * `'abc'` parses ABC notation (see docs/ABC_IMPORT.md for the supported subset),
+   * `'musicxml'` parses MusicXML (docs/MUSICXML_IMPORT.md) — as text, or as the bytes of a
+   * `.musicxml` or compressed `.mxl` file — and `'json'` accepts the JSON that {@link export}
+   * writes. Input that cannot be represented faithfully still loads and reports a `warning`
+   * result whose `details.warnings` lists what was changed or dropped; unparseable input leaves
+   * the current score untouched and reports `IMPORT_FAILED`.
+   * @status implemented
+   */
+  import(format: ImportFormat, content: ImportContent): this;
 
   // --- Playback ---
   /**

@@ -57,6 +57,16 @@ export interface BeamGroup {
   endY: number;
   direction: 'up' | 'down';
   type: string;
+  segments: BeamSegment[];
+}
+
+export interface BeamSegment {
+  /** 1 = primary eighth beam, 2 = sixteenth beam, etc. */
+  level: number;
+  startX: number;
+  endX: number;
+  startY: number;
+  endY: number;
 }
 
 export interface TupletBracketGroup {
@@ -124,11 +134,21 @@ export interface MeasureLayoutV2 {
   y: number;
   width: number;
   events: Record<string, EventLayout>; // eventId -> layout
+  /**
+   * Cross-staff synchronized event X positions keyed by QUANT (measure-relative, unstretched).
+   * This is the forced-position map the SSOT fed to calculateMeasureLayout; re-layouts that
+   * must stay aligned across staves (page-view justification) pass it back as
+   * forcedEventPositions. `legacyLayout.eventPositions` is keyed by event id and is NOT
+   * accepted by the engine as a forced-position map.
+   */
+  syncedEventPositions: Record<number, number>;
   beamGroups: BeamGroup[];
   tupletGroups: TupletBracketGroup[];
   // Keep compatibility with V1 layout for now?
   legacyLayout?: MeasureLayout;
 }
+
+import type { VerticalLayout } from './vertical';
 
 export interface StaffLayout {
   y: number;
@@ -138,6 +158,8 @@ export interface StaffLayout {
 
 export interface ScoreLayout {
   staves: StaffLayout[];
+  /** Content-aware vertical layout of the staves (offsets relative to the first staff's top line). */
+  vertical: VerticalLayout;
   // Flat maps for O(1) lookup during interaction
   // Key format: `${staffIndex}-${measureIndex}-${eventId}-${noteId}`
   notes: Record<string, NoteLayout>;

@@ -337,6 +337,44 @@ export const NOTE_TYPES: Record<string, NoteType> = {
 // =============================================================================
 
 export const NOTE_SPACING_BASE_UNIT = 16;
+
+/**
+ * Rhythmic (duration-proportional) horizontal spacing, in staff pixels at 100%
+ * (12 px = one staff space).
+ *
+ * The distance a note claims before the next one is `UNIT * sqrt(quants)` — the classic
+ * engraving progression where each halving of the value takes about 1/√2 of the space —
+ * floored by `MIN_WIDTH` so short values never crowd their flags and heads. Calibrated to
+ * engraved density at a 7–7.6 mm staff: a quarter ≈ 3.7 spaces, an eighth ≈ 2.6, a
+ * sixteenth ≈ 1.8, a whole ≈ 7.3, so a 4/4 bar of eight eighths runs ≈ 43 mm at the 60%
+ * page-view default (was 63 mm with the previous 16 px unit). Glyph paddings (accidentals,
+ * dots, lookahead) stay on `NOTE_SPACING_BASE_UNIT`.
+ */
+export const NOTE_SPACING = {
+  /** Pixels per √quant (quarter = 16 quants → 4 × UNIT). */
+  UNIT: 11,
+  /** Floor per duration, in pixels; values not listed have no floor. */
+  MIN_WIDTH: {
+    sixtyfourth: 16,
+    thirtysecond: 18,
+    sixteenth: 20,
+    eighth: 24,
+  } as Record<string, number>,
+  /**
+   * Glyph ink around an event's x (Bravura at 100%), for the ink-aware advance in ink.ts: a
+   * flag hangs to the right of an up-stem (left of a down-stem), noteheads and rests are
+   * centred on x. `GAP` is the clearance kept between one event's ink and the next's.
+   */
+  INK: {
+    FLAG_RIGHT: { up: 19, down: 8 } as Record<'up' | 'down', number>,
+    HEAD_HALF: 7,
+    REST_HALF: { eighth: 6, sixteenth: 8, thirtysecond: 9, sixtyfourth: 10.5 } as Record<
+      string,
+      number
+    >,
+    GAP: 6,
+  },
+};
 export const WHOLE_REST_WIDTH = 12;
 export const DEFAULT_SCALE = 0.75;
 
@@ -378,14 +416,6 @@ export const LAYOUT = {
   HIT_ZONE_RADIUS: 14,
   APPEND_ZONE_WIDTH: 2000,
 
-  // Min widths for short notes
-  MIN_WIDTH_FACTORS: {
-    sixtyfourth: 1.2,
-    thirtysecond: 1.5,
-    sixteenth: 1.8,
-    eighth: 2.2,
-  } as Record<string, number>,
-
   LOOKAHEAD_PADDING_FACTOR: 0.3,
 };
 
@@ -394,17 +424,72 @@ export const LAYOUT = {
 // =============================================================================
 
 export const STEM = {
+  /**
+   * Unbeamed stem length by duration (px at 100%; 44 ≈ 3.7 spaces). Third and fourth flags
+   * need a longer stem so the flag clears the notehead. A stem that would not reach the middle
+   * line (notes from the second ledger line outward) is extended to it — see `unbeamedStemEnd`.
+   */
   LENGTHS: {
     default: 44,
-    thirtysecond: 44,
-    sixtyfourth: 44,
+    thirtysecond: 48,
+    sixtyfourth: 56,
   } as Record<string, number>,
   BEAMED_LENGTHS: {
     default: 44,
     thirtysecond: 48,
     sixtyfourth: 56,
   } as Record<string, number>,
+  /**
+   * Shortest stem allowed next to the beam in a WIDE group (Gould: about 2.5 spaces; more with
+   * three or four beams so the inner beams still clear the notehead). See
+   * `BEAMED_RANGE_ALLOWANCE`.
+   */
+  BEAMED_SHORT_LENGTHS: {
+    default: 30,
+    thirtysecond: 36,
+    sixtyfourth: 44,
+  } as Record<string, number>,
+  /**
+   * How far (px) a group's longest stem may exceed the minimum before the stems nearest the
+   * beam are shortened to compensate — about an octave's span (3.5 spaces). Beyond it the
+   * beam moves toward the notes by the excess, never past `BEAMED_SHORT_LENGTHS`.
+   */
+  BEAMED_RANGE_ALLOWANCE: 42,
   OFFSET_X: HALF_SPACE + 0.25,
+};
+
+// =============================================================================
+// VERTICAL LAYOUT — staff distance and lyric bands
+// =============================================================================
+
+/**
+ * Content-aware staff distance. `CONFIG.staffSpacing` (120 px) is the DEFAULT distance between
+ * the top lines of adjacent staves; a staff moves further from the one above only when their
+ * drawn content (ledger notes, stems, beams, tuplet brackets) plus the upper staff's lyric band
+ * would otherwise come closer than `MIN_CLEARANCE`. See `engines/layout/vertical.ts`.
+ */
+export const STAFF_DISTANCE = {
+  /**
+   * Smallest gap kept between the lowest ink of one staff (or its lyric band) and the highest
+   * ink of the next, px at 100% — one staff space.
+   */
+  MIN_CLEARANCE: SPACE,
+};
+
+/**
+ * Lyric band geometry, px at 100%. Lyrics are not rendered yet (roadmap #30); the layout
+ * already reserves this band below any staff whose `lyricLines` is set, so staves, systems and
+ * pages make room, and `lyricLineBaseline` says where each verse's baseline will sit.
+ */
+export const LYRICS = {
+  /** Gap from the lowest ink of the staff (never less than its bottom line) to the first line's ascent. */
+  GAP_ABOVE: SPACE,
+  /** Ascent of the lyric face above its baseline (a 13 px font at 100%). */
+  ASCENT: 10,
+  /** Baseline-to-baseline distance between verses. */
+  LINE_HEIGHT: 15,
+  /** Descent kept clear below the last baseline. */
+  DESCENT: 4,
 };
 
 // =============================================================================
@@ -414,7 +499,18 @@ export const STEM = {
 export const BEAMING = {
   THICKNESS: 5,
   SPACING: 8,
-  MAX_SLOPE: 1.0,
+  /**
+   * Maximum beam rise in staff spaces, indexed by the interval between the outer anchor
+   * notes in staff steps (0 = unison, 1 = second, 2 = third, …); wider intervals use the
+   * last entry. Engraving convention (Gould): a second slants a quarter space, and no beam
+   * slants more than one space however wide the leap.
+   */
+  MAX_RISE_SPACES: [0, 0.25, 0.5, 0.75, 1],
+  /**
+   * Maximum rise/run whatever the interval (≈19°), so tightly spaced beams — sixteenth
+   * pairs, compressed measures — stay shallow.
+   */
+  MAX_SLOPE: 0.35,
   EXTENSION_PX: 0.625,
 };
 
@@ -427,7 +523,7 @@ export const TUPLET = {
   PADDING: 15,
   // Matches BEAMING.MAX_SLOPE so a bracket drawn over a beamed tuplet can run parallel to
   // the beam instead of being clamped flatter than it.
-  MAX_SLOPE: 1.0,
+  MAX_SLOPE: BEAMING.MAX_SLOPE,
   NUMBER_FONT_SIZE: 11,
   NUMBER_OFFSET_UP: -4,
   NUMBER_OFFSET_DOWN: 12,
@@ -508,6 +604,14 @@ export const MOUSE_OFFSET_SNAP = HALF_SPACE; // 6px
  * Must match the hit area `y={baseY - MEASURE_HIT_AREA_TOP_OFFSET}` in Measure.tsx
  */
 export const MEASURE_HIT_AREA_TOP_OFFSET = Math.ceil(OUTER_ZONE_LINES * LEDGER_LINE_STEP);
+
+/**
+ * Total height of the measure hit area (12 staff lines): the ledger zone above the staff,
+ * the staff itself, and the ledger zone below. Must match the `height` of the hit area rect in
+ * Measure.tsx; PageLayoutService reserves the same zones around each system in page view so
+ * adjacent systems' hit areas never overlap.
+ */
+export const MEASURE_HIT_AREA_HEIGHT = CONFIG.lineHeight * 12;
 
 export const PIANO_RANGE = {
   min: 'A0', // MIDI 21

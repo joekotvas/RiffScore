@@ -73,7 +73,7 @@ Key patterns:
 | `src/hooks/api/modification.ts` | setPitch, transpose, structure |
 | `src/hooks/api/history.ts` | undo, redo, transactions |
 | `src/hooks/api/playback.ts` | play, pause, stop |
-| `src/hooks/api/io.ts` | loadScore, reset, export |
+| `src/hooks/api/io.ts` | loadScore, reset, export, import |
 | `src/hooks/api/events.ts` | on() subscription wrapper |
 | `src/hooks/api/layout.ts` | getViewMode, setViewMode, toggleViewMode, getLayoutConfig |
 | `src/hooks/api/metadata.ts` | getMetadata, setMetadata, getTitle, setTitle, etc. |
@@ -114,6 +114,16 @@ Key patterns:
 | `src/services/PageLayoutService.ts` | Page view layout: system breaks, measure positioning, pagination |
 | `src/services/MetadataService.ts` | Score metadata validation and normalization |
 | `src/services/ChordService.ts` | Chord symbol parsing and voicing |
+
+### Import / Export
+| File | Purpose |
+|------|---------|
+| `src/importers/abcImporter.ts` | ABC notation → `Score` (dependency-free ABC 2.1 subset; see [ABC_IMPORT.md](./ABC_IMPORT.md)) |
+| `src/importers/musicXmlImporter.ts` | MusicXML → `Score` (partwise/timewise; see [MUSICXML_IMPORT.md](./MUSICXML_IMPORT.md)) |
+| `src/importers/xml.ts`, `inflate.ts`, `mxl.ts` | Dependency-free XML reader, DEFLATE decoder and `.mxl` (ZIP) container reader behind the MusicXML importer |
+| `src/importers/importUtils.ts` | Fractions, deduplicated warnings, quant decomposition and post-parse clean-up shared by the importers |
+| `src/importers/index.ts` | `importScoreText` / `importScoreData` — shared ABC/MusicXML/JSON entry points for the API, File menu and `config.score.abc` / `.musicxml` |
+| `src/exporters/` | `Score` → JSON, ABC, MusicXML |
 
 ### Components
 | Location | Contains |

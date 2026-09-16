@@ -8,6 +8,8 @@ Everything you need to get started and build with RiffScore.
 
 - **[Configuration](./CONFIGURATION.md)**: Detailed reference for all `<RiffScore />` props and settings.
 - **[API Reference](./API.md)**: Complete guide to the machine-addressable imperative API.
+- **[ABC Import](./ABC_IMPORT.md)**: What the ABC notation importer understands, how it maps onto the score model, and what it warns about.
+- **[MusicXML Import](./MUSICXML_IMPORT.md)**: What the MusicXML importer understands (`.musicxml` and compressed `.mxl`), how it maps onto the score model, and what it warns about.
 - **[Cookbook](./COOKBOOK.md)**: Recipe collection for common tasks (creating notes, building chords, simple interactions).
 - **[Interaction Design](./INTERACTION.md)**: Philosophy and behavior of the editor's mouse and keyboard interactions.
 - **[Keyboard Navigation](./KEYBOARD_NAVIGATION.md)**: Deep dive into the arrow-key navigation logic and state machine.

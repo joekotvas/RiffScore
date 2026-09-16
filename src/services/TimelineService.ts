@@ -81,7 +81,15 @@ export const createTimeline = (score: Score, bpm: number): TimelineEvent[] => {
       measure.events.forEach((event: ScoreEvent, eIndex: number) => {
         const eventDurQuants = getNoteDuration(event.duration, event.dotted, event.tuplet);
 
+        // Rests occupy time but never sound: advance the grid without inspecting their
+        // pitch-less notes, so only a genuinely pitch-less NOTE reaches the warning below.
+        if (event.isRest) {
+          currentMeasureQuant += eventDurQuants;
+          return;
+        }
+
         event.notes.forEach((note: Note) => {
+          if (note.isRest) return;
           if (!note.pitch) {
             if (process.env.NODE_ENV !== 'production') {
               console.warn('TimelineService: Note without pitch detected', {

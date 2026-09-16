@@ -35,6 +35,7 @@ describe('useCursorLayout', () => {
     staves: [],
     notes: {},
     events: {},
+    vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
     getX: createMockGetX(),
     getY: createMockGetY(),
   });
@@ -50,6 +51,7 @@ describe('useCursorLayout', () => {
             y: 100,
             width: 120,
             events: {},
+            syncedEventPositions: {},
             beamGroups: [],
             tupletGroups: [],
             legacyLayout: {
@@ -66,6 +68,7 @@ describe('useCursorLayout', () => {
     ],
     notes: {},
     events: {},
+    vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
     getX: createMockGetX([80]),
     getY: createMockGetY(),
   });
@@ -81,6 +84,7 @@ describe('useCursorLayout', () => {
             y: 100,
             width: 120,
             events: {},
+            syncedEventPositions: {},
             beamGroups: [],
             tupletGroups: [],
             legacyLayout: {
@@ -98,6 +102,7 @@ describe('useCursorLayout', () => {
             y: 100,
             width: 120,
             events: {},
+            syncedEventPositions: {},
             beamGroups: [],
             tupletGroups: [],
             legacyLayout: {
@@ -120,6 +125,7 @@ describe('useCursorLayout', () => {
             y: 200,
             width: 120,
             events: {},
+            syncedEventPositions: {},
             beamGroups: [],
             tupletGroups: [],
           },
@@ -128,6 +134,7 @@ describe('useCursorLayout', () => {
     ],
     notes: {},
     events: {},
+    vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
     getX: createMockGetX([80, 200]),
     getY: createMockGetY(),
   });
@@ -242,6 +249,7 @@ describe('useCursorLayout', () => {
                 y: 100,
                 width: 120,
                 events: {},
+                syncedEventPositions: {},
                 beamGroups: [],
                 tupletGroups: [],
                 legacyLayout: {
@@ -263,6 +271,7 @@ describe('useCursorLayout', () => {
                 y: 200,
                 width: 120,
                 events: {},
+                syncedEventPositions: {},
                 beamGroups: [],
                 tupletGroups: [],
                 legacyLayout: {
@@ -275,6 +284,7 @@ describe('useCursorLayout', () => {
         ],
         notes: {},
         events: {},
+        vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
         getX: createMockGetX([80]),
         getY: createMockGetY(),
       };
@@ -332,16 +342,37 @@ describe('useCursorLayout', () => {
           {
             y: 100,
             index: 0,
-            measures: [{ x: 80, y: 100, width: 120, events: {}, beamGroups: [], tupletGroups: [] }],
+            measures: [
+              {
+                x: 80,
+                y: 100,
+                width: 120,
+                events: {},
+                syncedEventPositions: {},
+                beamGroups: [],
+                tupletGroups: [],
+              },
+            ],
           } as StaffLayout,
           {
             y: 200,
             index: 1,
-            measures: [{ x: 80, y: 200, width: 120, events: {}, beamGroups: [], tupletGroups: [] }],
+            measures: [
+              {
+                x: 80,
+                y: 200,
+                width: 120,
+                events: {},
+                syncedEventPositions: {},
+                beamGroups: [],
+                tupletGroups: [],
+              },
+            ],
           } as StaffLayout,
         ],
         notes: {},
         events: {},
+        vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
         getX: createMockGetX([80]),
         getY: createMockGetY(),
       };

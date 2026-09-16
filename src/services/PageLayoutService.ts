@@ -51,10 +51,20 @@ import {
   METADATA_TYPOGRAPHY,
   PAGE_GAP,
   FOOTER_HEIGHT,
+  SYSTEM_SPACING_MULTIPLIERS,
 } from '@/config';
 import { CONFIG } from '@/config';
-import { calculateMeasureWidth, calculateSystemPreamble } from '@/engines/layout';
-import { STAFF_GEOMETRY } from '@/constants';
+import { calculateSystemPreamble } from '@/engines/layout';
+import { calculateSynchronizedMeasureWidths } from '@/engines/layout/scoreLayout';
+import {
+  MEASURE_HIT_AREA_HEIGHT,
+  MEASURE_HIT_AREA_TOP_OFFSET,
+  STAFF_GEOMETRY,
+  STAFF_HEIGHT,
+} from '@/constants';
+import { calculateMeasureExtents } from '@/engines/layout/scoreLayout';
+import { calculateStretchFactor } from '@/engines/layout/measure';
+import { calculateStaffOffsets, unionExtents, EMPTY_STAFF_EXTENT } from '@/engines/layout/vertical';
 
 // =============================================================================
 // CONSTANTS
@@ -82,53 +92,32 @@ const mmToPx = (mm: number): number => mm * MM_TO_PX;
 /**
  * Calculates the width of a single measure in a score.
  *
+ * Uses the same cross-staff synchronized, key-aware widths the renderer draws with (see
+ * calculateSynchronizedMeasureWidths), so page-layout positions match the rendered staves.
+ *
  * @param score - The score containing the measure
  * @param measureIndex - 0-based measure index
  * @param staffScale - Staff scale factor (1.0 = 100%)
- * @returns Width in pixels
+ * @returns Width in pixels (0 for a missing measure)
  */
 export const calculateSingleMeasureWidth = (
   score: Score,
   measureIndex: number,
   staffScale: number = 1.0
 ): number => {
-  if (!score.staves.length) return 0;
-
-  // For grand staff, take the maximum width across all staves
-  let maxWidth = 0;
-
-  for (const staff of score.staves) {
-    const measure = staff.measures[measureIndex];
-    if (!measure) continue;
-
-    const width = calculateMeasureWidth(measure.events, measure.isPickup);
-    maxWidth = Math.max(maxWidth, width);
-  }
-
-  return maxWidth * staffScale;
+  const width = calculateSynchronizedMeasureWidths(score)[measureIndex];
+  return width === undefined ? 0 : width * staffScale;
 };
 
 /**
- * Calculates the widths of all measures in a score.
+ * Calculates the widths of all measures in a score (synchronized across staves, key-aware).
  *
  * @param score - The score to analyze
  * @param staffScale - Staff scale factor (1.0 = 100%)
  * @returns Array of measure widths in pixels
  */
-export const calculateAllMeasureWidths = (score: Score, staffScale: number = 1.0): number[] => {
-  if (!score.staves.length || !score.staves[0].measures.length) {
-    return [];
-  }
-
-  const measureCount = score.staves[0].measures.length;
-  const widths: number[] = [];
-
-  for (let i = 0; i < measureCount; i++) {
-    widths.push(calculateSingleMeasureWidth(score, i, staffScale));
-  }
-
-  return widths;
-};
+export const calculateAllMeasureWidths = (score: Score, staffScale: number = 1.0): number[] =>
+  calculateSynchronizedMeasureWidths(score).map((width) => width * staffScale);
 
 // =============================================================================
 // SYSTEM BREAK CALCULATION
@@ -390,22 +379,26 @@ export const calculateAvailableContentHeight = (
   return baseHeight;
 };
 
-/** Minimum spacing between systems for packing calculation (page coords) */
+/** Minimum spacing between systems for packing calculation (page coords, 'normal' preset) */
 const MIN_SYSTEM_SPACING = 12;
 
 /**
  * Distributes systems across pages with vertical justification.
  *
  * Algorithm:
- * 1. Pack as many systems as possible per page using minimum spacing
- * 2. For full pages: distribute systems equidistantly (vertical justification)
- * 3. For final page: use same spacing as previous pages, or 1 staff height if single page
+ * 1. Pack as many systems as possible per page using the minimum spacing
+ *    (MIN_SYSTEM_SPACING scaled by the systemSpacing preset multiplier)
+ * 2. For full pages before the last: distribute systems equidistantly (vertical justification)
+ * 3. For the last page (including a single-page score): never justify — a short final page
+ *    keeps the spacing of the previous full page, or the default spacing when there is none,
+ *    so a four-bar piece does not get spread across the whole sheet
  *
  * @param systems - All systems to distribute (with heights calculated)
  * @param contentArea - Content area dimensions
  * @param metadataBottom - Y position where metadata ends
- * @param defaultSpacing - Default spacing (1 staff height, used for single-page scores)
- * @param systemHeight - Height of each system
+ * @param defaultSpacing - Spacing between systems on pages that are not full
+ * @param spacingMultiplier - systemSpacing preset multiplier applied to MIN_SYSTEM_SPACING
+ *   (1 = 'normal'; see SYSTEM_SPACING_MULTIPLIERS)
  * @returns Array of page assignments with page-relative system Y coordinates
  */
 export const distributeSystemsToPages = (
@@ -413,40 +406,54 @@ export const distributeSystemsToPages = (
   contentArea: ContentArea,
   metadataBottom: number,
   defaultSpacing: number,
-  systemHeight: number
+  spacingMultiplier: number = 1
 ): { pageIndex: number; systems: SystemLayout[]; justifiedSpacing: number }[] => {
   if (systems.length === 0) {
     return [];
   }
 
+  const minSpacing = MIN_SYSTEM_SPACING * spacingMultiplier;
+
+  // A system's slot is its staff block plus the headroom reserved above and below it. Slots
+  // differ per system because staff distance and headroom follow each system's content.
+  const slotHeight = (system: SystemLayout): number =>
+    system.paddingTop + system.height + system.paddingBottom;
+
   // ─── PHASE 1: Determine how many systems fit per page ───
   // Use minimum spacing to pack as many as possible
   const pageSystemCounts: number[] = [];
   const pageAvailableHeights: number[] = [];
-  let remainingSystems = systems.length;
+  const pageSlotTotals: number[] = []; // sum of the slot heights on each page
+  const pageFirstSystem: number[] = []; // index of each page's first system
+  let nextSystem = 0;
   let pageIndex = 0;
 
-  while (remainingSystems > 0) {
+  while (nextSystem < systems.length) {
     const availableHeight = calculateAvailableContentHeight(pageIndex, contentArea, metadataBottom);
     pageAvailableHeights.push(availableHeight);
+    pageFirstSystem.push(nextSystem);
 
     // Calculate how many systems fit with minimum spacing
-    // First system: just systemHeight
-    // Each additional: systemHeight + MIN_SYSTEM_SPACING
+    // First system: just its slot
+    // Each additional: its slot + minSpacing
     let count = 0;
     let usedHeight = 0;
+    let slotTotal = 0;
 
-    while (remainingSystems > 0) {
-      const neededHeight = count === 0 ? systemHeight : systemHeight + MIN_SYSTEM_SPACING;
+    while (nextSystem < systems.length) {
+      const slot = slotHeight(systems[nextSystem]);
+      const neededHeight = count === 0 ? slot : slot + minSpacing;
       if (usedHeight + neededHeight > availableHeight && count > 0) {
         break; // Page is full
       }
       usedHeight += neededHeight;
+      slotTotal += slot;
       count++;
-      remainingSystems--;
+      nextSystem++;
     }
 
     pageSystemCounts.push(count);
+    pageSlotTotals.push(slotTotal);
     pageIndex++;
   }
 
@@ -459,9 +466,16 @@ export const distributeSystemsToPages = (
     const availableHeight = pageAvailableHeights[i];
 
     // Calculate space used with minimum spacing
-    const usedHeight = count * systemHeight + Math.max(0, count - 1) * MIN_SYSTEM_SPACING;
-    // Would one more system fit?
-    const spaceForNext = systemHeight + MIN_SYSTEM_SPACING;
+    const usedHeight = pageSlotTotals[i] + Math.max(0, count - 1) * minSpacing;
+    // Would one more system fit? The candidate is the next page's first system; on the last
+    // page (no candidate) the page's own tallest slot stands in.
+    const candidate =
+      i + 1 < pageFirstSystem.length
+        ? slotHeight(systems[pageFirstSystem[i + 1]])
+        : Math.max(
+            ...systems.slice(pageFirstSystem[i], pageFirstSystem[i] + count).map(slotHeight)
+          );
+    const spaceForNext = candidate + minSpacing;
     const isFull = usedHeight + spaceForNext > availableHeight;
 
     pageIsFull.push(isFull);
@@ -474,26 +488,29 @@ export const distributeSystemsToPages = (
     const count = pageSystemCounts[i];
     const availableHeight = pageAvailableHeights[i];
 
+    const isLastPage = i === pageSystemCounts.length - 1;
+
     if (count <= 1) {
       // Single system on page - no spacing needed
       pageJustifiedSpacings.push(0);
-    } else if (pageIsFull[i]) {
-      // Full page: justify vertically (distribute systems equidistantly)
-      // spacing = (availableHeight - totalSystemsHeight) / (count - 1)
-      const totalSystemsHeight = count * systemHeight;
-      const justifiedSpacing = (availableHeight - totalSystemsHeight) / (count - 1);
+    } else if (pageIsFull[i] && !isLastPage) {
+      // Full page before the last: justify vertically (distribute systems equidistantly)
+      // spacing = (availableHeight - totalSlotHeight) / (count - 1)
+      const justifiedSpacing = (availableHeight - pageSlotTotals[i]) / (count - 1);
       pageJustifiedSpacings.push(justifiedSpacing);
     } else {
-      // Not full page: use previous full page's spacing or default
-      // Find the most recent full page's spacing
+      // Not full, or the last page: use the previous justified page's spacing or the default
+      // Find the most recent justified page's spacing
       let spacingToUse = defaultSpacing;
       for (let j = i - 1; j >= 0; j--) {
-        if (pageIsFull[j]) {
+        if (pageIsFull[j] && pageSystemCounts[j] > 1) {
           spacingToUse = pageJustifiedSpacings[j];
           break;
         }
       }
-      pageJustifiedSpacings.push(spacingToUse);
+      // Packing used minSpacing; a larger spacing must not push systems off the page.
+      const maxSpacing = (availableHeight - pageSlotTotals[i]) / (count - 1);
+      pageJustifiedSpacings.push(Math.min(spacingToUse, maxSpacing));
     }
   }
 
@@ -514,7 +531,7 @@ export const distributeSystemsToPages = (
         ...systems[systemIndex],
         y: currentY,
       });
-      currentY += systemHeight + spacing;
+      currentY += slotHeight(systems[systemIndex]) + spacing;
       systemIndex++;
     }
 
@@ -551,6 +568,7 @@ const calculateMeasurePositions = (
   const naturalWidth = systemMeasures.reduce((sum, idx) => sum + (measureWidths[idx] ?? 0), 0);
 
   // Stretch factor for justified systems
+  // < 1.0 only when a single measure is wider than the system; it is compressed to fit the page.
   const stretchFactor =
     justification === 1.0 && naturalWidth > 0 ? systemContentWidth / naturalWidth : 1.0;
 
@@ -593,7 +611,10 @@ export const calculatePageLayout = (
   const pageDims = PAGE_DIMENSIONS[config.pageSize];
   const margins = MARGIN_PRESETS[config.margins];
   const staffScale = config.staffSize / 100;
-  // Note: config.systemSpacing is ignored in page view (vertical justification is used instead)
+  // systemSpacing scales the minimum gap between system slots: it sets how tightly systems pack
+  // onto a page and the gap on pages that are not full. Full pages before the last one are still
+  // vertically justified, so there the preset only changes how many systems fit.
+  const spacingMultiplier = SYSTEM_SPACING_MULTIPLIERS[config.systemSpacing] ?? 1;
 
   // Convert margins to pixels
   const marginsPx: MarginsPx = {
@@ -644,19 +665,49 @@ export const calculatePageLayout = (
     firstSystemIndent: FIRST_SYSTEM_INDENT,
   });
 
-  // Calculate staff height with scale (page coords)
-  const scaledStaffHeight = STAFF_GEOMETRY.height * staffScale;
+  // Vertical layout is content-aware per system: each staff's drawn extent (ledger notes,
+  // stems, beams, tuplet brackets) over the system's measures, plus any lyric band, decides
+  // how far apart the staves sit (never closer than CONFIG.staffSpacing) and how much
+  // headroom the system reserves above its first staff and below its last.
+  const lyricLines = score.staves.map((staff) => staff.lyricLines ?? 0);
 
-  // Default spacing for single-page scores: 1 staff height
-  // Multi-page scores use vertical justification (spacing calculated per page)
-  const defaultSpacing = scaledStaffHeight;
+  // Baseline headroom above and below the staff block. The measure hit area extends
+  // MEASURE_HIT_AREA_TOP_OFFSET above the top line and the rest of MEASURE_HIT_AREA_HEIGHT below
+  // the bottom line (ledger notes, clef overhang, stems); reserving both keeps adjacent systems'
+  // hit areas from overlapping. Chord symbols sit minDistanceFromStaff above the staff with a
+  // ±hitBandHalfHeight hit band, all in staff units scaled like the staff, so scores with chords
+  // need at least that on top. Ink or lyric bands that reach further grow the headroom.
+  const ledgerZoneAbove = MEASURE_HIT_AREA_TOP_OFFSET * staffScale;
+  const ledgerZoneBelow =
+    (MEASURE_HIT_AREA_HEIGHT - MEASURE_HIT_AREA_TOP_OFFSET - STAFF_GEOMETRY.height) * staffScale;
+  const chordZone =
+    (score.chordTrack?.length ?? 0) > 0
+      ? (CONFIG.chordTrack.minDistanceFromStaff + CONFIG.chordTrack.hitBandHalfHeight) * staffScale
+      : 0;
 
-  // Calculate system height (staff height + spacing for staves in grand staff)
-  const stavesCount = score.staves.length;
-  const systemHeight =
-    stavesCount > 1
-      ? scaledStaffHeight * stavesCount + CONFIG.staffSpacing * staffScale * (stavesCount - 1)
-      : scaledStaffHeight;
+  // Spacing between system slots on pages that are not full (full pages are justified). The
+  // slots already carry the ledger/chord headroom, so only the packing minimum (scaled by the
+  // systemSpacing preset) is added.
+  const defaultSpacing = MIN_SYSTEM_SPACING * spacingMultiplier;
+
+  // Every measure's stretch factor is that of its system (justified systems draw beams on the
+  // stretched positions), so extents are measured at the stretch they are drawn with.
+  const stretchByMeasure = new Map<number, number>();
+  systemBreaks.forEach((systemMeasures, i) => {
+    const effectiveWidth = i === 0 ? firstSystemEffectiveWidth : subsequentSystemEffectiveWidth;
+    const width = i === 0 ? effectiveWidth * (1 - FIRST_SYSTEM_INDENT) : effectiveWidth;
+    const justification = calculateJustification(
+      systemMeasures,
+      measureWidths,
+      width,
+      i === systemBreaks.length - 1
+    );
+    const natural = systemMeasures.reduce((sum, m) => sum + (measureWidths[m] || 0), 0);
+    systemMeasures.forEach((m) =>
+      stretchByMeasure.set(m, calculateStretchFactor(natural, width, justification))
+    );
+  });
+  const measureExtents = calculateMeasureExtents(score, (m) => stretchByMeasure.get(m) ?? 1.0);
 
   // Build system layouts (without final Y positions - will be set during page distribution)
   const allSystems: SystemLayout[] = [];
@@ -668,7 +719,9 @@ export const calculatePageLayout = (
 
     // Use per-system preamble width (staff coords)
     const systemPreambleWidth = isFirst ? firstPreambleWidth : subsequentPreambleWidth;
-    const effectiveContentWidth = isFirst ? firstSystemEffectiveWidth : subsequentSystemEffectiveWidth;
+    const effectiveContentWidth = isFirst
+      ? firstSystemEffectiveWidth
+      : subsequentSystemEffectiveWidth;
 
     // First system indent (relative to effective content area)
     const indentX = isFirst ? FIRST_SYSTEM_INDENT * effectiveContentWidth : 0;
@@ -698,11 +751,27 @@ export const calculatePageLayout = (
       justification
     );
 
+    // Staff offsets and headroom for this system's content
+    const systemExtents = score.staves.map((_, staffIndex) =>
+      unionExtents(systemMeasures.map((m) => measureExtents[staffIndex]?.[m] ?? EMPTY_STAFF_EXTENT))
+    );
+    const vertical = calculateStaffOffsets(systemExtents, lyricLines);
+    const lastStaffTop = vertical.offsets[vertical.offsets.length - 1] ?? 0;
+    const systemHeight = (lastStaffTop + STAFF_HEIGHT) * staffScale;
+    const paddingTop = Math.max(ledgerZoneAbove, chordZone, -vertical.top * staffScale);
+    const paddingBottom = Math.max(
+      ledgerZoneBelow,
+      (vertical.bottom - lastStaffTop - STAFF_HEIGHT) * staffScale
+    );
+
     allSystems.push({
       index: i,
       measures: systemMeasures,
       y: 0, // Will be set during page distribution
       height: systemHeight,
+      paddingTop,
+      paddingBottom,
+      staffOffsets: vertical.offsets.map((offset) => offset * staffScale),
       xOffset,
       contentWidth: systemContentWidth,
       preambleWidth: systemPreambleWidth, // Staff coords (unscaled)
@@ -719,36 +788,56 @@ export const calculatePageLayout = (
     contentArea,
     metadata.bottom,
     defaultSpacing,
-    systemHeight
+    spacingMultiplier
   );
 
-  // Build Page objects
-  const pages: Page[] = pageAssignments.map(({ pageIndex, systems: pageSystems }) => {
-    const canvasY = pageIndex * (pageHeight + PAGE_GAP);
+  // Build Page objects. Even scores with no systems need a visible page shell so page view is
+  // still WYSIWYG for metadata editing and printing.
+  const pages: Page[] =
+    pageAssignments.length > 0
+      ? pageAssignments.map(({ pageIndex, systems: pageSystems }) => {
+          const canvasY = pageIndex * (pageHeight + PAGE_GAP);
 
-    // Update system indices relative to this page
-    const pageRelativeSystems = pageSystems.map((system, idx) => ({
-      ...system,
-      // isFirst only for first system on first page
-      isFirst: pageIndex === 0 && idx === 0,
-      // isLast only for last system on last page
-      isLast: pageIndex === pageAssignments.length - 1 && idx === pageSystems.length - 1,
-    }));
+          // Update system indices relative to this page
+          const pageRelativeSystems = pageSystems.map((system, idx) => ({
+            ...system,
+            // Distribution positions slots; the staff block starts below the top headroom
+            y: system.y + system.paddingTop,
+            // isFirst only for first system on first page
+            isFirst: pageIndex === 0 && idx === 0,
+            // isLast only for last system on last page
+            isLast: pageIndex === pageAssignments.length - 1 && idx === pageSystems.length - 1,
+          }));
 
-    return {
-      index: pageIndex,
-      systems: pageRelativeSystems,
-      footer: calculateFooterLayout(
-        contentArea,
-        marginsPx.bottom,
-        pageIndex + 1, // 1-based page number
-        pageIndex === 0 ? effectiveMetadata.copyright : undefined
-      ),
-      canvasY,
-      isFirst: pageIndex === 0,
-      isLast: pageIndex === pageAssignments.length - 1,
-    };
-  });
+          return {
+            index: pageIndex,
+            systems: pageRelativeSystems,
+            footer: calculateFooterLayout(
+              contentArea,
+              marginsPx.bottom,
+              pageIndex + 1, // 1-based page number
+              pageIndex === 0 ? effectiveMetadata.copyright : undefined
+            ),
+            canvasY,
+            isFirst: pageIndex === 0,
+            isLast: pageIndex === pageAssignments.length - 1,
+          };
+        })
+      : [
+          {
+            index: 0,
+            systems: [],
+            footer: calculateFooterLayout(
+              contentArea,
+              marginsPx.bottom,
+              1,
+              effectiveMetadata.copyright
+            ),
+            canvasY: 0,
+            isFirst: true,
+            isLast: true,
+          },
+        ];
 
   const pageCount = pages.length;
   const totalHeight = pageCount * pageHeight + Math.max(0, pageCount - 1) * PAGE_GAP;
@@ -782,6 +871,41 @@ export const calculatePageLayout = (
 // =============================================================================
 
 /**
+ * Finds the system layout that contains a given measure.
+ *
+ * `pageLayout.systems` is retained as a first-page compatibility field. Page-aware
+ * callers must search `pages` so measures on later pages do not disappear.
+ *
+ * @param measureIndex - 0-based measure index
+ * @param pageLayout - The page layout to search
+ * @returns System layout, or null if not found
+ */
+export const getSystemLayoutForMeasure = (
+  measureIndex: number,
+  pageLayout: PageLayout
+): SystemLayout | null => {
+  const pages = pageLayout.pages ?? [];
+
+  if (pages.length > 0) {
+    for (const page of pages) {
+      for (const system of page.systems) {
+        if (system.measures.includes(measureIndex)) {
+          return system;
+        }
+      }
+    }
+    return null;
+  }
+
+  for (const system of pageLayout.systems) {
+    if (system.measures.includes(measureIndex)) {
+      return system;
+    }
+  }
+  return null;
+};
+
+/**
  * Finds which system contains a given measure.
  *
  * @param measureIndex - 0-based measure index
@@ -789,12 +913,7 @@ export const calculatePageLayout = (
  * @returns System index, or -1 if not found
  */
 export const getSystemForMeasure = (measureIndex: number, pageLayout: PageLayout): number => {
-  for (const system of pageLayout.systems) {
-    if (system.measures.includes(measureIndex)) {
-      return system.index;
-    }
-  }
-  return -1;
+  return getSystemLayoutForMeasure(measureIndex, pageLayout)?.index ?? -1;
 };
 
 /**
@@ -810,10 +929,7 @@ export const getMeasureOriginInSystem = (
   pageLayout: PageLayout,
   measureWidths: number[]
 ): { x: number; systemIndex: number } | null => {
-  const systemIndex = getSystemForMeasure(measureIndex, pageLayout);
-  if (systemIndex === -1) return null;
-
-  const system = pageLayout.systems[systemIndex];
+  const system = getSystemLayoutForMeasure(measureIndex, pageLayout);
   if (!system) return null;
 
   // Calculate X by summing widths of preceding measures in this system
@@ -821,7 +937,7 @@ export const getMeasureOriginInSystem = (
 
   for (const idx of system.measures) {
     if (idx === measureIndex) {
-      return { x, systemIndex };
+      return { x, systemIndex: system.index };
     }
 
     const width = measureWidths[idx] ?? 0;

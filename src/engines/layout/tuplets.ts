@@ -3,7 +3,40 @@ import { getNoteDuration } from '@/utils/core';
 import { getOffsetForPitch } from './positioning';
 import { CONFIG } from '@/config';
 
-import { TUPLET, STEM } from '@/constants';
+import { MIDDLE_LINE_Y, TUPLET } from '@/constants';
+import { unbeamedStemEnd } from './stems';
+
+/**
+ * Determines the unified stem direction for a tuplet group.
+ * Finds the note farthest from the middle line and uses that to decide
+ * whether all stems should point up or down.
+ *
+ * @param tupletGroup - Array of events in the tuplet
+ * @param clef - Current clef for pitch-to-Y conversion
+ * @returns 'up' or 'down' direction for all stems in the group
+ */
+export const getTupletUnifiedDirection = (
+  tupletGroup: ScoreEvent[],
+  clef: string
+): 'up' | 'down' => {
+  let maxDist = -1;
+  let direction: 'up' | 'down' = 'down';
+
+  tupletGroup.forEach((te) => {
+    te.notes.forEach((n) => {
+      // Skip rest notes (null pitch)
+      if (n.pitch === null) return;
+      const y = CONFIG.baseY + getOffsetForPitch(n.pitch, clef);
+      const dist = Math.abs(y - MIDDLE_LINE_Y);
+      if (dist > maxDist) {
+        maxDist = dist;
+        direction = y <= MIDDLE_LINE_Y ? 'down' : 'up';
+      }
+    });
+  });
+
+  return direction;
+};
 
 /**
  * Helper to determine the events belonging to a tuplet group starting at a given index.
@@ -65,6 +98,17 @@ export const calculateTupletBrackets = (
 ): TupletBracketGroup[] => {
   const brackets: TupletBracketGroup[] = [];
 
+  // The beam group (if any) that owns an event's stem.
+  const beamOf = (event: ScoreEvent): BeamGroup | undefined =>
+    beamGroups.find((b) => b.ids.includes(event.id));
+
+  // The side an event's stem is actually drawn on. A beamed stem sits on its beam's side (the
+  // beam decides for the whole group — see beamGroupDirection — whatever the event's own
+  // chordLayout.direction says); an unbeamed stem follows its chord layout. This mirrors the
+  // renderer (ChordGroup: `beamSpec?.direction || direction`).
+  const effectiveDirection = (event: ScoreEvent): 'up' | 'down' =>
+    beamOf(event)?.direction ?? event.chordLayout?.direction ?? 'down';
+
   // Helper to get Y bounds of an event (top and bottom of everything: notes, stems)
   const getEventYBounds = (event: ScoreEvent, _dir: 'up' | 'down') => {
     // 1. Noteheads - filter out rest notes (null pitch)
@@ -82,9 +126,9 @@ export const calculateTupletBrackets = (
     // unbeamed notes), so we resolve each event's real stem tip individually:
     //  - If the event belongs to a beam, its stem tip sits ON that beam's line at the
     //    event's x (so the bracket tracks the actual beamed stems, whatever their slope).
-    //  - Otherwise (unbeamed: quarters, lone eighths) use the default stem length.
+    //  - Otherwise (unbeamed: quarters, lone eighths) use its real unbeamed stem end.
     const chordDir = event.chordLayout?.direction || 'down';
-    const beam = beamGroups.find((b) => b.ids.includes(event.id));
+    const beam = beamOf(event);
 
     let topY = minNoteY;
     let bottomY = maxNoteY;
@@ -95,9 +139,15 @@ export const calculateTupletBrackets = (
       if (beam.direction === 'up') topY = Math.min(topY, beamY);
       else bottomY = Math.max(bottomY, beamY);
     } else {
-      const stemLen = STEM.LENGTHS.default;
-      if (chordDir === 'up') topY = Math.min(topY, minNoteY - stemLen);
-      else bottomY = Math.max(bottomY, maxNoteY + stemLen);
+      // Unbeamed: the real stem end (value-dependent length, middle-line extension).
+      const end = unbeamedStemEnd({
+        direction: chordDir,
+        minY: minNoteY,
+        maxY: maxNoteY,
+        duration: event.duration,
+      });
+      if (chordDir === 'up') topY = Math.min(topY, end);
+      else bottomY = Math.max(bottomY, end);
     }
 
     return { topY, bottomY };
@@ -120,13 +170,17 @@ export const calculateTupletBrackets = (
       if (groupEvents.length === 0) continue;
 
       // 1. Determine Direction
-      // Rule: Place on stem side.
+      // Rule: place the bracket on the stem side — the majority of the members' EFFECTIVE stem
+      // directions (see effectiveDirection). For a beamed tuplet every member votes with its
+      // beam, so the bracket and its number land on the beam side (engraving convention); the
+      // per-event chordLayout.direction alone could disagree with the beam (tuplet-mixed-stems:
+      // G4–B4–D5 beamed below but bracketed above). Unbeamed tuplets vote as before.
       // If majority stems up -> Bracket Up (above).
       // If majority stems down -> Bracket Down (below).
       let upCount = 0;
       let downCount = 0;
       groupEvents.forEach((e) => {
-        if (e.chordLayout?.direction === 'up') upCount++;
+        if (effectiveDirection(e) === 'up') upCount++;
         else downCount++;
       });
 

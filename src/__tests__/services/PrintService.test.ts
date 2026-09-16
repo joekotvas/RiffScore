@@ -5,7 +5,12 @@
  * Tests DOM manipulation for print mode transitions.
  */
 
-import { preparePrint, restoreFromPrint, isPrinting } from '@/services/PrintService';
+import {
+  preparePrint,
+  restoreFromPrint,
+  isPrinting,
+  openPrintDialog,
+} from '@/services/PrintService';
 
 // ============================================================================
 // TEST SETUP
@@ -54,6 +59,18 @@ describe('PrintService', () => {
       preparePrint();
 
       expect(mockEditor.getAttribute('data-print-mode')).toBe('true');
+    });
+
+    it('sets data-print-mode on current ScoreEditor roots', () => {
+      const scoreEditor = document.createElement('div');
+      scoreEditor.className = 'riff-ScoreEditor';
+      document.body.appendChild(scoreEditor);
+
+      preparePrint();
+
+      expect(scoreEditor.getAttribute('data-print-mode')).toBe('true');
+
+      scoreEditor.remove();
     });
 
     it('handles missing editor element gracefully', () => {
@@ -112,6 +129,19 @@ describe('PrintService', () => {
       restoreFromPrint();
 
       expect(mockEditor.hasAttribute('data-print-mode')).toBe(false);
+    });
+
+    it('removes data-print-mode from current ScoreEditor roots', () => {
+      const scoreEditor = document.createElement('div');
+      scoreEditor.className = 'riff-ScoreEditor';
+      scoreEditor.setAttribute('data-print-mode', 'true');
+      document.body.appendChild(scoreEditor);
+
+      restoreFromPrint();
+
+      expect(scoreEditor.hasAttribute('data-print-mode')).toBe(false);
+
+      scoreEditor.remove();
     });
 
     it('handles missing editor element gracefully', () => {
@@ -196,6 +226,42 @@ describe('PrintService', () => {
   // INTEGRATION TESTS
   // ============================================================================
 
+  describe('editor roots', () => {
+    it('marks each root once — including one carrying both root classes — and clears them all', () => {
+      const scoreEditor = document.createElement('div');
+      scoreEditor.className = 'riff-ScoreEditor';
+      const bothClasses = document.createElement('div');
+      bothClasses.className = 'riff-ScoreEditor riff-editor';
+      document.body.append(scoreEditor, bothClasses);
+      // mockEditor (.riff-editor) is mounted by the outer beforeEach.
+      const roots = [scoreEditor, mockEditor, bothClasses];
+      const setSpies = roots.map((root) => jest.spyOn(root, 'setAttribute'));
+      const removeSpies = roots.map((root) => jest.spyOn(root, 'removeAttribute'));
+
+      try {
+        preparePrint();
+
+        roots.forEach((root, i) => {
+          expect(root.getAttribute('data-print-mode')).toBe('true');
+          expect(setSpies[i]).toHaveBeenCalledTimes(1);
+          expect(setSpies[i]).toHaveBeenCalledWith('data-print-mode', 'true');
+        });
+
+        restoreFromPrint();
+
+        roots.forEach((root, i) => {
+          expect(root.hasAttribute('data-print-mode')).toBe(false);
+          expect(removeSpies[i]).toHaveBeenCalledTimes(1);
+          expect(removeSpies[i]).toHaveBeenCalledWith('data-print-mode');
+        });
+      } finally {
+        [...setSpies, ...removeSpies].forEach((spy) => spy.mockRestore());
+        scoreEditor.remove();
+        bothClasses.remove();
+      }
+    });
+  });
+
   describe('prepare/restore cycle', () => {
     it('fully restores state after print cycle', () => {
       // Capture initial state
@@ -210,5 +276,101 @@ describe('PrintService', () => {
       expect(document.body.className).toBe(initialBodyClasses);
       expect(Array.from(mockEditor.attributes).map((a) => a.name)).toEqual(initialEditorAttrs);
     });
+  });
+});
+
+// ============================================================================
+// openPrintDialog TESTS
+// ============================================================================
+
+describe('openPrintDialog', () => {
+  let mockEditor: HTMLDivElement;
+  let printSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    document.body.className = '';
+    mockEditor = document.createElement('div');
+    mockEditor.className = 'riff-ScoreEditor';
+    document.body.appendChild(mockEditor);
+    if (typeof window.print !== 'function') {
+      Object.defineProperty(window, 'print', {
+        value: () => {},
+        writable: true,
+        configurable: true,
+      });
+    }
+  });
+
+  afterEach(() => {
+    printSpy?.mockRestore();
+    mockEditor.remove();
+    document.body.className = '';
+    jest.useRealTimers();
+  });
+
+  it('restores print mode when afterprint fires synchronously inside window.print() (Chromium, Firefox)', () => {
+    printSpy = jest.spyOn(window, 'print').mockImplementation(() => {
+      window.dispatchEvent(new Event('beforeprint'));
+      window.dispatchEvent(new Event('afterprint'));
+    });
+
+    openPrintDialog();
+    expect(isPrinting()).toBe(true);
+    expect(mockEditor.getAttribute('data-print-mode')).toBe('true');
+
+    jest.runAllTimers();
+
+    expect(printSpy).toHaveBeenCalledTimes(1);
+    expect(isPrinting()).toBe(false);
+    expect(mockEditor.hasAttribute('data-print-mode')).toBe(false);
+  });
+
+  it('restores print mode when afterprint fires after window.print() has returned', () => {
+    printSpy = jest.spyOn(window, 'print').mockImplementation(() => {});
+
+    openPrintDialog();
+    jest.runAllTimers();
+    expect(printSpy).toHaveBeenCalledTimes(1);
+    expect(isPrinting()).toBe(true);
+
+    window.dispatchEvent(new Event('afterprint'));
+    expect(isPrinting()).toBe(false);
+    expect(mockEditor.hasAttribute('data-print-mode')).toBe(false);
+  });
+});
+
+// ============================================================================
+// @page size injection
+// ============================================================================
+
+describe('page size rule', () => {
+  afterEach(() => {
+    document.querySelectorAll('[data-page-size]').forEach((el) => el.remove());
+    document.getElementById('riff-print-page-size')?.remove();
+    document.body.className = '';
+  });
+
+  it.each([
+    ['letter', 'size: letter'],
+    ['a4', 'size: A4'],
+  ])('injects @page { %s } while printing and removes it afterwards', (pageSize, expected) => {
+    const pages = document.createElement('div');
+    pages.setAttribute('data-page-size', pageSize);
+    document.body.appendChild(pages);
+
+    preparePrint();
+    const style = document.getElementById('riff-print-page-size');
+    expect(style?.textContent).toContain(expected);
+    expect(style?.textContent).toContain('margin: 0');
+
+    restoreFromPrint();
+    expect(document.getElementById('riff-print-page-size')).toBeNull();
+  });
+
+  it('injects nothing when no page view is mounted (scroll view)', () => {
+    preparePrint();
+    expect(document.getElementById('riff-print-page-size')).toBeNull();
+    restoreFromPrint();
   });
 });

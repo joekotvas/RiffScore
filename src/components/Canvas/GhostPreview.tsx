@@ -87,7 +87,13 @@ const GhostPreview: React.FC<GhostPreviewProps> = ({
     );
   }
 
-  if (!blocked) return <>{content}</>;
+  if (!blocked) {
+    return (
+      <g className="riff-GhostPreview" data-testid="ghost-preview">
+        {content}
+      </g>
+    );
+  }
 
   // Blocked: grey the whole ghost (desaturate the teal accent) and stamp an X over the notehead.
   // The X is drawn in the accent colour INSIDE the grayscale group, so it desaturates to the exact
@@ -97,7 +103,11 @@ const GhostPreview: React.FC<GhostPreviewProps> = ({
     : baseY + getOffsetForPitch(previewNote.pitch ?? 'B4', layout.clef);
 
   return (
-    <g data-testid="ghost-blocked" style={{ filter: 'grayscale(100%)' }}>
+    <g
+      className="riff-GhostPreview riff-GhostPreview--blocked"
+      data-testid="ghost-blocked"
+      style={{ filter: 'grayscale(100%)' }}
+    >
       {content}
       <g
         stroke={theme.accent}
@@ -106,8 +116,18 @@ const GhostPreview: React.FC<GhostPreviewProps> = ({
         opacity={0.6}
         pointerEvents="none"
       >
-        <line x1={x - BLOCKED_X_HALF} y1={markY - BLOCKED_X_HALF} x2={x + BLOCKED_X_HALF} y2={markY + BLOCKED_X_HALF} />
-        <line x1={x - BLOCKED_X_HALF} y1={markY + BLOCKED_X_HALF} x2={x + BLOCKED_X_HALF} y2={markY - BLOCKED_X_HALF} />
+        <line
+          x1={x - BLOCKED_X_HALF}
+          y1={markY - BLOCKED_X_HALF}
+          x2={x + BLOCKED_X_HALF}
+          y2={markY + BLOCKED_X_HALF}
+        />
+        <line
+          x1={x - BLOCKED_X_HALF}
+          y1={markY + BLOCKED_X_HALF}
+          x2={x + BLOCKED_X_HALF}
+          y2={markY - BLOCKED_X_HALF}
+        />
       </g>
     </g>
   );
