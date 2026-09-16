@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0-alpha.17] - 2026-09-16
+
 MusicXML import (#11). Scores exported from MuseScore, Finale, Sibelius, Dorico and the like —
 plain `.musicxml` / `.xml` or compressed `.mxl` — can now be brought into the editor, and the
 editor's own MusicXML export round-trips back in.
@@ -49,6 +51,11 @@ can now be brought into the editor, and the editor's own ABC and JSON exports ro
   several voices and chord symbols are all understood. Repeats, slurs, grace notes, ornaments and
   lyrics are skipped with a warning.
 - **Re-open your exports** — the same dialog accepts the JSON the editor exports.
+- **The toolbar tempo follows the score** — loading a score (a melody from the library, an ABC
+  or JSON import, `loadScore`, `reset`) or calling `setBpm` now updates the toolbar's tempo, so
+  the toolbar Play button plays at the score's tempo (an ABC jig with `Q:3/8=120` plays at 180
+  instead of a stale 120). A tempo typed into the toolbar is a practice tempo: it changes only
+  what the toolbar transport plays and never rewrites the score's BPM (#22).
 
 ### For developers
 - `api.import('abc' | 'json', text)` replaces the score with structured feedback: `info`,
@@ -58,6 +65,12 @@ can now be brought into the editor, and the editor's own ABC and JSON exports ro
   is the shared ABC/JSON entry point. abcjs (dev-only) serves as a reference oracle in tests,
   alongside exporter round-trip tests over every bundled melody and a fast-check fuzz. See
   [docs/ABC_IMPORT.md](./docs/ABC_IMPORT.md).
+- The toolbar tempo is seeded from `score.bpm` and re-synced on every `LOAD_SCORE`, `SET_BPM`
+  and an undo/redo of either (one-way, per #22). `SetBpmCommand` returns a new `Score` instead
+  of writing `bpm` in place, since the engine's `setScore` bails out on an identical reference.
+  A load whose tempo equals the current `score.bpm` does not clear a toolbar override. The
+  tempo input carries `aria-label="Tempo (BPM)"`; `ScoreAPI.bpmSync.test.tsx` drives the real
+  toolbar.
 
 M3 export & engraving fidelity. This closes the remaining practical gaps between the score model,
 the rendered page, and the MusicXML/ABC that users share with notation apps.

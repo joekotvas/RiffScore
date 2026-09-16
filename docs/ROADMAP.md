@@ -1,6 +1,6 @@
 # RiffScore Roadmap
 
-> **Generated:** 2026-06-23 · **Living document** · reflects state through **v1.0.0-alpha.16** plus **Unreleased M3/M4**: M1 (truth-in-advertising) shipped in **alpha.13**; M2's **#239 (transpose spelling)** shipped in **alpha.14**; M2's **#242 (interactive correctness / structural invariants)** and the **#252 visual-regression harness** shipped in **alpha.15**; M2's deferred follow-ups **#261/#263/#264/#257** + pre-release QA hardening shipped in **alpha.16**; **M3 export/engraving fidelity** merged to `dev` on 2026-06-24 (PR #295), and **M4 page view** was hardened after the 2026-09 QA pass (PRs #298, #302, #303, #304), pending release, with its remaining gaps listed under M4.
+> **Generated:** 2026-06-23 · **Living document** · reflects state through **v1.0.0-alpha.17**: M1 (truth-in-advertising) shipped in **alpha.13**; M2's **#239 (transpose spelling)** shipped in **alpha.14**; M2's **#242 (interactive correctness / structural invariants)** and the **#252 visual-regression harness** shipped in **alpha.15**; M2's deferred follow-ups **#261/#263/#264/#257** + pre-release QA hardening shipped in **alpha.16**; **M3 export/engraving fidelity** (PR #295), **M4 page view** (hardened after the 2026-09 QA pass, PRs #298–#307, then the beaming/spacing/stem/tie/staff-spacing engraving pass #308–#320) and **ABC (#10) / MusicXML (#11) import** shipped in **alpha.17**, with M4's remaining gaps listed under M4.
 > Grounded in the 2026-06 correctness audit ([CORRECTNESS_AUDIT_2026-06.md](audit/CORRECTNESS_AUDIT_2026-06.md),
 > [AUDIT_QA_2026-06.md](audit/AUDIT_QA_2026-06.md)) and re-sequenced per the audit's
 > own second-pass QA. Every load-bearing claim below was independently fact-checked
@@ -252,14 +252,15 @@ dynamics (#20/#21), slurs (#19), lyrics (#30), repeats (#28), inline key/time ch
 ## Critical path
 
 ```
-M1 (truth) ✅  →  M2 (#239 ✅ → #242 ✅)  →  M3 (export/engraving) ✅  →  M4 (page view, hardened)  →  M5
+M1 (truth) ✅  →  M2 (#239 ✅ → #242 ✅)  →  M3 (export/engraving) ✅  →  M4 (page view) ✅  →  M5
 ```
 
 **M2 is shipped** (#239 in alpha.14, #242 in alpha.15) — it was the long pole. Its deferred
-follow-ups **#261, #263, #264, #257 shipped in alpha.16** (close-the-loop). **M3 is merged to
-`dev`** (PR #295: export/engraving tail; #249 and #282 closed; #245/#246/#278 narrowed to their
-post-M3 remainders), and **M4 is hardened on this page-view branch** (2026-09 QA pass → PRs
-#298, #302, #303, #304; remaining gaps listed under M4). M5 (chord theory) is next.
+follow-ups **#261, #263, #264, #257 shipped in alpha.16** (close-the-loop). **M3 shipped in
+alpha.17** (PR #295: export/engraving tail; #249 and #282 closed; #245/#246/#278 narrowed to their
+post-M3 remainders), and **M4 shipped in alpha.17** (2026-09 QA pass → PRs #298–#307, then the
+engraving pass #308–#320; remaining gaps listed under M4), alongside ABC and MusicXML import
+(#10, #11). M5 (chord theory) is next.
 Remaining M2/M3-adjacent follow-ups: #255 (chord reflow re-anchoring / pickup playback), the
 capacity SSOT #254, full #237 quant migration, and full official MusicXML XSD CI.
 

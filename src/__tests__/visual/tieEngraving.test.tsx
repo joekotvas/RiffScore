@@ -6,7 +6,7 @@
  */
 import { renderScore } from '../helpers/visual';
 import { composedPoint, composedRect } from '../helpers/svgGeometry';
-import { createDefaultScore, Score, ScoreEvent } from '@/types';
+import { createDefaultScore, ScoreEvent } from '@/types';
 import { DEFAULT_LAYOUT_CONFIG } from '@/config';
 
 const ev = (id: string, duration: string, pitches: string[], tied = false): ScoreEvent => ({

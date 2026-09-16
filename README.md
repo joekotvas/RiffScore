@@ -251,6 +251,5 @@ npm run demo:dev
 
 ## Coming Soon
 
-*   **Import**: MusicXML import
 *   **Clipboard API**: Copy, cut, and paste operations
 *   **Move Operations**: Drag-and-drop and keyboard-based event moving

@@ -309,6 +309,15 @@ riffscore/
 │   │   ├── abcExporter.ts
 │   │   └── jsonExporter.ts
 │
+│   ├── importers/            # Dependency-free readers (see docs/ABC_IMPORT.md, docs/MUSICXML_IMPORT.md)
+│   │   ├── index.ts          # importScoreText / importScoreData entry points (ABC, MusicXML, JSON)
+│   │   ├── abcImporter.ts    # ABC 2.1-subset parser
+│   │   ├── musicXmlImporter.ts # Partwise/timewise MusicXML reader
+│   │   ├── importUtils.ts    # Shared fractions, warnings, quant decomposition, pickup rule
+│   │   ├── xml.ts            # Minimal XML parser
+│   │   ├── mxl.ts            # .mxl (zip) container reader
+│   │   └── inflate.ts        # DEFLATE decoder
+│
 │   ├── context/
 │   │   ├── ScoreContext.tsx
 │   │   └── ThemeContext.tsx
