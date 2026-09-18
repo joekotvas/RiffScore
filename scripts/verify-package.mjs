@@ -65,7 +65,7 @@ await build({
 });
 await writeFile(
   resolve(out, 'index.html'),
-  `<!doctype html><html><head><link rel="stylesheet" href="/client.css"></head><body><div id="root">${html}</div><script type="module" src="/client.js"></script></body></html>`
+  `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/client.css"></head><body><div id="root">${html}</div><script type="module" src="/client.js"></script></body></html>`
 );
 const server = createServer(async (req, res) => {
   try {
@@ -76,7 +76,7 @@ const server = createServer(async (req, res) => {
         ? 'text/javascript'
         : extname(path) === '.css'
           ? 'text/css'
-          : 'text/html'
+          : 'text/html; charset=utf-8'
     );
     res.end(await readFile(resolve(out, path)));
   } catch {
