@@ -1,10 +1,11 @@
+import { MusicGlyph } from '@/components/Assets/MusicGlyph';
 import React from 'react';
 import { LAYOUT } from '@/constants';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
 import { getScoreHighlightColor } from '@/themes';
 import { getOffsetForPitch } from '@/engines/layout';
-import { NOTEHEADS, BRAVURA_FONT, getFontSize, DOTS, ACCIDENTALS } from '@/constants/SMuFL';
+import { NOTEHEADS, getFontSize, DOTS, ACCIDENTALS } from '@/constants/SMuFL';
 import { NoteProps } from '@/componentTypes';
 
 // =============================================================================
@@ -34,18 +35,17 @@ const NoteHead = ({
   const fontSize = getFontSize(CONFIG.lineHeight);
 
   return (
-    <text
+    <MusicGlyph
       className="NoteHead"
       x={x}
       y={y}
-      fontFamily={BRAVURA_FONT}
       fontSize={fontSize}
       textAnchor="middle"
       fill={color}
       style={{ userSelect: 'none' }}
     >
       {getGlyph()}
-    </text>
+    </MusicGlyph>
   );
 };
 
@@ -80,17 +80,16 @@ const Accidental = ({
   const renderX = parenthesized ? x - LAYOUT.ACCIDENTAL.PARENTHESIS_PAD : x;
 
   return (
-    <text
+    <MusicGlyph
       x={renderX}
       y={y}
       fontSize={fontSize}
-      fontFamily={BRAVURA_FONT}
       fill={color}
       textAnchor="middle"
       style={{ userSelect: 'none' }}
     >
       {glyph}
-    </text>
+    </MusicGlyph>
   );
 };
 
@@ -101,17 +100,16 @@ const Dot = ({ x, y, color }: { x: number; y: number; color: string }) => {
   const fontSize = getFontSize(CONFIG.lineHeight);
 
   return (
-    <text
+    <MusicGlyph
       x={x}
       y={y}
-      fontFamily={BRAVURA_FONT}
       fontSize={fontSize}
       fill={color}
       textAnchor="start"
       style={{ userSelect: 'none' }}
     >
       {DOTS.augmentationDot}
-    </text>
+    </MusicGlyph>
   );
 };
 

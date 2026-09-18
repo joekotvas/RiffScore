@@ -797,3 +797,7 @@ flowchart TD
 | Bravura | SMuFL font (bundled in dist/fonts/) |
 
 </details>
+
+## Public composition in alpha.18
+
+`RiffScoreSession` shares the existing document/selection/history owner across ordinary RiffScore views. Each view has its own presentation/permissions and one PlaybackProvider connecting API and visible controls. Measure windows and display clefs reuse core layout; overlays resolve source identities rather than storing copied pixel positions. MusicGlyphProvider supplies an async renderer/fallback boundary, and `riffscore/theory` exposes browser-independent queries. See [ADR 019](./adr/019-public-composition-contracts.md) for ownership, coordinates and limits.

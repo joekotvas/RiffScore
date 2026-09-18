@@ -17,13 +17,19 @@ export const useMIDI = (
   isDotted: boolean,
   activeAccidental: Accidental,
   scoreRef: React.MutableRefObject<Score>,
-  enabled = true
+  enabled = true,
+  ownsInput?: () => boolean
 ) => {
   const [midiStatus, setMidiStatus] = useState<{
     connected: boolean;
     deviceName: string | null;
     error: string | null;
   }>({ connected: false, deviceName: null, error: null });
+
+  const ownsInputRef = useRef(ownsInput);
+  useEffect(() => {
+    ownsInputRef.current = ownsInput;
+  }, [ownsInput]);
 
   const midiCleanupRef = useRef<(() => void) | null>(null);
   const midiChordBuffer = useRef<{ pitch: string; accidental: Accidental }[]>([]);
@@ -72,6 +78,8 @@ export const useMIDI = (
         const notes = [...midiChordBuffer.current];
         midiChordBuffer.current = [];
 
+        if (ownsInputRef.current && !ownsInputRef.current()) return;
+
         // Play tones
         // const keySignature = ... (unused)
         notes.forEach((n) => playNote(n.pitch));
@@ -98,6 +106,7 @@ export const useMIDI = (
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cleanup = setupMIDIListeners(access as any, (midiNote: number, _velocity: number) => {
+        if (ownsInputRef.current && !ownsInputRef.current()) return;
         const pitch = midiNoteToPitch(midiNote);
         // Valid range check could be here if needed
 

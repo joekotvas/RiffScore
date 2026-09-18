@@ -11,6 +11,9 @@ import { getScoreHighlightColor } from '@/themes';
 import type { DeepPartial } from '@/types';
 import { DEFAULT_SCALE } from '@/constants';
 
+// Server rendering has no layout phase; the client still injects before paint.
+const useThemeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+
 interface ThemeContextType {
   theme: Theme;
   themeName: ThemeName;
@@ -95,7 +98,7 @@ export const ThemeProvider: React.FC<{
 
   // Inject CSS variables synchronously before paint to prevent FOUC
   // When containerRef is set, inject into that element for scoped theming
-  useLayoutEffect(() => {
+  useThemeLayoutEffect(() => {
     if (!scoped || containerRef) injectThemeCSSVariables(theme, containerRef);
   }, [theme, containerRef, scoped]);
 

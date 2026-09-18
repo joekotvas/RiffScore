@@ -1,3 +1,4 @@
+import { MusicGlyph } from '@/components/Assets/MusicGlyph';
 import React, { useState, useEffect } from 'react';
 import { X, Music } from 'lucide-react';
 import { Key } from 'tonal';
@@ -8,7 +9,7 @@ import {
   KeySignature,
 } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
-import { ACCIDENTALS, BRAVURA_FONT } from '@/constants/SMuFL';
+import { ACCIDENTALS } from '@/constants/SMuFL';
 import { Theme } from '@/config';
 
 import './styles/KeySignatureOverlay.css';
@@ -90,16 +91,9 @@ const StaffPreview = ({
           const offset = KEY_SIGNATURE_OFFSETS[validClef][type][acc];
 
           return (
-            <text
-              key={i}
-              x={10 + i * 10}
-              y={10 + offset}
-              fontSize="32"
-              fontFamily={BRAVURA_FONT}
-              fill={theme.text}
-            >
+            <MusicGlyph key={i} x={10 + i * 10} y={10 + offset} fontSize="32" fill={theme.text}>
               {type === 'sharp' ? ACCIDENTALS.sharp : ACCIDENTALS.flat}
-            </text>
+            </MusicGlyph>
           );
         })}
       </svg>

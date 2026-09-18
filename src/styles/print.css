@@ -16,6 +16,9 @@
   /* ---------------------------------------------------------------------------
      Hide editor chrome, dialogs and transient editing state
      --------------------------------------------------------------------------- */
+  .riff-sr-only,
+  .ConfigMenu,
+  .riff-ScoreEditor__controls,
   .riff-Toolbar,
   .riff-EditorFooter,
   .riff-ConfirmDialog-backdrop,
@@ -61,6 +64,10 @@
   .riff-ScoreCanvas {
     width: 100% !important;
     height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    min-width: 0 !important;
+    max-width: none !important;
     overflow: visible !important;
   }
 

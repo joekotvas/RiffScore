@@ -49,11 +49,11 @@ export const COLORS = {
 const DARK = {
   accent: COLORS.teal,
   background: COLORS.slate800,
-  panelBackground: COLORS.slate800Alpha80,
+  panelBackground: COLORS.slate800,
   text: COLORS.slate200,
   secondaryText: COLORS.slate400,
   border: COLORS.whiteAlpha10,
-  buttonBackground: COLORS.slate800Alpha80,
+  buttonBackground: COLORS.slate800,
   buttonHoverBackground: COLORS.slate700,
   score: {
     line: COLORS.slate500,
@@ -65,11 +65,11 @@ const DARK = {
 const COOL = {
   accent: COLORS.cyan400,
   background: COLORS.blue950,
-  panelBackground: COLORS.blue950Alpha80,
+  panelBackground: COLORS.blue950,
   text: COLORS.blue200,
   secondaryText: COLORS.blue400,
   border: COLORS.whiteAlpha10,
-  buttonBackground: COLORS.blue950Alpha80,
+  buttonBackground: COLORS.blue950,
   buttonHoverBackground: COLORS.blue900,
   score: {
     line: COLORS.blue400,
@@ -81,11 +81,11 @@ const COOL = {
 const WARM = {
   accent: COLORS.orange400,
   background: COLORS.stone900,
-  panelBackground: COLORS.stone900Alpha80,
+  panelBackground: COLORS.stone900,
   text: COLORS.stone200,
   secondaryText: COLORS.stone400,
   border: COLORS.whiteAlpha10,
-  buttonBackground: COLORS.stone900Alpha80,
+  buttonBackground: COLORS.stone900,
   buttonHoverBackground: COLORS.stone800,
   score: {
     line: COLORS.stone500,
@@ -95,11 +95,11 @@ const WARM = {
 };
 
 const LIGHT = {
-  accent: COLORS.teal,
+  accent: '#087f78',
   background: '#ffffff',
   panelBackground: '#f9f9f9',
   text: COLORS.slate800,
-  secondaryText: COLORS.slate500,
+  secondaryText: COLORS.slate600,
   border: '#e2e8f0',
   buttonBackground: '#ffffff',
   buttonHoverBackground: '#f1f5f9',

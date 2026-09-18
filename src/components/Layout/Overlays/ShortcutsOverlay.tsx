@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { useFocusTrap } from '@/hooks/layout/useFocusTrap';
 import { X, Keyboard } from 'lucide-react';
 import './styles/ShortcutsOverlay.css';
 
@@ -37,13 +38,9 @@ interface ShortcutsOverlayProps {
 }
 
 const ShortcutsOverlay: React.FC<ShortcutsOverlayProps> = ({ onClose }) => {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  const titleId = React.useId();
+  useFocusTrap({ containerRef: dialogRef, isActive: true, onEscape: onClose });
 
   const shortcuts = {
     selection: [
@@ -90,20 +87,34 @@ const ShortcutsOverlay: React.FC<ShortcutsOverlayProps> = ({ onClose }) => {
 
   return (
     <div className="riff-ShortcutsOverlay-backdrop" onClick={onClose}>
-      <div className="riff-ShortcutsOverlay" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="riff-ShortcutsOverlay"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="riff-ShortcutsOverlay__header">
           <div className="riff-ShortcutsOverlay__title-group">
             <Keyboard size={20} />
-            <h2 className="riff-ShortcutsOverlay__title">Keyboard Shortcuts</h2>
+            <h2 id={titleId} className="riff-ShortcutsOverlay__title">
+              Keyboard Shortcuts
+            </h2>
           </div>
-          <button onClick={onClose} className="riff-ShortcutsOverlay__close-btn">
+          <button
+            type="button"
+            aria-label="Close keyboard shortcuts"
+            onClick={onClose}
+            className="riff-ShortcutsOverlay__close-btn"
+          >
             <X size={20} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="riff-ShortcutsOverlay__content">
+        <div className="riff-ShortcutsOverlay__content" tabIndex={0}>
           {/* Welcome & Instructions */}
           <div className="riff-WelcomeSection">
             <h3 className="riff-WelcomeSection__title">Welcome to RiffScore!</h3>

@@ -316,7 +316,6 @@ const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(
             onClick={onToggleHelp}
             label="Keyboard Shortcuts"
             icon={<HelpCircle size={18} />}
-            preventFocus={true}
             height={TOP_ROW_HEIGHT}
             variant="ghost"
           />

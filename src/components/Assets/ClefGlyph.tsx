@@ -1,6 +1,7 @@
+import { MusicGlyph } from '@/components/Assets/MusicGlyph';
 import React from 'react';
 import { CONFIG } from '@/config';
-import { CLEFS, BRAVURA_FONT, getFontSize } from '@/constants/SMuFL';
+import { CLEFS, getFontSize } from '@/constants/SMuFL';
 import { getClefReference } from '@/utils/clef';
 
 /**
@@ -52,16 +53,15 @@ export default function ClefGlyph({
   className?: string;
 }) {
   return (
-    <text
+    <MusicGlyph
       className={className}
       x={x}
       y={getClefY(clef, baseY)}
-      fontFamily={BRAVURA_FONT}
       fontSize={getFontSize(CONFIG.lineHeight)}
       fill={fill}
       textAnchor="start"
     >
       {getClefGlyph(clef)}
-    </text>
+    </MusicGlyph>
   );
 }

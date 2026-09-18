@@ -39,7 +39,6 @@ const ScoreSetupButton: React.FC<ScoreSetupButtonProps> = ({ onClick, variant = 
       label="Score Setup"
       title={tooltip}
       onClick={onClick}
-      preventFocus={true}
       variant={variant}
     />
   );

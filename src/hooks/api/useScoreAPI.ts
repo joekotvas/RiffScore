@@ -104,6 +104,10 @@ export function useScoreAPI({
   const scoreRef = useRef(score);
   const selectionRef = useRef(selection);
   const playbackRef = useRef(playback);
+  const configRef = useRef(config);
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
   const toolsRef = useRef(ctx.tools);
   useEffect(() => {
     toolsRef.current = ctx.tools;
@@ -141,7 +145,7 @@ export function useScoreAPI({
 
   // 4. API Event Subscriptions
   // Delegates listener management to the dedicated hook
-  const { on, notify } = useAPISubscriptions(score, selection, ctx.engines.engine);
+  const { on, notify } = useAPISubscriptions(score, selection, ctx.engines.engine, playback);
 
   // 4a. Consume Theme Logic
   const { setTheme, setZoom } = useTheme();
@@ -220,7 +224,9 @@ export function useScoreAPI({
         commit: commitTransaction,
         rollback: rollbackTransaction,
       },
-      config,
+      get config() {
+        return configRef.current;
+      },
       interaction,
       get playback() {
         return playbackRef.current;
@@ -263,7 +269,7 @@ export function useScoreAPI({
           const inputMode = mode === 'note' ? 'NOTE' : 'REST';
           // Preserve same-turn setInputMode().move() semantics before React commits.
           toolsRef.current = { ...toolsRef.current, inputMode };
-          ctx.tools.setInputMode(inputMode);
+          toolsRef.current.setInputMode(inputMode);
           setResult({
             ok: true,
             status: 'info',
@@ -307,8 +313,8 @@ export function useScoreAPI({
       // Data Accessors (Bound Closures)
       getScore: () => ctx.engines.engine.getState(),
       getConfig: () => ({
-        ...config,
-        interaction: { ...(interaction?.getSnapshot() ?? config.interaction) },
+        ...configRef.current,
+        interaction: { ...(interaction?.getSnapshot() ?? configRef.current.interaction) },
       }),
       getSelection: () => selectionEngine.getState(),
 
@@ -385,7 +391,6 @@ export function useScoreAPI({
     return instance as MusicEditorAPI;
   }, [
     interaction,
-    config,
     dispatch,
     syncSelection,
     selectionEngine,
@@ -398,7 +403,6 @@ export function useScoreAPI({
     ctx.engines.engine,
     setTheme,
     setZoom,
-    ctx.tools,
     setResult,
   ]);
   // 5. Registry registration/cleanup

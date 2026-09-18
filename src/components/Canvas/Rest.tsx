@@ -1,9 +1,10 @@
+import { MusicGlyph } from '@/components/Assets/MusicGlyph';
 // @ts-nocheck
 import React, { useState } from 'react';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
 import { getScoreHighlightColor } from '@/themes';
-import { REST_GLYPHS, BRAVURA_FONT, getFontSize, DOTS } from '@/constants/SMuFL';
+import { REST_GLYPHS, getFontSize, DOTS } from '@/constants/SMuFL';
 
 interface RestProps {
   duration: string;
@@ -80,17 +81,16 @@ export const Rest: React.FC<RestProps> = ({
     const dotX = finalX + fontSize * 0.4;
     const dotY = restY - CONFIG.lineHeight / 2;
     return (
-      <text
+      <MusicGlyph
         x={dotX}
         y={dotY}
-        fontFamily={BRAVURA_FONT}
         fontSize={fontSize}
         textAnchor="start"
         fill={color}
         style={{ userSelect: 'none' }}
       >
         {DOTS.augmentationDot}
-      </text>
+      </MusicGlyph>
     );
   };
 
@@ -118,17 +118,16 @@ export const Rest: React.FC<RestProps> = ({
       )}
 
       {/* Rest glyph */}
-      <text
+      <MusicGlyph
         x={finalX}
         y={restY}
-        fontFamily={BRAVURA_FONT}
         fontSize={fontSize}
         textAnchor="middle"
         fill={color}
         style={{ userSelect: 'none', pointerEvents: 'none' }}
       >
         {glyph}
-      </text>
+      </MusicGlyph>
       {renderDot()}
     </g>
   );

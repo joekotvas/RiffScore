@@ -14,8 +14,9 @@
  */
 
 import { useRef, useEffect, useCallback } from 'react';
-import type { Unsubscribe, BatchEventPayload, Result } from '@/api.types';
+import type { Unsubscribe, BatchEventPayload, Result, PlaybackState } from '@/api.types';
 import type { Score, Selection } from '@/types';
+import type { APIContext } from './types';
 import type { ScoreEngine } from '@/engines/ScoreEngine';
 
 type Listener<T> = (state: T) => void;
@@ -23,7 +24,7 @@ type Listener<T> = (state: T) => void;
 interface Listeners {
   score: Set<Listener<Score>>;
   selection: Set<Listener<Selection>>;
-  playback: Set<Listener<unknown>>;
+  playback: Set<Listener<PlaybackState>>;
   batch: Set<Listener<BatchEventPayload>>;
   operation: Set<Listener<Result>>;
   error: Set<Listener<Result>>;
@@ -48,7 +49,12 @@ function safeCall<T>(callback: Listener<T>, state: T): void {
  * - Batch: Notified via ScoreEngine subscription (imperative event)
  * - Operation/Error: Notified imperatively via api.setResult()
  */
-export function useAPISubscriptions(score: Score, selection: Selection, engine?: ScoreEngine) {
+export function useAPISubscriptions(
+  score: Score,
+  selection: Selection,
+  engine?: ScoreEngine,
+  playback?: APIContext['playback']
+) {
   // Store listeners in a Ref to avoid re-creation on render
   const listenersRef = useRef<Listeners>({
     score: new Set(),
@@ -58,6 +64,16 @@ export function useAPISubscriptions(score: Score, selection: Selection, engine?:
     operation: new Set(),
     error: new Set(),
   });
+
+  const position = playback?.getPosition?.() ?? playback?.playbackPosition;
+  const measureIndex = position?.measureIndex ?? null;
+  const quant = position?.quant ?? null;
+  const duration = position && 'duration' in position ? Number(position.duration) : 0;
+  const isPlaying = playback?.isPlaying ?? false;
+  useEffect(() => {
+    const state = { isPlaying, measureIndex, quant, duration };
+    listenersRef.current.playback.forEach((cb) => safeCall(cb, state));
+  }, [isPlaying, measureIndex, quant, duration]);
 
   // Notify SCORE listeners when React state updates
   const prevScoreRef = useRef(score);

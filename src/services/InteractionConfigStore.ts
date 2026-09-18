@@ -41,6 +41,12 @@ export class InteractionConfigStore {
     )
       return;
     this.snapshot = Object.freeze(next);
-    this.listeners.forEach((listener) => listener());
+    this.listeners.forEach((listener) => {
+      try {
+        listener();
+      } catch (error) {
+        console.error('[RiffScore] Interaction subscriber failed:', error);
+      }
+    });
   }
 }

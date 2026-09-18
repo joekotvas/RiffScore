@@ -146,3 +146,32 @@ test('a failed subscriber cannot misreport a committed edit or starve later subs
   expect(engine.getState().staves[0].measures[0].events[1].duration).toBe('quarter');
   expect(listener).toHaveBeenCalledTimes(2);
 });
+
+test('a later refusal restores earlier commands in the same guarded action without partial notifications', () => {
+  const engine = new ScoreEngine(seed());
+  const before = engine.getState();
+  const listener = jest.fn();
+  engine.subscribe(listener);
+  const result = engine.withMutationGuard(allowed, () => {
+    engine.dispatch(new UpdateEventCommand(0, 'single', { notes: [{ id: 'g', pitch: 'A4' }] }));
+    expect(engine.getState().staves[0].measures[0].events[1].notes[0].pitch).toBe('A4');
+    engine.dispatch(new AddMeasureCommand());
+  });
+  expect(result.accepted).toBe(false);
+  expect(engine.getState()).toBe(before);
+  expect(engine.getHistory()).toHaveLength(0);
+  expect(listener).not.toHaveBeenCalled();
+});
+
+test('an exception after a guarded mutation restores state and history', () => {
+  const engine = new ScoreEngine(seed());
+  const before = engine.getState();
+  expect(() =>
+    engine.withMutationGuard(allowed, () => {
+      engine.dispatch(new UpdateEventCommand(0, 'single', { notes: [{ id: 'g', pitch: 'A4' }] }));
+      throw new Error('aborted');
+    })
+  ).toThrow('aborted');
+  expect(engine.getState()).toBe(before);
+  expect(engine.getHistory()).toHaveLength(0);
+});

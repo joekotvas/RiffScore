@@ -15,6 +15,8 @@ export class ScoreEngine {
   private history: Command[] = [];
   private redoStack: Command[] = [];
 
+  private pendingBatches: BatchEventPayload[] = [];
+
   private mutationGuards: Array<{
     allows: (before: Score, after: Score) => boolean;
     rejected: boolean;
@@ -26,13 +28,31 @@ export class ScoreEngine {
     allows: (before: Score, after: Score) => boolean,
     action: () => T
   ): { value: T; accepted: boolean } {
+    const before = this.state;
+    const history = [...this.history];
+    const redo = [...this.redoStack];
+    const batchCount = this.pendingBatches.length;
     const guard = { allows, rejected: false };
     this.mutationGuards.push(guard);
     try {
       const value = action();
       return { value, accepted: !guard.rejected };
+    } catch (error) {
+      guard.rejected = true;
+      throw error;
     } finally {
       this.mutationGuards.pop();
+      if (guard.rejected) {
+        this.state = before;
+        this.history = history;
+        this.redoStack = redo;
+        this.pendingBatches.length = batchCount;
+      }
+      if (this.mutationGuards.length === 0) {
+        if (this.state !== before) this.notifyListeners();
+        const batches = this.pendingBatches.splice(0);
+        batches.forEach((payload) => this.notifyBatchListeners(payload));
+      }
     }
   }
 
@@ -89,7 +109,7 @@ export class ScoreEngine {
 
   private commitState(next: Score): void {
     this.state = next;
-    this.notifyListeners();
+    if (this.mutationGuards.length === 0) this.notifyListeners();
   }
 
   public setState(newState: Score): void {
@@ -141,7 +161,8 @@ export class ScoreEngine {
         })),
         affectedMeasures: [], // To be implemented if Command tracks measures
       };
-      this.notifyBatchListeners(payload);
+      if (this.mutationGuards.length) this.pendingBatches.push(payload);
+      else this.notifyBatchListeners(payload);
     }
   }
 

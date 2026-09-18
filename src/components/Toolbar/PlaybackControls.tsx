@@ -84,7 +84,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         onMouseEnter={() => setIsBpmHovered(true)}
         onMouseLeave={() => setIsBpmHovered(false)}
       >
-        <span className="riff-PlaybackControls__bpm-label">
+        <span className="riff-PlaybackControls__bpm-label" aria-hidden="true">
           <span className="riff-PlaybackControls__bpm-note" style={{ fontFamily: BRAVURA_FONT }}>
             {PRECOMPOSED_NOTES_UP.quarter}
           </span>

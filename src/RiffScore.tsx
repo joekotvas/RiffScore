@@ -14,14 +14,18 @@ import { DeepPartial, RiffScoreConfig } from './types';
 import { useRiffScore } from './hooks/useRiffScore';
 import { useFontLoaded } from './hooks/layout';
 import { ScoreInteractionProvider } from './context/ScoreInteractionContext';
-import { ScoreProvider } from './context/ScoreContext';
+import { ScoreOwner, useSessionConfig } from './context/RiffScoreSession';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ScoreEditorContent } from './components/Layout/ScoreEditor';
 import type { InteractionConfigStore } from './services/InteractionConfigStore';
 import type { RenderScoreControls, PlaybackCursorState } from './components/Layout/ScoreControls';
 import { useScoreAPI } from './hooks/api';
+import { PlaybackProvider, useEditorPlayback } from './context/PlaybackContext';
+
+import type { RenderScoreOverlay } from './components/Canvas/ScoreOverlay';
 
 export interface RiffScoreProps {
+  renderOverlay?: RenderScoreOverlay;
   /** External visual playback state; null hides the cursor, undefined uses the editor transport. */
   playbackCursor?: PlaybackCursorState | null;
   /** Render custom controls backed by this editor’s reactive history and playback state. */
@@ -43,7 +47,7 @@ const RiffScoreAPIBridge: React.FC<{
   interaction: InteractionConfigStore;
 }> = ({ instanceId, config, children, interaction }) => {
   // useScoreAPI consumes ScoreContext internally
-  useScoreAPI({ instanceId, config, interaction });
+  useScoreAPI({ instanceId, config, interaction, playback: useEditorPlayback() ?? undefined });
 
   return <>{children}</>;
 };
@@ -55,9 +59,19 @@ const RiffScoreInner: React.FC<RiffScoreProps> = ({
   id,
   config: userConfig,
   renderControls,
+  renderOverlay,
   playbackCursor,
 }) => {
-  const { config, initialScore, interaction } = useRiffScore(userConfig);
+  const sessionConfig = useSessionConfig();
+  const { config, initialScore, interaction } = useRiffScore(
+    sessionConfig
+      ? {
+          ...userConfig,
+          score: sessionConfig.score,
+          chord: { ...userConfig?.chord, recognition: sessionConfig.chord?.recognition },
+        }
+      : userConfig
+  );
   const { theme: _theme, setContainerRef } = useTheme();
   const { className: fontClassName, styleElement: fontStyleElement } = useFontLoaded();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -91,34 +105,38 @@ const RiffScoreInner: React.FC<RiffScoreProps> = ({
       data-riffscore-id={instanceId}
     >
       {fontStyleElement}
-      <ScoreProvider initialScore={initialScore} chordRecognition={config.chord?.recognition}>
-        <RiffScoreAPIBridge instanceId={instanceId} interaction={interaction} config={config}>
-          <ScoreInteractionProvider policy={config.interaction}>
-            <ScoreEditorContent
-              renderControls={renderControls}
-              playbackCursor={playbackCursor}
-              scale={config.ui.scale}
-              showToolbar={config.ui.showToolbar}
-              showFooter={config.ui.showFooter}
-              showGhostNotes={config.ui.showGhostNotes}
-              showBlockedGhostNotes={config.ui.showBlockedGhostNotes}
-              viewport={config.ui.viewport}
-              scoreTitleOffset={config.ui.scoreTitleOffset}
-              scrollPadding={config.ui.scrollPadding}
-              showScoreTitle={config.ui.showScoreTitle}
-              engraving={config.ui.engraving}
-              tuplet={config.ui.tuplet}
-              chordDisplay={config.chord?.display}
-              chordPlayback={config.chord?.playback}
-              chordEditable={!config.chord?.recognition?.enabled}
-              showBackground={config.ui.showBackground}
-              interactive={config.interaction.isEnabled}
-              enableKeyboard={config.interaction.enableKeyboard}
-              enablePlayback={config.interaction.enablePlayback}
-            />
-          </ScoreInteractionProvider>
-        </RiffScoreAPIBridge>
-      </ScoreProvider>
+      <ScoreOwner initialScore={initialScore} chordRecognition={config.chord?.recognition}>
+        <PlaybackProvider chordPlayback={config.chord?.playback}>
+          <RiffScoreAPIBridge instanceId={instanceId} interaction={interaction} config={config}>
+            <ScoreInteractionProvider policy={config.interaction}>
+              <ScoreEditorContent
+                renderControls={renderControls}
+                renderOverlay={renderOverlay}
+                playbackCursor={playbackCursor}
+                scale={config.ui.scale}
+                showToolbar={config.ui.showToolbar}
+                showFooter={config.ui.showFooter}
+                showGhostNotes={config.ui.showGhostNotes}
+                showBlockedGhostNotes={config.ui.showBlockedGhostNotes}
+                viewport={config.ui.viewport}
+                scoreTitleOffset={config.ui.scoreTitleOffset}
+                scrollPadding={config.ui.scrollPadding}
+                showScoreTitle={config.ui.showScoreTitle}
+                view={config.ui.view}
+                engraving={config.ui.engraving}
+                tuplet={config.ui.engraving?.tuplets}
+                chordDisplay={config.chord?.display}
+                chordPlayback={config.chord?.playback}
+                chordEditable={!config.chord?.recognition?.enabled}
+                showBackground={config.ui.showBackground}
+                interactive={config.interaction.isEnabled}
+                enableKeyboard={config.interaction.enableKeyboard}
+                enablePlayback={config.interaction.enablePlayback}
+              />
+            </ScoreInteractionProvider>
+          </RiffScoreAPIBridge>
+        </PlaybackProvider>
+      </ScoreOwner>
     </div>
   );
 };
@@ -147,6 +165,7 @@ export const RiffScore: React.FC<RiffScoreProps> = ({
   id,
   config,
   renderControls,
+  renderOverlay,
   playbackCursor,
 }) => {
   return (
@@ -155,6 +174,7 @@ export const RiffScore: React.FC<RiffScoreProps> = ({
         id={id}
         config={config}
         renderControls={renderControls}
+        renderOverlay={renderOverlay}
         playbackCursor={playbackCursor}
       />
     </ThemeProvider>

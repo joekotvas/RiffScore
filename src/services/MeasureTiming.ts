@@ -49,5 +49,5 @@ export const getPlaybackOffset = (
   const index = Number.isFinite(measureIndex) ? Math.max(0, Math.floor(measureIndex)) : 0;
   const local = Number.isFinite(quant) ? Math.max(0, quant) : 0;
   const position = Math.min(timing.total, (timing.starts[index] ?? timing.total) + local);
-  return position * (60 / bpm / 16);
+  return position * (60 / (Number.isFinite(bpm) && bpm > 0 ? bpm : 120) / 16);
 };

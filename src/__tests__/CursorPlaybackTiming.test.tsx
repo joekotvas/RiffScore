@@ -16,6 +16,7 @@ import { createDefaultScore } from '@/types';
 jest.mock('../engines/toneEngine', () => ({
   initTone: jest.fn((cb) => cb({ instrumentState: 'ready' })),
   scheduleTonePlayback: jest.fn(),
+  scheduleScorePlayback: jest.fn(),
   stopTonePlayback: jest.fn(),
   playNote: jest.fn(),
   setInstrument: jest.fn(),

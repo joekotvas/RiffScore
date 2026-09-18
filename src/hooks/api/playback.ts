@@ -15,7 +15,14 @@ import { DEFAULT_CHORD_PLAYBACK } from '@/types';
 /**
  * Playback method names provided by this factory
  */
-type PlaybackMethodNames = 'play' | 'pause' | 'stop' | 'rewind' | 'setInstrument';
+type PlaybackMethodNames =
+  | 'play'
+  | 'pause'
+  | 'stop'
+  | 'rewind'
+  | 'setInstrument'
+  | 'seek'
+  | 'getPlaybackState';
 
 /**
  * Factory for creating Playback API methods.
@@ -43,12 +50,58 @@ export const createPlaybackMethods = (
     isInitialized = true;
   };
 
+  const validPosition = (method: string, measure = 0, quant = 0): boolean => {
+    if (Number.isInteger(measure) && measure >= 0 && Number.isFinite(quant) && quant >= 0)
+      return true;
+    setResult({
+      ok: false,
+      status: 'error',
+      method,
+      code: 'INVALID_PLAYBACK_POSITION',
+      message: 'Use a nonnegative integer measure index and a finite nonnegative quant position.',
+    });
+    return false;
+  };
+
   return {
+    getPlaybackState() {
+      const position =
+        ctx.playback?.getPosition?.() ?? ctx.playback?.playbackPosition ?? lastPlayPosition;
+      return {
+        isPlaying: ctx.playback?.getIsPlaying?.() ?? ctx.playback?.isPlaying ?? toneIsPlaying(),
+        measureIndex: position.measureIndex,
+        quant: position.quant,
+        duration: 'duration' in position ? Number(position.duration) : 0,
+      };
+    },
+    seek(measureIndex, quant = 0) {
+      if (!validPosition('seek', measureIndex, quant)) return this;
+      if (ctx.playback?.seekPlayback) ctx.playback.seekPlayback(measureIndex, quant);
+      else {
+        stopTonePlayback();
+        lastPlayPosition = { measureIndex, quant };
+      }
+      setResult({
+        ok: true,
+        status: 'info',
+        method: 'seek',
+        message: 'Playback position updated; call play() to resume.',
+      });
+      return this;
+    },
     async play(startMeasure, startQuant) {
+      if (!validPosition('play', startMeasure, startQuant)) return this;
       try {
         if (ctx.playback) {
-          const measure = startMeasure ?? ctx.playback.playbackPosition?.measureIndex ?? 0;
-          const quant = startQuant ?? ctx.playback.playbackPosition?.quant ?? 0;
+          const measure =
+            startMeasure ??
+            (ctx.playback.getPosition?.() ?? ctx.playback.playbackPosition)?.measureIndex ??
+            0;
+          const quant =
+            startQuant ??
+            (startMeasure === undefined
+              ? ((ctx.playback.getPosition?.() ?? ctx.playback.playbackPosition)?.quant ?? 0)
+              : 0);
           await ctx.playback.playScore(measure, quant);
           setResult({ ok: true, status: 'info', method: 'play', message: 'Playback started' });
           return this;
@@ -57,7 +110,7 @@ export const createPlaybackMethods = (
 
         // Use provided start position, or resume from last, or start from beginning
         const measureIndex = startMeasure ?? lastPlayPosition.measureIndex;
-        const quant = startQuant ?? lastPlayPosition.quant;
+        const quant = startQuant ?? (startMeasure === undefined ? lastPlayPosition.quant : 0);
 
         // Save for potential resume
         lastPlayPosition = { measureIndex, quant };
@@ -147,8 +200,9 @@ export const createPlaybackMethods = (
     },
 
     rewind(measureNum = 0) {
+      if (!validPosition('rewind', measureNum)) return this;
       if (ctx.playback) {
-        const wasPlaying = ctx.playback.isPlaying;
+        const wasPlaying = ctx.playback.getIsPlaying?.() ?? ctx.playback.isPlaying;
         ctx.playback.seekPlayback?.(measureNum, 0);
         if (wasPlaying) void this.play(measureNum, 0);
         setResult({
