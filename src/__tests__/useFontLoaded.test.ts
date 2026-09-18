@@ -1,3 +1,4 @@
+/* eslint-disable testing-library/render-result-naming-convention -- React server rendering returns a markup string, not a Testing Library render result. */
 /**
  * useFontLoaded Hook Tests
  *
