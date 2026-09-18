@@ -8,7 +8,6 @@
 import { render, act } from '@testing-library/react';
 import { RiffScore } from '../RiffScore';
 import { ThemeProvider } from '@/context/ThemeContext';
-import { resetPlaybackState } from '@/hooks/api/playback';
 import type { MusicEditorAPI } from '../api.types';
 
 const getAPI = (id: string): MusicEditorAPI => {
@@ -83,7 +82,6 @@ import { DEFAULT_CHORD_PLAYBACK } from '@/types';
 describe('ScoreAPI Playback Methods', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    resetPlaybackState();
     (toneIsPlaying as jest.Mock).mockReturnValue(false);
   });
 
@@ -181,15 +179,19 @@ describe('ScoreAPI Playback Methods', () => {
   });
 
   describe('pause()', () => {
-    test('stops playback without resetting position', () => {
+    test('stops playback without resetting position', async () => {
       renderWithTheme('pause-test');
       const api = getAPI('pause-test');
+      await act(async () => {
+        await api.play();
+      });
 
       act(() => {
         api.pause();
       });
 
-      expect(stopTonePlayback).toHaveBeenCalled();
+      expect(stopTonePlayback).not.toHaveBeenCalled();
+      expect((scheduleScorePlayback as jest.Mock).mock.calls[0][7].signal.aborted).toBe(true);
     });
 
     test('pause() is chainable', () => {
@@ -206,15 +208,19 @@ describe('ScoreAPI Playback Methods', () => {
   });
 
   describe('stop()', () => {
-    test('stops playback and resets position', () => {
+    test('stops playback and resets position', async () => {
       renderWithTheme('stop-test');
       const api = getAPI('stop-test');
+      await act(async () => {
+        await api.play();
+      });
 
       act(() => {
         api.stop();
       });
 
-      expect(stopTonePlayback).toHaveBeenCalled();
+      expect(stopTonePlayback).not.toHaveBeenCalled();
+      expect((scheduleScorePlayback as jest.Mock).mock.calls[0][7].signal.aborted).toBe(true);
     });
 
     test('stop() is chainable', () => {
@@ -239,7 +245,7 @@ describe('ScoreAPI Playback Methods', () => {
         api.rewind();
       });
 
-      expect(stopTonePlayback).toHaveBeenCalled();
+      expect(stopTonePlayback).not.toHaveBeenCalled();
     });
 
     test('rewinds to specific measure', () => {
@@ -250,19 +256,22 @@ describe('ScoreAPI Playback Methods', () => {
         api.rewind(3);
       });
 
-      expect(stopTonePlayback).toHaveBeenCalled();
+      expect(stopTonePlayback).not.toHaveBeenCalled();
     });
 
     test('restarts playback if was playing', async () => {
       (toneIsPlaying as jest.Mock).mockReturnValue(true);
       renderWithTheme('rewind-playing');
       const api = getAPI('rewind-playing');
+      await act(async () => {
+        await api.play();
+      });
 
       act(() => {
         api.rewind(2);
       });
 
-      expect(stopTonePlayback).toHaveBeenCalled();
+      expect(stopTonePlayback).not.toHaveBeenCalled();
       // The restart happens via setTimeout, so we need to wait
       await act(async () => {
         await new Promise((r) => setTimeout(r, 10));
@@ -286,7 +295,7 @@ describe('ScoreAPI Playback Methods', () => {
   });
 
   describe('setInstrument()', () => {
-    test('sets instrument via toneEngine', () => {
+    test('sets the view instrument used by its transport', async () => {
       renderWithTheme('instrument-test');
       const api = getAPI('instrument-test');
 
@@ -294,21 +303,27 @@ describe('ScoreAPI Playback Methods', () => {
         api.setInstrument('piano');
       });
 
+      await act(async () => {
+        await api.play();
+      });
       expect(toneSetInstrument).toHaveBeenCalledWith('piano');
     });
 
-    test('accepts all valid instrument types', () => {
+    test('accepts all valid instrument types', async () => {
       renderWithTheme('instrument-types');
       const api = getAPI('instrument-types');
 
       const instruments = ['bright', 'mellow', 'organ', 'piano'];
 
-      instruments.forEach((inst) => {
+      for (const inst of instruments) {
         act(() => {
           api.setInstrument(inst);
         });
+        await act(async () => {
+          await api.play();
+        });
         expect(toneSetInstrument).toHaveBeenCalledWith(inst);
-      });
+      }
     });
 
     test('setInstrument() is chainable', () => {
@@ -376,4 +391,97 @@ describe('ScoreAPI Playback Methods', () => {
       expect(scheduleScorePlayback).toHaveBeenCalled();
     });
   });
+});
+
+it('retains resume position per API instance without leaking it into another editor', async () => {
+  render(
+    <>
+      <RiffScore id="resume-first" />
+      <RiffScore id="resume-second" />
+    </>
+  );
+  await act(async () => {
+    await getAPI('resume-first').play(1, 16);
+  });
+  await act(async () => {
+    await getAPI('resume-second').play();
+  });
+  expect(jest.mocked(scheduleScorePlayback).mock.calls.at(-1)?.[4]).toBe(0);
+});
+
+it('starts at the requested rest position instead of skipping ahead to a melody onset', async () => {
+  render(
+    <RiffScore id="rest-start" config={{ score: { abc: 'X:1\nM:4/4\nL:1/4\nK:C\n"C"z2 C2|' } }} />
+  );
+  jest.mocked(createTimeline).mockReturnValueOnce([
+    {
+      time: 1,
+      duration: 1,
+      pitch: 'C4',
+      frequency: 261.63,
+      type: 'note',
+      measureIndex: 0,
+      eventIndex: 1,
+      staffIndex: 0,
+      quant: 32,
+    },
+  ]);
+  await act(async () => {
+    await getAPI('rest-start').play(0, 0);
+  });
+  expect(jest.mocked(scheduleScorePlayback).mock.calls.at(-1)?.[4]).toBe(0);
+});
+
+test('API, playback events and custom controls share one transport with synchronous seek and score edits', async () => {
+  let controls: import('../components/Layout/ScoreControls').ScoreControls | undefined;
+  render(
+    <RiffScore
+      id="coherent"
+      renderControls={(value) => {
+        controls = value;
+        return null;
+      }}
+    />
+  );
+  const api = getAPI('coherent');
+  const listener = jest.fn();
+  const off = api.on('playback', listener);
+  await act(async () => {
+    api.select(0).addNote('C4');
+    await api.seek(1, 16).setInstrument('organ').play();
+  });
+  expect(api.getPlaybackState()).toMatchObject({ isPlaying: true, measureIndex: 1, quant: 16 });
+  expect(controls?.isPlaying).toBe(true);
+  expect(controls?.instrument).toBe('organ');
+  expect(toneSetInstrument).toHaveBeenLastCalledWith('organ');
+  expect(
+    (scheduleScorePlayback as jest.Mock).mock.calls.at(-1)[1].staves[0].measures[0].events
+  ).toHaveLength(1);
+  expect(listener).toHaveBeenLastCalledWith(
+    expect.objectContaining({ isPlaying: true, quant: 16 })
+  );
+  act(() => controls?.pause());
+  expect(api.getPlaybackState().isPlaying).toBe(false);
+  off();
+});
+
+test('invalid transport positions fail softly without scheduling or moving the cursor', async () => {
+  render(<RiffScore id="invalid-position" />);
+  const api = getAPI('invalid-position');
+  const before = api.getPlaybackState();
+  await act(async () => {
+    await api.play(-1, NaN);
+  });
+  expect(api.result).toMatchObject({ ok: false, code: 'INVALID_PLAYBACK_POSITION' });
+  expect(api.getPlaybackState()).toEqual(before);
+});
+
+test('an explicit start measure starts at its beginning rather than carrying a paused quant', async () => {
+  render(<RiffScore id="measure-start" />);
+  const api = getAPI('measure-start');
+  await act(async () => {
+    api.seek(0, 32);
+    await api.play(1);
+  });
+  expect(api.getPlaybackState()).toMatchObject({ measureIndex: 1, quant: 0 });
 });

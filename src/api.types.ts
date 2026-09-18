@@ -44,6 +44,14 @@ import type { ImportContent, ImportFormat } from './importers';
 /** Formats {@link MusicEditorAPI.import} accepts, and what it takes as content. */
 export type { ImportContent, ImportFormat };
 
+/** Reactive transport snapshot. Positions use zero-based measures and 64 quants per whole note. */
+export interface PlaybackState {
+  isPlaying: boolean;
+  measureIndex: number | null;
+  quant: number | null;
+  duration: number;
+}
+
 /** Supported API event types */
 export type APIEventType = 'score' | 'selection' | 'playback' | 'batch' | 'operation' | 'error';
 
@@ -548,6 +556,10 @@ export interface MusicEditorAPI {
   import(format: ImportFormat, content: ImportContent): this;
 
   // --- Playback ---
+  /** Pause and position the transport without starting audio. Measures are zero-based. */
+  seek(measureIndex: number, quant?: number): this;
+  /** Synchronous snapshot shared with the toolbar, custom controls and playback events. */
+  getPlaybackState(): PlaybackState;
   /**
    * Start playback from specified position (or current/beginning).
    * Plays the melody together with the score's chord track (same transport as
@@ -599,6 +611,12 @@ export interface MusicEditorAPI {
    * @status implemented
    */
   getConfig(): RiffScoreConfig;
+  /** Effective per-view interaction settings, including synchronous API overrides. */
+  getInteractionConfig(): RiffScoreConfig['interaction'];
+  /** Merge boolean UI permissions for this view without changing score data or history. */
+  setInteractionConfig(config: Partial<RiffScoreConfig['interaction']>): this;
+  /** Remove API overrides and restore the latest interaction config props. */
+  resetInteractionConfig(): this;
   /**
    * Get the current selection state.
    * @status implemented
@@ -670,7 +688,7 @@ export interface MusicEditorAPI {
    */
   on(event: 'score', callback: (state: Score) => void): Unsubscribe;
   on(event: 'selection', callback: (state: Selection) => void): Unsubscribe;
-  on(event: 'playback', callback: (state: unknown) => void): Unsubscribe;
+  on(event: 'playback', callback: (state: PlaybackState) => void): Unsubscribe;
   on(event: 'operation', callback: (result: Result) => void): Unsubscribe;
   on(event: 'error', callback: (result: Result) => void): Unsubscribe;
   on(event: 'batch', callback: (payload: BatchEventPayload) => void): Unsubscribe;

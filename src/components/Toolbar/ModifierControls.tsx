@@ -1,3 +1,4 @@
+import { MusicGlyph } from '@/components/Assets/MusicGlyph';
 /**
  * ModifierControls
  *
@@ -7,7 +8,7 @@
 import React from 'react';
 import TieIcon from '../Assets/TieIcon';
 import ToolbarButton from './ToolbarButton';
-import { DOTS, BRAVURA_FONT } from '@/constants/SMuFL';
+import { DOTS } from '@/constants/SMuFL';
 import { CONFIG } from '@/config';
 
 const ICON_SIZE = CONFIG.toolbar.iconSize;
@@ -17,17 +18,16 @@ const ICON_SIZE = CONFIG.toolbar.iconSize;
  */
 const DotIcon: React.FC<{ color?: string }> = ({ color = 'currentColor' }) => (
   <svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} fill="none">
-    <text
+    <MusicGlyph
       x={ICON_SIZE / 2}
       y={12}
-      fontFamily={BRAVURA_FONT}
       fontSize={20}
       fill={color}
       textAnchor="middle"
       style={{ userSelect: 'none' }}
     >
       {DOTS.augmentationDot}
-    </text>
+    </MusicGlyph>
   </svg>
 );
 

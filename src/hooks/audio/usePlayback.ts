@@ -1,12 +1,14 @@
-import { useState, useRef, useCallback } from 'react';
-import { Score, DEFAULT_CHORD_PLAYBACK } from '@/types';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Score, ChordPlaybackConfig, DEFAULT_CHORD_PLAYBACK } from '@/types';
 import {
   initTone,
   scheduleScorePlayback,
-  stopTonePlayback,
   InstrumentState,
+  InstrumentType,
+  setInstrument,
 } from '@/engines/toneEngine';
 import { createTimeline } from '@/services/TimelineService';
+import { getPlaybackOffset } from '@/services/MeasureTiming';
 
 export interface UsePlaybackReturn {
   isPlaying: boolean;
@@ -18,14 +20,23 @@ export interface UsePlaybackReturn {
   };
   playScore: (startMeasureIndex?: number, startQuant?: number) => Promise<void>;
   stopPlayback: () => void;
+  seekPlayback?: (measureIndex: number, quant?: number) => void;
   pausePlayback: () => void;
   handlePlayToggle: () => void;
   exitPlaybackMode: () => void;
   lastPlayStart: { measureIndex: number; quant: number };
   instrumentState: InstrumentState;
+  getPosition: () => { measureIndex: number | null; quant: number | null; duration: number };
+  getIsPlaying: () => boolean;
 }
 
-export const usePlayback = (score: Score, bpm: number): UsePlaybackReturn => {
+export const usePlayback = (
+  score: Score,
+  bpm: number,
+  chordPlayback: ChordPlaybackConfig = DEFAULT_CHORD_PLAYBACK,
+  instrument?: InstrumentType,
+  getCurrent?: () => { score: Score; bpm: number; instrument?: InstrumentType }
+): UsePlaybackReturn => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [playbackPosition, setPlaybackPosition] = useState<{
@@ -36,7 +47,31 @@ export const usePlayback = (score: Score, bpm: number): UsePlaybackReturn => {
   const [lastPlayStart, setLastPlayStart] = useState({ measureIndex: 0, quant: 0 });
   const [instrumentState, setInstrumentState] = useState<InstrumentState>('initializing');
 
+  const currentRef = useRef(getCurrent);
+  useEffect(() => {
+    currentRef.current = getCurrent;
+  }, [getCurrent]);
+  const positionRef = useRef(playbackPosition);
+  const updatePosition = useCallback((position: typeof playbackPosition): void => {
+    positionRef.current = position;
+    setPlaybackPosition(position);
+  }, []);
+  const playingRef = useRef(false);
+  const updatePlaying = useCallback((value: boolean): void => {
+    playingRef.current = value;
+    setIsPlaying(value);
+  }, []);
   const isInitialized = useRef(false);
+  // A newer seek or pause invalidates an older pending audio start and its callbacks.
+  const playbackRequest = useRef(0);
+  const pending = useRef<AbortController | null>(null);
+  useEffect(
+    () => () => {
+      playbackRequest.current++;
+      pending.current?.abort();
+    },
+    []
+  );
 
   // Initialize Tone.js on first user interaction
   const ensureInit = useCallback(async () => {
@@ -57,98 +92,130 @@ export const usePlayback = (score: Score, bpm: number): UsePlaybackReturn => {
    * Stop playback and reset position (Stop Button behavior)
    */
   const stopPlayback = useCallback(() => {
-    stopTonePlayback();
-    setIsPlaying(false);
+    playbackRequest.current++;
+    pending.current?.abort();
+    updatePlaying(false);
     // Keep active (cursor visible at 0)
     setIsActive(true);
-    setPlaybackPosition({ measureIndex: null, quant: null, duration: 0 });
-  }, []);
+    updatePosition({ measureIndex: null, quant: null, duration: 0 });
+  }, [updatePosition, updatePlaying]);
 
   /*
    * Pause playback but retain position (Pause Button behavior)
    */
   const pausePlayback = useCallback(() => {
-    stopTonePlayback();
-    setIsPlaying(false);
+    playbackRequest.current++;
+    pending.current?.abort();
+    updatePlaying(false);
     setIsActive(true);
     // Do NOT reset playbackPosition, so cursor stays visible and we can resume
-  }, []);
+  }, [updatePlaying]);
 
   const playScore = useCallback(
     async (startMeasureIndex = 0, startQuant = 0) => {
-      await ensureInit();
+      const request = ++playbackRequest.current;
+      pending.current?.abort();
+      const controller = new AbortController();
+      pending.current = controller;
+      try {
+        await ensureInit();
+        if (request !== playbackRequest.current) return;
 
-      // Stop any existing playback (clears position state if we called stopPlayback,
-      // but here we are about to overwrite it anyway)
-      stopTonePlayback();
+        setLastPlayStart({ measureIndex: startMeasureIndex, quant: startQuant });
+        updatePlaying(true);
+        setIsActive(true);
 
-      setLastPlayStart({ measureIndex: startMeasureIndex, quant: startQuant });
-      setIsPlaying(true);
-      setIsActive(true);
+        // Generate timeline
+        const current = currentRef.current?.() ?? { score, bpm, instrument };
+        if (current.instrument ?? instrument) setInstrument((current.instrument ?? instrument)!);
+        const timeline = createTimeline(current.score, current.bpm);
 
-      // Generate timeline
-      const timeline = createTimeline(score, bpm);
-
-      // Find start offset time
-      let startTimeOffset = 0;
-      const startEvent = timeline.find(
-        (e) =>
-          e.measureIndex >= startMeasureIndex &&
-          (e.measureIndex > startMeasureIndex || e.quant >= startQuant)
-      );
-
-      if (startEvent) {
-        startTimeOffset = startEvent.time;
-        // Pre-seed the state so the UI has the correct "From" position and duration immediately
-        // This fixes the "First Note Jump" where duration was 0 causing instant transition
-        setPlaybackPosition({
-          measureIndex: startEvent.measureIndex,
-          quant: startEvent.quant,
-          duration: startEvent.duration || 0,
+        // Find start offset time
+        const startTimeOffset = getPlaybackOffset(
+          current.score,
+          current.bpm,
+          startMeasureIndex,
+          startQuant
+        );
+        // Keep the requested rest position; the scheduler reports subsequent musical onsets.
+        const onset = timeline.find(
+          (event) => event.measureIndex === startMeasureIndex && event.quant === startQuant
+        );
+        updatePosition({
+          measureIndex: startMeasureIndex,
+          quant: startQuant,
+          duration: onset?.duration ?? 0,
         });
-      }
 
-      // Ensure cursor is mounted in "Stopped" state (at start) before animating
-      setIsActive(true);
+        // Ensure cursor is mounted in "Stopped" state (at start) before animating
+        setIsActive(true);
 
-      // Use double-RAF to guarantee a paint frame occurs for the "Start" position.
-      // This is more reliable than setTimeout for CSS transitions on newly mounted/updated elements.
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setIsPlaying(true);
-
-          scheduleScorePlayback(
-            timeline,
-            score,
-            bpm,
-            DEFAULT_CHORD_PLAYBACK,
-            startTimeOffset,
-            (measureIndex, quant, duration) => {
-              setPlaybackPosition({ measureIndex, quant, duration: duration || 0 });
+        // Use double-RAF to guarantee a paint frame occurs for the "Start" position.
+        // This is more reliable than setTimeout for CSS transitions on newly mounted/updated elements.
+        await new Promise<void>((resolve) => {
+          const finish = () => {
+            controller.signal.removeEventListener('abort', finish);
+            resolve();
+          };
+          controller.signal.addEventListener('abort', finish, { once: true });
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+        });
+        if (request !== playbackRequest.current || controller.signal.aborted) return;
+        await scheduleScorePlayback(
+          timeline,
+          current.score,
+          current.bpm,
+          chordPlayback,
+          startTimeOffset,
+          (measureIndex, quant, duration) => {
+            if (request !== playbackRequest.current) return;
+            updatePosition({ measureIndex, quant, duration: duration || 0 });
+          },
+          () => {
+            if (request !== playbackRequest.current) return;
+            updatePlaying(false);
+            updatePosition({ measureIndex: null, quant: null, duration: 0 });
+          },
+          {
+            signal: controller.signal,
+            onCancel: () => {
+              if (request === playbackRequest.current) updatePlaying(false);
             },
-            () => {
-              setIsPlaying(false);
-              setPlaybackPosition({ measureIndex: null, quant: null, duration: 0 });
-            }
-          );
-        });
-      });
+          }
+        );
+      } catch (error) {
+        if (request !== playbackRequest.current) return;
+        updatePlaying(false);
+        setIsActive(false);
+        throw error;
+      }
     },
-    [score, bpm, ensureInit]
+    [score, bpm, ensureInit, chordPlayback, instrument, updatePosition, updatePlaying]
   );
 
   const handlePlayToggle = useCallback(() => {
-    if (isPlaying) {
+    if (playingRef.current) {
       pausePlayback();
     } else {
-      // Resume from NEXT event (quant + 1) if valid, otherwise start from beginning
-      const resumeMeasure = playbackPosition.measureIndex ?? 0;
-      const resumeQuant = (playbackPosition.quant ?? -1) + 1; // +1 to skip to next event
-      playScore(resumeMeasure, resumeQuant);
+      const resumeMeasure = positionRef.current.measureIndex ?? 0;
+      const resumeQuant = positionRef.current.quant ?? 0;
+      // Button handlers consume failures; promise-based controls receive the rejection directly.
+      return playScore(resumeMeasure, resumeQuant).catch(() => {});
     }
-  }, [isPlaying, playScore, pausePlayback, playbackPosition]);
+  }, [playScore, pausePlayback]);
+
+  const seekPlayback = useCallback(
+    (measureIndex: number, quant = 0) => {
+      pausePlayback();
+      updatePosition({ measureIndex, quant, duration: 0 });
+    },
+    [pausePlayback, updatePosition]
+  );
 
   return {
+    getPosition: () => positionRef.current,
+    getIsPlaying: () => playingRef.current,
+    seekPlayback,
     isPlaying,
     isActive,
     playbackPosition,

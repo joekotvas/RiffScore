@@ -83,7 +83,7 @@
   border-radius: 4px;
 }
 .riff-ShortcutsOverlay__content::-webkit-scrollbar-thumb:hover {
-  background-color: var(--riff-color-muted);
+  background-color: var(--riff-color-text-secondary);
 }
 
 /* --- Welcome Section --- */
@@ -129,7 +129,7 @@
 .riff-WelcomeSection__list {
   list-style-type: disc;
   list-style-position: inside;
-  color: var(--riff-color-muted);
+  color: var(--riff-color-text-secondary);
 }
 .riff-WelcomeSection__list li {
   margin-bottom: var(--riff-spacing-1);

@@ -253,3 +253,15 @@ npm run demo:dev
 
 *   **Clipboard API**: Copy, cut, and paste operations
 *   **Move Operations**: Drag-and-drop and keyboard-based event moving
+
+
+### Alpha.18 integration controls
+
+Configure instance-local themes, viewport sizing, notation visibility, engraving preferences and editing permissions without replacing the editor. Add reactive controls with `renderControls`, drive a visual cursor with `playbackCursor`, or use unmetered notation and opt-in chord recognition. See the [configuration guide](./docs/CONFIGURATION.md#alpha18-presentation-and-interaction-controls) and [release notes](./CHANGELOG.md).
+
+
+### Alpha.18 integration primitives
+
+The public core now supports shared documents with `RiffScoreSession`, measure windows, display-only clefs, runtime interaction permissions, reactive custom controls, playback subscriptions/seek, anchored SVG overlays, and glyph adapters. Presentation config stays under `ui`, chord typography under `chord.display.font`, and tuplets under `ui.engraving.tuplets`. See [configuration and examples](./docs/CONFIGURATION.md) and the [API reference](./docs/API.md).
+
+For server/worker musical queries, import from `riffscore/theory`; this entry does not initialize React, the DOM or audio. Browser consumers still import `riffscore/styles.css` alongside the editor.

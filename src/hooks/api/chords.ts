@@ -61,7 +61,7 @@ export type ChordMethodNames =
 export const createChordMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, ChordMethodNames> & ThisType<MusicEditorAPI> => {
-  const { getScore, getSelection, syncSelection, dispatch, setResult, config } = ctx;
+  const { getScore, getSelection, syncSelection, dispatch, setResult } = ctx;
 
   return {
     // ========================================================================
@@ -837,7 +837,7 @@ export const createChordMethods = (
     },
 
     getChordDisplay() {
-      const display = config.chord?.display ?? {
+      const display = ctx.config.chord?.display ?? {
         notation: 'letter' as const,
         useSymbols: false,
       };
@@ -865,7 +865,7 @@ export const createChordMethods = (
     },
 
     getChordPlayback() {
-      const playback = config.chord?.playback ?? {
+      const playback = ctx.config.chord?.playback ?? {
         enabled: true,
         velocity: 50,
       };

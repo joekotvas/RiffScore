@@ -1,6 +1,7 @@
 /* src/components/Toolbar/Toolbar.css */
 
 .riff-Toolbar {
+  background-color: var(--riff-color-bg-panel);
   display: flex;
   flex-direction: column;
   gap: 0;

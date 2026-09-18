@@ -190,8 +190,16 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 | `play` | `play(startMeasure?, startQuant?)` | ✅ | Start/resume playback (async). |
 | `pause` | `pause()` | ✅ | Pause (retains position). |
 | `stop` | `stop()` | ✅ | Stop and reset to beginning. |
+| `seek` | `seek(measureIndex, quant?)` | ✅ | Pause and position the transport; chain `play()` to resume. |
+| `getPlaybackState` | `getPlaybackState()` | ✅ | Synchronous `{ isPlaying, measureIndex, quant, duration }` snapshot. |
 | `rewind` | `rewind(measureNum?)` | ✅ | Jump playback position. |
 | `setInstrument` | `setInstrument(instrumentId)` | ✅ | `'bright'`, `'mellow'`, `'organ'`, `'piano'`. |
+
+API playback, toolbar controls and `renderControls` use one per-view transport and instrument. `play()` resumes; `play(measure)` starts at quant zero in that measure. Indices are zero-based and quants use 64 per whole note. Negative/nonfinite positions fail softly with `INVALID_PLAYBACK_POSITION`. Call playback from a user gesture to unlock browser audio.
+
+`api.on('playback', listener)` emits `PlaybackState` updates; its returned function unsubscribes. Positions can be `null` when no cursor is active, and `duration` is seconds until the next onset. These are musical onset/transport updates, not a continuous audio-clock stream. A seek pauses and updates synchronous queries immediately; React subscriptions publish after rendering.
+
+The toolbar/custom-control BPM is a practice override shared by API playback. `api.setBpm()` changes the document BPM and clears a differing practice override. Audio scheduling remains shared across views: starting another view replaces the current audio; stopping or unmounting an idle view does not stop someone else's playback.
 
 ---
 
@@ -251,8 +259,8 @@ For user-facing display, use `toDisplayMeasureNumber()` from `@/utils/measureInd
 
 | Method | Signature | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `setChordDisplay` | `setChordDisplay(config)` | ⏳ | `{ notation, useSymbols }`. |
-| `setChordPlayback` | `setChordPlayback(config)` | ⏳ | `{ enabled, velocity }`. |
+| `setChordDisplay` | `setChordDisplay(config)` | ⏳ | Returns `NOT_IMPLEMENTED`; update `config.chord.display` props. |
+| `setChordPlayback` | `setChordPlayback(config)` | ⏳ | Returns `NOT_IMPLEMENTED`; update `config.chord.playback` props. |
 | `getChordDisplay` | `getChordDisplay()` | ✅ | Get current chord display config. |
 | `getChordPlayback` | `getChordPlayback()` | ✅ | Get current chord playback config. |
 
@@ -444,3 +452,16 @@ const unsub = api.on('score', (newScore) => {
 ---
 
 [← Back to README](../README.md)
+
+
+## Runtime interaction configuration (alpha.18)
+
+- `getInteractionConfig()` returns a defensive copy of this editor's effective interaction settings.
+- `setInteractionConfig(partial)` merges validated boolean overrides and returns the API for chaining.
+- `resetInteractionConfig()` clears overrides and restores the latest configuration props.
+
+The settings are `isEnabled`, `enableKeyboard`, `enablePlayback`, `allowEventInsertion`, `allowDurationChanges`, and `allowEventDeletion`. Invalid keys/values produce structured feedback. Overrides are instance-local, apply synchronously to API reads, and update the mounted UI without resetting score/history. They constrain user interaction, not host API mutations. See [Configuration](./CONFIGURATION.md#editing-permissions).
+
+Horizontal navigation now carries the current staff, clef, meter and entry duration into ghost creation. `export()` reads the authoritative engine immediately, including mutations earlier in the same API chain.
+
+Retained API references read the current merged configuration through `getConfig()`, `getChordDisplay()` and `getChordPlayback()` after React updates. Presentation updates preserve score/history. With `RiffScoreSession`, APIs address the shared full document; permissions and playback remain view-local. See [configuration](./CONFIGURATION.md) for session and overlay contracts.

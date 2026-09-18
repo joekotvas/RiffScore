@@ -19,6 +19,7 @@ interface UseAutoScrollProps {
   playbackPosition: { measureIndex: number | null; quant: number | null; duration: number };
   previewNote: PreviewNote | null;
   scale: number;
+  enabled?: boolean;
 }
 
 type ScrollStrategy = 'scroll-to-start' | 'keep-in-view';
@@ -34,6 +35,7 @@ export const useAutoScroll = ({
   playbackPosition,
   previewNote,
   scale,
+  enabled = true,
 }: UseAutoScrollProps) => {
   // 1. Memoize Derived Data
   const activeStaff = useMemo(() => getActiveStaff(score), [score]);
@@ -83,7 +85,7 @@ export const useAutoScroll = ({
   const performScroll = useCallback(
     (targetX: number, strategy: ScrollStrategy) => {
       const container = containerRef.current;
-      if (!container) return;
+      if (!container || !enabled) return;
 
       const { scrollLeft, clientWidth } = container;
       const scaledTargetX = targetX * scale;
@@ -111,7 +113,7 @@ export const useAutoScroll = ({
         container.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
       }
     },
-    [containerRef, scale]
+    [containerRef, scale, enabled]
   );
 
   // ------------------------------------------------------------------

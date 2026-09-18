@@ -6,6 +6,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { usePlayback } from '@/hooks/audio';
 import type { Score } from '@/types';
+import { parseABC } from '@/importers/abcImporter';
 
 // Mock toneEngine
 const mockInitTone = jest.fn().mockResolvedValue(undefined);
@@ -38,7 +39,7 @@ afterAll(() => {
 const mockCreateTimeline = jest.fn().mockReturnValue([
   { measureIndex: 0, quant: 0, time: 0, notes: [{ pitch: 'C4' }] },
   { measureIndex: 0, quant: 16, time: 0.5, notes: [{ pitch: 'D4' }] },
-  { measureIndex: 1, quant: 0, time: 1.0, notes: [{ pitch: 'E4' }] },
+  { measureIndex: 1, quant: 0, time: 2.0, notes: [{ pitch: 'E4' }] },
 ]);
 
 jest.mock('../services/TimelineService', () => ({
@@ -183,7 +184,7 @@ describe('usePlayback', () => {
       });
     });
 
-    it('should stop existing playback before starting new', async () => {
+    it('cancels its previous request before starting another', async () => {
       const score = createMockScore();
       const { result } = renderHook(() => usePlayback(score, 120));
 
@@ -197,12 +198,88 @@ describe('usePlayback', () => {
       });
 
       // stopTonePlayback should have been called during second playScore
-      expect(mockStopTonePlayback).toHaveBeenCalled();
+      expect(mockScheduleTonePlayback.mock.calls[0][7].signal.aborted).toBe(true);
     });
   });
 
+  it('only schedules the latest seek when animation frames are still pending', async () => {
+    const frames: FrameRequestCallback[] = [];
+    const immediateRAF = window.requestAnimationFrame;
+    window.requestAnimationFrame = (callback) => {
+      frames.push(callback);
+      return frames.length;
+    };
+    try {
+      const { result } = renderHook(() => usePlayback(createMockScore(), 120));
+      await act(async () => {
+        const first = result.current.playScore(0, 0);
+        const latest = result.current.playScore(1, 0);
+        await Promise.resolve();
+        await Promise.resolve();
+        while (frames.length) frames.shift()!(0);
+        await Promise.all([first, latest]);
+      });
+      expect(mockScheduleTonePlayback).toHaveBeenCalledTimes(1);
+      expect(mockScheduleTonePlayback.mock.calls[0][4]).toBe(2);
+      await act(async () => {
+        const pending = result.current.playScore(0, 16);
+        await Promise.resolve();
+        await Promise.resolve();
+        result.current.pausePlayback();
+        while (frames.length) frames.shift()!(0);
+        await pending;
+      });
+      expect(mockScheduleTonePlayback).toHaveBeenCalledTimes(1);
+      expect(result.current.isPlaying).toBe(false);
+    } finally {
+      window.requestAnimationFrame = immediateRAF;
+    }
+  });
+
+  it('ignores position and completion callbacks from playback replaced by a seek', async () => {
+    const { result } = renderHook(() => usePlayback(createMockScore(), 120));
+    await act(async () => {
+      await result.current.playScore(0, 0);
+    });
+    const previous = mockScheduleTonePlayback.mock.calls[0];
+    await act(async () => {
+      await result.current.playScore(1, 0);
+    });
+    act(() => {
+      previous[5](0, 16, 0.5);
+      previous[6]();
+    });
+    expect(result.current.playbackPosition.measureIndex).toBe(1);
+    expect(result.current.isPlaying).toBe(true);
+  });
+
+  it('forwards configured accompaniment and rejects audio failures without leaving a playing cursor', async () => {
+    const chords = { enabled: true, velocity: 80 };
+    const { result } = renderHook(() => usePlayback(createMockScore(), 120, chords));
+    mockScheduleTonePlayback.mockRejectedValueOnce(new Error('Audio unavailable'));
+    await act(async () => {
+      await expect(result.current.playScore()).rejects.toThrow('Audio unavailable');
+    });
+    expect(mockScheduleTonePlayback.mock.calls[0][3]).toEqual(chords);
+    expect(result.current.isPlaying).toBe(false);
+    expect(result.current.isActive).toBe(false);
+  });
+
+  it('cancels only its own scheduled playback when the editor unmounts', async () => {
+    const { result, unmount } = renderHook(() => usePlayback(createMockScore(), 120));
+    await act(async () => {
+      await result.current.playScore();
+    });
+    const signal = mockScheduleTonePlayback.mock.calls[0][7].signal as AbortSignal;
+    expect(signal.aborted).toBe(false);
+    const stops = mockStopTonePlayback.mock.calls.length;
+    unmount();
+    expect(signal.aborted).toBe(true);
+    expect(mockStopTonePlayback).toHaveBeenCalledTimes(stops);
+  });
+
   describe('stopPlayback', () => {
-    it('should call stopTonePlayback', async () => {
+    it('aborts its own transport on stop', async () => {
       const score = createMockScore();
       const { result } = renderHook(() => usePlayback(score, 120));
 
@@ -214,7 +291,7 @@ describe('usePlayback', () => {
         result.current.stopPlayback();
       });
 
-      expect(mockStopTonePlayback).toHaveBeenCalled();
+      expect(mockScheduleTonePlayback.mock.calls[0][7].signal.aborted).toBe(true);
     });
 
     it('should set isPlaying to false', async () => {
@@ -332,7 +409,7 @@ describe('usePlayback', () => {
   });
 
   describe('start offset', () => {
-    it('should find correct start time offset from timeline', async () => {
+    it('resolves the requested measure using musical timing', async () => {
       const score = createMockScore();
       const { result } = renderHook(() => usePlayback(score, 120));
 
@@ -342,8 +419,28 @@ describe('usePlayback', () => {
 
       // Check that scheduleScorePlayback was called with correct start time offset (Arg 4)
       const startOffset = mockScheduleTonePlayback.mock.calls[0][4];
-      expect(startOffset).toBe(1.0); // Timeline has measure 1 at time 1.0
+      expect(startOffset).toBe(2.0); // One 4/4 bar at 120 BPM lasts two seconds.
     });
+
+    it.each([
+      ['4/4', '"C"C z3 | "G"z4 |', 1, 16, 2.5],
+      ['none', '"C"C D E | "G"z4 |', 1, 16, 2],
+      ['4/4', '"C"C | "G"z4 |', 1, 16, 1],
+    ])(
+      'keeps a requested chord-only position after the final melody in %s',
+      async (meter, music, measure, quant, offset) => {
+        const parsed = parseABC(`X:1\nM:${meter}\nL:1/4\nK:C\n${music}`);
+        if (!parsed.ok) throw new Error(parsed.error);
+        const { createTimeline } = jest.requireActual('../services/TimelineService');
+        mockCreateTimeline.mockReturnValueOnce(createTimeline(parsed.score, 120));
+        const { result } = renderHook(() => usePlayback(parsed.score, 120));
+        await act(async () => {
+          await result.current.playScore(measure, quant);
+        });
+        expect(mockScheduleTonePlayback.mock.calls[0][4]).toBe(offset);
+        expect(result.current.playbackPosition).toMatchObject({ measureIndex: measure, quant });
+      }
+    );
 
     it('should use 0 offset for start at beginning', async () => {
       const score = createMockScore();

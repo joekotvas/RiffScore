@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0-alpha.18] - 2026-09-18
+
+### Added
+- Unmetered notation (`timeSignature: 'none'`, ABC `M:none`) with content-based timing, synchronized staves, and import/export support.
+- Opt-in exact-set chord recognition with optional inversion labels, plus standalone recognition functions.
+- Per-editor visibility controls, viewport sizing, scoped theme overrides, ordinary engraving preferences, custom reactive controls, and externally driven playback cursors.
+- Independent insertion, duration-change, and deletion permissions, with runtime API overrides that preserve the score and history.
+- Optional beam-centered tuplet labels when a complete tuplet shares one beam.
+- `RiffScoreSession` for shared documents/history, measure windows and rendering-only clef overrides.
+- Anchored SVG overlays with explicit bounds, a glyph-adapter/fallback/metrics contract, and the browser-independent `riffscore/theory` entry point.
+- `seek`, `getPlaybackState`, and working `on('playback')` subscriptions shared with toolbar and custom controls.
+
+### Fixed
+- API navigation preserves staff/clef/meter/entry context; synchronous exports include immediately preceding edits.
+- Collision-aware accidental spacing and low-note clearance; rendered geometry remains aligned with pointer/selection coordinates.
+- Chord visibility consistently hides the input region and keyboard entry paths without removing musical chord data.
+- Playback cancellation prevents late starts; chord accompaniment completes correctly for chord-only and trailing-rest passages. API/UI/custom-control playback shares per-view state, instrument, and practice tempo; musical-position timing preserves leading rests. Idle views cannot cancel another view’s transport.
+- Permission guards evaluate the final recognized score once; subscriber failures do not invalidate committed edits or prevent other subscribers from receiving them.
+- Grand-staff reduction supports alto/tenor clefs with typed, undoable staff preservation.
+- Empty unmetered bars no longer emit zero-length MusicXML rests; zero-length measure boundaries retain valid playback positions.
+- MIDI initialization cleans up safely on unmount and respects disabled interaction; focused editors retain keyboard ownership.
+- Accessible canvas names/instructions and live selection announcements, keyboard-scrollable read-only views, dialog focus return/containment, built-in theme contrast, reduced motion, and print viewport reset.
+- React 18 server rendering preserves raw static font-loading CSS for correct hydration.
+- Titles/chord symbols retain high-note clearance; invalid scale falls back safely.
+- Guarded multi-step UI actions restore score/history/selection on refusal; retained API handles read current configuration.
+- Read-only scores retain native scrolling, and nested partial configuration handles optional objects correctly.
+- ConfigMenu is library-owned while retaining its existing export; required footer/chord styles are included in the package stylesheet.
+
+### Scope
+- This release adds standalone editor improvements and small public composition contracts. It does not add a general extension registry, independent audio transports, multi-voice notation, or arranging algorithms.
+- Recognition is opt-in and replaces the chord track while enabled. Interaction permissions constrain UI actions; host API operations remain available. Legacy `begin`/`commit` transaction semantics are unchanged; atomic rollback is scoped to synchronous permission-guarded UI actions.
+
 ## [1.0.0-alpha.17] - 2026-09-16
 
 MusicXML import (#11). Scores exported from MuseScore, Finale, Sibelius, Dorico and the like —

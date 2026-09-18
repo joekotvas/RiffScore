@@ -21,9 +21,9 @@
    ============================================================================ */
 
 .riff-ChordSymbol {
-  font-family: var(--riff-font-sans);
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-family: var(--riff-chord-font, var(--riff-font-sans));
+  font-size: var(--riff-chord-size, 1.25rem);
+  font-weight: var(--riff-chord-weight, 600);
   fill: var(--riff-color-text);
   user-select: none;
   letter-spacing: 0;
@@ -63,9 +63,9 @@
   width: 80px;
   padding: 0 8px;
   text-align: center;
-  font-family: var(--riff-font-sans);
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-family: var(--riff-chord-font, var(--riff-font-sans));
+  font-size: var(--riff-chord-size, 1.25rem);
+  font-weight: var(--riff-chord-weight, 600);
   line-height: 30px;
   border: none;
   border-radius: 0;
@@ -88,7 +88,7 @@
 }
 
 .riff-ChordInput__error {
-  font-family: var(--riff-font-sans);
+  font-family: var(--riff-chord-font, var(--riff-font-sans));
   font-size: var(--riff-font-size-xs);
   color: var(--riff-color-danger);
   margin-top: 2px;

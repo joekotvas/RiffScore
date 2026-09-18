@@ -11,6 +11,7 @@ interface DragState {
   eventId: string | null;
   noteId: string | null;
   startY: number;
+  screenToLocal?: import('@/utils/svgCoordinates').ScreenToSvg;
   startPitch: string;
   currentPitch: string;
   staffIndex: number;
@@ -18,6 +19,7 @@ interface DragState {
 }
 
 interface UseScoreInteractionProps {
+  scale?: number;
   scoreRef: React.MutableRefObject<Score>;
   selection: Selection;
   onUpdatePitch: (measureIndex: number, eventId: string, noteId: string, newPitch: string) => void;
@@ -34,6 +36,7 @@ interface UseScoreInteractionProps {
 
 export const useScoreInteraction = ({
   scoreRef,
+  scale = 1,
   selection,
   onUpdatePitch,
   onSelectNote,
@@ -60,6 +63,7 @@ export const useScoreInteraction = ({
       noteId: string;
       startPitch: string;
       startY: number;
+      screenToLocal?: import('@/utils/svgCoordinates').ScreenToSvg;
       isMulti?: boolean;
       isShift?: boolean;
       selectAllInEvent?: boolean;
@@ -71,6 +75,7 @@ export const useScoreInteraction = ({
         noteId,
         startPitch,
         startY,
+        screenToLocal,
         isMulti = false,
         isShift = false,
         selectAllInEvent = false,
@@ -125,6 +130,7 @@ export const useScoreInteraction = ({
         eventId: typeof eventId === 'number' ? String(eventId) : eventId,
         noteId,
         startY,
+        screenToLocal,
         startPitch,
         currentPitch: startPitch,
         staffIndex,
@@ -146,7 +152,8 @@ export const useScoreInteraction = ({
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragState.active) return;
 
-      const deltaY = dragState.startY - e.clientY;
+      const currentY = dragState.screenToLocal?.(e.clientX, e.clientY).y ?? e.clientY;
+      const deltaY = (dragState.startY - currentY) / (dragState.screenToLocal ? 1 : scale);
       const stepHeight = CONFIG.lineHeight / 2; // e.g. 5px
       const steps = Math.round(deltaY / stepHeight);
 
@@ -210,7 +217,7 @@ export const useScoreInteraction = ({
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'default';
     };
-  }, [dragState, scoreRef, onUpdatePitch, selection]);
+  }, [dragState, scoreRef, onUpdatePitch, selection, scale]);
 
   return {
     dragState,

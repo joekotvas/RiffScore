@@ -16,13 +16,20 @@ export const useMIDI = (
   activeDuration: string,
   isDotted: boolean,
   activeAccidental: Accidental,
-  scoreRef: React.MutableRefObject<Score>
+  scoreRef: React.MutableRefObject<Score>,
+  enabled = true,
+  ownsInput?: () => boolean
 ) => {
   const [midiStatus, setMidiStatus] = useState<{
     connected: boolean;
     deviceName: string | null;
     error: string | null;
   }>({ connected: false, deviceName: null, error: null });
+
+  const ownsInputRef = useRef(ownsInput);
+  useEffect(() => {
+    ownsInputRef.current = ownsInput;
+  }, [ownsInput]);
 
   const midiCleanupRef = useRef<(() => void) | null>(null);
   const midiChordBuffer = useRef<{ pitch: string; accidental: Accidental }[]>([]);
@@ -48,8 +55,11 @@ export const useMIDI = (
   }, [addChordCallback]);
 
   useEffect(() => {
+    if (!enabled) return;
+    let disposed = false;
     const initMIDI = async () => {
       const { inputs, access, error } = await requestMIDIAccess();
+      if (disposed) return;
       if (error) {
         setMidiStatus({ connected: false, deviceName: null, error });
         return;
@@ -67,6 +77,8 @@ export const useMIDI = (
         if (midiChordBuffer.current.length === 0) return;
         const notes = [...midiChordBuffer.current];
         midiChordBuffer.current = [];
+
+        if (ownsInputRef.current && !ownsInputRef.current()) return;
 
         // Play tones
         // const keySignature = ... (unused)
@@ -94,6 +106,7 @@ export const useMIDI = (
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cleanup = setupMIDIListeners(access as any, (midiNote: number, _velocity: number) => {
+        if (ownsInputRef.current && !ownsInputRef.current()) return;
         const pitch = midiNoteToPitch(midiNote);
         // Valid range check could be here if needed
 
@@ -108,11 +121,14 @@ export const useMIDI = (
     initMIDI();
 
     return () => {
+      disposed = true;
+      if (midiChordTimer.current) clearTimeout(midiChordTimer.current);
+      midiChordBuffer.current = [];
       if (midiCleanupRef.current) midiCleanupRef.current();
     };
     // scoreRef is intentionally omitted - it's stable and only used in callbacks
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [enabled]);
 
   return { midiStatus };
 };

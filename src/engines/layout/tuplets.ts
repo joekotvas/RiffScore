@@ -279,7 +279,25 @@ export const calculateTupletBrackets = (
         y2 += maxShift;
       }
 
+      const completeBeam =
+        groupEvents.length === event.tuplet.groupSize &&
+        groupEvents.every((member) => member.notes.some((note) => note.pitch !== null))
+          ? beamGroups.find(
+              (beam) =>
+                beam.ids.length === groupEvents.length &&
+                groupEvents.every((member) => beam.ids.includes(member.id))
+            )
+          : undefined;
+
       brackets.push({
+        ...(completeBeam
+          ? {
+              beamCenter: {
+                x: (completeBeam.startX + completeBeam.endX) / 2,
+                y: (completeBeam.startY + completeBeam.endY) / 2,
+              },
+            }
+          : {}),
         startX,
         endX,
         startY: y1,

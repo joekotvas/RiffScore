@@ -1,4 +1,5 @@
 import React from 'react';
+import { useFocusTrap } from '@/hooks/layout/useFocusTrap';
 import './styles/ConfirmDialog.css';
 
 interface ConfirmDialogProps {
@@ -18,31 +19,36 @@ interface ConfirmDialogProps {
  * Renders as a modal overlay with centered content.
  */
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({ title, message, actions, onClose }) => {
-  // Handle ESC key
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  const titleId = React.useId();
+  const messageId = React.useId();
+  useFocusTrap({ containerRef: dialogRef, isActive: true, onEscape: onClose });
   React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    // Lock scroll on mount
+    const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-
-    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      // Restore scroll on unmount
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = previous;
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div className="riff-ConfirmDialog-backdrop" onClick={onClose}>
-      <div className="riff-ConfirmDialog" onClick={(e) => e.stopPropagation()}>
-        <h2 className="riff-ConfirmDialog__title">{title}</h2>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
+        className="riff-ConfirmDialog"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id={titleId} className="riff-ConfirmDialog__title">
+          {title}
+        </h2>
 
-        <p className="riff-ConfirmDialog__message">{message}</p>
+        <p id={messageId} className="riff-ConfirmDialog__message">
+          {message}
+        </p>
 
         <div className="riff-ConfirmDialog__actions">
           {actions.map((action, index) => (

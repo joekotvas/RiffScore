@@ -16,7 +16,7 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
  * Deep merges source into target, with source values overriding target.
  * Only handles plain objects; arrays are replaced not merged.
  */
-function mergeObjects<T>(target: T, source: Partial<T>): T {
+function mergeObjects<T>(target: T, source: NoInfer<DeepPartial<T>>): T {
   if (!isPlainObject(target) || !isPlainObject(source)) {
     return target;
   }
@@ -24,6 +24,7 @@ function mergeObjects<T>(target: T, source: Partial<T>): T {
   const result = { ...target } as T;
 
   for (const key of Object.keys(source)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
     const sourceVal = (source as Record<string, unknown>)[key];
     const targetVal = (result as Record<string, unknown>)[key];
 
@@ -45,8 +46,10 @@ export const mergeRiffConfig = (userConfig: DeepPartial<RiffScoreConfig> = {}): 
   const base = { ...DEFAULT_RIFF_CONFIG };
 
   // Merge each top-level section individually for type safety
+  const ui = mergeObjects(base.ui, userConfig.ui ?? {});
+  if (!Number.isFinite(ui.scale) || ui.scale <= 0) ui.scale = base.ui.scale;
   return {
-    ui: mergeObjects(base.ui, userConfig.ui ?? {}),
+    ui,
     interaction: mergeObjects(base.interaction, userConfig.interaction ?? {}),
     score: mergeObjects(base.score, userConfig.score ?? {}),
     chord: mergeObjects(base.chord, userConfig.chord ?? {}),

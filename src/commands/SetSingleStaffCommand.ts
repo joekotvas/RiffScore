@@ -1,5 +1,5 @@
 import { Command } from './types';
-import { Score, Staff } from '@/types';
+import { Score, Staff, ClefType } from '@/types';
 
 /**
  * Command to reduce a Grand Staff to a single staff.
@@ -13,7 +13,7 @@ export class SetSingleStaffCommand implements Command {
   type = 'SET_SINGLE_STAFF';
   private previousStaves: Staff[] | null = null;
 
-  constructor(private targetClef: 'treble' | 'bass') {}
+  constructor(private targetClef: Exclude<ClefType, 'grand'>) {}
 
   execute(score: Score): Score {
     // Not a grand staff? No-op
@@ -28,11 +28,10 @@ export class SetSingleStaffCommand implements Command {
       })),
     }));
 
-    const trebleStaff = score.staves[0];
-    const bassStaff = score.staves[1];
-
-    // Determine which staff to keep
-    const keepStaff = this.targetClef === 'treble' ? trebleStaff : bassStaff;
+    // Keep an existing staff in the requested clef when available; otherwise
+    // retain the first staff and change only its clef (e.g. grand → alto).
+    const keepStaff =
+      score.staves.find((staff) => staff.clef === this.targetClef) ?? score.staves[0];
 
     // Keep mode: just keep the target staff's measures
     const resultMeasures = keepStaff.measures.map((m) => ({ ...m }));

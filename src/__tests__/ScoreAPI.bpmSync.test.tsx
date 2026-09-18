@@ -15,7 +15,6 @@
 
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { RiffScore } from '../RiffScore';
-import { resetPlaybackState } from '@/hooks/api/playback';
 import type { MusicEditorAPI } from '../api.types';
 import { Score } from '../types';
 
@@ -102,7 +101,6 @@ const pressToolbarPlay = async () => {
 describe('Toolbar tempo follows score.bpm (#22)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    resetPlaybackState();
     Element.prototype.scrollTo = jest.fn();
   });
 
@@ -167,7 +165,7 @@ describe('Toolbar tempo follows score.bpm (#22)', () => {
     await act(async () => {
       await api.play();
     });
-    expect(lastScheduledBpm()).toBe(90);
+    expect(lastScheduledBpm()).toBe(100);
     expect(tempoInput()).toHaveValue('100');
   });
 

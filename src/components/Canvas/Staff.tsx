@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
+import { getScoreHighlightColor } from '@/themes';
 import {
   calculateMeasureWidth,
   calculateMeasureLayout,
@@ -17,7 +18,7 @@ import Tie from './Tie';
 import ScoreHeader from './ScoreHeader';
 
 import { InteractionState } from '../../componentTypes';
-import { Measure as MeasureData } from '@/types';
+import { Measure as MeasureData, TupletConfig } from '@/types';
 
 /**
  * Represents a note with tie information for rendering
@@ -50,6 +51,7 @@ interface TieSource {
  * Each Staff is independent and can be stacked for Grand Staff.
  */
 export interface StaffProps {
+  tuplet?: TupletConfig;
   // Staff-specific data
   staffIndex: number; // Index of this staff in the score
   clef: string;
@@ -69,12 +71,16 @@ export interface StaffProps {
   // Page view props
   /** Whether this is the start of a system (renders clef/key sig). Default: true */
   isSystemStart?: boolean;
+  showBarlines?: boolean;
+  showPlaceholderRests?: boolean;
   /** System index (0 = first system, shows time signature). Default: 0 */
   systemIndex?: number;
   /** Whether this is the last system (controls final barline). Default: true */
   isLastSystem?: boolean;
   /** Actual measure indices in the score (for page view). If not provided, uses array index. */
   measureIndices?: number[];
+  /** Absolute origin for a scroll-view measure window. */
+  measureStartX?: number;
   /** Full staff measures used to resolve ties that cross page-view system breaks. */
   allMeasures?: MeasureData[];
   /** Pre-computed stretch factor for justified systems (page view only) */
@@ -100,6 +106,7 @@ export interface StaffProps {
  * Designed to be stacked for Grand Staff support.
  */
 const Staff: React.FC<StaffProps> = ({
+  tuplet,
   staffIndex,
   clef,
   keySignature,
@@ -109,9 +116,12 @@ const Staff: React.FC<StaffProps> = ({
   staffLayout,
   scale,
   isSystemStart = true,
+  showBarlines = true,
+  showPlaceholderRests = true,
   systemIndex = 0,
   isLastSystem = true,
   measureIndices,
+  measureStartX,
   allMeasures,
   stretchFactor = 1.0,
   interaction,
@@ -148,7 +158,7 @@ const Staff: React.FC<StaffProps> = ({
     return width * stretchFactor;
   });
   const measureStartXs: number[] = [];
-  for (let i = 0, x = measuresX; i < stretchedWidths.length; i++) {
+  for (let i = 0, x = measureStartX ?? measuresX; i < stretchedWidths.length; i++) {
     measureStartXs.push(x);
     x += stretchedWidths[i];
   }
@@ -181,10 +191,13 @@ const Staff: React.FC<StaffProps> = ({
     return (
       <Measure
         key={measure.id}
+        tuplet={tuplet}
         startX={measureStartXs[index]}
         measureIndex={actualMeasureIndex}
         measureData={measure}
         isLast={index === measures.length - 1 && isLastSystem}
+        showBarlines={showBarlines}
+        showPlaceholderRests={showPlaceholderRests}
         forcedWidth={stretchedWidth}
         forcedEventPositions={forcedPositions}
         measureLayout={measureLayoutV2}
@@ -271,7 +284,7 @@ const Staff: React.FC<StaffProps> = ({
         noteId: 'noteId' in source ? source.noteId : source.id,
       });
 
-      return isSelected ? theme.accent : theme.score.note;
+      return isSelected ? getScoreHighlightColor(theme) : theme.score.note;
     };
 
     measures.forEach((measure, mIndex: number) => {
@@ -417,25 +430,27 @@ const Staff: React.FC<StaffProps> = ({
     <g className="staff" transform={`translate(0, ${verticalOffset})`}>
       {/* Staff Header (Clef, Key Sig, Time Sig) - only at system start */}
       {isSystemStart && (
-        <ScoreHeader
-          clef={clef}
-          keySignature={keySignature}
-          timeSignature={timeSignature}
-          baseY={CONFIG.baseY} // Use normalized baseY
-          showTimeSignature={systemIndex === 0}
-          onClefClick={(e) => {
-            e.stopPropagation();
-            if (onClefClick) onClefClick();
-          }}
-          onKeySigClick={(e) => {
-            e.stopPropagation();
-            if (onKeySigClick) onKeySigClick();
-          }}
-          onTimeSigClick={(e) => {
-            e.stopPropagation();
-            if (onTimeSigClick) onTimeSigClick();
-          }}
-        />
+        <g transform={`translate(${(measureStartX ?? measuresX) - measuresX}, 0)`}>
+          <ScoreHeader
+            clef={clef}
+            keySignature={keySignature}
+            timeSignature={timeSignature}
+            baseY={CONFIG.baseY} // Use normalized baseY
+            showTimeSignature={systemIndex === 0}
+            onClefClick={(e) => {
+              e.stopPropagation();
+              if (onClefClick) onClefClick();
+            }}
+            onKeySigClick={(e) => {
+              e.stopPropagation();
+              if (onKeySigClick) onKeySigClick();
+            }}
+            onTimeSigClick={(e) => {
+              e.stopPropagation();
+              if (onTimeSigClick) onTimeSigClick();
+            }}
+          />
+        </g>
       )}
 
       {/* Measures */}

@@ -1,3 +1,4 @@
+import { MusicGlyph } from '@/components/Assets/MusicGlyph';
 /**
  * InputModeToggle
  *
@@ -5,7 +6,7 @@
  */
 import React from 'react';
 import { useTheme } from '@/context/ThemeContext';
-import { RESTS, NOTEHEADS, BRAVURA_FONT } from '@/constants/SMuFL';
+import { RESTS, NOTEHEADS } from '@/constants/SMuFL';
 import { CONFIG } from '@/config';
 
 const ICON_SIZE = CONFIG.toolbar.iconSize;
@@ -32,43 +33,40 @@ interface InputModeToggleProps {
 const RestGroupIcon = ({ color }: { color: string }) => (
   <svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} fill="none">
     {/* Eighth Rest */}
-    <text
+    <MusicGlyph
       x={4}
       y={13}
-      fontFamily={BRAVURA_FONT}
       fontSize={17}
       fill={color}
       textAnchor="middle"
       style={{ userSelect: 'none' }}
     >
       {RESTS.eighth}
-    </text>
+    </MusicGlyph>
 
     {/* Quarter Rest (Center, larger) */}
-    <text
+    <MusicGlyph
       x={10}
       y={12}
-      fontFamily={BRAVURA_FONT}
       fontSize={20}
       fill={color}
       textAnchor="middle"
       style={{ userSelect: 'none' }}
     >
       {RESTS.quarter}
-    </text>
+    </MusicGlyph>
 
     {/* Sixteenth Rest */}
-    <text
+    <MusicGlyph
       x={16}
       y={11}
-      fontFamily={BRAVURA_FONT}
       fontSize={15}
       fill={color}
       textAnchor="middle"
       style={{ userSelect: 'none' }}
     >
       {RESTS.sixteenth}
-    </text>
+    </MusicGlyph>
   </svg>
 );
 
@@ -80,46 +78,43 @@ const RestGroupIcon = ({ color }: { color: string }) => (
 const NoteGroupIcon = ({ color }: { color: string }) => (
   <svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} fill="none">
     {/* Eighth Note (Black notehead) */}
-    <text
+    <MusicGlyph
       x={5}
       y={15}
-      fontFamily={BRAVURA_FONT}
       fontSize={17}
       fill={color}
       textAnchor="middle"
       style={{ userSelect: 'none' }}
     >
       {NOTEHEADS.black}
-    </text>
+    </MusicGlyph>
     {/* Stem for Eighth */}
     <line x1={7} y1={15} x2={7} y2={7} stroke={color} strokeWidth={1.25} />
 
     {/* Quarter Note (Center, larger) */}
-    <text
+    <MusicGlyph
       x={10}
       y={16}
-      fontFamily={BRAVURA_FONT}
       fontSize={20}
       fill={color}
       textAnchor="middle"
       style={{ userSelect: 'none' }}
     >
       {NOTEHEADS.black}
-    </text>
+    </MusicGlyph>
     <line x1={12.5} y1={16} x2={12.5} y2={5} stroke={color} strokeWidth={1.5} />
 
     {/* Half Note (White notehead) */}
-    <text
+    <MusicGlyph
       x={15}
       y={15}
-      fontFamily={BRAVURA_FONT}
       fontSize={17}
       fill={color}
       textAnchor="middle"
       style={{ userSelect: 'none' }}
     >
       {NOTEHEADS.half}
-    </text>
+    </MusicGlyph>
     <line x1={17} y1={15} x2={17} y2={7} stroke={color} strokeWidth={1.25} />
   </svg>
 );

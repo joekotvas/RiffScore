@@ -1,0 +1,53 @@
+name: Browser QA
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+concurrency:
+  group: browser-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser:
+    name: Accessibility, mobile and print
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run build
+      - run: npm run test:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-qa
+          path: test-results/
+          retention-days: 7
+
+  package:
+    name: Packed React ${{ matrix.react }} consumer
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        react: ['18.3.1', '19.2.0']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Install packed package into clean consumer
+        run: |
+          PACKAGE_FILE=$(npm pack --pack-destination "$RUNNER_TEMP" --silent)
+          export PACKAGE_FILE
+          mkdir -p "$RUNNER_TEMP/consumer"
+          cd "$RUNNER_TEMP/consumer"
+          npm init -y
+          npm install "$RUNNER_TEMP/$PACKAGE_FILE" react@${{ matrix.react }} react-dom@${{ matrix.react }}
+      - run: node scripts/verify-package.mjs "$RUNNER_TEMP/consumer"

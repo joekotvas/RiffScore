@@ -378,7 +378,7 @@ describe('MusicXML importer — attributes', () => {
     ).toBe(expected);
   });
 
-  it('defaults to 4/4 without a meter, for senza misura and for meters it cannot read', () => {
+  it('supports senza misura and defaults to 4/4 for absent or unreadable meters', () => {
     expect(
       ok(
         doc(measure(1, '<attributes><divisions>16</divisions></attributes>' + note('C4', 'whole')))
@@ -389,8 +389,8 @@ describe('MusicXML importer — attributes', () => {
         measure(1, ATTRIBUTES('', undefined, '<time><senza-misura/></time>') + note('C4', 'whole'))
       )
     );
-    expect(free.ok && free.score.timeSignature).toBe('4/4');
-    expect(free.warnings).toEqual(['Unmeasured music (senza misura) was imported in 4/4 (bar 1)']);
+    expect(free.ok && free.score.timeSignature).toBe('none');
+    expect(free.warnings).toEqual([]);
     expect(
       warningsOf(
         doc(

@@ -1,3 +1,4 @@
+import { getMeasureTiming } from '@/services/MeasureTiming';
 /**
  * ScoreCanvas.tsx
  *
@@ -7,7 +8,7 @@
  *
  * @see Issue #109
  */
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, useId } from 'react';
 import { Note } from 'tonal';
 import { CONFIG, THEMES } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
@@ -18,8 +19,20 @@ import { MeasureNumber } from './MeasureNumber';
 import { MetadataTrack } from './MetadataTrack';
 import { PageFooter } from './PageFooter';
 import { useMetadataTrack } from '@/hooks/layout/useMetadataTrack';
-import { getActiveStaff, Staff as StaffType, DEFAULT_CHORD_DISPLAY } from '@/types';
-import type { SystemLayout } from '@/types';
+import {
+  getActiveStaff,
+  createDefaultSelection,
+  Staff as StaffType,
+  DEFAULT_CHORD_DISPLAY,
+} from '@/types';
+import type {
+  SystemLayout,
+  ScoreViewConfig,
+  ScoreBounds,
+  EngravingConfig,
+  ChordDisplayConfig,
+  TupletConfig,
+} from '@/types';
 import { HitZone } from '@/engines/layout/types';
 import { useScoreContext } from '@/context/ScoreContext';
 import { ThemeOverride, themeCSSVariables } from '@/context/ThemeContext';
@@ -28,7 +41,8 @@ import { useAutoScroll, useCursorLayout, usePageLayout } from '@/hooks/layout';
 import { useScoreLayout } from '@/hooks/layout';
 import { useDragToSelect } from '@/hooks/interaction';
 import GrandStaffBracket from '../Assets/GrandStaffBracket';
-import { CLAMP_LIMITS, STAFF_HEIGHT, TIME_SIGNATURES } from '@/constants';
+import { calculateChordTrackY } from '@/engines/layout/vertical';
+import { CLAMP_LIMITS, STAFF_HEIGHT, getMeasureCapacity } from '@/constants';
 import { getNoteDuration } from '@/utils/core';
 import { findEventAtQuantPosition } from '@/utils/navigation/crossStaff';
 import { LassoSelectCommand } from '@/commands/selection';
@@ -41,9 +55,27 @@ import './styles/ScoreCanvas.css';
 import type { UseChordTrackReturn } from '@/hooks/chord/useChordTrack';
 import { calculateStretchFactor } from '@/engines/layout';
 import { calculateAllMeasureWidths } from '@/services/PageLayoutService';
+import type { RenderScoreOverlay, ScoreAnchor } from './ScoreOverlay';
 
 interface ScoreCanvasProps {
+  renderOverlay?: RenderScoreOverlay;
+  interactive?: boolean;
   scale: number;
+  view?: ScoreViewConfig;
+  bounds?: ScoreBounds;
+  engraving?: EngravingConfig;
+  tuplet?: TupletConfig;
+  showScoreTitle?: boolean;
+  showGhostNotes?: boolean;
+  /** Show unavailable-entry previews (grey notes with a cross). */
+  showBlockedGhostNotes?: boolean;
+  overflow?: 'auto' | 'hidden' | 'visible';
+  scoreTitleOffset?: { x?: number; y?: number };
+  /** Scroll-view outer padding in staff units; defaults to 0 above and 50 below. Ignored in page view. */
+  scrollPadding?: { top?: number; bottom?: number };
+  showBackground?: boolean;
+  chordDisplay?: ChordDisplayConfig;
+  chordEditable?: boolean;
   /**
    * Viewport zoom factor the editor shell applies as a CSS transform around the canvas
    * (1 = 100%). Rendering ignores it; pointer-to-score mapping must divide by it.
@@ -75,7 +107,22 @@ const PAPER_CSS_VARIABLES = themeCSSVariables(PAPER_THEME) as React.CSSPropertie
  * Consumes ScoreContext for data and handles interactions.
  */
 const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
+  renderOverlay,
+  interactive = true,
   scale,
+  engraving,
+  view,
+  bounds,
+  tuplet,
+  showScoreTitle = true,
+  showGhostNotes = true,
+  showBlockedGhostNotes = true,
+  overflow,
+  scoreTitleOffset,
+  scrollPadding,
+  showBackground = true,
+  chordDisplay = DEFAULT_CHORD_DISPLAY,
+  chordEditable = true,
   zoom = 1,
   playbackPosition = { measureIndex: null, quant: null, duration: 0 },
   onKeySigClick,
@@ -89,15 +136,80 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   chordTrack: externalChordTrack,
 }) => {
   const { theme } = useTheme();
+  const instructionsId = useId();
 
   // Consume Score Context (Grouped API)
   const ctx = useScoreContext();
-  const { score, selection, previewNote } = ctx.state;
-  const { selectionEngine, scoreRef, dispatch } = ctx.engines;
+  const {
+    score: sourceScore,
+    selection: sessionSelection,
+    previewNote: sessionPreview,
+  } = ctx.state;
+  const selection = useMemo(
+    () => (interactive ? sessionSelection : createDefaultSelection()),
+    [interactive, sessionSelection]
+  );
+  const previewNote = interactive ? sessionPreview : null;
+  const score = useMemo(
+    () =>
+      view?.clefs
+        ? {
+            ...sourceScore,
+            staves: sourceScore.staves.map((staff, index) => ({
+              ...staff,
+              clef: view.clefs?.[index] ?? staff.clef,
+            })),
+          }
+        : sourceScore,
+    [sourceScore, view]
+  );
+  const scoreRef = useMemo(() => ({ current: score }), [score]);
+  const { selectionEngine, dispatch } = ctx.engines;
   const { activeDuration, isDotted } = ctx.tools;
   const { select: handleNoteSelection } = ctx.navigation;
   const { addNote: addNoteToMeasure, handleMeasureHover, updatePitch: updateNotePitch } = ctx.entry;
   const { clearSelection, setPreviewNote } = ctx;
+
+  const { pageLayout, isPageView: configuredPageView } = usePageLayout(score);
+  const isPageView = !view?.measures && configuredPageView;
+  const measureIndices = useMemo(
+    () =>
+      view?.measures
+        ? Array.from(
+            { length: Math.max(0, ...score.staves.map((staff) => staff.measures.length)) },
+            (_, index) => index
+          ).filter(
+            (index) =>
+              index >= (view.measures!.start ?? 0) && index < (view.measures!.end ?? Infinity)
+          )
+        : undefined,
+    [score.staves, view]
+  );
+  const firstVisibleMeasure = measureIndices?.[0] ?? 0;
+  const display = isPageView ? undefined : engraving;
+  const { layout } = useScoreLayout({
+    score,
+    visibleMeasures: measureIndices,
+    stemDirection: display?.stemDirection,
+    spacing: display?.spacing,
+    measureWidth:
+      Number.isFinite(display?.contentWidth) && display!.contentWidth! > 0
+        ? display!.contentWidth
+        : undefined,
+  });
+  const viewOriginX = measureIndices
+    ? (layout.getX.measureOrigin({ measure: firstVisibleMeasure }) ?? 0) -
+      (layout.getX.measureOrigin({ measure: 0 }) ?? 0)
+    : 0;
+  const validBounds =
+    !isPageView &&
+    bounds &&
+    [bounds.x ?? 0, bounds.y ?? 0, bounds.width, bounds.height].every(Number.isFinite) &&
+    bounds.width > 0 &&
+    bounds.height > 0
+      ? { ...bounds, x: bounds.x ?? 0, y: bounds.y ?? 0 }
+      : undefined;
+  const pointerScale = scale * zoom;
 
   // --- INTERACTION LOGIC MOVED FROM SCORE EDITOR ---
 
@@ -120,6 +232,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
   const { dragState, handleDragStart } = useScoreInteraction({
     scoreRef,
+    scale: pointerScale * (isPageView ? pageLayout.staffScale : 1),
     selection,
     onUpdatePitch: (m: number, e: string, n: string, p: string) => updateNotePitch(m, e, n, p),
     onSelectNote: (
@@ -167,9 +280,19 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       // Typing in a text field (a dialog's textarea, a metadata input) is never a chord command.
       const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT' ||
+        !interactive ||
+        chordDisplay.visible === false ||
+        e.defaultPrevented
+      )
+        return;
+      if (!containerRef.current?.contains(document.activeElement)) return;
       // Only handle when chord is selected but not already editing
       if (
+        chordEditable &&
         selection.chordTrackFocused &&
         selection.chordId &&
         !chordTrackHook.editingChordId &&
@@ -182,10 +305,18 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selection.chordTrackFocused, selection.chordId, chordTrackHook]);
+  }, [
+    selection.chordTrackFocused,
+    selection.chordId,
+    chordTrackHook,
+    chordEditable,
+    chordDisplay.visible,
+    interactive,
+    containerRef,
+  ]);
 
   // Quants per measure for chord positioning
-  const quantsPerMeasure = TIME_SIGNATURES[timeSignature] || TIME_SIGNATURES['4/4'];
+  const quantsPerMeasure = getMeasureCapacity(timeSignature);
 
   // --- AUTO-SCROLL LOGIC ---
   useAutoScroll({
@@ -195,20 +326,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     playbackPosition,
     previewNote,
     scale,
+    enabled: !view?.measures && !bounds,
   });
-
-  // --- LAYOUT ENGINE (SSOT) ---
-  // Use the centralized layout hook for both rendering and hit detection
-  const { layout } = useScoreLayout({ score });
-
-  // --- PAGE LAYOUT ---
-  // Use page layout hook for multi-system rendering in page view
-  const { pageLayout, isPageView } = usePageLayout();
-
-  // Pointer-to-score divisor: the svg is rendered at `scale` and the shell zooms it with a CSS
-  // transform, so client offsets must be divided by both (page-view staves additionally by
-  // staffScale, applied at the Staff call site).
-  const pointerScale = scale * zoom;
 
   const unscaledMeasureWidths = useMemo(() => calculateAllMeasureWidths(score, 1.0), [score]);
 
@@ -291,27 +410,15 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
 
   const getSystemChordTrackY = useCallback(
     (system: SystemLayout): number => {
-      const { minDistanceFromStaff, paddingAboveNotes, minY, hitBandHalfHeight } =
-        CONFIG.chordTrack;
       const staffScale = pageLayout.staffScale;
-      // The chord track is drawn in staff units (scaled with the staff, like the scroll view), so
-      // its distances scale too. The chord band (trackY ± hitBandHalfHeight·s) must stay inside
-      // this system's reserved headroom so it never covers the previous system's staff; that
-      // headroom starts at or below the page's content area, so it also keeps the chord text
-      // inside the page. Returns page coordinates.
-      const slotTopY = system.y - system.paddingTop + hitBandHalfHeight * staffScale;
-      const safeTopY = Math.max(minY, slotTopY);
-      const defaultY = system.y - minDistanceFromStaff * staffScale;
-      const noteYs = getSystemNoteYs(system);
-
-      if (noteYs.length === 0) {
-        return Math.max(safeTopY, defaultY);
-      }
-
-      const collisionY = Math.min(...noteYs) - paddingAboveNotes * staffScale;
-      return Math.max(safeTopY, Math.min(collisionY, defaultY));
+      return (
+        calculateChordTrackY(
+          system.y / staffScale,
+          (system.y + (system.inkTop ?? 0)) / staffScale
+        ) * staffScale
+      );
     },
-    [getSystemNoteYs, pageLayout.staffScale]
+    [pageLayout.staffScale]
   );
 
   // Page X of a chord position expressed in the staff-scaled chord-track space.
@@ -423,6 +530,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     pageSystemByMeasure,
   ]);
 
+  const measureTiming = useMemo(() => getMeasureTiming(score), [score]);
+
   // --- CHORD TRACK LAYOUT ---
   const measurePositions = useMemo(() => {
     if (layout.staves.length === 0) return [];
@@ -430,9 +539,9 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     return firstStaff.measures.map((measure, index) => ({
       x: measure.x,
       width: measure.width,
-      quant: index * quantsPerMeasure,
+      quant: measureTiming.starts[index],
     }));
-  }, [layout.staves, quantsPerMeasure]);
+  }, [layout.staves, measureTiming]);
 
   // Helper to compute page-relative measure positions for a single system's chord track
   const getSystemMeasurePositions = useCallback(
@@ -440,9 +549,9 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       system.measurePositions.map((position) => ({
         x: position.x / pageLayout.staffScale,
         width: position.width / pageLayout.staffScale,
-        quant: position.measureIndex * quantsPerMeasure,
+        quant: measureTiming.starts[position.measureIndex],
       })),
-    [pageLayout.staffScale, quantsPerMeasure]
+    [pageLayout.staffScale, measureTiming]
   );
 
   // --- DIMENSIONS & REF ---
@@ -468,11 +577,38 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     // In scroll view, calculate from measure positions
     if (layout.staves.length > 0) {
       const firstStaff = layout.staves[0];
-      const lastMeasure = firstStaff.measures[firstStaff.measures.length - 1];
+      const lastMeasure =
+        firstStaff.measures[measureIndices?.at(-1) ?? firstStaff.measures.length - 1];
       return lastMeasure ? lastMeasure.x + lastMeasure.width + 50 : 800;
     }
     return 800;
-  }, [layout, isPageView, pageLayout.dimensions.width]);
+  }, [layout, isPageView, pageLayout.dimensions.width, measureIndices]);
+
+  const chordFont = chordDisplay.font;
+  const chordFontSize =
+    Number.isFinite(chordFont?.size) && chordFont!.size! > 0 ? chordFont!.size : undefined;
+  const notationTop = CONFIG.baseY + (layout.vertical?.top ?? 0);
+  const visibleChords =
+    chordDisplay.visible !== false &&
+    (score.chordTrack ?? []).some(
+      (chord) => !measureIndices || measureIndices.includes(chord.measure)
+    );
+  const chordTop = visibleChords
+    ? calculateChordTrackY(layout.getY.staff(0)?.top ?? CONFIG.baseY, notationTop, chordFontSize) -
+      (chordFontSize ?? 20)
+    : notationTop;
+  const titleY = Math.min(40, Math.min(notationTop, chordTop) - 16) + (scoreTitleOffset?.y ?? 0);
+  const contentTop =
+    showScoreTitle && score.title
+      ? Math.min(notationTop, chordTop, titleY - 30)
+      : Math.min(notationTop, chordTop);
+  const scrollTop = !isPageView
+    ? Math.max(0, -contentTop + 4) +
+      (Number.isFinite(scrollPadding?.top) ? Math.max(0, scrollPadding!.top!) : 0)
+    : 0;
+  const scrollBottom = Number.isFinite(scrollPadding?.bottom)
+    ? Math.max(0, scrollPadding!.bottom!)
+    : 50;
 
   // SVG height derived from layout (forward-flow pattern)
   const svgHeight = useMemo(() => {
@@ -485,8 +621,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     // (deep ledger notes, wide beamed groups, several lyric lines).
     const contentBottom = layout.getY.content.bottom;
     const inkBottom = CONFIG.baseY + (layout.vertical?.bottom ?? 0);
-    return contentBottom > 0 ? Math.max(contentBottom + 50, inkBottom + 4) : 200;
-  }, [layout, isPageView, pageLayout.totalHeight]);
+    return contentBottom > 0 ? Math.max(contentBottom + scrollBottom, inkBottom + 4) : 200;
+  }, [layout, isPageView, pageLayout.totalHeight, scrollBottom]);
 
   // Cursor layout (consumes centralized layout - no duplicate calculations)
   // Calculate cursor layout
@@ -544,6 +680,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       );
     },
     scale: pointerScale,
+    originX: validBounds?.x ?? viewOriginX,
+    originY: validBounds?.y ?? -scrollTop,
   });
 
   /**
@@ -777,6 +915,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             const interaction = {
               selection,
               previewNote,
+              showGhostNotes,
+              showBlockedGhostNotes,
               activeDuration,
               isDotted,
               modifierHeld,
@@ -804,6 +944,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               >
                 <Staff
                   staffIndex={staffIndex}
+                  tuplet={tuplet}
                   clef={staff.clef || (staffIndex === 0 ? 'treble' : 'bass')}
                   keySignature={keySignature}
                   timeSignature={timeSignature}
@@ -830,12 +971,15 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       );
     },
     [
+      tuplet,
       pageLayout,
       pointerScale,
       score,
       unscaledMeasureWidths,
       selection,
       previewNote,
+      showGhostNotes,
+      showBlockedGhostNotes,
       activeDuration,
       isDotted,
       modifierHeld,
@@ -854,17 +998,115 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     ]
   );
 
+  const scrollBounds = validBounds ?? {
+    x: viewOriginX,
+    y: -scrollTop,
+    width: Math.max(1, totalWidth - viewOriginX),
+    height: svgHeight + scrollTop,
+  };
+  const resolveAnchor = (
+    anchor: ScoreAnchor,
+    pageIndex: number | null
+  ): { x: number; y: number } | null => {
+    let measure: number;
+    let staff: number;
+    let localX: number | null;
+    let y: number;
+    if ('noteId' in anchor) {
+      const matches = Object.values(layout.notes).filter((note) => note.noteId === anchor.noteId);
+      const note = matches.length === 1 ? matches[0] : undefined;
+      if (!note) return null;
+      measure = note.measureIndex;
+      staff = note.staffIndex;
+      localX = note.localX;
+      y = note.y;
+    } else {
+      staff = score.staves.findIndex((item) => item.id === anchor.staffId);
+      measure =
+        score.staves[staff]?.measures.findIndex((item) => item.id === anchor.measureId) ?? -1;
+      if (
+        staff < 0 ||
+        measure < 0 ||
+        !Number.isFinite(anchor.quant) ||
+        anchor.quant < 0 ||
+        anchor.quant > (measureTiming.spans[measure] ?? 0)
+      )
+        return null;
+      localX = layout.getX({ measure, quant: anchor.quant });
+      y = layout.staves[staff]?.y ?? CONFIG.baseY;
+    }
+    if (localX === null || (measureIndices && !measureIndices.includes(measure))) return null;
+    if (pageIndex === null) {
+      return { x: (layout.getX.measureOrigin({ measure }) ?? 0) + localX, y };
+    }
+    const located = pageSystemByMeasure.get(measure);
+    if (!located || located.pageIndex !== pageIndex) return null;
+    const x = getPageXFromLocalX(measure, localX, located.system);
+    if (x === null) return null;
+    return {
+      x,
+      y:
+        located.system.y +
+        (located.system.staffOffsets[staff] ?? 0) +
+        (y - (layout.staves[staff]?.y ?? CONFIG.baseY)) * pageLayout.staffScale,
+    };
+  };
+
   return (
     <div
       ref={containerRef}
       data-testid="score-canvas-container"
-      className={`riff-ScoreCanvas ${isPageView ? 'riff-ScoreCanvas--page-view' : ''}`}
-      style={{ backgroundColor: isPageView ? undefined : theme.background }}
-      onClick={handleBackgroundClick}
+      className={`riff-ScoreCanvas ${isPageView ? 'riff-ScoreCanvas--page-view' : ''}${!interactive ? ' riff-ScoreCanvas--readonly' : ''}`}
+      style={
+        {
+          ...(!isPageView && overflow ? { overflow } : {}),
+          backgroundColor: isPageView
+            ? undefined
+            : showBackground
+              ? theme.background
+              : 'transparent',
+          ...(chordFont
+            ? {
+                '--riff-chord-font': chordFont.family,
+                '--riff-chord-size': chordFontSize === undefined ? undefined : `${chordFontSize}px`,
+                '--riff-chord-weight': chordFont.weight,
+              }
+            : {}),
+        } as React.CSSProperties
+      }
+      onClick={interactive ? handleBackgroundClick : undefined}
+      onMouseDownCapture={interactive ? undefined : (event) => event.stopPropagation()}
+      onMouseMoveCapture={interactive ? undefined : (event) => event.stopPropagation()}
+      onClickCapture={interactive ? undefined : (event) => event.stopPropagation()}
+      onDoubleClickCapture={interactive ? undefined : (event) => event.stopPropagation()}
+      onPointerDownCapture={interactive ? undefined : (event) => event.stopPropagation()}
+      role={interactive ? 'application' : 'region'}
+      aria-label={`${score.title || 'Untitled'} ${interactive ? 'score editor' : 'score'}`}
+      aria-describedby={interactive ? instructionsId : undefined}
       tabIndex={0}
-      onMouseEnter={() => onHoverChange(true)}
-      onMouseLeave={() => onHoverChange(false)}
+      onMouseEnter={() => interactive && onHoverChange(true)}
+      onMouseLeave={() => interactive && onHoverChange(false)}
     >
+      {interactive && (
+        <>
+          <span id={instructionsId} className="riff-sr-only">
+            Use arrow keys to navigate notes and change pitch. Tab moves between score sections.
+            Press Enter to edit a chord, or Escape to leave it. Toolbar controls provide durations,
+            undo and playback.
+          </span>
+          <span className="riff-sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {(() => {
+              const staff = sourceScore.staves[selection.staffIndex ?? 0];
+              const measure = staff?.measures[selection.measureIndex ?? 0];
+              const event = measure?.events.find((event) => event.id === selection.eventId);
+              const note = event?.notes.find((note) => note.id === selection.noteId);
+              return event
+                ? `Measure ${(selection.measureIndex ?? 0) + 1}, staff ${(selection.staffIndex ?? 0) + 1}, ${event.isRest ? 'rest' : (note?.pitch ?? event.notes.map((note) => note.pitch).join(', '))}, ${event.dotted ? 'dotted ' : ''}${event.duration}`
+                : 'No note selected';
+            })()}
+          </span>
+        </>
+      )}
       {/* Page View Rendering - Separate SVG per page */}
       {isPageView && (
         <div
@@ -896,8 +1138,10 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                     transform={`scale(${pageLayout.staffScale})`}
                   >
                     <ChordTrack
+                      editable={chordEditable}
                       chords={chordTrackHook.chords}
-                      displayConfig={DEFAULT_CHORD_DISPLAY}
+                      fontSize={chordFontSize}
+                      displayConfig={chordDisplay}
                       keySignature={keySignature}
                       timeSignature={timeSignature}
                       validPositions={chordTrackHook.validPositions}
@@ -1039,7 +1283,12 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                       transform: `translateX(${playbackCursorX}px)`,
                       transition: `transform ${playbackPosition.duration || 0.1}s linear`,
                       pointerEvents: 'none',
-                      opacity: isPlaybackVisible ? 1 : 0,
+                      opacity:
+                        isPlaybackVisible &&
+                        (!measureIndices ||
+                          measureIndices.includes(effectivePlaybackPos.measureIndex))
+                          ? 1
+                          : 0,
                     }}
                   >
                     {(() => {
@@ -1109,6 +1358,17 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                   />
                 )}
 
+                {renderOverlay?.({
+                  pageIndex: page.index,
+                  bounds: {
+                    x: 0,
+                    y: 0,
+                    width: pageLayout.dimensions.width,
+                    height: pageLayout.dimensions.height,
+                  },
+                  resolveAnchor: (anchor) => resolveAnchor(anchor, page.index),
+                })}
+
                 {/* Footer: copyright on page 1, page number on pages 2+ */}
                 <PageFooter
                   footer={page.footer}
@@ -1135,15 +1395,26 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       {!isPageView && (
         <svg
           ref={svgRef}
-          width={totalWidth * scale}
-          height={Math.ceil(svgHeight * scale)}
+          width={scrollBounds.width * scale}
+          height={Math.ceil(scrollBounds.height * scale)}
+          viewBox={
+            validBounds || measureIndices || scrollTop > 0
+              ? `${scrollBounds.x * scale} ${scrollBounds.y * scale} ${scrollBounds.width * scale} ${Math.ceil(scrollBounds.height * scale)}`
+              : undefined
+          }
           className="riff-ScoreCanvas__svg"
+          style={overflow ? { overflow } : undefined}
           onMouseDown={handleDragSelectMouseDown}
         >
-          <g transform={`scale(${scale})`}>
+          <g data-score-coordinates transform={`scale(${scale})`}>
             {/* Title left-aligned with score start */}
-            {score.title && (
-              <text x={0} y={40} textAnchor="start" className="riff-metadata__title">
+            {showScoreTitle && score.title && (
+              <text
+                x={viewOriginX + (scoreTitleOffset?.x ?? 0)}
+                y={titleY}
+                textAnchor="start"
+                className="riff-metadata__title"
+              >
                 {score.title}
               </text>
             )}
@@ -1157,7 +1428,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                     <GrandStaffBracket
                       topY={systemBounds.top}
                       bottomY={systemBounds.bottom}
-                      x={-20}
+                      x={viewOriginX - 20}
                     />
                   );
                 })()}
@@ -1172,6 +1443,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               const interaction = {
                 selection,
                 previewNote,
+                showGhostNotes,
+                showBlockedGhostNotes,
                 activeDuration,
                 isDotted,
                 modifierHeld,
@@ -1195,11 +1468,26 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
               return (
                 <Staff
                   key={staff.id || staffIndex}
+                  tuplet={tuplet}
                   staffIndex={staffIndex}
                   clef={staff.clef || (staffIndex === 0 ? 'treble' : 'bass')}
                   keySignature={keySignature}
                   timeSignature={timeSignature}
-                  measures={staff.measures}
+                  measures={
+                    measureIndices
+                      ? measureIndices.map((index) => staff.measures[index]).filter(Boolean)
+                      : staff.measures
+                  }
+                  measureIndices={measureIndices}
+                  allMeasures={staff.measures}
+                  isLastSystem={
+                    !measureIndices || measureIndices.at(-1) === staff.measures.length - 1
+                  }
+                  measureStartX={
+                    measureIndices
+                      ? (layout.getX.measureOrigin({ measure: firstVisibleMeasure }) ?? undefined)
+                      : undefined
+                  }
                   staffLayout={layout.staves[staffIndex]}
                   baseY={staffBaseY}
                   scale={pointerScale}
@@ -1208,14 +1496,20 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                   onKeySigClick={onKeySigClick}
                   onTimeSigClick={onTimeSigClick}
                   mouseLimits={mouseLimits}
+                  isSystemStart={display?.showPreamble !== false}
+                  showBarlines={display?.showBarlines}
+                  showPlaceholderRests={display?.showPlaceholderRests}
                 />
               );
             })}
 
             {/* Chord Track */}
             <ChordTrack
+              pageMeasureIndices={measureIndices}
+              editable={chordEditable}
               chords={chordTrackHook.chords}
-              displayConfig={DEFAULT_CHORD_DISPLAY}
+              fontSize={chordFontSize}
+              displayConfig={chordDisplay}
               keySignature={keySignature}
               timeSignature={timeSignature}
               validPositions={chordTrackHook.validPositions}
@@ -1342,7 +1636,11 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                   transform: `translateX(${unifiedCursorX}px)`,
                   transition: `transform ${playbackPosition.duration || 0.1}s linear`,
                   pointerEvents: 'none',
-                  opacity: isPlaybackVisible ? 1 : 0,
+                  opacity:
+                    isPlaybackVisible &&
+                    (!measureIndices || measureIndices.includes(effectivePlaybackPos.measureIndex))
+                      ? 1
+                      : 0,
                 }}
               >
                 {(() => {
@@ -1399,6 +1697,15 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                   pointerEvents="none"
                 />
               ))}
+            {renderOverlay && (
+              <g className="riff-ScoreOverlay">
+                {renderOverlay({
+                  pageIndex: null,
+                  bounds: scrollBounds,
+                  resolveAnchor: (anchor) => resolveAnchor(anchor, null),
+                })}
+              </g>
+            )}
           </g>
         </svg>
       )}

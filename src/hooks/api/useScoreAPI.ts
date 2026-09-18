@@ -31,6 +31,7 @@ import {
   createIOMethods,
   createChordMethods,
   createLayoutMethods,
+  createInteractionMethods,
   createMetadataMethods,
   createMetadataNavigationMethods,
   APIContext,
@@ -65,6 +66,8 @@ export interface UseScoreAPIProps {
   instanceId: string;
   /** Current config */
   config: RiffScoreConfig;
+  playback?: APIContext['playback'];
+  interaction?: APIContext['interaction'];
 }
 
 /**
@@ -79,7 +82,12 @@ export interface UseScoreAPIProps {
  * // API is automatically registered to window.riffScore
  * ```
  */
-export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEditorAPI {
+export function useScoreAPI({
+  instanceId,
+  config,
+  playback,
+  interaction,
+}: UseScoreAPIProps): MusicEditorAPI {
   // 1. Consume Context Directly (Grouped API)
   const ctx = useScoreContext();
   const { score, selection } = ctx.state;
@@ -95,6 +103,18 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
   // 2. Synchronous State Refs (authoritative for API methods to avoid stale closures)
   const scoreRef = useRef(score);
   const selectionRef = useRef(selection);
+  const playbackRef = useRef(playback);
+  const configRef = useRef(config);
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
+  const toolsRef = useRef(ctx.tools);
+  useEffect(() => {
+    toolsRef.current = ctx.tools;
+  }, [ctx.tools]);
+  useEffect(() => {
+    playbackRef.current = playback;
+  }, [playback]);
 
   // Keep refs in sync with React state
   useEffect(() => {
@@ -125,7 +145,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
 
   // 4. API Event Subscriptions
   // Delegates listener management to the dedicated hook
-  const { on, notify } = useAPISubscriptions(score, selection, ctx.engines.engine);
+  const { on, notify } = useAPISubscriptions(score, selection, ctx.engines.engine, playback);
 
   // 4a. Consume Theme Logic
   const { setTheme, setZoom } = useTheme();
@@ -193,6 +213,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
       selectionRef,
       getScore: () => ctx.engines.engine.getState(),
       getSelection: () => selectionEngine.getState(),
+      getEntryState: () => toolsRef.current,
       syncSelection,
       dispatch,
       selectionEngine,
@@ -203,7 +224,13 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
         commit: commitTransaction,
         rollback: rollbackTransaction,
       },
-      config,
+      get config() {
+        return configRef.current;
+      },
+      interaction,
+      get playback() {
+        return playbackRef.current;
+      },
       setTheme: (name) => {
         const normalized = name.trim().toUpperCase();
         if (
@@ -239,7 +266,10 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
       },
       setInputMode: (mode) => {
         if (mode === 'note' || mode === 'rest') {
-          ctx.tools.setInputMode(mode.toUpperCase() as 'NOTE' | 'REST');
+          const inputMode = mode === 'note' ? 'NOTE' : 'REST';
+          // Preserve same-turn setInputMode().move() semantics before React commits.
+          toolsRef.current = { ...toolsRef.current, inputMode };
+          toolsRef.current.setInputMode(inputMode);
           setResult({
             ok: true,
             status: 'info',
@@ -276,12 +306,16 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
       ...createIOMethods(context),
       ...createChordMethods(context),
       ...createLayoutMethods(context),
+      ...createInteractionMethods(context),
       ...createMetadataMethods(context),
       ...createMetadataNavigationMethods(context),
 
       // Data Accessors (Bound Closures)
       getScore: () => ctx.engines.engine.getState(),
-      getConfig: () => config,
+      getConfig: () => ({
+        ...configRef.current,
+        interaction: { ...(interaction?.getSnapshot() ?? configRef.current.interaction) },
+      }),
       getSelection: () => selectionEngine.getState(),
 
       // Feedback & Status helpers
@@ -356,7 +390,7 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
 
     return instance as MusicEditorAPI;
   }, [
-    config,
+    interaction,
     dispatch,
     syncSelection,
     selectionEngine,
@@ -369,7 +403,6 @@ export function useScoreAPI({ instanceId, config }: UseScoreAPIProps): MusicEdit
     ctx.engines.engine,
     setTheme,
     setZoom,
-    ctx.tools,
     setResult,
   ]);
   // 5. Registry registration/cleanup

@@ -21,3 +21,5 @@ export * from './events';
 export * from './chords';
 export * from './layout';
 export * from './metadata';
+
+export * from './interaction';

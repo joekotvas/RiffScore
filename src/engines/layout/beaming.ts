@@ -167,10 +167,11 @@ export const calculateBeamingGroups = (
   events: ScoreEvent[],
   eventPositions: Record<string, number>,
   clef = 'treble',
-  timeSignature = '4/4'
+  timeSignature = '4/4',
+  stemDirection?: 'up' | 'down'
 ): BeamGroup[] =>
   groupBeamableEvents(events, timeSignature).map((group) =>
-    processBeamGroup(group, eventPositions, clef)
+    processBeamGroup(group, eventPositions, clef, stemDirection)
   );
 
 /**
@@ -325,7 +326,8 @@ export const beamRise = (anchorYs: number[], direction: 'up' | 'down', run: numb
 const processBeamGroup = (
   groupEvents: ScoreEvent[],
   eventPositions: Record<string, number>,
-  clef: string
+  clef: string,
+  stemDirection?: 'up' | 'down'
 ): BeamGroup => {
   // Determine minimum stem length based on the note type with the most beams in the group
   // 32nd notes need longer stems to accommodate 3 beams, 64th for 4 beams
@@ -355,11 +357,15 @@ const processBeamGroup = (
     };
   });
 
-  const direction = beamGroupDirection(noteData.flatMap((d) => d.noteYs));
+  const direction = stemDirection ?? beamGroupDirection(noteData.flatMap((d) => d.noteYs));
 
   // Get chord layouts for first and last events
-  const startChordLayout = calculateChordLayout(groupEvents[0].notes, clef);
-  const endChordLayout = calculateChordLayout(groupEvents[groupEvents.length - 1].notes, clef);
+  const startChordLayout = calculateChordLayout(groupEvents[0].notes, clef, stemDirection);
+  const endChordLayout = calculateChordLayout(
+    groupEvents[groupEvents.length - 1].notes,
+    clef,
+    stemDirection
+  );
 
   // Use shared getStemOffset function for consistent stem positioning
   const startStemOffset = getStemOffset(startChordLayout, direction);
@@ -372,7 +378,7 @@ const processBeamGroup = (
 
   // Update noteData with stem X positions for clearance calculations
   noteData.forEach((d, i) => {
-    const layout = calculateChordLayout(groupEvents[i].notes, clef);
+    const layout = calculateChordLayout(groupEvents[i].notes, clef, stemDirection);
     d.eventX = d.noteX + getStemOffset(layout, direction);
   });
 

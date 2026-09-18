@@ -1,8 +1,10 @@
+import { MusicGlyph } from '@/components/Assets/MusicGlyph';
 // @ts-nocheck
 import React, { useState } from 'react';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
-import { REST_GLYPHS, BRAVURA_FONT, getFontSize, DOTS } from '@/constants/SMuFL';
+import { getScoreHighlightColor } from '@/themes';
+import { REST_GLYPHS, getFontSize, DOTS } from '@/constants/SMuFL';
 
 interface RestProps {
   duration: string;
@@ -61,9 +63,9 @@ export const Rest: React.FC<RestProps> = ({
     return null;
   }
 
-  // Color: accent for ghost/selected/hovered, normal otherwise
+  // Color: highlight for ghost/selected/hovered, normal otherwise
   const showHighlight = isGhost || isSelected || (isHovered && onClick);
-  const color = showHighlight ? theme.accent : theme.score.note;
+  const color = showHighlight ? getScoreHighlightColor(theme) : theme.score.note;
   const finalX = x > 0 ? x : CONFIG.measurePaddingLeft;
   const restY = getRestY(duration, baseY);
   const fontSize = getFontSize(CONFIG.lineHeight);
@@ -79,17 +81,16 @@ export const Rest: React.FC<RestProps> = ({
     const dotX = finalX + fontSize * 0.4;
     const dotY = restY - CONFIG.lineHeight / 2;
     return (
-      <text
+      <MusicGlyph
         x={dotX}
         y={dotY}
-        fontFamily={BRAVURA_FONT}
         fontSize={fontSize}
         textAnchor="start"
         fill={color}
         style={{ userSelect: 'none' }}
       >
         {DOTS.augmentationDot}
-      </text>
+      </MusicGlyph>
     );
   };
 
@@ -117,17 +118,16 @@ export const Rest: React.FC<RestProps> = ({
       )}
 
       {/* Rest glyph */}
-      <text
+      <MusicGlyph
         x={finalX}
         y={restY}
-        fontFamily={BRAVURA_FONT}
         fontSize={fontSize}
         textAnchor="middle"
         fill={color}
         style={{ userSelect: 'none', pointerEvents: 'none' }}
       >
         {glyph}
-      </text>
+      </MusicGlyph>
       {renderDot()}
     </g>
   );

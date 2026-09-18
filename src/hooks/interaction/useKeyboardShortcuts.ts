@@ -30,6 +30,8 @@ interface UIState {
   scoreContainerRef: React.RefObject<HTMLDivElement | null>;
   isAnyMenuOpen?: () => boolean;
   isDisabled?: boolean;
+  enablePlayback?: boolean;
+  showChordSymbols?: boolean;
 }
 
 interface ChordTrackHandlers {
@@ -57,7 +59,13 @@ export const useKeyboardShortcuts = (
   // Access grouped API from logic
   const { selection } = logic.state;
   const score = logic.state.score;
-  const { move: moveSelection, switchStaff } = logic.navigation;
+  const { move, switchStaff } = logic.navigation;
+  const showChordSymbols = meta.showChordSymbols !== false;
+  const enablePlayback = meta.enablePlayback !== false;
+  const moveSelection = useCallback(
+    (direction: string, isShift: boolean) => move(direction, isShift, showChordSymbols),
+    [move, showChordSymbols]
+  );
   const { selectionEngine, scoreRef, dispatch } = logic.engines;
 
   const { isEditingTitle, isHoveringScore, scoreContainerRef, isAnyMenuOpen, isDisabled } = meta;
@@ -95,8 +103,14 @@ export const useKeyboardShortcuts = (
   // ─────────────────────────────────────────────────────────────────────────────
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       const tagName = (e.target as HTMLElement).tagName?.toLowerCase() || '';
-      if (tagName === 'input' || tagName === 'textarea') {
+      if (
+        tagName === 'input' ||
+        tagName === 'textarea' ||
+        tagName === 'select' ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
         if (e.key === 'Enter' && isEditingTitle) {
           e.preventDefault();
           handleTitleCommit();
@@ -112,6 +126,9 @@ export const useKeyboardShortcuts = (
         const isFocused =
           document.activeElement === scoreContainerRef.current ||
           scoreContainerRef.current.contains(document.activeElement);
+        // A hovered editor must not consume shortcuts belonging to another focused score.
+        const focusedScore = document.activeElement?.closest('.riff-ScoreCanvas');
+        if (!isFocused && focusedScore) return;
         if (!isFocused && !isHoveringScoreRef.current) {
           return; // Ignore input if not focused and not hovering
         }
@@ -236,10 +253,10 @@ export const useKeyboardShortcuts = (
       }
 
       // 1. Playback
-      if (handlePlayback(e, playback, selection, score)) return;
+      if (enablePlayback && handlePlayback(e, playback, selection, score)) return;
 
       // 1.5. Tab navigation for chord track (selected chord -> navigate and edit next/previous)
-      if (e.key === 'Tab' && selection.chordTrackFocused && selection.chordId) {
+      if (showChordSymbols && e.key === 'Tab' && selection.chordTrackFocused && selection.chordId) {
         e.preventDefault();
         if (chordTrackRef.current?.navigateAndEdit) {
           // Navigate to next/previous valid position and start editing
@@ -263,6 +280,8 @@ export const useKeyboardShortcuts = (
       selection,
       score,
       moveSelection,
+      showChordSymbols,
+      enablePlayback,
       switchStaff,
       selectionEngine,
       dispatch,

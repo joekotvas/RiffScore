@@ -76,6 +76,8 @@ export type RefusalCode =
   | 'BOUNDARY_REACHED'
   | 'INVALID_TARGET'
   // --- io / playback / misc ---
+  | 'INVALID_INTERACTION_CONFIG'
+  | 'INVALID_PLAYBACK_POSITION'
   | 'INVALID_SCORE'
   | 'SCORE_VALIDATION_WARNINGS'
   | 'EXPORT_NOT_IMPLEMENTED'
@@ -158,9 +160,15 @@ export const REFUSALS: Record<RefusalCode, RefusalSpec> = {
       `Cannot change to ${ctx?.signature ?? 'that time signature'}: a tuplet is longer than one bar of the new meter`,
   },
   INSUFFICIENT_EVENTS: { severity: 'error', message: s('Not enough events for a tuplet') },
-  NESTED_TUPLET_NOT_SUPPORTED: { severity: 'error', message: s('Target events already contain a tuplet') },
+  NESTED_TUPLET_NOT_SUPPORTED: {
+    severity: 'error',
+    message: s('Target events already contain a tuplet'),
+  },
   INVALID_TUPLET_RATIO: { severity: 'error', message: s('Invalid tuplet ratio') },
-  NON_UNIFORM_TUPLET: { severity: 'error', message: s('Select notes of the same duration to form a tuplet') },
+  NON_UNIFORM_TUPLET: {
+    severity: 'error',
+    message: s('Select notes of the same duration to form a tuplet'),
+  },
   NOT_A_TUPLET: { severity: 'warning', message: s('Selected event is not part of a tuplet') },
 
   // --- ties ---
@@ -181,15 +189,24 @@ export const REFUSALS: Record<RefusalCode, RefusalSpec> = {
   INVALID_TARGET: { severity: 'error', message: s('Invalid navigation target') },
 
   // --- io / playback / misc ---
+  INVALID_PLAYBACK_POSITION: { severity: 'error', message: s('Invalid playback position') },
+  INVALID_INTERACTION_CONFIG: {
+    severity: 'error',
+    message: s('Invalid interaction configuration'),
+  },
   INVALID_SCORE: { severity: 'error', message: s('Cannot load score: missing or empty staves') },
-  SCORE_VALIDATION_WARNINGS: { severity: 'warning', message: s('Score loaded with validation issues') },
+  SCORE_VALIDATION_WARNINGS: {
+    severity: 'warning',
+    message: s('Score loaded with validation issues'),
+  },
   EXPORT_NOT_IMPLEMENTED: {
     severity: 'error',
     message: (ctx) => `Export format '${ctx?.format ?? ''}' not yet implemented`,
   },
   EXPORT_FAILED: {
     severity: 'error',
-    message: (ctx) => (typeof ctx?.error === 'string' ? `Export failed: ${ctx.error}` : 'Export failed'),
+    message: (ctx) =>
+      typeof ctx?.error === 'string' ? `Export failed: ${ctx.error}` : 'Export failed',
   },
   IMPORT_NOT_IMPLEMENTED: {
     severity: 'error',
@@ -197,13 +214,15 @@ export const REFUSALS: Record<RefusalCode, RefusalSpec> = {
   },
   IMPORT_FAILED: {
     severity: 'error',
-    message: (ctx) => (typeof ctx?.error === 'string' ? `Import failed: ${ctx.error}` : 'Import failed'),
+    message: (ctx) =>
+      typeof ctx?.error === 'string' ? `Import failed: ${ctx.error}` : 'Import failed',
   },
   // Success with caveats: the score loaded, but parts of the input could not be represented.
   IMPORT_WARNINGS: { severity: 'warning', message: s('Score imported with warnings') },
   PLAYBACK_ERROR: {
     severity: 'error',
-    message: (ctx) => (typeof ctx?.error === 'string' ? `Playback failed: ${ctx.error}` : 'Playback failed'),
+    message: (ctx) =>
+      typeof ctx?.error === 'string' ? `Playback failed: ${ctx.error}` : 'Playback failed',
   },
   INVALID_INSTRUMENT: { severity: 'error', message: s('Invalid instrument') },
   NOT_IMPLEMENTED: { severity: 'warning', message: s('Not implemented yet') },

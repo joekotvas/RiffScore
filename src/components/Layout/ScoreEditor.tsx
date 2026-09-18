@@ -8,7 +8,7 @@ import { useTheme } from '@context/ThemeContext';
 
 // Hooks
 import { useKeyboardShortcuts, useScoreInteraction } from '@hooks/interaction';
-import { usePlayback, useMIDI, useSamplerStatus } from '@hooks/audio';
+import { useMIDI, useSamplerStatus } from '@hooks/audio';
 // import { useModifierKeys } from '@hooks/useModifierKeys';
 import { useTitleEditor } from '@hooks/useTitleEditor';
 import { useChordTrack } from '@hooks/chord/useChordTrack';
@@ -20,33 +20,62 @@ import ShortcutsOverlay from '@components/Layout/Overlays/ShortcutsOverlay';
 import ConfirmDialog from '@components/Layout/Overlays/ConfirmDialog';
 import Portal from '@components/Layout/Portal';
 import EditorFooter from '@components/Layout/EditorFooter';
+import type {
+  EngravingConfig,
+  ScoreViewConfig,
+  TupletConfig,
+  ChordDisplayConfig,
+  ChordPlaybackConfig,
+  ViewportConfig,
+} from '@/types';
 
 // Commands
 import { SetSingleStaffCommand } from '@commands/SetSingleStaffCommand';
 import { UpdateTitleCommand } from '@commands/UpdateTitleCommand';
 
 // Engines & Data
-import { setInstrument, InstrumentType } from '@engines/toneEngine';
+import { useSessionConfig } from '@/context/RiffScoreSession';
+import { PlaybackProvider, useEditorPlayback } from '@/context/PlaybackContext';
 import { MELODIES } from '@/data/melodies';
 
 // Utilities
 import { findEventAtQuantPosition } from '@/utils/navigation/crossStaff';
 import { getNoteDuration, isRestEvent } from '@/utils/core';
-import { TIME_SIGNATURES } from '@/constants';
+import { getMeasureCapacity } from '@/constants';
 import { getMidi } from '@/services/MusicService';
 import { DEFAULT_LAYOUT_CONFIG } from '@/config';
 
+import type { RenderScoreControls, PlaybackCursorState } from './ScoreControls';
 import './styles/ScoreEditor.css';
+import type { RenderScoreOverlay } from '../Canvas/ScoreOverlay';
 
 // ------------------------------------------------------------------
 // Props Interface
 // ------------------------------------------------------------------
 
 interface ScoreEditorContentProps {
+  renderOverlay?: RenderScoreOverlay;
+  playbackCursor?: PlaybackCursorState | null;
+  renderControls?: RenderScoreControls;
   scale?: number;
   label?: string;
   showToolbar?: boolean;
   showBackground?: boolean;
+  showFooter?: boolean;
+  showScoreTitle?: boolean;
+  showGhostNotes?: boolean;
+  /** Show unavailable-entry previews (grey notes with a cross). */
+  showBlockedGhostNotes?: boolean;
+  viewport?: ViewportConfig;
+  scoreTitleOffset?: { x?: number; y?: number };
+  /** Scroll-view outer padding in staff units; defaults to 0 above and 50 below. Ignored in page view. */
+  scrollPadding?: { top?: number; bottom?: number };
+  view?: ScoreViewConfig;
+  engraving?: EngravingConfig;
+  tuplet?: TupletConfig;
+  chordDisplay?: ChordDisplayConfig;
+  chordPlayback?: ChordPlaybackConfig;
+  chordEditable?: boolean;
   /** Whether the score is interactive. When false (static/read-only view), transient
    *  interaction state (playback cursor, selection, entry preview) is reset. */
   interactive?: boolean;
@@ -58,11 +87,26 @@ interface ScoreEditorContentProps {
 // Main Component
 // ------------------------------------------------------------------
 
-const ScoreEditorContent = ({
+const ScoreEditorBody = ({
   scale = 1,
+  renderControls,
+  renderOverlay,
+  playbackCursor,
   label,
   showToolbar = true,
   showBackground = true,
+  showFooter = true,
+  showScoreTitle = true,
+  showGhostNotes = true,
+  showBlockedGhostNotes = true,
+  viewport,
+  scoreTitleOffset,
+  scrollPadding,
+  engraving,
+  view,
+  tuplet,
+  chordDisplay,
+  chordEditable = true,
   interactive = true,
   enableKeyboard = true,
   enablePlayback = true,
@@ -70,6 +114,7 @@ const ScoreEditorContent = ({
   // --- Context & Theme ---
   const { theme } = useTheme();
   const scoreLogic = useScoreContext();
+  const sharedSession = useSessionConfig();
 
   // Grouped API destructuring
   const { score, selection, previewNote } = scoreLogic.state;
@@ -78,24 +123,18 @@ const ScoreEditorContent = ({
   const { select: handleNoteSelection, focus: focusScore } = scoreLogic.navigation;
   const { addChord: addChordToMeasure, updatePitch: updateNotePitch } = scoreLogic.entry;
   const { clearSelection, setPreviewNote, feedback, setFeedback } = scoreLogic;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { pendingClefChange, setPendingClefChange } = scoreLogic as any; // UI state from context
+  const { pendingClefChange, setPendingClefChange } = scoreLogic;
 
   // --- Local UI State ---
-  // Toolbar tempo (#22): a working/playback tempo, seeded from the score's authoritative
-  // `score.bpm` and re-synced whenever that tempo changes — a LOAD_SCORE (loadScore, import, the
-  // melody library, reset), a SET_BPM (api.setBpm) or an undo/redo of either. The sync is one-way:
-  // editing the value in the toolbar only changes what the toolbar transport plays, never the
-  // score, so a practice tempo can differ from the notated one. (A load whose tempo equals the
-  // current score tempo leaves such an override in place — there is no tempo change to follow.)
-  const scoreBpm = score.bpm || 120;
-  const [bpm, setBpm] = useState(scoreBpm);
-  useEffect(() => {
-    setBpm(scoreBpm);
-  }, [scoreBpm]);
+  const playback = useEditorPlayback()!;
+  const {
+    bpm,
+    setBpm,
+    instrument: selectedInstrument,
+    setInstrument: handleInstrumentChange,
+  } = playback;
   const [showHelp, setShowHelp] = useState(false);
   const [isHoveringScore, setIsHoveringScore] = useState(false);
-  const [selectedInstrument, setSelectedInstrument] = useState<InstrumentType>('bright');
   const [viewportZoom, setViewportZoom] = useState(100); // Viewport zoom in percentage
   const [isFullscreen, setIsFullscreen] = useState(false);
   // #242 Lane D: transient feedback (e.g. an overflow rejection) surfaced from the editor logic and
@@ -120,7 +159,6 @@ const ScoreEditorContent = ({
   const titleEditor = useTitleEditor(score.title, dispatch);
 
   // --- Complex Hooks ---
-  const playback = usePlayback(score, bpm);
 
   // When the score switches to a static (non-interactive) view — e.g. a gallery card toggled
   // back from editing — reset transient interaction state so nothing stale lingers on the
@@ -133,10 +171,12 @@ const ScoreEditorContent = ({
       stopPlayback();
       exitPlaybackMode();
     }
-    if (selection.eventId || selection.noteId || selection.chordId) clearSelection();
-    if (previewNote) setPreviewNote(null);
+    if (!sharedSession && (selection.eventId || selection.noteId || selection.chordId))
+      clearSelection();
+    if (!sharedSession && previewNote) setPreviewNote(null);
   }, [
     interactive,
+    sharedSession,
     isPlaybackActive,
     selection,
     previewNote,
@@ -151,7 +191,9 @@ const ScoreEditorContent = ({
     activeDuration,
     isDotted,
     activeAccidental,
-    scoreRef
+    scoreRef,
+    interactive,
+    () => !!scoreContainerRef.current?.contains(document.activeElement)
   );
   const chordTrackHook = useChordTrack({
     scoreRef,
@@ -188,7 +230,7 @@ const ScoreEditorContent = ({
   });
 
   // Calculate quants per measure for chord navigation
-  const quantsPerMeasure = TIME_SIGNATURES[score.timeSignature || '4/4'] || 64;
+  const quantsPerMeasure = getMeasureCapacity(score.timeSignature);
 
   // Chord track Tab navigation handler
   const handleChordTabNavigate = useCallback(
@@ -314,7 +356,9 @@ const ScoreEditorContent = ({
       isHoveringScore,
       scoreContainerRef,
       isAnyMenuOpen: () => (toolbarRef.current?.isMenuOpen() ?? false) || showHelp,
-      isDisabled: !enableKeyboard,
+      isDisabled: !enableKeyboard || !interactive,
+      enablePlayback,
+      showChordSymbols: chordDisplay?.visible !== false,
     },
     { handleTitleCommit: titleEditor.commit },
     { navigateAndEdit: handleChordTabNavigate, escapeToNotes: handleChordEscapeToNotes },
@@ -322,11 +366,6 @@ const ScoreEditorContent = ({
   );
 
   // --- Event Handlers ---
-  const handleInstrumentChange = useCallback((instrument: InstrumentType) => {
-    setSelectedInstrument(instrument);
-    setInstrument(instrument);
-  }, []);
-
   const handleEscape = useCallback(() => {
     setTimeout(() => scoreContainerRef.current?.focus(), 0);
     focusScore();
@@ -383,6 +422,10 @@ const ScoreEditorContent = ({
   }, [selection, exitPlaybackMode]);
 
   // --- Render ---
+  const viewportOptions = isFullscreen ? undefined : viewport;
+  const dimension = (value: number | undefined): number | undefined =>
+    value !== undefined && Number.isFinite(value) && value >= 0 ? value : undefined;
+  const viewportHeight = dimension(viewportOptions?.height);
   const editorClassName = `riff-ScoreEditor${isFullscreen ? ' riff-ScoreEditor--fullscreen' : ''}`;
 
   return (
@@ -428,10 +471,29 @@ const ScoreEditorContent = ({
         </Portal>
       )}
 
-      <div className="riff-ScoreEditor__viewport" style={{ backgroundColor: theme.background }}>
+      <div
+        className="riff-ScoreEditor__viewport"
+        style={{
+          backgroundColor: showBackground ? theme.background : 'transparent',
+          width: dimension(viewportOptions?.width),
+          minWidth: dimension(viewportOptions?.minWidth),
+          maxWidth: dimension(viewportOptions?.maxWidth),
+          height: viewportHeight,
+          minHeight: dimension(viewportOptions?.minHeight),
+          maxHeight: dimension(viewportOptions?.maxHeight),
+          flex: viewportHeight === undefined ? undefined : 'none',
+          overflow: viewportOptions?.overflow,
+        }}
+      >
         <div
           className="riff-ScoreEditor__content"
           style={{
+            justifyContent:
+              viewportOptions?.verticalAlign === 'center'
+                ? 'center'
+                : viewportOptions?.verticalAlign === 'end'
+                  ? 'flex-end'
+                  : undefined,
             transform: `scale(${viewportZoom / 100})`,
             transformOrigin:
               (score.layout?.viewMode ?? DEFAULT_LAYOUT_CONFIG.viewMode) === 'scroll'
@@ -440,29 +502,99 @@ const ScoreEditorContent = ({
           }}
         >
           <ScoreCanvas
+            renderOverlay={renderOverlay}
+            interactive={interactive}
             scale={scale}
+            view={view}
+            bounds={viewportOptions?.bounds}
+            engraving={engraving}
+            tuplet={tuplet}
+            showScoreTitle={showScoreTitle}
+            showGhostNotes={showGhostNotes}
+            showBlockedGhostNotes={showBlockedGhostNotes}
+            scoreTitleOffset={scoreTitleOffset}
+            scrollPadding={scrollPadding}
+            overflow={viewportOptions?.overflow}
+            showBackground={showBackground}
+            chordDisplay={chordDisplay}
+            chordEditable={chordEditable}
             zoom={viewportZoom / 100}
-            playbackPosition={playback.playbackPosition}
+            playbackPosition={
+              playbackCursor === undefined
+                ? playback.playbackPosition
+                : (playbackCursor ?? { measureIndex: 0, quant: 0, duration: 0 })
+            }
             containerRef={scoreContainerRef}
             onHoverChange={handleHoverChange}
             onBackgroundClick={handleBackgroundClick}
             onKeySigClick={() => toolbarRef.current?.openKeySigMenu()}
             onTimeSigClick={() => toolbarRef.current?.openTimeSigMenu()}
             onClefClick={() => toolbarRef.current?.openClefMenu()}
-            isPlaying={playback.isPlaying}
-            isPlaybackVisible={playback.isActive}
+            isPlaying={
+              playbackCursor === undefined
+                ? playback.isPlaying
+                : (playbackCursor?.isPlaying ?? false)
+            }
+            isPlaybackVisible={
+              playbackCursor === undefined ? playback.isActive : playbackCursor !== null
+            }
             chordTrack={chordTrackHook}
           />
         </div>
       </div>
 
-      <EditorFooter
-        selection={selection}
-        previewNote={previewNote}
-        score={score}
-        zoom={viewportZoom}
-        onZoomChange={setViewportZoom}
-      />
+      <div className="riff-ScoreEditor__controls">
+        {renderControls?.({
+          score,
+          canUndo: interactive && scoreLogic.state.history.length > 0,
+          canRedo: interactive && scoreLogic.state.redoStack.length > 0,
+          undo: () => {
+            if (interactive) scoreLogic.historyAPI.undo();
+          },
+          redo: () => {
+            if (interactive) scoreLogic.historyAPI.redo();
+          },
+          isPlaying: playback.isPlaying,
+          play: async () => {
+            if (!interactive || !enablePlayback) return;
+            await playback.playScore(
+              playback.playbackPosition.measureIndex ?? 0,
+              playback.playbackPosition.quant ?? 0
+            );
+          },
+          pause: playback.pausePlayback,
+          stop: playback.stopPlayback,
+          seek: (measureIndex, quant = 0) => {
+            if (
+              Number.isInteger(measureIndex) &&
+              measureIndex >= 0 &&
+              Number.isFinite(quant) &&
+              quant >= 0
+            )
+              playback.seekPlayback?.(measureIndex, quant);
+          },
+          bpm,
+          setBpm: (value) => {
+            if (Number.isFinite(value) && value > 0) {
+              if (playback.isPlaying) playback.pausePlayback();
+              setBpm(value);
+            }
+          },
+          instrument: selectedInstrument,
+          setInstrument: handleInstrumentChange,
+          samplerLoaded,
+        })}
+      </div>
+
+      {showFooter && (
+        <EditorFooter
+          selection={selection}
+          previewNote={previewNote}
+          score={score}
+          zoom={viewportZoom}
+          onZoomChange={setViewportZoom}
+        />
+      )}
 
       {pendingClefChange && (
         <Portal>
@@ -482,6 +614,18 @@ const ScoreEditorContent = ({
         </Portal>
       )}
     </div>
+  );
+};
+
+// Direct/internal consumers receive the same transport ownership as RiffScore.
+const ScoreEditorContent = (props: ScoreEditorContentProps): React.ReactElement => {
+  const playback = useEditorPlayback();
+  return playback ? (
+    <ScoreEditorBody {...props} />
+  ) : (
+    <PlaybackProvider chordPlayback={props.chordPlayback}>
+      <ScoreEditorBody {...props} />
+    </PlaybackProvider>
   );
 };
 

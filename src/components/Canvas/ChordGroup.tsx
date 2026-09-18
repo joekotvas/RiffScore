@@ -1,7 +1,9 @@
+import { createScreenToSvgTransform } from '@/utils/svgCoordinates';
 import React, { useState, useMemo, useCallback } from 'react';
 import { CONFIG } from '@/config';
 import { NOTE_TYPES } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
+import { getScoreHighlightColor } from '@/themes';
 import { getStemOffset } from '@/engines/layout';
 import { calculateStemGeometry } from '@/engines/layout/stems';
 import { getAccidentalGlyph } from '@/services/MusicService';
@@ -101,10 +103,10 @@ const ChordGroup: React.FC<ChordGroupProps> = ({
       return interaction.lassoPreviewIds?.has(noteKey);
     });
 
-  // Color: Ghost/Selected/Hovered/LassoPreview -> Accent; Default -> Note Color
+  // Color: Ghost/Selected/Hovered/LassoPreview -> Highlight; Default -> Note Color
   const groupColor =
     isGhost || isWholeChordSelected || isAnyNoteHovered || isWholeChordInLassoPreview
-      ? theme.accent
+      ? getScoreHighlightColor(theme)
       : theme.score.note;
 
   // Filter Notes (if needed)
@@ -133,12 +135,14 @@ const ChordGroup: React.FC<ChordGroupProps> = ({
         const isModifier = e.metaKey || e.ctrlKey;
         const isShift = e.shiftKey;
 
+        const screenToLocal = createScreenToSvgTransform(e.currentTarget) ?? undefined;
         onDragStart({
           measureIndex,
           eventId,
           noteId: note.id,
           startPitch: note.pitch ?? '',
-          startY: e.clientY,
+          startY: screenToLocal?.(e.clientX, e.clientY).y ?? e.clientY,
+          screenToLocal,
           isMulti: isModifier,
           isShift: isShift,
           selectAllInEvent: !isModifier && !isShift,
@@ -161,12 +165,14 @@ const ChordGroup: React.FC<ChordGroupProps> = ({
       e.stopPropagation();
       const isModifier = e.metaKey || e.ctrlKey;
 
+      const screenToLocal = createScreenToSvgTransform(e.currentTarget) ?? undefined;
       onDragStart({
         measureIndex,
         eventId,
         noteId: notes[0]?.id ?? '',
         startPitch: notes[0]?.pitch ?? '',
-        startY: e.clientY,
+        startY: screenToLocal?.(e.clientX, e.clientY).y ?? e.clientY,
+        screenToLocal,
         isMulti: isModifier,
         selectAllInEvent: !isModifier,
         staffIndex,

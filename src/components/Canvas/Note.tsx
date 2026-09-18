@@ -1,9 +1,11 @@
+import { MusicGlyph } from '@/components/Assets/MusicGlyph';
 import React from 'react';
 import { LAYOUT } from '@/constants';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
+import { getScoreHighlightColor } from '@/themes';
 import { getOffsetForPitch } from '@/engines/layout';
-import { NOTEHEADS, BRAVURA_FONT, getFontSize, DOTS, ACCIDENTALS } from '@/constants/SMuFL';
+import { NOTEHEADS, getFontSize, DOTS, ACCIDENTALS } from '@/constants/SMuFL';
 import { NoteProps } from '@/componentTypes';
 
 // =============================================================================
@@ -33,18 +35,17 @@ const NoteHead = ({
   const fontSize = getFontSize(CONFIG.lineHeight);
 
   return (
-    <text
+    <MusicGlyph
       className="NoteHead"
       x={x}
       y={y}
-      fontFamily={BRAVURA_FONT}
       fontSize={fontSize}
       textAnchor="middle"
       fill={color}
       style={{ userSelect: 'none' }}
     >
       {getGlyph()}
-    </text>
+    </MusicGlyph>
   );
 };
 
@@ -79,17 +80,16 @@ const Accidental = ({
   const renderX = parenthesized ? x - LAYOUT.ACCIDENTAL.PARENTHESIS_PAD : x;
 
   return (
-    <text
+    <MusicGlyph
       x={renderX}
       y={y}
       fontSize={fontSize}
-      fontFamily={BRAVURA_FONT}
       fill={color}
       textAnchor="middle"
       style={{ userSelect: 'none' }}
     >
       {glyph}
-    </text>
+    </MusicGlyph>
   );
 };
 
@@ -100,17 +100,16 @@ const Dot = ({ x, y, color }: { x: number; y: number; color: string }) => {
   const fontSize = getFontSize(CONFIG.lineHeight);
 
   return (
-    <text
+    <MusicGlyph
       x={x}
       y={y}
-      fontFamily={BRAVURA_FONT}
       fontSize={fontSize}
       fill={color}
       textAnchor="start"
       style={{ userSelect: 'none' }}
     >
       {DOTS.augmentationDot}
-    </text>
+    </MusicGlyph>
   );
 };
 
@@ -272,16 +271,10 @@ const Note: React.FC<NoteProps> = React.memo(
     const noteY =
       overrideY !== undefined ? overrideY : baseY + getOffsetForPitch(effectivePitch, clef);
 
-    // Determine color (preview uses accent color, same as selection)
+    // Hover (forwarded as selection), selection, and preview share the same notation ink.
     const color =
       overrideColor ||
-      (isGhost
-        ? theme.accent
-        : isSelected
-          ? theme.accent
-          : isPreview
-            ? theme.accent
-            : theme.score.note);
+      (isGhost || isSelected || isPreview ? getScoreHighlightColor(theme) : theme.score.note);
 
     // Dot Y position (move up if on a line)
     const relativeY = noteY - baseY;
