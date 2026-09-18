@@ -1,3 +1,4 @@
+import type { PlaybackState } from '@/api.types';
 import type { Score } from '@/types';
 import type { ReactNode } from 'react';
 import type { InstrumentType } from '@/engines/toneEngine';
@@ -9,6 +10,8 @@ export interface ScoreControls {
   canRedo: boolean;
   undo: () => void;
   redo: () => void;
+  playbackState: PlaybackState;
+  playbackEnabled: boolean;
   isPlaying: boolean;
   play: () => Promise<void>;
   pause: () => void;

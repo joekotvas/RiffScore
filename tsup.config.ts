@@ -1,8 +1,8 @@
 import { defineConfig } from 'tsup';
-import { cp, mkdir } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 
 export default defineConfig({
-  entry: ['src/index.tsx', 'src/theory.ts'],
+  entry: ['src/index.tsx', 'src/theory.ts', 'src/extensions.ts'],
   format: ['esm', 'cjs'],
   dts: true,
   sourcemap: true,
@@ -11,6 +11,12 @@ export default defineConfig({
   treeshake: true,
   minify: false,
   async onSuccess() {
+    for (const entry of ['dist/index.js', 'dist/index.mjs']) {
+      await writeFile(entry, '"use client";\n' + (await readFile(entry, 'utf8')));
+      const map = JSON.parse(await readFile(`${entry}.map`, 'utf8'));
+      map.mappings = ';' + map.mappings;
+      await writeFile(`${entry}.map`, JSON.stringify(map));
+    }
     await mkdir('dist/fonts', { recursive: true });
     await cp('src/assets/fonts/licenses/Bravura-OFL.txt', 'dist/fonts/Bravura-OFL.txt');
   },

@@ -465,3 +465,16 @@ The settings are `isEnabled`, `enableKeyboard`, `enablePlayback`, `allowEventIns
 Horizontal navigation now carries the current staff, clef, meter and entry duration into ghost creation. `export()` reads the authoritative engine immediately, including mutations earlier in the same API chain.
 
 Retained API references read the current merged configuration through `getConfig()`, `getChordDisplay()` and `getChordPlayback()` after React updates. Presentation updates preserve score/history. With `RiffScoreSession`, APIs address the shared full document; permissions and playback remain view-local. See [configuration](./CONFIGURATION.md) for session and overlay contracts.
+
+### React API handles (alpha.19 candidate)
+
+Pass `apiRef` to `RiffScore` to receive the same instance-local API without looking up an ID in `window.riffScore`:
+
+```tsx
+const apiRef = useRef<MusicEditorAPI>(null);
+<RiffScore apiRef={apiRef} />
+// In a host event handler:
+apiRef.current?.select(0).setPitch('D4');
+```
+
+Object and callback refs follow React mount/unmount semantics, including StrictMode cleanup. The ref is cleared when that view unmounts. Presentation-only updates retain the API, document and history. Custom controls receive `playbackState` and `playbackEnabled`; their `seek()` updates the synchronous transport position consumed by `play()` in the same event handler. See [presentation composition](CONFIGURATION.md#presentation-composition-alpha19-candidate).

@@ -6,6 +6,8 @@ export type ScoreAnchor =
   | { noteId: string }
   | { staffId: string; measureId: string; quant: number };
 export interface ScoreOverlayContext {
+  /** Scroll geometry; null for page view (which has its own coordinate system). */
+  geometry: import('./ScoreGeometry').ScoreViewGeometry | null;
   /** Null in scroll view; otherwise the zero-based page rendered by this callback. */
   pageIndex: number | null;
   /** Unscaled score units in scroll view, page pixels in page view. */

@@ -29,11 +29,11 @@ interface RiffScoreConfig {
   ui: {
     showToolbar: boolean;  // Show/hide the toolbar
     showFooter?: boolean;
+    showScore?: boolean;   // Show notation; custom controls remain mounted
     showGhostNotes?: boolean;
     showBlockedGhostNotes?: boolean;
     viewport?: ViewportConfig;
     engraving?: EngravingConfig;
-    tuplet?: { hideBracketWhenBeamed?: boolean };
     themeOverrides?: DeepPartial<Theme>;
     scrollPadding?: { top?: number; bottom?: number };
     scoreTitleOffset?: { x?: number; y?: number };
@@ -493,3 +493,25 @@ Import from `riffscore/theory` for Node/worker use without React, CSS, DOM or au
 ### Printing in a host application
 
 Page view supplies physical page dimensions and print styles that hide editor chrome and remove viewport limits. The host chooses which editors and surrounding content to print with its own `@media print` CSS. Hide unrelated wide scroll views when printing a paginated score, or the browser may shrink the entire document to fit. RiffScore does not hide arbitrary host content.
+
+## Presentation composition (alpha.19 candidate)
+
+`apiRef` exposes the same `MusicEditorAPI` as the instance registry, without a global lookup. Use a React ref or callback ref; it is cleared when the view unmounts. Changing presentation props retains the document and undo history.
+
+```tsx
+const api = useRef<MusicEditorAPI>(null);
+<RiffScore apiRef={api} resolveViewport={(geometry) => ({
+  bounds: geometry.contentBounds,
+  scale: 0.75,
+})} />
+```
+
+`resolveViewport` is a pure render-time function over frozen, detached scroll-view geometry. Coordinates are unscaled score units. The geometry includes staff identities, displayed clefs, staff endpoints, staff spacing, engraving content bounds and the default viewport. Content bounds describe the engraving envelope, not browser-measured text ink; applications with long titles or custom overlays must reserve their required space. The callback must not set state or edit the score. Observe the outer host when adapting to container width, not the SVG being resized.
+
+Explicit `ui.viewport.bounds` takes precedence over callback bounds. Invalid bounds or nonpositive/nonfinite scale values fall back to core defaults. Callback exceptions propagate to the application's error boundary. Page view ignores this callback. Scaling applies consistently to rendering and pointer coordinates; it does not reflow musical layout. Autoscroll is disabled while a viewport policy owns framing.
+
+`renderOverlay` receives the same geometry in scroll view; `geometry` is `null` in page view. Overlays must reserve space through the viewport and use `resolveAnchor` for source note identities. `ClefGlyph` and `MusicGlyph` are exported for decorations that use core glyph metrics and the active adapter. The stable styling hook `[data-riffscore-part="note"]` marks real note groups; it excludes entry previews.
+
+`ui.showScore: false` hides notation while keeping the API, history and custom controls mounted. It defaults to true. `renderControls` also exposes `playbackState` and `playbackEnabled`. A synchronous `controls.seek(measure, quant); controls.play()` starts at the new position. Seeking pauses playback. Disabling playback does not remove the host's explicit API authority.
+
+`riffscore/extensions` is a headless entry point containing contract version 1, capability names and `assertExtensionCompatibility`. This is an explicit compatibility check, not a registry, loader, license manager or global service container. React integrations use ordinary imports, props and providers.

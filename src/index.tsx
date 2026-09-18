@@ -84,3 +84,11 @@ export type {
   ScoreOverlayContext,
   RenderScoreOverlay,
 } from './components/Canvas/ScoreOverlay';
+
+export type {
+  ScoreViewGeometry,
+  ScoreStaffGeometry,
+  ResolveScoreViewport,
+} from './components/Canvas/ScoreGeometry';
+export { default as ClefGlyph } from './components/Assets/ClefGlyph';
+export { MusicGlyph } from './components/Assets/MusicGlyph';

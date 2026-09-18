@@ -294,6 +294,7 @@ const Note: React.FC<NoteProps> = React.memo(
 
     return (
       <g
+        data-riffscore-part={!isGhost ? 'note' : undefined}
         className={!isGhost ? 'note-group-container' : ''}
         onMouseEnter={() => handlers?.onMouseEnter?.(note?.id ?? 'note')}
         onMouseLeave={handlers?.onMouseLeave}

@@ -485,3 +485,20 @@ test('an explicit start measure starts at its beginning rather than carrying a p
   });
   expect(api.getPlaybackState()).toMatchObject({ measureIndex: 1, quant: 0 });
 });
+
+test('custom controls seek then play in the same tick uses the new position', async () => {
+  let controls!: import('../components/Layout/ScoreControls').ScoreControls;
+  render(
+    <RiffScore
+      renderControls={(value) => {
+        controls = value;
+        return null;
+      }}
+    />
+  );
+  await act(async () => {
+    controls.seek(1, 16);
+    await controls.play();
+  });
+  expect(controls.playbackState).toMatchObject({ isPlaying: true, measureIndex: 1, quant: 16 });
+});
