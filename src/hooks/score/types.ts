@@ -40,7 +40,12 @@ export interface ScoreToolsGroup {
  * Navigation domain - movement and transposition
  */
 export interface ScoreNavigationGroup {
-  move: (direction: string, isShift: boolean) => void;
+  move: (
+    direction: string,
+    isShift: boolean,
+    includeChordSymbols?: boolean,
+    includeEntryPositions?: boolean
+  ) => void;
   select: (
     measureIndex: number,
     eventId: string,

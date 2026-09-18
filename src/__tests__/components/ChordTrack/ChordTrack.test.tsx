@@ -190,7 +190,12 @@ describe('ChordTrack', () => {
       staves: [{ y: staffTop, index: 0, measures: [] }],
       notes,
       events: {},
-      vertical: { offsets: [], top: 0, bottom: 0, lyricBands: [] },
+      vertical: {
+        offsets: [],
+        top: Math.min(0, systemNoteBounds.top - staffTop),
+        bottom: 0,
+        lyricBands: [],
+      },
       getX: createMockGetX(),
       getY: {
         content: { top: staffTop, bottom: staffBottom },
@@ -287,48 +292,24 @@ describe('ChordTrack', () => {
       expect(screen.getByTestId('chord-symbol-chord-3')).toHaveAttribute('data-x', '448');
     });
 
-    describe('per-chord collision offset', () => {
-      // getChordYOffset lifts a chord only when the note at its quant sits ABOVE the system-wide
-      // note extent the track baseline was computed from. createMockLayout derives that extent
-      // from the same map, so no map can trigger it; report the two directly instead: the note
-      // under chord-1 (quant 0) tops out at 20 while the system-wide extent tops out at 60.
-      const noteTop = 20;
-      const systemTop = 60;
-      const base = createMockLayout();
+    describe('engraved bounds clearance', () => {
+      const base = createMockLayout(new Map([[0, 60]]));
+      // Stem/beam ink reaches y=0 even though the notehead is at y=60.
       const layoutWithHighNote: ScoreLayout = {
         ...base,
-        getY: {
-          ...base.getY,
-          notes: (quant?: number) =>
-            quant === 0 ? { top: noteTop, bottom: noteTop } : { top: systemTop, bottom: systemTop },
-        },
+        vertical: { ...base.vertical, top: -CONFIG.baseY },
       };
-      const { minDistanceFromStaff, paddingAboveNotes, minY } = CONFIG.chordTrack;
-      // Scroll view: baseline = max(minY, min(systemTop − padding, staffTop − minDistance)) = 40;
-      // chord-1's ideal Y (noteTop − padding = 0) is above it, so it is lifted to minY: −40.
-      const scrollTrackY = Math.max(
-        minY,
-        Math.min(systemTop - paddingAboveNotes, CONFIG.baseY - minDistanceFromStaff)
-      );
-      const scrollOffset = Math.max(minY, noteTop - paddingAboveNotes) - scrollTrackY;
-
-      it('lifts the chord in scroll view (the fixture is not vacuous)', () => {
-        expect(scrollOffset).toBeLessThan(0);
-
+      it('keeps all labels aligned above stems rather than just above noteheads', () => {
         render(
           <svg>
             <ChordTrack {...defaultProps} layout={layoutWithHighNote} />
           </svg>
         );
-
-        expect(screen.getByTestId('chord-track')).toHaveAttribute(
-          'transform',
-          `translate(0, ${scrollTrackY})`
-        );
+        expect(screen.getByTestId('chord-track')).toHaveAttribute('transform', 'translate(0, -30)');
         // eslint-disable-next-line testing-library/no-node-access
         expect(screen.getByTestId('chord-symbol-chord-1').parentElement).toHaveAttribute(
           'transform',
-          `translate(0, ${scrollOffset})`
+          'translate(0, 0)'
         );
       });
 
@@ -792,8 +773,8 @@ describe('ChordTrack', () => {
 
       const trackGroup = screen.getByTestId('chord-track');
 
-      // With high note at Y=30, trackY = 30 - PADDING_ABOVE_NOTES (20) = 10
-      expect(trackGroup).toHaveAttribute('transform', 'translate(0, 10)');
+      // Clearance includes half the centered label height: 30 - 20 - 10 = 0.
+      expect(trackGroup).toHaveAttribute('transform', 'translate(0, 0)');
     });
   });
 
@@ -823,7 +804,7 @@ describe('ChordTrack', () => {
     });
 
     it('ends the hit rect above the highest note in scroll view', () => {
-      // trackY = 30 - 20 = 10, band 10..50, note hit area top at 22
+      // Track baseline is 0; its full hit band -20..20 clears the note hit area at 22.
       render(
         <svg data-testid="test-svg">
           <ChordTrack {...defaultProps} layout={createMockLayout(new Map([[0, 30]]))} />
@@ -832,7 +813,7 @@ describe('ChordTrack', () => {
 
       const hitArea = screen.getByTestId('chord-track-hit-area');
       expect(hitArea).toHaveAttribute('y', '-20');
-      expect(hitArea).toHaveAttribute('height', '32');
+      expect(hitArea).toHaveAttribute('height', '40');
     });
 
     it('ends the hit rect above the highest note of the system in page view', () => {

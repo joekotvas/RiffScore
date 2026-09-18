@@ -13,7 +13,7 @@ export { ThemeProvider, useTheme } from './context/ThemeContext';
 export { ScoreProvider, useScoreContext } from './context/ScoreContext';
 
 // UI Components
-export { default as ConfigMenu } from '../demo/app/ConfigMenu';
+export { default as ConfigMenu } from './components/Layout/ConfigMenu';
 
 // Importers (ABC notation / MusicXML / JSON → Score), usable without a mounted editor
 export {
@@ -41,8 +41,25 @@ export type {
   Measure,
   Staff,
   RiffScoreConfig,
+  ChordRecognitionConfig,
+  EngravingConfig,
+  TupletConfig,
+  InteractionPolicy,
+  InteractionConfig,
+  ViewportConfig,
   AccidentalDisplay,
 } from './types';
 
 // API Types (Machine-Addressable Interface)
 export type { MusicEditorAPI, RiffScoreRegistry, APIEventType, Unsubscribe } from './api.types';
+
+export type { Theme, ThemeName } from './themes';
+
+export type { RiffScoreProps } from './RiffScore';
+export type {
+  ScoreControls,
+  RenderScoreControls,
+  PlaybackCursorState,
+} from './components/Layout/ScoreControls';
+
+export { recognizeChord, recognizeScoreChords } from './services/chord/ChordRecognition';

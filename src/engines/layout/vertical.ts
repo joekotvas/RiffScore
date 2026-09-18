@@ -152,3 +152,10 @@ export const calculateStaffOffsets = (
     lyricBands,
   };
 };
+
+/** Chord text is centered on its baseline; keep its lower edge clear of all engraved ink. */
+export const calculateChordTrackY = (staffTop: number, inkTop: number, fontSize = 20): number =>
+  Math.min(
+    staffTop - CONFIG.chordTrack.minDistanceFromStaff,
+    inkTop - CONFIG.chordTrack.paddingAboveNotes - fontSize / 2
+  );

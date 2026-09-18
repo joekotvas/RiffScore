@@ -6,6 +6,7 @@ import { calculateVerticalNavigation } from '@/utils/navigation/vertical';
 import { calculateNextSelection } from '@/utils/navigation/horizontal';
 import { SelectEventCommand } from '@/commands/selection';
 import { refuse } from '@/refusals';
+import { getMeasureCapacity } from '@/constants';
 
 /**
  * Navigation method names provided by this factory
@@ -64,9 +65,21 @@ export const createNavigationMethods = (
       const measures = staff.measures;
 
       if (direction === 'left' || direction === 'right') {
-        // Use calculateNextSelection for horizontal movement (same as keyboard). Feed the persisted
-        // ghost so stepping off/through a ghost engages the ghost branch (other params default).
-        const navResult = calculateNextSelection(measures, sel, direction, ghostPreview);
+        // Supply the same score and entry context as keyboard navigation. Defaults here would
+        // return bass event IDs on staff 0 and treat every meter as 4/4 (#322).
+        const { activeDuration, isDotted, inputMode } = ctx.getEntryState();
+        const navResult = calculateNextSelection(
+          measures,
+          sel,
+          direction,
+          ghostPreview,
+          activeDuration,
+          isDotted,
+          getMeasureCapacity(score.timeSignature),
+          staff.clef,
+          sel.staffIndex,
+          inputMode
+        );
 
         if (!navResult) {
           setResult({
@@ -167,7 +180,9 @@ export const createNavigationMethods = (
           // 'warning', contradicting the horizontal case and the registry. (#13)
           setResult({
             method: 'move',
-            ...refuse('BOUNDARY_REACHED', { message: `Cannot move ${direction} (boundary reached)` }),
+            ...refuse('BOUNDARY_REACHED', {
+              message: `Cannot move ${direction} (boundary reached)`,
+            }),
           });
         }
       }
@@ -193,11 +208,11 @@ export const createNavigationMethods = (
       let targetEventIndex: number;
 
       // Reserved tuplet slots are blank free space (packed at a group's end) — never a jump target.
-      const firstRealIndex = (events: typeof measures[number]['events']) => {
+      const firstRealIndex = (events: (typeof measures)[number]['events']) => {
         const idx = events.findIndex((e) => !e.reserved);
         return idx < 0 ? 0 : idx;
       };
-      const lastRealIndex = (events: typeof measures[number]['events']) => {
+      const lastRealIndex = (events: (typeof measures)[number]['events']) => {
         for (let i = events.length - 1; i >= 0; i--) if (!events[i].reserved) return i;
         return 0;
       };

@@ -2,6 +2,7 @@ import React from 'react';
 import { LAYOUT } from '@/constants';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
+import { getScoreHighlightColor } from '@/themes';
 import { getOffsetForPitch } from '@/engines/layout';
 import { NOTEHEADS, BRAVURA_FONT, getFontSize, DOTS, ACCIDENTALS } from '@/constants/SMuFL';
 import { NoteProps } from '@/componentTypes';
@@ -272,16 +273,10 @@ const Note: React.FC<NoteProps> = React.memo(
     const noteY =
       overrideY !== undefined ? overrideY : baseY + getOffsetForPitch(effectivePitch, clef);
 
-    // Determine color (preview uses accent color, same as selection)
+    // Hover (forwarded as selection), selection, and preview share the same notation ink.
     const color =
       overrideColor ||
-      (isGhost
-        ? theme.accent
-        : isSelected
-          ? theme.accent
-          : isPreview
-            ? theme.accent
-            : theme.score.note);
+      (isGhost || isSelected || isPreview ? getScoreHighlightColor(theme) : theme.score.note);
 
     // Dot Y position (move up if on a line)
     const relativeY = noteY - baseY;

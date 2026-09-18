@@ -80,6 +80,7 @@ export type AbcImportResult = AbcImportSuccess | AbcImportFailure;
 /** M: → internal 'n/d' time signature, or null when unsupported. */
 const parseMeter = (raw: string): string | null => {
   const v = raw.trim();
+  if (v.toLowerCase() === 'none') return 'none';
   if (v === 'C') return '4/4';
   if (v === 'C|') return '2/2';
   const m = v.match(/^\(?(\d+(?:\+\d+)*)\)?\/(\d+)$/);
@@ -109,6 +110,7 @@ const defaultUnitLength = (timeSignature: string): Frac => {
 
 /** The beat a bare `Q:120` counts: the dotted quarter in compound meters, else one denominator unit. */
 const beatLength = (timeSignature: string): Frac => {
+  if (timeSignature === 'none') return frac(1, 4);
   const [n, d] = timeSignature.split('/').map(Number);
   return d === 8 && n % 3 === 0 ? frac(3, 8) : frac(1, d);
 };
@@ -1249,6 +1251,7 @@ class TuneBuilder {
     // needs an event to anchor to, so a rest carrying one stays explicit.
     const [only] = voice.events;
     const wholeBarRest =
+      this.meter !== 'none' &&
       voice.events.length === 1 &&
       !!only.isRest &&
       only.duration === 'whole' &&

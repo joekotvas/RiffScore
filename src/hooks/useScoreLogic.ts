@@ -1,3 +1,4 @@
+import type { ChordRecognitionConfig } from '@/types';
 /**
  * useScoreLogic Hook
  *
@@ -91,7 +92,10 @@ import type {
  * @see ScoreContext - Context provider that wraps this hook
  * @internal Orchestrator hook, use via ScoreContext in most cases
  */
-export const useScoreLogic = (initialScore?: Partial<Score>) => {
+export const useScoreLogic = (
+  initialScore?: Partial<Score>,
+  recognition?: ChordRecognitionConfig
+) => {
   // --- STATE ---
   // Memoize migration to prevent re-execution on every render
   // Uses useMemo since initialScore may change (though typically only once at mount)
@@ -103,7 +107,7 @@ export const useScoreLogic = (initialScore?: Partial<Score>) => {
   }, [initialScore]);
 
   // --- ENGINE INTEGRATION ---
-  const { score, engine } = useScoreEngine(migratedInitialScore);
+  const { score, engine } = useScoreEngine(migratedInitialScore, recognition);
   const { dispatch, beginTransaction, commitTransaction, rollbackTransaction } =
     useTransactionBatching(engine);
 

@@ -15,7 +15,7 @@ import {
   unionExtents,
   type StaffExtent,
 } from './vertical';
-import { TIME_SIGNATURES } from '@/constants';
+import { getMeasureTiming } from '@/services/MeasureTiming';
 import { getNoteDuration } from '@/utils/core';
 import {
   calculateSystemPreamble,
@@ -223,7 +223,8 @@ const buildMeasureGeometries = (
   keySignature: string,
   timeSignature: string,
   forcedPositions: Record<number, number>[],
-  stretchFor: (measureIndex: number) => number = () => 1.0
+  stretchFor: (measureIndex: number) => number = () => 1.0,
+  stemDirection?: 'up' | 'down'
 ): MeasureGeometry[][] =>
   score.staves.map((staff, staffIdx) => {
     const clef = staff.clef || (staffIdx === 0 ? 'treble' : 'bass');
@@ -238,13 +239,15 @@ const buildMeasureGeometries = (
         stretchFor(measureIdx),
         keySignature,
         tieStops,
-        timeSignature
+        timeSignature,
+        stemDirection
       );
       const beamGroups = calculateBeamingGroups(
         measure.events,
         relativeLayout.eventPositions,
         clef,
-        timeSignature
+        timeSignature,
+        stemDirection
       );
       // Pass the beams so a beamed tuplet's bracket can run parallel to its beam.
       const tupletGroups = calculateTupletBrackets(
@@ -292,7 +295,19 @@ export const calculateMeasureExtents = (
  * @param score - The score data
  * @returns ScoreLayout object containing full position maps and getX function
  */
-export const calculateScoreLayout = (score: Score): ScoreLayout => {
+export interface ScoreLayoutOptions {
+  /** Restrict sizing to a rendered window while retaining global measure coordinates. */
+  visibleMeasures?: readonly number[];
+  spacing?: 'natural' | 'justify';
+  measureWidth?: number;
+  stemDirection?: 'up' | 'down';
+}
+
+export const calculateScoreLayout = (
+  score: Score,
+  options: ScoreLayoutOptions = {}
+): ScoreLayout => {
+  const { measureWidth, stemDirection, spacing } = options;
   // Default getX for empty scores - returns null for any position
   const emptyGetX = Object.assign(
     (_params: { measure: number; quant: number }): number | null => null,
@@ -342,18 +357,37 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
   const { widths: synchronizedWidths, forcedPositions: synchronizedForcedPositions } =
     calculateSystemMetrics(score.staves, scoreKeySignature, scoreTimeSignature);
 
+  // Compact embeds can spread the music across their host without enlarging glyphs.
+  const naturalWidth = synchronizedWidths.reduce(
+    (sum, width, index) =>
+      sum + (!options.visibleMeasures || options.visibleMeasures.includes(index) ? width : 0),
+    0
+  );
+  const stretch =
+    spacing !== 'natural' && measureWidth && naturalWidth > 0
+      ? Math.max(1, measureWidth / naturalWidth)
+      : 1;
+
   // 2. Per-measure geometry (event positions, beams, tuplet brackets, drawn extent), computed
   //    once per staff so the vertical layout can be settled before any absolute Y is assigned.
   const geometries = buildMeasureGeometries(
     score,
     scoreKeySignature,
     scoreTimeSignature,
-    synchronizedForcedPositions
+    synchronizedForcedPositions,
+    () => stretch,
+    stemDirection
   );
 
   // 3. Content-aware staff distance: the default spacing, opened where ink or lyric bands need it.
   const vertical = calculateStaffOffsets(
-    geometries.map((measures) => unionExtents(measures.map((m) => m.extent))),
+    geometries.map((measures) =>
+      unionExtents(
+        measures
+          .filter((_, index) => !options.visibleMeasures || options.visibleMeasures.includes(index))
+          .map((m) => m.extent)
+      )
+    ),
     score.staves.map((staff) => staff.lyricLines ?? 0)
   );
 
@@ -371,7 +405,12 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
     let currentMeasureX = preamble.measuresX;
 
     staff.measures.forEach((measure, measureIdx) => {
-      const width = synchronizedWidths[measureIdx];
+      const trailingSpace =
+        spacing === 'natural' &&
+        measureIdx === (options.visibleMeasures?.at(-1) ?? staff.measures.length - 1)
+          ? Math.max(0, (measureWidth ?? 0) - naturalWidth)
+          : 0;
+      const width = synchronizedWidths[measureIdx] * stretch + trailingSpace;
       const forcedPos = synchronizedForcedPositions[measureIdx];
       const { relativeLayout, beamGroups, tupletGroups } = geometries[staffIdx][measureIdx];
 
@@ -380,7 +419,9 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
         y: staffY,
         width,
         events: {},
-        syncedEventPositions: forcedPos,
+        syncedEventPositions: Object.fromEntries(
+          Object.entries(forcedPos).map(([quant, x]) => [quant, x * stretch])
+        ),
         beamGroups,
         tupletGroups,
         legacyLayout: relativeLayout,
@@ -405,8 +446,7 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
   });
 
   // --- Build getX function (measure-relative) ---
-  const timeSignature = scoreTimeSignature;
-  const quantsPerMeasure = TIME_SIGNATURES[timeSignature] || TIME_SIGNATURES['4/4'];
+  const measureTiming = getMeasureTiming(score);
 
   // Build per-measure quant→X map (measure-relative coordinates)
   // Map<measureIndex, Map<localQuant, relativeX>>
@@ -463,7 +503,7 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
 
     // Stage 2: Interpolation fallback
     // Calculate relative X within the measure based on quant proportion
-    const proportion = quant / quantsPerMeasure;
+    const proportion = quant / Math.max(1, measureTiming.spans[measure]);
     // Use measure width minus padding for content area
     return (
       CONFIG.measurePaddingLeft +
@@ -539,7 +579,7 @@ export const calculateScoreLayout = (score: Score): ScoreLayout => {
     let localQuant = 0;
     for (const event of measure.events) {
       if (event.id === noteLayout.eventId) {
-        const globalQuant = noteLayout.measureIndex * quantsPerMeasure + localQuant;
+        const globalQuant = measureTiming.starts[noteLayout.measureIndex] + localQuant;
 
         const currentTop = noteTopByQuant.get(globalQuant) ?? Infinity;
         if (noteLayout.y < currentTop) noteTopByQuant.set(globalQuant, noteLayout.y);

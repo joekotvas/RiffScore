@@ -12,7 +12,7 @@ import { NOTE_SPACING_BASE_UNIT, WHOLE_REST_WIDTH, LAYOUT } from '@/constants';
 import { ScoreEvent, MeasureLayout, HitZone, Note, ChordLayout } from './types';
 import { getNoteWidth, calculateChordLayout } from './positioning';
 import { beamedEventIds } from './beaming';
-import { inkAdvance } from './ink';
+import { inkAdvance, collisionAdvance } from './ink';
 import { getTupletGroup, getTupletUnifiedDirection } from './tuplets';
 import { pitchHasAlteration } from '@/services/MusicService';
 import { resolveMeasureAccidentals, type AccidentalGlyphDecision } from '@/utils/accidentalContext';
@@ -84,6 +84,7 @@ interface EventProcessResult {
 
 /** Context passed to event processors */
 interface ProcessingContext {
+  stemDirection?: 'up' | 'down';
   currentX: number;
   currentQuant: number;
   clef: string;
@@ -99,6 +100,7 @@ interface ProcessingContext {
   beamedIds?: ReadonlySet<string>;
   /** The event after the one being processed (undefined at the barline), for ink clearance. */
   nextEvent?: ScoreEvent;
+  previousEvent?: ScoreEvent;
 }
 
 // --- HELPER: Hit Zone Management ---
@@ -177,14 +179,15 @@ const createEventHitZones = (
  * @param clef - Current clef ('treble' or 'bass')
  * @returns Object containing chordLayout, totalWidth, accidentalSpace, offsets, and baseWidth
  */
-const getEventMetrics = (
+export const getEventMetrics = (
   event: ScoreEvent,
   clef: string,
   accidentalGlyphs?: Record<string, AccidentalGlyphDecision | null>,
   beamed = false,
-  nextEvent?: ScoreEvent
+  nextEvent?: ScoreEvent,
+  stemDirection?: 'up' | 'down'
 ) => {
-  const chordLayout = calculateChordLayout(event.notes, clef);
+  const chordLayout = calculateChordLayout(event.notes, clef, stemDirection);
   // Reserve accidental width for the glyph the renderer will actually DRAW.
   // When the resolved glyph map is available (key threaded in), reserve iff a
   // glyph shows — this catches a cancelling natural (pitch carries no alteration
@@ -280,6 +283,24 @@ const createEmptyMeasureLayout = (): MeasureLayout => {
   };
 };
 
+/** Keep the actual rendered anchors clear, regardless of rhythmic compression. */
+const clearPreviousInk = (x: number, event: ScoreEvent, ctx: ProcessingContext): number => {
+  if (!ctx.previousEvent || !ctx.accidentalGlyphs || !ctx.beamedIds) return x;
+  return Math.max(
+    x,
+    (ctx.previousEvent.x ?? 0) +
+      collisionAdvance(
+        ctx.previousEvent,
+        event,
+        ctx.clef,
+        ctx.accidentalGlyphs,
+        ctx.beamedIds,
+        undefined,
+        ctx.stemDirection
+      )
+  );
+};
+
 // --- EXTRACTED: Regular Event Processor ---
 
 /**
@@ -301,7 +322,8 @@ const processRegularEvent = (
     ctx.clef,
     ctx.accidentalGlyphs,
     ctx.beamedIds?.has(event.id) ?? false,
-    ctx.nextEvent
+    ctx.nextEvent,
+    ctx.stemDirection
   );
 
   // Apply sync override if provided
@@ -312,7 +334,8 @@ const processRegularEvent = (
 
   // Compensate for negative offsets (down-stem seconds)
   const negativeCompensation = Math.abs(metrics.minOffset);
-  const noteheadX = baseX + metrics.accidentalSpace + negativeCompensation;
+  const requestedX = baseX + metrics.accidentalSpace + negativeCompensation;
+  const noteheadX = clearPreviousInk(requestedX, event, ctx);
 
   const processedEvent: ScoreEvent = {
     ...event,
@@ -334,7 +357,7 @@ const processRegularEvent = (
     processedEvents: [processedEvent],
     hitZones,
     eventPositions: { [event.id]: noteheadX },
-    widthConsumed: metrics.totalWidth + negativeCompensation,
+    widthConsumed: metrics.totalWidth + negativeCompensation + noteheadX - requestedX,
     quantsConsumed: getNoteDuration(event.duration, event.dotted, event.tuplet),
   };
 };
@@ -360,7 +383,7 @@ const processTupletGroup = (
   const startEvent = events[startIndex];
   const { ratio } = startEvent.tuplet!;
 
-  const unifiedDirection = getTupletUnifiedDirection(tupletGroup, ctx.clef);
+  const unifiedDirection = ctx.stemDirection ?? getTupletUnifiedDirection(tupletGroup, ctx.clef);
 
   const processedEvents: ScoreEvent[] = [];
   const hitZones: HitZone[] = [];
@@ -377,18 +400,36 @@ const processTupletGroup = (
   tupletGroup.forEach((tupletEvent) => {
     const evtIndex = events.indexOf(tupletEvent);
 
-    // Calculate compressed width for tuplet — but never less than the ink bound: a flagged
-    // member (drawn with the group's unified stem direction) or a short rest must still clear
-    // the next event's glyph, inside the tuplet and after it.
+    const metrics = getEventMetrics(
+      tupletEvent,
+      ctx.clef,
+      ctx.accidentalGlyphs,
+      ctx.beamedIds?.has(tupletEvent.id) ?? false,
+      events[evtIndex + 1],
+      unifiedDirection
+    );
+    const { chordLayout, minOffset, maxOffset } = metrics;
     const originalWidth = getNoteWidth(tupletEvent.duration, tupletEvent.dotted);
     const flagged = !tupletEvent.isRest && !(ctx.beamedIds?.has(tupletEvent.id) ?? false);
     const ink = inkAdvance(tupletEvent, events[evtIndex + 1], flagged, unifiedDirection);
-    const tupletWidth = Math.max(originalWidth * Math.sqrt(ratio[1] / ratio[0]), ink);
-
-    // Recalculate chord layout with unified direction
-    const chordLayout = calculateChordLayout(tupletEvent.notes, ctx.clef, unifiedDirection);
-    const minOffset = Math.min(0, ...Object.values(chordLayout.noteOffsets), 0);
-    const maxOffset = Math.max(0, ...Object.values(chordLayout.noteOffsets), 0);
+    // Compress rhythm only. Accidentals, chord displacement, and ink stay full size.
+    const tupletWidth = Math.max(
+      originalWidth * Math.sqrt(ratio[1] / ratio[0]) +
+        metrics.totalWidth -
+        metrics.accidentalSpace -
+        originalWidth,
+      ink
+    );
+    x = ctx.forcedEventPositions?.[quant] ?? x;
+    x += metrics.accidentalSpace + Math.abs(minOffset);
+    x = clearPreviousInk(
+      x,
+      { ...tupletEvent, chordLayout },
+      {
+        ...ctx,
+        previousEvent: processedEvents.at(-1) ?? ctx.previousEvent,
+      }
+    );
 
     eventPositions[tupletEvent.id] = x;
 
@@ -468,7 +509,8 @@ export const calculateMeasureLayout = (
   stretchFactor: number = 1.0,
   keySignature: string = 'C',
   tieStops?: ReadonlySet<string>,
-  timeSignature: string = '4/4'
+  timeSignature: string = '4/4',
+  stemDirection?: 'up' | 'down'
 ): MeasureLayout => {
   // 1. Handle Empty Measure
   if (events.length === 0) {
@@ -502,11 +544,13 @@ export const calculateMeasureLayout = (
     const ctx: ProcessingContext = {
       currentX,
       currentQuant,
+      stemDirection,
       clef,
       forcedEventPositions,
       accidentalGlyphs,
       beamedIds,
       nextEvent: events[index + 1],
+      previousEvent: processedEvents.at(-1),
     };
 
     const isTupletStart = event.tuplet && event.tuplet.position === 0;
@@ -541,7 +585,7 @@ export const calculateMeasureLayout = (
     // Lookahead Padding for the next event's RENDERED accidental glyph (the same
     // resolved decision used for width above), so a cancelling natural reserves
     // lookahead space too.
-    const nextEvent = events[index + 1];
+    const nextEvent = events[index + result.processedEvents.length];
     if (nextEvent && nextEvent.notes.some((n: Note) => accidentalGlyphs[n.id] != null)) {
       currentX += NOTE_SPACING_BASE_UNIT * LAYOUT.LOOKAHEAD_PADDING_FACTOR;
     }

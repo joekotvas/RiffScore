@@ -7,6 +7,8 @@ import React, {
   useLayoutEffect,
 } from 'react';
 import { THEMES, Theme, ThemeName, DEFAULT_THEME } from '@/config';
+import { getScoreHighlightColor } from '@/themes';
+import type { DeepPartial } from '@/types';
 import { DEFAULT_SCALE } from '@/constants';
 
 interface ThemeContextType {
@@ -49,6 +51,7 @@ export function themeCSSVariables(theme: Theme): Record<string, string> {
     '--riff-color-score-line': theme.score.line,
     '--riff-color-score-note': theme.score.note,
     '--riff-color-score-fill': theme.score.fill,
+    '--riff-color-score-highlight': getScoreHighlightColor(theme),
   };
 }
 
@@ -67,10 +70,12 @@ export const ThemeOverride: React.FC<{ theme: Theme; children: React.ReactNode }
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 };
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode; initialTheme?: ThemeName }> = ({
-  children,
-  initialTheme,
-}) => {
+export const ThemeProvider: React.FC<{
+  children: React.ReactNode;
+  initialTheme?: ThemeName;
+  overrides?: DeepPartial<Theme>;
+  scoped?: boolean;
+}> = ({ children, initialTheme, overrides, scoped = false }) => {
   const [themeName, setThemeName] = useState<ThemeName>(initialTheme || DEFAULT_THEME);
   const [zoom, setZoom] = useState(DEFAULT_SCALE);
   const [containerRef, setContainerRef] = useState<HTMLElement | null>(null);
@@ -83,13 +88,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode; initialTheme?:
     }
   }, [initialTheme]);
 
-  const theme = THEMES[themeName];
+  const theme = useMemo((): Theme => {
+    const base = THEMES[themeName];
+    return { ...base, ...overrides, score: { ...base.score, ...overrides?.score } };
+  }, [themeName, overrides]);
 
   // Inject CSS variables synchronously before paint to prevent FOUC
   // When containerRef is set, inject into that element for scoped theming
   useLayoutEffect(() => {
-    injectThemeCSSVariables(theme, containerRef);
-  }, [theme, containerRef]);
+    if (!scoped || containerRef) injectThemeCSSVariables(theme, containerRef);
+  }, [theme, containerRef, scoped]);
 
   return (
     <ThemeContext.Provider

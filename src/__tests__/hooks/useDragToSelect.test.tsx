@@ -30,17 +30,25 @@ function Harness({
   notePositions,
   onSelectionComplete,
   pageIndex,
+  scale = 1,
+  originX = 0,
+  originY = 0,
 }: {
   notePositions: NotePos[];
   onSelectionComplete: jest.Mock;
   pageIndex?: number;
+  scale?: number;
+  originX?: number;
+  originY?: number;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { handleMouseDown, isDragging, selectionRect } = useDragToSelect({
     svgRef,
     notePositions,
     onSelectionComplete,
-    scale: 1,
+    scale,
+    originX,
+    originY,
   });
 
   return (
@@ -87,6 +95,28 @@ describe('useDragToSelect', () => {
       false
     );
     expect(screen.queryByTestId('rect')).toBeNull();
+  });
+
+  it('selects notes in a scaled, cropped snippet using its viewBox origin', () => {
+    const onSelectionComplete = jest.fn();
+    render(
+      <Harness
+        notePositions={[note({ x: 110, y: 90 })]}
+        onSelectionComplete={onSelectionComplete}
+        scale={0.5}
+        originX={100}
+        originY={80}
+      />
+    );
+    drag(screen.getByTestId('background'), [0, 0], [25, 25]);
+    expect(screen.getByTestId('rect')).toHaveAttribute('x', '100');
+    expect(screen.getByTestId('rect')).toHaveAttribute('y', '80');
+    expect(screen.getByTestId('rect')).toHaveAttribute('width', '50');
+    fireEvent.mouseUp(document);
+    expect(onSelectionComplete).toHaveBeenCalledWith(
+      [{ staffIndex: 0, measureIndex: 0, eventId: 'e', noteId: 'n' }],
+      false
+    );
   });
 
   it('restricts the selection to the page the drag started on', () => {

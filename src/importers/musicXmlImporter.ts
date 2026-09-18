@@ -183,8 +183,7 @@ const readClef = (el: XmlElement, warnings: Warnings, where: string): ClefType =
 /** <time> → 'n/d', or null when it carries no usable meter (a warning is added when so). */
 const readTime = (el: XmlElement, warnings: Warnings, where: string): string | null => {
   if (xmlChild(el, 'senza-misura')) {
-    warnings.add('meter-free', 'Unmeasured music (senza misura) was imported in 4/4', where);
-    return null;
+    return 'none';
   }
   const beats = xmlChildren(el, 'beats');
   const types = xmlChildren(el, 'beat-type');
@@ -913,7 +912,11 @@ const resolveWritten = (
     );
   }
   if (ev.measureRest && !ev.timeMod) {
-    return { quants: ev.duration.n > 0 ? roundQuants(ev.duration) : capacity, tuplet: null };
+    return {
+      quants:
+        ev.duration.n > 0 ? roundQuants(ev.duration) : Number.isFinite(capacity) ? capacity : 64,
+      tuplet: null,
+    };
   }
   if (ev.timeMod) {
     // Inside a tuplet the written value is what the model stores; the ratio restores the sound.
@@ -988,6 +991,7 @@ const buildMeasure = (raw: RawEvent[], m: RawMeasure, ctx: BuildContext): Measur
   // A lone whole-bar rest is the model's empty bar — unless a chord symbol needs it as an anchor.
   const only = raw.length === 1 ? raw[0] : null;
   if (
+    Number.isFinite(capacity) &&
     only &&
     only.isRest &&
     !ctx.hasChord &&

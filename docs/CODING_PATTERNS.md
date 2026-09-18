@@ -289,8 +289,8 @@ Use `reflowScore` when changing time signatures or redistributing events.
 // See src/utils/core.ts
 import { getNoteDuration, calculateTotalQuants } from '@/utils/core';
 
-// Calculate duration in "quants" (96 per whole note)
-const dur = getNoteDuration('quarter', true); // dotted quarter = 36 quants
+// Calculate duration in "quants" (64 per whole note)
+const dur = getNoteDuration('quarter', true); // dotted quarter = 24 quants
 
 // Sum total time of events
 const totalTime = calculateTotalQuants(myEvents);

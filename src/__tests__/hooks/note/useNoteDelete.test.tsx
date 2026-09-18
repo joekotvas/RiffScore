@@ -55,14 +55,20 @@ describe('useNoteDelete', () => {
       };
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef: emptyRef() })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef: emptyRef(),
+        })
       );
 
       act(() => {
         result.current.deleteSelected();
       });
 
-      expect(mockDispatch).toHaveBeenCalledTimes(3);
+      expect(mockDispatch).toHaveBeenCalledTimes(1);
       expect(DeleteNoteCommand).toHaveBeenCalledTimes(3);
       expect(mockSelect).toHaveBeenCalledWith(null, null, null, 0);
     });
@@ -79,7 +85,13 @@ describe('useNoteDelete', () => {
       };
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef: emptyRef() })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef: emptyRef(),
+        })
       );
       act(() => result.current.deleteSelected());
 
@@ -91,7 +103,7 @@ describe('useNoteDelete', () => {
       });
     });
 
-    it('does NOT stash for a true multi-note (>1) selection — one undo only restores the last (#257)', () => {
+    it('does not pick an arbitrary primary note to restore for a multi-note selection', () => {
       const selection: Selection = {
         ...createDefaultSelection(),
         measureIndex: 0,
@@ -105,7 +117,13 @@ describe('useNoteDelete', () => {
       };
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef: emptyRef() })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef: emptyRef(),
+        })
       );
       act(() => result.current.deleteSelected());
 
@@ -126,7 +144,13 @@ describe('useNoteDelete', () => {
       };
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef: emptyRef() })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef: emptyRef(),
+        })
       );
 
       act(() => {
@@ -150,7 +174,13 @@ describe('useNoteDelete', () => {
       };
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef: emptyRef() })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef: emptyRef(),
+        })
       );
 
       act(() => {
@@ -172,7 +202,13 @@ describe('useNoteDelete', () => {
       };
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef: emptyRef() })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef: emptyRef(),
+        })
       );
 
       act(() => {
@@ -197,7 +233,13 @@ describe('useNoteDelete', () => {
       const scoreRef = refTo(scoreWith([ev('e1', ['C4']), ev('e2', ['D4'])]));
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef,
+        })
       );
       act(() => result.current.deleteSelected());
 
@@ -218,7 +260,13 @@ describe('useNoteDelete', () => {
       const scoreRef = refTo(scoreWith([ev('e1', ['C4']), ev('e2', ['D4'])]));
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef,
+        })
       );
       act(() => result.current.deleteSelected());
 
@@ -237,7 +285,13 @@ describe('useNoteDelete', () => {
       const scoreRef = refTo(scoreWith([ev('e1', ['C4', 'E4', 'G4'])]));
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef,
+        })
       );
       act(() => result.current.deleteSelected());
 
@@ -256,7 +310,13 @@ describe('useNoteDelete', () => {
       const scoreRef = refTo(scoreWith([ev('e1', ['C4']), ev('e2', ['D4'])]));
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef,
+        })
       );
       act(() => result.current.deleteSelected());
 
@@ -275,7 +335,13 @@ describe('useNoteDelete', () => {
       const scoreRef = refTo(scoreWith([ev('e1', ['C4', 'E4', 'G4'])]));
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef,
+        })
       );
       act(() => result.current.deleteSelected());
 
@@ -294,7 +360,13 @@ describe('useNoteDelete', () => {
       const scoreRef = refTo(scoreWith([ev('e1', ['C4'])]));
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef,
+        })
       );
       act(() => result.current.deleteSelected());
 
@@ -320,7 +392,13 @@ describe('useNoteDelete', () => {
       const scoreRef = refTo(scoreWith([ev('e1', ['C4']), ev('e2', ['D4'])]));
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef,
+        })
       );
       act(() => result.current.deleteSelected());
 
@@ -338,7 +416,13 @@ describe('useNoteDelete', () => {
       };
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef: emptyRef() })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef: emptyRef(),
+        })
       );
 
       act(() => {
@@ -358,7 +442,13 @@ describe('useNoteDelete', () => {
       };
 
       const { result } = renderHook(() =>
-        useNoteDelete({ selection, select: mockSelect, dispatch: mockDispatch, selectionEngine: mockSelectionEngine, scoreRef: emptyRef() })
+        useNoteDelete({
+          selection,
+          select: mockSelect,
+          dispatch: mockDispatch,
+          selectionEngine: mockSelectionEngine,
+          scoreRef: emptyRef(),
+        })
       );
 
       act(() => {

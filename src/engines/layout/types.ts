@@ -70,6 +70,8 @@ export interface BeamSegment {
 }
 
 export interface TupletBracketGroup {
+  /** Midpoint of a primary beam spanning exactly this complete tuplet, if present. */
+  beamCenter?: { x: number; y: number };
   startX: number;
   endX: number;
   startY: number;

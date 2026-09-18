@@ -1,3 +1,4 @@
+import { getMeasureTiming } from '@/services/MeasureTiming';
 import { NOTE_TYPES, KEY_SIGNATURES, getMeasureCapacity } from '@/constants';
 import { DEFAULT_SCORE_METADATA } from '@/config';
 import { padMeasureForExport } from './exportNormalize';
@@ -559,6 +560,8 @@ const renderFullMeasureRest = (
   divisions: number,
   staffNumber?: number
 ): string => {
+  // A zero-length unmetered bar has no rhythmic content to represent as a rest.
+  if (measureSpanQuants === 0) return '';
   const staffTag = staffNumber === undefined ? '' : `\n      <staff>${staffNumber}</staff>`;
   return `
     <note>
@@ -571,6 +574,7 @@ export const generateMusicXML = (score: Score): string => {
   const staves = score.staves || [getActiveStaff(score)];
   const timeSig = score.timeSignature || '4/4';
   const measureCapacity = getMeasureCapacity(timeSig);
+  const measureTiming = getMeasureTiming(score);
 
   // Per-score <divisions>: derived from tuplet content so every duration is an
   // exact integer number of divisions (no floor/truncation of tuplet rhythm).
@@ -596,6 +600,7 @@ export const generateMusicXML = (score: Score): string => {
   const measureNumberFor = (mIndex: number): number => (hasPickup ? mIndex : mIndex + 1);
   const isImplicit = (mIndex: number): boolean => hasPickup && mIndex === 0;
   const measureSpanQuantsFor = (mIndex: number): number => {
+    if (timeSig === 'none') return measureTiming.spans[mIndex];
     if (!isImplicit(mIndex)) return measureCapacity;
 
     const firstMeasure = staves[0]?.measures[mIndex];
@@ -686,8 +691,12 @@ export const generateMusicXML = (score: Score): string => {
         <mode>${keySigData?.mode ?? 'major'}</mode>
       </key>
       <time>
-        <beats>${timeSig.split('/')[0]}</beats>
-        <beat-type>${timeSig.split('/')[1]}</beat-type>
+        ${
+          timeSig === 'none'
+            ? '<senza-misura/>'
+            : `<beats>${timeSig.split('/')[0]}</beats>
+        <beat-type>${timeSig.split('/')[1]}</beat-type>`
+        }
       </time>`;
       if (isGrandStaff) {
         xml += `

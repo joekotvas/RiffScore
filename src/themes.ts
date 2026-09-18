@@ -139,5 +139,12 @@ export interface Theme {
     line: string;
     note: string;
     fill: string;
+    /** Hover, selection, and entry-preview ink. Defaults to the UI accent. */
+    highlight?: string;
   };
+}
+
+/** Resolve notation interaction ink independently of the UI accent. */
+export function getScoreHighlightColor(theme: Theme): string {
+  return theme.score.highlight ?? theme.accent;
 }

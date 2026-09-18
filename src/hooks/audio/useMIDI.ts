@@ -16,7 +16,8 @@ export const useMIDI = (
   activeDuration: string,
   isDotted: boolean,
   activeAccidental: Accidental,
-  scoreRef: React.MutableRefObject<Score>
+  scoreRef: React.MutableRefObject<Score>,
+  enabled = true
 ) => {
   const [midiStatus, setMidiStatus] = useState<{
     connected: boolean;
@@ -48,8 +49,11 @@ export const useMIDI = (
   }, [addChordCallback]);
 
   useEffect(() => {
+    if (!enabled) return;
+    let disposed = false;
     const initMIDI = async () => {
       const { inputs, access, error } = await requestMIDIAccess();
+      if (disposed) return;
       if (error) {
         setMidiStatus({ connected: false, deviceName: null, error });
         return;
@@ -108,11 +112,14 @@ export const useMIDI = (
     initMIDI();
 
     return () => {
+      disposed = true;
+      if (midiChordTimer.current) clearTimeout(midiChordTimer.current);
+      midiChordBuffer.current = [];
       if (midiCleanupRef.current) midiCleanupRef.current();
     };
     // scoreRef is intentionally omitted - it's stable and only used in callbacks
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [enabled]);
 
   return { midiStatus };
 };

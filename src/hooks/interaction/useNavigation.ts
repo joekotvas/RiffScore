@@ -62,7 +62,12 @@ interface UseNavigationReturn {
     selectAllInEvent?: boolean,
     isShift?: boolean
   ) => void;
-  moveSelection: (direction: string, isShift: boolean) => void;
+  moveSelection: (
+    direction: string,
+    isShift: boolean,
+    includeChordSymbols?: boolean,
+    includeEntryPositions?: boolean
+  ) => void;
   transposeSelection: (direction: string, isShift: boolean) => void;
   switchStaff: (direction: 'up' | 'down') => void;
 }
@@ -101,7 +106,12 @@ export const useNavigation = ({
   );
 
   const moveSelection = useCallback(
-    (direction: string, isShift: boolean = false) => {
+    (
+      direction: string,
+      isShift: boolean = false,
+      includeChordSymbols = true,
+      includeEntryPositions = true
+    ) => {
       const isAtGhostPosition = !selection.eventId || selection.measureIndex === null;
 
       // Navigation from ghost position now uses calculateNextSelection
@@ -127,7 +137,12 @@ export const useNavigation = ({
       // --- 1. Handle Chord Track Horizontal Navigation ---
       // When chord track is focused, left/right navigates between chords
       const isHorizontalNav = direction === 'left' || direction === 'right';
-      if (selection.chordTrackFocused && selection.chordId && isHorizontalNav) {
+      if (
+        includeChordSymbols &&
+        selection.chordTrackFocused &&
+        selection.chordId &&
+        isHorizontalNav
+      ) {
         const chordResult = calculateChordHorizontalNavigation(
           scoreRef.current.chordTrack,
           selection.chordId,
@@ -152,7 +167,7 @@ export const useNavigation = ({
       // --- 2. Handle Vertical Navigation (CMD+Up/Down) ---
       if (isVerticalNav) {
         const vertResult = calculateVerticalNavigation(
-          scoreRef.current,
+          includeChordSymbols ? scoreRef.current : { ...scoreRef.current, chordTrack: [] },
           activeSel,
           direction as 'up' | 'down',
           activeDuration,
@@ -234,7 +249,7 @@ export const useNavigation = ({
       }
 
       // --- 4. Standard Horizontal Navigation (Left/Right) ---
-      const navResult = calculateNextSelection(
+      let navResult = calculateNextSelection(
         activeStaff.measures,
         activeSel,
         direction as 'left' | 'right',
@@ -246,6 +261,34 @@ export const useNavigation = ({
         activeStaffIndex,
         inputMode
       );
+
+      // Restricted views navigate real events only; skip entry gaps without creating
+      // measures or clearing the final selection at either end of the phrase.
+      if (!includeEntryPositions) {
+        const maxSteps = activeStaff.measures.reduce(
+          (sum, measure) => sum + measure.events.length + 1,
+          1
+        );
+        for (
+          let step = 0;
+          navResult?.previewNote && !navResult.selection?.eventId && step < maxSteps;
+          step++
+        ) {
+          navResult = calculateNextSelection(
+            activeStaff.measures,
+            { ...activeSel, measureIndex: null, eventId: null, noteId: null },
+            direction as 'left' | 'right',
+            navResult.previewNote,
+            activeDuration,
+            isDotted,
+            currentQuantsPerMeasure,
+            activeStaff.clef,
+            activeStaffIndex,
+            inputMode
+          );
+        }
+        if (!navResult?.selection?.eventId || navResult.shouldCreateMeasure) return;
+      }
 
       if (!navResult) return;
 

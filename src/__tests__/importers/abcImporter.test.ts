@@ -101,9 +101,9 @@ describe('ABC importer — header', () => {
 
     it('defaults to 4/4 without M:, and for an unsupported meter with a warning', () => {
       expect(ok('X:1\nK:C\nC|').timeSignature).toBe('4/4');
-      const r = parseABC('X:1\nM:none\nK:C\nC|');
+      const r = parseABC('X:1\nM:invalid\nK:C\nC|');
       expect(r.ok && r.score.timeSignature).toBe('4/4');
-      expect(r.warnings).toEqual([expect.stringMatching(/Unsupported meter "M:none"/)]);
+      expect(r.warnings).toEqual([expect.stringMatching(/Unsupported meter "M:invalid"/)]);
       expect(warningsOf('X:1\nM:4/3\nK:C\nC|')).toEqual([
         expect.stringMatching(/Unsupported meter/),
       ]);

@@ -1,6 +1,7 @@
 import { useCallback, RefObject } from 'react';
 import { Score, Selection, getValidStaff } from '@/types';
 import { Command } from '@/commands/types';
+import { BatchCommand } from '@/commands/BatchCommand';
 import { DeleteNoteCommand } from '@/commands/DeleteNoteCommand';
 import { DeleteEventCommand } from '@/commands/DeleteEventCommand';
 import type { SelectionEngine } from '@/engines/SelectionEngine';
@@ -86,20 +87,15 @@ export function useNoteDelete({
     // or arrow-key nav produces (SetSelectionCommand/NavigateCommand populate selectedNotes with one
     // entry == the primary) — deliberately falls through to the single-selection path below so it
     // re-anchors to a surviving neighbor / chord sibling (the M2 UX intent) instead of clearing to
-    // null. A genuine multi-delete clears (which survivor to anchor is ambiguous) and is left
-    // unstashed: it dispatches N separate history entries, so one undo would only restore the last.
+    // null. A genuine multi-delete clears selection and is one atomic history entry,
+    // just like transposing a selection that spans several measures or linked views.
     if (selection.selectedNotes && selection.selectedNotes.length > 1) {
-      const notesToDelete = [...selection.selectedNotes];
-      notesToDelete.forEach((note) => {
-        if (note.noteId) {
-          dispatch(
-            new DeleteNoteCommand(note.measureIndex, note.eventId, note.noteId, note.staffIndex)
-          );
-        } else {
-          // Fallback: delete event if no noteId
-          dispatch(new DeleteEventCommand(note.measureIndex, note.eventId, note.staffIndex));
-        }
-      });
+      const commands = selection.selectedNotes.map((note) =>
+        note.noteId
+          ? new DeleteNoteCommand(note.measureIndex, note.eventId, note.noteId, note.staffIndex)
+          : new DeleteEventCommand(note.measureIndex, note.eventId, note.staffIndex)
+      );
+      dispatch(new BatchCommand(commands, 'Delete selection'));
       select(null, null, null, selection.staffIndex);
       return;
     }

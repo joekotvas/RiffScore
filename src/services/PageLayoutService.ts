@@ -64,7 +64,12 @@ import {
 } from '@/constants';
 import { calculateMeasureExtents } from '@/engines/layout/scoreLayout';
 import { calculateStretchFactor } from '@/engines/layout/measure';
-import { calculateStaffOffsets, unionExtents, EMPTY_STAFF_EXTENT } from '@/engines/layout/vertical';
+import {
+  calculateStaffOffsets,
+  calculateChordTrackY,
+  unionExtents,
+  EMPTY_STAFF_EXTENT,
+} from '@/engines/layout/vertical';
 
 // =============================================================================
 // CONSTANTS
@@ -680,10 +685,6 @@ export const calculatePageLayout = (
   const ledgerZoneAbove = MEASURE_HIT_AREA_TOP_OFFSET * staffScale;
   const ledgerZoneBelow =
     (MEASURE_HIT_AREA_HEIGHT - MEASURE_HIT_AREA_TOP_OFFSET - STAFF_GEOMETRY.height) * staffScale;
-  const chordZone =
-    (score.chordTrack?.length ?? 0) > 0
-      ? (CONFIG.chordTrack.minDistanceFromStaff + CONFIG.chordTrack.hitBandHalfHeight) * staffScale
-      : 0;
 
   // Spacing between system slots on pages that are not full (full pages are justified). The
   // slots already carry the ledger/chord headroom, so only the packing minimum (scaled by the
@@ -758,6 +759,9 @@ export const calculatePageLayout = (
     const vertical = calculateStaffOffsets(systemExtents, lyricLines);
     const lastStaffTop = vertical.offsets[vertical.offsets.length - 1] ?? 0;
     const systemHeight = (lastStaffTop + STAFF_HEIGHT) * staffScale;
+    const chordZone = score.chordTrack?.some((chord) => systemMeasures.includes(chord.measure))
+      ? (-calculateChordTrackY(0, vertical.top) + CONFIG.chordTrack.hitBandHalfHeight) * staffScale
+      : 0;
     const paddingTop = Math.max(ledgerZoneAbove, chordZone, -vertical.top * staffScale);
     const paddingBottom = Math.max(
       ledgerZoneBelow,
@@ -771,6 +775,7 @@ export const calculatePageLayout = (
       height: systemHeight,
       paddingTop,
       paddingBottom,
+      inkTop: vertical.top * staffScale,
       staffOffsets: vertical.offsets.map((offset) => offset * staffScale),
       xOffset,
       contentWidth: systemContentWidth,

@@ -9,6 +9,8 @@ interface TupletBracketProps {
   endY: number; // Y position at end
   number: number; // e.g., 3, 5, 7
   direction: 'up' | 'down';
+  beamCenter?: { x: number; y: number };
+  hideBracketWhenBeamed?: boolean;
 }
 
 /**
@@ -23,6 +25,8 @@ const TupletBracket: React.FC<TupletBracketProps> = ({
   endY,
   number,
   direction,
+  beamCenter,
+  hideBracketWhenBeamed = false,
 }) => {
   const { theme } = useTheme();
 
@@ -45,8 +49,11 @@ const TupletBracket: React.FC<TupletBracketProps> = ({
     L ${endX} ${endY + hookLength}
   `;
 
-  const centerX = (startX + endX) / 2;
-  const centerY = (startY + endY) / 2;
+  const numberOnly = hideBracketWhenBeamed && beamCenter !== undefined;
+  const centerX = numberOnly ? beamCenter.x : (startX + endX) / 2;
+  const centerY = numberOnly
+    ? beamCenter.y + (direction === 'up' ? -TUPLET.NUMBER_BEAM_PADDING : TUPLET.NUMBER_BEAM_PADDING)
+    : (startY + endY) / 2;
 
   // Position text relative to the center of the bracket line
   const textY =
@@ -55,7 +62,7 @@ const TupletBracket: React.FC<TupletBracketProps> = ({
   return (
     <g className="tuplet-bracket">
       {/* Bracket line */}
-      <path d={path} stroke={theme.score.note} strokeWidth="1" fill="none" />
+      {!numberOnly && <path d={path} stroke={theme.score.note} strokeWidth="1" fill="none" />}
 
       {/* Number label */}
       <text
