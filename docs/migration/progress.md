@@ -33,9 +33,9 @@ Before we could expose any functionality, we needed to define *what* the API sho
 
 We started with pure abstraction: define the types first, implement later.
 
-- **[PR #94](https://github.com/joekotvas/RiffScore/pull/94)** introduced `api.types.ts` with the complete `MusicEditorAPI` interface—50 method signatures covering every planned capability ([Issue #86](https://github.com/joekotvas/RiffScore/issues/86)).
+- **historical PR 94** introduced `api.types.ts` with the complete `MusicEditorAPI` interface—50 method signatures covering every planned capability (historical issue 86).
 
-- **[PR #95](https://github.com/joekotvas/RiffScore/pull/95)** built the "glue layer": `useScoreAPI` hook and the Registry pattern ([Issue #87](https://github.com/joekotvas/RiffScore/issues/87)). Now any script could call `window.riffScore.get('my-id')` and receive a typed API handle.
+- **historical PR 95** built the "glue layer": `useScoreAPI` hook and the Registry pattern (historical issue 87). Now any script could call `window.riffScore.get('my-id')` and receive a typed API handle.
 
 ### The Result
 
@@ -65,17 +65,17 @@ All of this was scattered across UI components, tightly coupled to React state. 
 
 We introduced `SelectionEngine`—a Redux-like state machine that processes selection commands:
 
-- **[PR #97](https://github.com/joekotvas/RiffScore/pull/97)**: Core engine with `SelectEventCommand` and `NavigateCommand` ([Issue #89](https://github.com/joekotvas/RiffScore/issues/89))
-- **[PR #98](https://github.com/joekotvas/RiffScore/pull/98)**: Six additional commands for every selection pattern
-- **[PR #105](https://github.com/joekotvas/RiffScore/pull/105)**: `SelectAllCommand` with progressive expansion and the critical **Shift+Arrow gap resilience** bug fix ([Issue #100](https://github.com/joekotvas/RiffScore/issues/100))
+- **historical PR 97**: Core engine with `SelectEventCommand` and `NavigateCommand` (historical issue 89)
+- **historical PR 98**: Six additional commands for every selection pattern
+- **historical PR 105**: `SelectAllCommand` with progressive expansion and the critical **Shift+Arrow gap resilience** bug fix (historical issue 100)
 
-The hardest problem was **vertical selection**. When you press Cmd+Shift+Down on a chord, which notes should be selected? We developed a "slice-based" algorithm that treats the score as a 2D grid (time × pitch), documented in **[ADR-001](../adr/001-vertical-selection.md)** ([PR #111](https://github.com/joekotvas/RiffScore/pull/111)).
+The hardest problem was **vertical selection**. When you press Cmd+Shift+Down on a chord, which notes should be selected? We developed a "slice-based" algorithm that treats the score as a 2D grid (time × pitch), documented in **[ADR-001](../adr/001-vertical-selection.md)** (historical PR 111).
 
 ### The Result
 
 41 new tests. A unified command-dispatch architecture. Selection logic that could be tested in isolation and called from scripts.
 
-> **Room for growth**: The slice-based vertical selection handles most cases well, but edge cases remain ([#124](https://github.com/joekotvas/RiffScore/issues/124), [#109](https://github.com/joekotvas/RiffScore/issues/109)).
+> **Room for growth**: The slice-based vertical selection handles most cases well, but edge cases remain (historical issue 124, historical issue 109).
 
 ---
 
@@ -85,14 +85,14 @@ The hardest problem was **vertical selection**. When you press Cmd+Shift+Down on
 
 ### The Challenge
 
-External scripts need to know when things change. React's `useEffect` works inside components, but what about a plugin running in a `<script>` tag? 
+External scripts need to know when things change. React's `useEffect` works inside components, but what about a plugin running in a `<script>` tag?
 
 Additionally, when a script adds 16 notes in a loop, that shouldn't create 16 undo steps. We needed **atomic transactions**.
 
 ### The Approach
 
-- **[PR #114](https://github.com/joekotvas/RiffScore/pull/114)**: Event subscriptions with `api.on('score', callback)` ([Issue #90](https://github.com/joekotvas/RiffScore/issues/90), [ADR-002](../adr/002-event-subscriptions.md))
-- **[PR #115](https://github.com/joekotvas/RiffScore/pull/115)**: Transaction batching with `beginTransaction`/`commitTransaction` ([Issue #91](https://github.com/joekotvas/RiffScore/issues/91), [ADR-003](../adr/003-transaction-batching.md))
+- **historical PR 114**: Event subscriptions with `api.on('score', callback)` (historical issue 90, [ADR-002](../adr/002-event-subscriptions.md))
+- **historical PR 115**: Transaction batching with `beginTransaction`/`commitTransaction` (historical issue 91, [ADR-003](../adr/003-transaction-batching.md))
 
 ### The Result
 
@@ -120,10 +120,10 @@ api.commitTransaction('Scale Run'); // Single undo step
 
 A multi-stage refactoring effort:
 
-- **[PR #118](https://github.com/joekotvas/RiffScore/pull/118)**: Extracted `interaction.ts` into navigation modules ([Issue #79](https://github.com/joekotvas/RiffScore/issues/79))
-- **[PR #120](https://github.com/joekotvas/RiffScore/pull/120)**: Split `useScoreAPI` into domain-specific factories (`entry.ts`, `navigation.ts`, `selection.ts`, etc.) ([ADR-004](../adr/004-api-factory-pattern.md))
-- **[PR #128](https://github.com/joekotvas/RiffScore/pull/128)-[#130](https://github.com/joekotvas/RiffScore/pull/130)**: Extracted entry utilities and updated all consumers ([Issues #125](https://github.com/joekotvas/RiffScore/issues/125), [#126](https://github.com/joekotvas/RiffScore/issues/126), [#127](https://github.com/joekotvas/RiffScore/issues/127))
-- **[PR #136](https://github.com/joekotvas/RiffScore/pull/136)**: Consolidated selection handlers ([Issue #135](https://github.com/joekotvas/RiffScore/issues/135))
+- **historical PR 118**: Extracted `interaction.ts` into navigation modules (historical issue 79)
+- **historical PR 120**: Split `useScoreAPI` into domain-specific factories (`entry.ts`, `navigation.ts`, `selection.ts`, etc.) ([ADR-004](../adr/004-api-factory-pattern.md))
+- **historical PR 128-historical PR 130**: Extracted entry utilities and updated all consumers (Issues #125 (historical issue 125), historical issue 126, historical issue 127)
+- **historical PR 136**: Consolidated selection handlers (historical issue 135)
 
 ### The Result
 
@@ -141,13 +141,13 @@ Clean, single-responsibility modules. Each API domain in its own file. Navigatio
 
 Two critical issues surfaced:
 
-1. **Stale State Bug**: `api.getScore()` sometimes returned outdated data because it read from React state, which updates asynchronously ([Issue #140](https://github.com/joekotvas/RiffScore/issues/140)).
+1. **Stale State Bug**: `api.getScore()` sometimes returned outdated data because it read from React state, which updates asynchronously (historical issue 140).
 2. **Missing Clefs**: Alto and tenor clefs (essential for viola, cello, trombone) weren't supported.
 
 ### The Approach
 
-- **[PR #141](https://github.com/joekotvas/RiffScore/pull/141)**: Made `getScore()` read directly from `ScoreEngine.getState()`, bypassing React's render cycle ([ADR-006](../adr/006-synchronous-api-engine-access.md))
-- **[PR #142](https://github.com/joekotvas/RiffScore/pull/142)**: Full C-clef support with an extensible `CLEF_REFERENCE` pattern ([ADR-007](../adr/007-open-closed-clef-reference.md))
+- **historical PR 141**: Made `getScore()` read directly from `ScoreEngine.getState()`, bypassing React's render cycle ([ADR-006](../adr/006-synchronous-api-engine-access.md))
+- **historical PR 142**: Full C-clef support with an extensible `CLEF_REFERENCE` pattern ([ADR-007](../adr/007-open-closed-clef-reference.md))
 
 ### The Result
 
@@ -171,11 +171,11 @@ A systematic sweep through every stub:
 
 | Phase | PR | Methods Wired |
 |:------|:---|:--------------|
-| 7A | [#144](https://github.com/joekotvas/RiffScore/pull/144) | `loadScore`, `export`, `deleteMeasure`, `setClef`, `setKeySignature`, `setTimeSignature` |
-| 7B | [#145](https://github.com/joekotvas/RiffScore/pull/145) | `setBpm`, `setTheme`, `setScale`, `setInputMode`, `setAccidental`, `reset` |
-| 7C | [#147](https://github.com/joekotvas/RiffScore/pull/147) | `selectAtQuant`, `addToSelection`, `selectRangeTo`, `selectFullEvents` |
-| 7D | [#149](https://github.com/joekotvas/RiffScore/pull/149) | `play`, `pause`, `stop`, `rewind`, `setInstrument` |
-| 7E | [#151](https://github.com/joekotvas/RiffScore/pull/151) | `setDuration`, `transpose`, `addMeasure(atIndex)` |
+| 7A | historical PR 144 | `loadScore`, `export`, `deleteMeasure`, `setClef`, `setKeySignature`, `setTimeSignature` |
+| 7B | historical PR 145 | `setBpm`, `setTheme`, `setScale`, `setInputMode`, `setAccidental`, `reset` |
+| 7C | historical PR 147 | `selectAtQuant`, `addToSelection`, `selectRangeTo`, `selectFullEvents` |
+| 7D | historical PR 149 | `play`, `pause`, `stop`, `rewind`, `setInstrument` |
+| 7E | historical PR 151 | `setDuration`, `transpose`, `addMeasure(atIndex)` |
 
 ### The Result
 
@@ -197,7 +197,7 @@ The API worked, but it wasn't safe. Invalid inputs could cause silent failures o
 
 We implemented a "fail-soft" philosophy ([ADR-008](../adr/008-observability-patterns.md)):
 
-- **[PR #152](https://github.com/joekotvas/RiffScore/pull/152)** & **[#153](https://github.com/joekotvas/RiffScore/pull/153)**: 
+- **historical PR 152** & **historical PR 153**:
   - Input validation for `addNote`, `setBpm`, `setDuration`, `setInstrument`
   - Batch events (`on('batch')`) with labeled transactions
   - Structured warnings instead of exceptions
@@ -227,7 +227,7 @@ As the `ScoreEvent` model became more complex (tuplets, ties, multiple notes per
 
 We shifted from property-based commands to object-based commands:
 
-- **[ADR-014](../adr/014-complete-event-objects.md)**: Established the "Complete Event Objects" principle ([PR #199](https://github.com/joekotvas/RiffScore/pull/199)).
+- **[ADR-014](../adr/014-complete-event-objects.md)**: Established the "Complete Event Objects" principle (historical PR 199).
 - **`InsertEventCommand`**: Created a unified, atomic command that handles complete `ScoreEvent` objects, ensuring data integrity for tuplets and future properties.
 - **Placement Utilities**: Extracted placement logic (calculating where to insert or split) into a dedicated utility layer, separating "finding the spot" from "performing the mutation."
 
@@ -295,8 +295,8 @@ A substantially more robust entry system. Complex musical structures like tuplet
 - [ ] **MusicXML Import**: Currently export-only
 
 ### Known Deferred Issues
-- [#124](https://github.com/joekotvas/RiffScore/issues/124): Horizontal selection extension edge case
-- [#131](https://github.com/joekotvas/RiffScore/issues/131): Tuplet bracket visual alignment
+- historical issue 124: Horizontal selection extension edge case
+- historical issue 131: Tuplet bracket visual alignment
 
 ---
 

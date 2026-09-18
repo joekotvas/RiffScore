@@ -113,5 +113,5 @@ Analysis of the current hook architecture identified one additional candidate fo
 
 
 - [CODING_PATTERNS.md § Composition Hooks](../CODING_PATTERNS.md)
-- [Issue #116](https://github.com/joekotvas/RiffScore/issues/116) - Analysis that led to this decision
+- historical issue 116 - Analysis that led to this decision
 - [ADR-009: Explicit Pattern Governance](./009-explicit-pattern-governance.md)

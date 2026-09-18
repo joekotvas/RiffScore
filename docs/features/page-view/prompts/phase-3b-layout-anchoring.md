@@ -1,6 +1,6 @@
 # Phase 3b: Layout Anchoring & Margin Correctness
 
-**Issue:** [#174](https://github.com/joekotvas/riffscore/issues/174)
+**Issue:** historical issue 174
 **Estimated Effort:** 1-2 days
 **Dependencies:** Phase 3 (Multi-System Rendering)
 

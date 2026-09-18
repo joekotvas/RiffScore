@@ -1,7 +1,7 @@
 # Chord Symbols - Software Requirements Specification
 
 **Feature:** Chord Symbols with Flexible Notation and Playback
-**Issue:** [#29](https://github.com/joekotvas/riffscore/issues/29)
+**Issue:** historical issue 29
 **Status:** Draft
 **Date:** 2026-02-12
 **Parent:** [PRD.md](./PRD.md)

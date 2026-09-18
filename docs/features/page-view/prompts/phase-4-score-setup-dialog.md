@@ -1,6 +1,6 @@
 # Phase 4: Score Setup Dialog
 
-**Issue:** [#174](https://github.com/joekotvas/riffscore/issues/174)
+**Issue:** historical issue 174
 **Estimated Effort:** 2-3 days
 **Dependencies:** Phase 2 (Commands & API)
 
