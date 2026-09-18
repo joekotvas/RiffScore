@@ -6,7 +6,7 @@
  * @tested src/__tests__/services/ChordService.test.ts
  */
 
-import { TIME_SIGNATURES } from '@/constants';
+import { getMeasureCapacity } from '@/constants';
 import { parseKey, getEffectiveScale } from '@/utils/keyResolution';
 
 // ============================================================================
@@ -77,5 +77,5 @@ export const getScaleForKey = (keySignature: string): readonly string[] =>
  * @returns Number of quants per measure
  */
 export const getQuantsPerMeasure = (timeSignature: string): number => {
-  return TIME_SIGNATURES[timeSignature as keyof typeof TIME_SIGNATURES] || 64;
+  return getMeasureCapacity(timeSignature);
 };

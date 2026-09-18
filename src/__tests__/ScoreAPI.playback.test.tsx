@@ -8,7 +8,6 @@
 import { render, act } from '@testing-library/react';
 import { RiffScore } from '../RiffScore';
 import { ThemeProvider } from '@/context/ThemeContext';
-import { resetPlaybackState } from '@/hooks/api/playback';
 import type { MusicEditorAPI } from '../api.types';
 
 const getAPI = (id: string): MusicEditorAPI => {
@@ -83,7 +82,6 @@ import { DEFAULT_CHORD_PLAYBACK } from '@/types';
 describe('ScoreAPI Playback Methods', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    resetPlaybackState();
     (toneIsPlaying as jest.Mock).mockReturnValue(false);
   });
 
@@ -376,4 +374,45 @@ describe('ScoreAPI Playback Methods', () => {
       expect(scheduleScorePlayback).toHaveBeenCalled();
     });
   });
+});
+
+it('retains resume position per API instance without leaking it into another editor', async () => {
+  render(
+    <>
+      <RiffScore id="resume-first" />
+      <RiffScore id="resume-second" />
+    </>
+  );
+  await act(async () => {
+    await getAPI('resume-first').play(1, 16);
+  });
+  await act(async () => {
+    await getAPI('resume-second').play();
+  });
+  expect(jest.mocked(scheduleScorePlayback).mock.calls.at(-1)?.[4]).toBe(0);
+});
+
+it('starts at the requested rest position instead of skipping ahead to a melody onset', async () => {
+  render(
+    <RiffScore id="rest-start" config={{ score: { abc: 'X:1\nM:4/4\nL:1/4\nK:C\n"C"z2 C2|' } }} />
+  );
+  jest
+    .mocked(createTimeline)
+    .mockReturnValueOnce([
+      {
+        time: 1,
+        duration: 1,
+        pitch: 'C4',
+        frequency: 261.63,
+        type: 'note',
+        measureIndex: 0,
+        eventIndex: 1,
+        staffIndex: 0,
+        quant: 32,
+      },
+    ]);
+  await act(async () => {
+    await getAPI('rest-start').play(0, 0);
+  });
+  expect(jest.mocked(scheduleScorePlayback).mock.calls.at(-1)?.[4]).toBe(0);
 });

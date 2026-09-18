@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
+import { getScoreHighlightColor } from '@/themes';
 import { REST_GLYPHS, BRAVURA_FONT, getFontSize, DOTS } from '@/constants/SMuFL';
 
 interface RestProps {
@@ -61,9 +62,9 @@ export const Rest: React.FC<RestProps> = ({
     return null;
   }
 
-  // Color: accent for ghost/selected/hovered, normal otherwise
+  // Color: highlight for ghost/selected/hovered, normal otherwise
   const showHighlight = isGhost || isSelected || (isHovered && onClick);
-  const color = showHighlight ? theme.accent : theme.score.note;
+  const color = showHighlight ? getScoreHighlightColor(theme) : theme.score.note;
   const finalX = x > 0 ? x : CONFIG.measurePaddingLeft;
   const restY = getRestY(duration, baseY);
   const fontSize = getFontSize(CONFIG.lineHeight);

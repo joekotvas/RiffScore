@@ -1,4 +1,4 @@
-import { TIME_SIGNATURES } from '@/constants';
+import { getMeasureTiming } from './MeasureTiming';
 import { getNoteDuration } from '@/utils/core';
 import { findTieTarget } from '@/utils/ties';
 import { getFrequency } from './MusicService';
@@ -33,28 +33,8 @@ export const createTimeline = (score: Score, bpm: number): TimelineEvent[] => {
   const staves = score.staves || [getActiveStaff(score)];
   if (staves.length === 0) return [];
 
-  const timeSig = score.timeSignature || '4/4';
-  const firstStaffMeasures = staves[0].measures;
-
-  // 1. Calculate Start Times for each Measure (Global Grid)
-  const measureStartTimes: number[] = [];
-  let currentGlobalTime = 0;
-
-  firstStaffMeasures.forEach((measure: Measure) => {
-    measureStartTimes.push(currentGlobalTime);
-
-    // Calculate duration of this measure
-    let measureQuants;
-    if (measure.isPickup) {
-      measureQuants = measure.events.reduce(
-        (acc: number, e: ScoreEvent) => acc + getNoteDuration(e.duration, e.dotted, e.tuplet),
-        0
-      );
-    } else {
-      measureQuants = TIME_SIGNATURES[timeSig as keyof typeof TIME_SIGNATURES] || 64;
-    }
-    currentGlobalTime += measureQuants * secondsPerQuant;
-  });
+  const timing = getMeasureTiming(score, true);
+  const measureStartTimes = timing.starts.map((quant) => quant * secondsPerQuant);
 
   // Sub-interface for internal processing
   interface RawNoteEvent {

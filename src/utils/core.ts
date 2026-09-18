@@ -170,6 +170,9 @@ export const tupletsFitTimeSignature = (
 export const reflowScore = (measures: Measure[], newTimeSignature: string): Measure[] => {
   // Capacity comes from the single source of truth (derives any n/d, not just the fast-path table),
   // so reflow can never disagree with the validators about how many quants fill a bar.
+  // Removing the meter preserves explicit barlines and chord anchors; only the capacity changes.
+  if (newTimeSignature === 'none')
+    return measures.map((measure) => ({ ...measure, isPickup: false }));
   const maxQuants = getMeasureCapacity(newTimeSignature);
   const isPickup = measures.length > 0 && measures[0].isPickup;
 

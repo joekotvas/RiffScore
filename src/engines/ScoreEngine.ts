@@ -1,4 +1,5 @@
-import { Score, createDefaultScore } from '@/types';
+import { Score, ChordRecognitionConfig, createDefaultScore } from '@/types';
+import { recognizeScoreChords } from '@/services/chord/ChordRecognition';
 import { Command } from '@/commands/types';
 import { BatchCommand } from '@/commands/BatchCommand';
 import { BatchEventPayload } from '@/api.types';
@@ -14,8 +15,54 @@ export class ScoreEngine {
   private history: Command[] = [];
   private redoStack: Command[] = [];
 
-  constructor(initialScore?: Score) {
-    this.state = initialScore || createDefaultScore();
+  private mutationGuards: Array<{
+    allows: (before: Score, after: Score) => boolean;
+    rejected: boolean;
+  }> = [];
+
+  /** Scope validation to one synchronous UI action; other views and host API calls
+   * keep their own permissions. Always unwind, including when an action throws. */
+  public withMutationGuard<T>(
+    allows: (before: Score, after: Score) => boolean,
+    action: () => T
+  ): { value: T; accepted: boolean } {
+    const guard = { allows, rejected: false };
+    this.mutationGuards.push(guard);
+    try {
+      const value = action();
+      return { value, accepted: !guard.rejected };
+    } finally {
+      this.mutationGuards.pop();
+    }
+  }
+
+  private allowsMutation(next: Score): boolean {
+    let allowed = true;
+    for (const guard of this.mutationGuards) {
+      if (guard.rejected || !guard.allows(this.state, next)) {
+        guard.rejected = true;
+        allowed = false;
+      }
+    }
+    return allowed;
+  }
+
+  constructor(
+    initialScore?: Score,
+    private recognition?: ChordRecognitionConfig
+  ) {
+    this.state = recognizeScoreChords(initialScore || createDefaultScore(), recognition);
+  }
+
+  public setChordRecognition(config?: ChordRecognitionConfig): void {
+    if (
+      this.recognition?.enabled === config?.enabled &&
+      this.recognition?.staffIndex === config?.staffIndex &&
+      this.recognition?.includeBass === config?.includeBass
+    )
+      return;
+    this.recognition = config;
+    this.setState(this.state);
   }
 
   public getHistory(): Command[] {
@@ -30,14 +77,24 @@ export class ScoreEngine {
     return this.state;
   }
 
-  public setState(newState: Score) {
-    if (!newState || !newState.staves) {
-      logger.logValidationFailure('Attempted to set invalid state in ScoreEngine', newState);
-      return;
+  /** Normalize derived musical data before evaluating an operation's final state. */
+  private prepareState(candidate: Score): Score | null {
+    if (!candidate || !candidate.staves) {
+      logger.logValidationFailure('Attempted to set invalid state in ScoreEngine', candidate);
+      return null;
     }
+    const next = recognizeScoreChords(candidate, this.recognition);
+    return this.allowsMutation(next) ? next : null;
+  }
 
-    this.state = newState;
+  private commitState(next: Score): void {
+    this.state = next;
     this.notifyListeners();
+  }
+
+  public setState(newState: Score): void {
+    const next = this.prepareState(newState);
+    if (next) this.commitState(next);
   }
 
   public dispatch(command: Command, options: { addToHistory?: boolean } = {}): boolean {
@@ -45,20 +102,15 @@ export class ScoreEngine {
     const { addToHistory = true } = options;
 
     try {
-      const newState = command.execute(this.state);
-
-      if (!newState || !newState.staves) {
-        logger.logValidationFailure(`Command ${command.type} returned invalid state`, newState);
-        // Don't update state if invalid
-        return false;
-      }
+      const next = this.prepareState(command.execute(this.state));
+      if (!next) return false;
 
       if (addToHistory) {
         this.history.push(command);
         this.redoStack = []; // Clear redo stack on new action
       }
 
-      this.setState(newState);
+      this.commitState(next);
       return true;
     } catch (error) {
       logger.log(`Error executing command ${command.type}`, error, LogLevel.ERROR);
@@ -72,6 +124,7 @@ export class ScoreEngine {
    * Assumes the state has already been updated by individual commands in the batch.
    */
   public commitBatch(batchCommand: Command) {
+    if (this.mutationGuards.some((guard) => guard.rejected)) return;
     logger.log('Committing batch transaction', batchCommand);
     this.history.push(batchCommand);
     this.redoStack = [];
@@ -93,20 +146,24 @@ export class ScoreEngine {
   }
 
   public undo() {
-    const command = this.history.pop();
+    const command = this.history.at(-1);
     if (command) {
-      const newState = command.undo(this.state);
+      const next = this.prepareState(command.undo(this.state));
+      if (!next) return;
+      this.history.pop();
       this.redoStack.push(command);
-      this.setState(newState);
+      this.commitState(next);
     }
   }
 
   public redo() {
-    const command = this.redoStack.pop();
+    const command = this.redoStack.at(-1);
     if (command) {
-      const newState = command.execute(this.state);
+      const next = this.prepareState(command.execute(this.state));
+      if (!next) return;
+      this.redoStack.pop();
       this.history.push(command);
-      this.setState(newState);
+      this.commitState(next);
     }
   }
 
@@ -125,10 +182,23 @@ export class ScoreEngine {
   }
 
   private notifyListeners() {
-    this.listeners.forEach((listener) => listener(this.state));
+    // An observer failure cannot turn an already committed operation into a refusal.
+    this.listeners.forEach((listener) => {
+      try {
+        listener(this.state);
+      } catch (error) {
+        logger.log('Score subscriber failed after commit', error, LogLevel.ERROR);
+      }
+    });
   }
 
   private notifyBatchListeners(payload: BatchEventPayload) {
-    this.batchListeners.forEach((listener) => listener(payload));
+    this.batchListeners.forEach((listener) => {
+      try {
+        listener(payload);
+      } catch (error) {
+        logger.log('Batch subscriber failed after commit', error, LogLevel.ERROR);
+      }
+    });
   }
 }

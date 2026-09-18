@@ -5,7 +5,8 @@
  * and derives initial score state from config options.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useSyncExternalStore } from 'react';
+import { InteractionConfigStore } from '@/services/InteractionConfigStore';
 import { RiffScoreConfig, DeepPartial, Score } from '@/types';
 import { mergeRiffConfig } from '@/utils/mergeConfig';
 import { generateStaves } from '@/utils/generateScore';
@@ -15,6 +16,7 @@ import { logger, LogLevel } from '@/utils/debug';
 export interface UseRiffScoreResult {
   config: RiffScoreConfig;
   initialScore: Score;
+  interaction: InteractionConfigStore;
 }
 
 /**
@@ -29,7 +31,21 @@ export interface UseRiffScoreResult {
  */
 export const useRiffScore = (userConfig: DeepPartial<RiffScoreConfig> = {}): UseRiffScoreResult => {
   // 1. Merge with defaults
-  const config = useMemo(() => mergeRiffConfig(userConfig), [userConfig]);
+  const baseConfig = useMemo(() => mergeRiffConfig(userConfig), [userConfig]);
+  const [interaction] = useState(() => new InteractionConfigStore(baseConfig.interaction));
+  useEffect(
+    () => interaction.setBase(baseConfig.interaction),
+    [interaction, baseConfig.interaction]
+  );
+  const interactionConfig = useSyncExternalStore(
+    interaction.subscribe,
+    interaction.getSnapshot,
+    interaction.getSnapshot
+  );
+  const config = useMemo(
+    () => ({ ...baseConfig, interaction: interactionConfig }),
+    [baseConfig, interactionConfig]
+  );
 
   // 2. Derive initial score. The memo keys on the seed values themselves, not the merged config
   //    object (rebuilt on every host render), so a multi-megabyte MusicXML seed is parsed once.
@@ -63,5 +79,5 @@ export const useRiffScore = (userConfig: DeepPartial<RiffScoreConfig> = {}): Use
     return { title, timeSignature, keySignature, bpm, staves: generatedStaves };
   }, [abc, musicxml, staves, staff, measureCount, title, timeSignature, keySignature, bpm]);
 
-  return { config, initialScore };
+  return { config, initialScore, interaction };
 };

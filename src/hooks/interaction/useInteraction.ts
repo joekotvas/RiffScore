@@ -57,7 +57,12 @@ export interface UseInteractionReturn {
     selectAllInEvent?: boolean,
     isShift?: boolean
   ) => void;
-  moveSelection: (direction: string, isShift: boolean) => void;
+  moveSelection: (
+    direction: string,
+    isShift: boolean,
+    includeChordSymbols?: boolean,
+    includeEntryPositions?: boolean
+  ) => void;
   transposeSelection: (direction: string, isShift: boolean) => void;
   switchStaff: (direction: 'up' | 'down') => void;
   focusScore: () => void;

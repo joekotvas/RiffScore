@@ -1,3 +1,4 @@
+import { createScreenToSvgTransform } from '@/utils/svgCoordinates';
 import { useState, useCallback, useEffect, useMemo, RefObject } from 'react';
 
 interface DragSelectState {
@@ -35,6 +36,8 @@ interface UseDragToSelectProps {
   onEmptyClick?: () => void; // Called when clicking empty space without dragging
   scale: number;
   enabled?: boolean;
+  originX?: number;
+  originY?: number;
 }
 
 const isTextEntryElement = (el: HTMLElement): boolean =>
@@ -57,6 +60,8 @@ export const useDragToSelect = ({
   onSelectionComplete,
   scale,
   enabled = true,
+  originX = 0,
+  originY = 0,
 }: UseDragToSelectProps): UseDragToSelectReturn => {
   const [dragState, setDragState] = useState<DragSelectState>({
     isDragging: false,
@@ -163,8 +168,12 @@ export const useDragToSelect = ({
       if (!svgElement) return;
 
       const rect = svgElement.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / scale;
-      const y = (e.clientY - rect.top) / scale;
+      const coordinates = svgElement.querySelector('[data-score-coordinates]');
+      const local = coordinates
+        ? createScreenToSvgTransform(coordinates)?.(e.clientX, e.clientY)
+        : null;
+      const x = local?.x ?? (e.clientX - rect.left) / scale + originX;
+      const y = local?.y ?? (e.clientY - rect.top) / scale + originY;
 
       setDragState({
         isDragging: true,
@@ -185,7 +194,7 @@ export const useDragToSelect = ({
 
       e.preventDefault();
     },
-    [enabled, svgRef, scale]
+    [enabled, svgRef, scale, originX, originY]
   );
 
   // Handle mouse move during drag
@@ -197,8 +206,12 @@ export const useDragToSelect = ({
       if (!svgElement) return;
 
       const rect = svgElement.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / scale;
-      const y = (e.clientY - rect.top) / scale;
+      const coordinates = svgElement.querySelector('[data-score-coordinates]');
+      const local = coordinates
+        ? createScreenToSvgTransform(coordinates)?.(e.clientX, e.clientY)
+        : null;
+      const x = local?.x ?? (e.clientX - rect.left) / scale + originX;
+      const y = local?.y ?? (e.clientY - rect.top) / scale + originY;
 
       setDragState((prev) => ({
         ...prev,
@@ -250,6 +263,8 @@ export const useDragToSelect = ({
     onSelectionComplete,
     svgRef,
     scale,
+    originX,
+    originY,
   ]);
 
   return {

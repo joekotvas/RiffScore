@@ -28,6 +28,18 @@ describe('mergeConfig', () => {
       expect(result.ui.showToolbar).toBe(true); // Preserved from default
     });
 
+    it('merges an optional chord display override without replacing sibling defaults', () => {
+      const defaults = JSON.stringify(DEFAULT_RIFF_CONFIG);
+      const expectedChord = {
+        ...DEFAULT_RIFF_CONFIG.chord,
+        display: { ...DEFAULT_RIFF_CONFIG.chord?.display, visible: false },
+      };
+      const result = mergeRiffConfig({ chord: { display: { visible: false } } });
+
+      expect(result.chord).toEqual(expectedChord);
+      expect(JSON.stringify(DEFAULT_RIFF_CONFIG)).toBe(defaults);
+    });
+
     it('merges nested interaction properties', () => {
       const result = mergeRiffConfig({
         interaction: { isEnabled: false },

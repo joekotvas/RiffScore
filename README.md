@@ -253,3 +253,8 @@ npm run demo:dev
 
 *   **Clipboard API**: Copy, cut, and paste operations
 *   **Move Operations**: Drag-and-drop and keyboard-based event moving
+
+
+### Alpha.18 integration controls
+
+Configure instance-local themes, viewport sizing, notation visibility, engraving preferences and editing permissions without replacing the editor. Add reactive controls with `renderControls`, drive a visual cursor with `playbackCursor`, or use unmetered notation and opt-in chord recognition. See the [configuration guide](./docs/CONFIGURATION.md#alpha18-presentation-and-interaction-controls) and [release notes](./CHANGELOG.md).

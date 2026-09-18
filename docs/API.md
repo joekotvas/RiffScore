@@ -444,3 +444,14 @@ const unsub = api.on('score', (newScore) => {
 ---
 
 [← Back to README](../README.md)
+
+
+## Runtime interaction configuration (alpha.18)
+
+- `getInteractionConfig()` returns a defensive copy of this editor's effective interaction settings.
+- `setInteractionConfig(partial)` merges validated boolean overrides and returns the API for chaining.
+- `resetInteractionConfig()` clears overrides and restores the latest configuration props.
+
+The settings are `isEnabled`, `enableKeyboard`, `enablePlayback`, `allowEventInsertion`, `allowDurationChanges`, and `allowEventDeletion`. Invalid keys/values produce structured feedback. Overrides are instance-local, apply synchronously to API reads, and update the mounted UI without resetting score/history. They constrain user interaction, not host API mutations. See [Configuration](./CONFIGURATION.md#editing-permissions).
+
+Horizontal navigation now carries the current staff, clef, meter and entry duration into ghost creation. `export()` reads the authoritative engine immediately, including mutations earlier in the same API chain.

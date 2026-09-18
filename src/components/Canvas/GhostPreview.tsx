@@ -3,6 +3,7 @@ import { Note } from '@/types';
 import { ChordLayout, getOffsetForPitch } from '@/engines/layout';
 import { LayoutConfig, InteractionState } from '@/componentTypes';
 import { useTheme } from '@/context/ThemeContext';
+import { getScoreHighlightColor } from '@/themes';
 import { Rest, getRestY } from './Rest';
 import ChordGroup from './ChordGroup';
 import { NOTE_TYPES } from '@/constants';
@@ -110,7 +111,7 @@ const GhostPreview: React.FC<GhostPreviewProps> = ({
     >
       {content}
       <g
-        stroke={theme.accent}
+        stroke={getScoreHighlightColor(theme)}
         strokeWidth={2.75}
         strokeLinecap="round"
         opacity={0.6}

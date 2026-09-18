@@ -13,12 +13,19 @@ import React, { useMemo, useId, useRef, useEffect } from 'react';
 import { DeepPartial, RiffScoreConfig } from './types';
 import { useRiffScore } from './hooks/useRiffScore';
 import { useFontLoaded } from './hooks/layout';
+import { ScoreInteractionProvider } from './context/ScoreInteractionContext';
 import { ScoreProvider } from './context/ScoreContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ScoreEditorContent } from './components/Layout/ScoreEditor';
+import type { InteractionConfigStore } from './services/InteractionConfigStore';
+import type { RenderScoreControls, PlaybackCursorState } from './components/Layout/ScoreControls';
 import { useScoreAPI } from './hooks/api';
 
-interface RiffScoreProps {
+export interface RiffScoreProps {
+  /** External visual playback state; null hides the cursor, undefined uses the editor transport. */
+  playbackCursor?: PlaybackCursorState | null;
+  /** Render custom controls backed by this editor’s reactive history and playback state. */
+  renderControls?: RenderScoreControls;
   /** Unique identifier for this RiffScore instance (auto-generated if not provided) */
   id?: string;
   config?: DeepPartial<RiffScoreConfig>;
@@ -33,9 +40,10 @@ const RiffScoreAPIBridge: React.FC<{
   instanceId: string;
   config: RiffScoreConfig;
   children: React.ReactNode;
-}> = ({ instanceId, config, children }) => {
+  interaction: InteractionConfigStore;
+}> = ({ instanceId, config, children, interaction }) => {
   // useScoreAPI consumes ScoreContext internally
-  useScoreAPI({ instanceId, config });
+  useScoreAPI({ instanceId, config, interaction });
 
   return <>{children}</>;
 };
@@ -43,8 +51,13 @@ const RiffScoreAPIBridge: React.FC<{
 /**
  * Internal component that handles the config-driven rendering
  */
-const RiffScoreInner: React.FC<RiffScoreProps> = ({ id, config: userConfig }) => {
-  const { config, initialScore } = useRiffScore(userConfig);
+const RiffScoreInner: React.FC<RiffScoreProps> = ({
+  id,
+  config: userConfig,
+  renderControls,
+  playbackCursor,
+}) => {
+  const { config, initialScore, interaction } = useRiffScore(userConfig);
   const { theme: _theme, setContainerRef } = useTheme();
   const { className: fontClassName, styleElement: fontStyleElement } = useFontLoaded();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -78,16 +91,32 @@ const RiffScoreInner: React.FC<RiffScoreProps> = ({ id, config: userConfig }) =>
       data-riffscore-id={instanceId}
     >
       {fontStyleElement}
-      <ScoreProvider initialScore={initialScore}>
-        <RiffScoreAPIBridge instanceId={instanceId} config={config}>
-          <ScoreEditorContent
-            scale={config.ui.scale}
-            showToolbar={config.ui.showToolbar}
-            showBackground={config.ui.showBackground}
-            interactive={config.interaction.isEnabled}
-            enableKeyboard={config.interaction.enableKeyboard}
-            enablePlayback={config.interaction.enablePlayback}
-          />
+      <ScoreProvider initialScore={initialScore} chordRecognition={config.chord?.recognition}>
+        <RiffScoreAPIBridge instanceId={instanceId} interaction={interaction} config={config}>
+          <ScoreInteractionProvider policy={config.interaction}>
+            <ScoreEditorContent
+              renderControls={renderControls}
+              playbackCursor={playbackCursor}
+              scale={config.ui.scale}
+              showToolbar={config.ui.showToolbar}
+              showFooter={config.ui.showFooter}
+              showGhostNotes={config.ui.showGhostNotes}
+              showBlockedGhostNotes={config.ui.showBlockedGhostNotes}
+              viewport={config.ui.viewport}
+              scoreTitleOffset={config.ui.scoreTitleOffset}
+              scrollPadding={config.ui.scrollPadding}
+              showScoreTitle={config.ui.showScoreTitle}
+              engraving={config.ui.engraving}
+              tuplet={config.ui.tuplet}
+              chordDisplay={config.chord?.display}
+              chordPlayback={config.chord?.playback}
+              chordEditable={!config.chord?.recognition?.enabled}
+              showBackground={config.ui.showBackground}
+              interactive={config.interaction.isEnabled}
+              enableKeyboard={config.interaction.enableKeyboard}
+              enablePlayback={config.interaction.enablePlayback}
+            />
+          </ScoreInteractionProvider>
         </RiffScoreAPIBridge>
       </ScoreProvider>
     </div>
@@ -114,10 +143,20 @@ const RiffScoreInner: React.FC<RiffScoreProps> = ({ id, config: userConfig }) =>
  * <RiffScore id="my-score" />
  * // Then in console: window.riffScore.get('my-score').addNote('C4')
  */
-export const RiffScore: React.FC<RiffScoreProps> = ({ id, config }) => {
+export const RiffScore: React.FC<RiffScoreProps> = ({
+  id,
+  config,
+  renderControls,
+  playbackCursor,
+}) => {
   return (
-    <ThemeProvider initialTheme={config?.ui?.theme}>
-      <RiffScoreInner id={id} config={config} />
+    <ThemeProvider initialTheme={config?.ui?.theme} overrides={config?.ui?.themeOverrides} scoped>
+      <RiffScoreInner
+        id={id}
+        config={config}
+        renderControls={renderControls}
+        playbackCursor={playbackCursor}
+      />
     </ThemeProvider>
   );
 };

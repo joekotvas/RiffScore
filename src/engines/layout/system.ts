@@ -9,7 +9,8 @@ import { CONFIG } from '@/config';
 import { getNoteDuration } from '@/utils/core';
 import { NOTE_SPACING, NOTE_SPACING_BASE_UNIT, LAYOUT } from '@/constants';
 import { beamedEventIds } from './beaming';
-import { inkAdvance } from './ink';
+import { inkAdvance, collisionAdvance } from './ink';
+import { getEventMetrics } from './measure';
 import { ScoreEvent, Note } from './types';
 import { calculateChordLayout } from './positioning';
 import { getTupletGroup, getTupletUnifiedDirection } from './tuplets';
@@ -218,5 +219,51 @@ export const calculateSystemLayout = (
     quantToX[endQuant] = currentX;
   }
 
+  // Rhythmic segments may be split by another staff. Enforce clearance between
+  // each staff's adjacent *events* on the shared grid, so all staves move together.
+  const constraints = new Map<number, { from: number; distance: number }[]>();
+  measures.forEach((measure, staffIndex) => {
+    let quant = 0;
+    const glyphs = accidentalGlyphsByMeasure[staffIndex];
+    const beamed = beamedIdsByMeasure[staffIndex];
+    const clef = measure.clef ?? (staffIndex === 0 ? 'treble' : 'bass');
+    measure.events.forEach((event, index) => {
+      const nextQuant = quant + getNoteDuration(event.duration, event.dotted, event.tuplet);
+      const next = measure.events[index + 1];
+      if (next) {
+        const direction = drawnStemDirection(measure.events, event, clef);
+        const nextDirection = drawnStemDirection(measure.events, next, clef);
+        const first = getEventMetrics(event, clef, glyphs, beamed.has(event.id), next, direction);
+        const second = getEventMetrics(
+          next,
+          clef,
+          glyphs,
+          beamed.has(next.id),
+          undefined,
+          nextDirection
+        );
+        const distance =
+          collisionAdvance(event, next, clef, glyphs, beamed, direction, nextDirection) +
+          first.accidentalSpace +
+          Math.abs(first.minOffset) -
+          second.accidentalSpace -
+          Math.abs(second.minOffset);
+        const entries = constraints.get(nextQuant) ?? [];
+        entries.push({ from: quant, distance });
+        constraints.set(nextQuant, entries);
+      }
+      quant = nextQuant;
+    });
+  });
+  let shift = 0;
+  for (const quant of timePoints) {
+    const originalX = quantToX[quant];
+    let x = originalX + shift;
+    for (const constraint of constraints.get(quant) ?? []) {
+      x = Math.max(x, quantToX[constraint.from] + constraint.distance);
+    }
+    shift = x - originalX;
+    quantToX[quant] = x;
+  }
   return quantToX;
 };

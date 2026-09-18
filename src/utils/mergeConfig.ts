@@ -16,7 +16,7 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
  * Deep merges source into target, with source values overriding target.
  * Only handles plain objects; arrays are replaced not merged.
  */
-function mergeObjects<T>(target: T, source: Partial<T>): T {
+function mergeObjects<T>(target: T, source: NoInfer<DeepPartial<T>>): T {
   if (!isPlainObject(target) || !isPlainObject(source)) {
     return target;
   }

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useScoreLogic } from '@/hooks/useScoreLogic';
-import { Score } from '@/types';
+import { Score, ChordRecognitionConfig } from '@/types';
 import { SetClefCommand } from '@/commands/SetClefCommand';
 
 // Infers the return type of useScoreLogic and extends it with UI state
@@ -26,10 +26,15 @@ export const useScoreContext = () => {
 interface ScoreProviderProps {
   children: ReactNode;
   initialScore?: Partial<Score>;
+  chordRecognition?: ChordRecognitionConfig;
 }
 
-export const ScoreProvider: React.FC<ScoreProviderProps> = ({ children, initialScore }) => {
-  const logic = useScoreLogic(initialScore);
+export const ScoreProvider: React.FC<ScoreProviderProps> = ({
+  children,
+  initialScore,
+  chordRecognition,
+}) => {
+  const logic = useScoreLogic(initialScore, chordRecognition);
 
   // UI State for Clef Confirmation (moved from ScoreEditor)
   const [pendingClefChange, setPendingClefChange] = React.useState<{

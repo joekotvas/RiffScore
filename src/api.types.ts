@@ -599,6 +599,12 @@ export interface MusicEditorAPI {
    * @status implemented
    */
   getConfig(): RiffScoreConfig;
+  /** Effective per-view interaction settings, including synchronous API overrides. */
+  getInteractionConfig(): RiffScoreConfig['interaction'];
+  /** Merge boolean UI permissions for this view without changing score data or history. */
+  setInteractionConfig(config: Partial<RiffScoreConfig['interaction']>): this;
+  /** Remove API overrides and restore the latest interaction config props. */
+  resetInteractionConfig(): this;
   /**
    * Get the current selection state.
    * @status implemented

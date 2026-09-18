@@ -207,6 +207,7 @@ export const keyNameForFifths = (fifths: number, minor: boolean): string => {
  * to be set, on every staff at once.
  */
 export const inferPickup = (staves: Staff[], capacity: number, markedAsPickup = false): void => {
+  if (!Number.isFinite(capacity)) return;
   const firsts = staves.map((s) => s.measures[0]).filter((m): m is Measure => m !== undefined);
   if (firsts.length === 0 || staves.some((s) => s.measures.length < 2)) return;
   const underFull = firsts.every((m) => {

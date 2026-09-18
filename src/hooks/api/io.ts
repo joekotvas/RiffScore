@@ -164,7 +164,9 @@ export const createIOMethods = (
      * @tested src/__tests__/ScoreAPI.feedback.test.tsx
      */
     export(format) {
-      const score = scoreRef.current;
+      // Commands update the engine synchronously; the React mirror can still contain the
+      // pre-edit score when export is chained after a mutation, import, or undo (#323).
+      const score = ctx.getScore();
       let output = '';
 
       try {

@@ -6,6 +6,10 @@ import { calculateSystemPreamble } from '@/engines/layout';
 
 interface UseScoreLayoutProps {
   score: Score;
+  measureWidth?: number;
+  visibleMeasures?: readonly number[];
+  spacing?: 'natural' | 'justify';
+  stemDirection?: 'up' | 'down';
 }
 
 interface UseScoreLayoutReturn {
@@ -21,10 +25,16 @@ interface UseScoreLayoutReturn {
  * @param score - The score data
  * @returns ScoreLayout object and system preamble layout
  */
-export const useScoreLayout = ({ score }: UseScoreLayoutProps): UseScoreLayoutReturn => {
+export const useScoreLayout = ({
+  score,
+  measureWidth,
+  spacing,
+  stemDirection,
+  visibleMeasures,
+}: UseScoreLayoutProps): UseScoreLayoutReturn => {
   const layout = useMemo(() => {
-    return calculateScoreLayout(score);
-  }, [score]);
+    return calculateScoreLayout(score, { measureWidth, stemDirection, spacing, visibleMeasures });
+  }, [score, measureWidth, stemDirection, spacing, visibleMeasures]);
 
   const preamble = useMemo(() => {
     const activeStaff = score.staves?.[0];

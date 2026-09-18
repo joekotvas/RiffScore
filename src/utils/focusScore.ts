@@ -1,6 +1,6 @@
 import { Score, Selection, getActiveStaff } from '@/types';
 import { calculateTotalQuants } from './core';
-import { TIME_SIGNATURES } from '@/constants';
+import { getMeasureCapacity } from '@/constants';
 
 /** Creates an empty selection at the given position */
 const createSelection = (
@@ -43,8 +43,7 @@ export function calculateFocusSelection(score: Score, existingSelection: Selecti
     return createSelection(null);
   }
 
-  const quantsPerMeasure =
-    TIME_SIGNATURES[score.timeSignature as keyof typeof TIME_SIGNATURES] || 64;
+  const quantsPerMeasure = getMeasureCapacity(score.timeSignature);
 
   for (let i = 0; i < activeStaff.measures.length; i++) {
     const measure = activeStaff.measures[i];

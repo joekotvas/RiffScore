@@ -28,6 +28,15 @@ import { RiffScore } from 'riffscore';
 interface RiffScoreConfig {
   ui: {
     showToolbar: boolean;  // Show/hide the toolbar
+    showFooter?: boolean;
+    showGhostNotes?: boolean;
+    showBlockedGhostNotes?: boolean;
+    viewport?: ViewportConfig;
+    engraving?: EngravingConfig;
+    tuplet?: { hideBracketWhenBeamed?: boolean };
+    themeOverrides?: DeepPartial<Theme>;
+    scrollPadding?: { top?: number; bottom?: number };
+    scoreTitleOffset?: { x?: number; y?: number };
     scale: number;         // Zoom scale factor
     theme?: ThemeName;     // 'DARK' | 'COOL' | 'WARM' | 'LIGHT'
     showBackground?: boolean; // Show/hide panel background
@@ -37,11 +46,14 @@ interface RiffScoreConfig {
     isEnabled: boolean;      // Master switch for all interactions
     enableKeyboard: boolean; // Keyboard shortcuts
     enablePlayback: boolean; // Playback controls
+    allowEventInsertion?: boolean;
+    allowDurationChanges?: boolean;
+    allowEventDeletion?: boolean;
   };
   score: {
     title: string;           // Score title
     bpm: number;             // Beats per minute
-    timeSignature: string;   // e.g., '4/4', '3/4', '6/8'
+    timeSignature: string;   // e.g., '4/4', '3/4', '6/8', or 'none'
     keySignature: string;    // e.g., 'C', 'G', 'Bb'
     staff?: StaffTemplate;   // 'grand' | 'treble' | 'bass' | 'alto' | 'tenor'
     measureCount?: number;   // Number of measures to generate
@@ -50,7 +62,9 @@ interface RiffScoreConfig {
     musicxml?: string;       // MusicXML text to import as the initial score (abc wins when both are given)
   };
   chord?: {
+    recognition?: { enabled: boolean; staffIndex?: number; includeBass?: boolean };
     display?: {
+      visible?: boolean;
       notation: 'letter' | 'roman' | 'nashville' | 'fixedDo' | 'movableDo';
       useSymbols: boolean;     // △/°/+ vs maj/dim/aug
     };
@@ -356,3 +370,78 @@ You only need to specify the values you want to override. Everything else uses d
   ui: { showToolbar: false }
 }} />
 ```
+
+
+## Alpha.18 presentation and interaction controls
+
+All configuration fields accept nested partial objects. Arrays are replaced whole. Presentation changes do not reload the document or clear undo history.
+
+| Option | Behavior |
+|---|---|
+| `ui.showFooter`, `ui.showGhostNotes`, `ui.showBlockedGhostNotes` | Default to true; hiding previews does not disable entry or validation |
+| `ui.viewport` | CSS-pixel `height`, `minHeight`, `maxHeight`; `verticalAlign: 'start' / 'center' / 'end'`; `overflow: 'auto' / 'hidden' / 'visible'`. Fullscreen uses the available screen instead. |
+| `ui.themeOverrides` | Per-instance partial theme overrides, including `score.note`, `score.line`, `score.highlight` (selection/hover/entry ink); no global theme mutation |
+| `ui.scoreTitleOffset` | Scroll-title x/y offset in unscaled staff units |
+| `ui.scrollPadding` | Scroll-view top/bottom padding in unscaled staff units; defaults 0/50; retains necessary low-note clearance |
+| `ui.tuplet.hideBracketWhenBeamed` | Optional beam-centered number without bracket when one beam covers the complete tuplet; default false |
+
+`ui.engraving` supplies ordinary scroll-view preferences. It is ignored in page view, which retains its own page-layout rules:
+
+```ts
+interface EngravingConfig {
+  spacing?: 'natural' | 'justify';
+  measureWidth?: number; // total measure-area width in unscaled staff units
+  showPlaceholderRests?: boolean;
+  stemDirection?: 'up' | 'down';
+  showPreamble?: boolean;
+  showBarlines?: boolean;
+  chordFontFamily?: string;
+  chordFontSize?: number;
+  chordFontWeight?: number;
+}
+```
+
+`measureWidth` expands available space without shrinking the natural engraving. With `spacing: 'natural'`, extra space follows the final event; otherwise measures are justified. Visibility preferences default to true. These settings do not alter exported pitches, rhythm, clefs, or barlines. Chord-symbol visibility is controlled separately by `chord.display.visible`; hiding it also skips chord-input keyboard navigation.
+
+### Editing permissions
+
+`allowEventInsertion`, `allowDurationChanges`, and `allowEventDeletion` default to true. Set them independently to constrain user gestures while retaining selection and permitted edits. For example:
+
+```tsx
+<RiffScore config={{
+  interaction: {
+    allowEventInsertion: false,
+    allowDurationChanges: false,
+    allowEventDeletion: false,
+  },
+}} />
+```
+
+This preserves rhythmic events while allowing pitch edits and adding/removing tones within an existing chord. It is not a pitch-only mode: removing the final pitched tone is blocked, but changing chord membership is allowed. Permissions apply to editor actions and custom controls, including undo/redo. Host API calls remain unrestricted so the application can load or transform music. These are UI constraints, not a security boundary. Legacy transactions still group history and publish intermediate changes; they are not a new atomic transaction API.
+
+Use `api.getInteractionConfig()`, `api.setInteractionConfig(partial)`, and `api.resetInteractionConfig()` to change permissions at runtime. Overrides merge over current props and persist until reset; changing them preserves the document and history. `isEnabled: false` disables editing while retaining native scroll behavior.
+
+### Reactive custom controls and external cursors
+
+The `renderControls` prop receives the current score, `canUndo`, `canRedo`, `undo`, `redo`, `isPlaying`, `play`, `pause`, `bpm`, `setBpm`, `instrument`, `setInstrument`, and `samplerLoaded`. Call playback from a user gesture. Practice tempo differs from an undoable score tempo edit.
+
+```tsx
+<RiffScore renderControls={({ canUndo, undo, isPlaying, play, pause }) => (
+  <div>
+    <button disabled={!canUndo} onClick={undo}>Undo</button>
+    <button onClick={() => { if (isPlaying) pause(); else void play(); }}>
+      {isPlaying ? 'Pause' : 'Play'}
+    </button>
+  </div>
+)} />
+```
+
+`playbackCursor` accepts `{ measureIndex, quant, duration, isPlaying }` for an externally driven visual cursor. `duration` is seconds until the next onset. Omit the prop to use the editor cursor; pass `null` to hide it. This only changes cursor presentation, not selection or audio transport. Playback still uses one shared audio engine; independently simultaneous transports are not supported.
+
+### Unmetered notation and chord recognition
+
+Set `score.timeSignature: 'none'` (or import ABC `M:none`) for measures without a fixed entry capacity. Explicit barlines still synchronize staves; playback derives each measure's duration from its content. Empty zero-length bars do not emit invalid zero-duration MusicXML rests.
+
+`chord.recognition: { enabled: true, staffIndex: 0, includeBass: true }` derives chord symbols from simultaneous notes on the selected staff. It requires three distinct pitch classes, ignores octave doublings, and optionally labels inversions. It does not infer missing roots or interpret arpeggios/context. When enabled, recognition **owns and replaces the chord track**, including API/export output and imports; disable it when preserving supplied harmony. Disabling recognition retains the current track rather than restoring an earlier authored one.
+
+For analysis without changing a score, use the exported `recognizeChord(pitches, includeBass?)` or `recognizeScoreChords(score, config)` functions.

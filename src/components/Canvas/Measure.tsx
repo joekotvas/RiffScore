@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { CONFIG } from '@/config';
 import { MEASURE_HIT_AREA_HEIGHT, MEASURE_HIT_AREA_TOP_OFFSET } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
+import { getScoreHighlightColor } from '@/themes';
 import { getFirstNoteId } from '@/utils/core';
 import { isRestSelected, isBeamGroupSelected } from '@/utils/selection';
 import { useAccidentalContext } from '@/hooks/editor';
@@ -79,11 +80,14 @@ const MeasureBarLine: React.FC<MeasureBarLineProps> = ({ x, baseY, isLast, theme
 // --- Main Component ---
 
 const Measure: React.FC<MeasureProps> = ({
+  tuplet: tupletConfig,
   measureData,
   measureIndex,
   startX,
   isLast,
   forcedWidth,
+  showBarlines = true,
+  showPlaceholderRests = true,
   forcedEventPositions,
   layout,
   measureLayout, // V2 Layout (SSOT)
@@ -228,6 +232,7 @@ const Measure: React.FC<MeasureProps> = ({
           if ((event as import('@/types').ScoreEvent).reserved) return null;
 
           const isPlaceholder = event.id === 'rest-placeholder';
+          if (isPlaceholder && !showPlaceholderRests) return null;
           const isSelected = isRestSelected(selection, event, measureIndex, layout.staffIndex);
 
           return (
@@ -293,7 +298,7 @@ const Measure: React.FC<MeasureProps> = ({
 
         const beamColor =
           isBeamGroupSelected(selection, beam, events, measureIndex) || isBeamInLassoPreview
-            ? theme.accent
+            ? getScoreHighlightColor(theme)
             : theme.score.note;
 
         return <Beam key={`beam-${idx}`} beam={beam} color={beamColor} />;
@@ -308,24 +313,32 @@ const Measure: React.FC<MeasureProps> = ({
           endY={tuplet.endY}
           number={tuplet.number}
           direction={tuplet.direction}
+          beamCenter={tuplet.beamCenter}
+          hideBracketWhenBeamed={tupletConfig?.hideBracketWhenBeamed}
         />
       ))}
 
-      <MeasureBarLine x={effectiveWidth} baseY={baseY} isLast={isLast} theme={theme} />
+      {showBarlines && (
+        <MeasureBarLine x={effectiveWidth} baseY={baseY} isLast={isLast} theme={theme} />
+      )}
 
       {/* LAYER 4: Interface Overlay (Ghosts) */}
-      {previewRender && !isNoteHovered && previewNote && (
-        <g style={{ pointerEvents: 'none' }}>
-          <GhostPreview
-            previewRender={previewRender}
-            previewNote={previewNote}
-            baseY={baseY}
-            layout={layout}
-            interaction={interaction}
-            measureIndex={measureIndex}
-          />
-        </g>
-      )}
+      {interaction.showGhostNotes !== false &&
+        (interaction.showBlockedGhostNotes !== false || !previewNote?.blocked) &&
+        previewRender &&
+        !isNoteHovered &&
+        previewNote && (
+          <g style={{ pointerEvents: 'none' }}>
+            <GhostPreview
+              previewRender={previewRender}
+              previewNote={previewNote}
+              baseY={baseY}
+              layout={layout}
+              interaction={interaction}
+              measureIndex={measureIndex}
+            />
+          </g>
+        )}
     </g>
   );
 };

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0-alpha.18] - 2026-09-18
+
+### Added
+- Unmetered notation (`timeSignature: 'none'`, ABC `M:none`) with content-based timing, synchronized staves, and import/export support.
+- Opt-in exact-set chord recognition with optional inversion labels, plus standalone recognition functions.
+- Per-editor visibility controls, viewport sizing, scoped theme overrides, ordinary engraving preferences, custom reactive controls, and externally driven playback cursors.
+- Independent insertion, duration-change, and deletion permissions, with runtime API overrides that preserve the score and history.
+- Optional beam-centered tuplet labels when a complete tuplet shares one beam.
+
+### Fixed
+- API navigation preserves staff/clef/meter/entry context; synchronous exports include immediately preceding edits.
+- Collision-aware accidental spacing and low-note clearance; rendered geometry remains aligned with pointer/selection coordinates.
+- Chord visibility consistently hides the input region and keyboard entry paths without removing musical chord data.
+- Playback cancellation prevents late starts; chord accompaniment completes correctly for chord-only and trailing-rest passages. API resume positions are instance-local, and UI/API playback share musical-position timing that preserves leading rests.
+- Permission guards evaluate the final recognized score once; subscriber failures do not invalidate committed edits or prevent other subscribers from receiving them.
+- Grand-staff reduction supports alto/tenor clefs with typed, undoable staff preservation.
+- Empty unmetered bars no longer emit zero-length MusicXML rests; zero-length measure boundaries retain valid playback positions.
+- MIDI initialization cleans up safely on unmount and respects disabled interaction; focused editors retain keyboard ownership.
+- Read-only scores retain native scrolling, and nested partial configuration handles optional objects correctly.
+- ConfigMenu is library-owned while retaining its existing export; required footer/chord styles are included in the package stylesheet.
+
+### Scope
+- This release contains standalone editor improvements. It does not add a new session/extension SDK, independent audio transports, or multi-voice notation.
+- Recognition is opt-in and replaces the chord track while enabled. Interaction permissions constrain UI actions; host API operations remain available. Existing transaction semantics are unchanged.
+
 ## [1.0.0-alpha.17] - 2026-09-16
 
 MusicXML import (#11). Scores exported from MuseScore, Finale, Sibelius, Dorico and the like —

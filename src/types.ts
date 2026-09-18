@@ -1,4 +1,4 @@
-import { ThemeName } from './themes';
+import { ThemeName, Theme } from './themes';
 import { TIME_SIGNATURES } from './constants';
 import { canonicalizeKeySignature } from './utils/keyResolution';
 import { Note as TonalNote } from 'tonal';
@@ -131,6 +131,8 @@ export interface ChordSymbol {
  * Configuration for chord display notation.
  */
 export interface ChordDisplayConfig {
+  /** Show chord symbols and their input region. False also skips keyboard navigation to symbols. Defaults to true. */
+  visible?: boolean;
   /** Notation system for rendering */
   notation: 'letter' | 'roman' | 'nashville' | 'fixedDo' | 'movableDo';
 
@@ -147,6 +149,15 @@ export interface ChordPlaybackConfig {
 
   /** Velocity (0-127), default 50 */
   velocity: number;
+}
+
+/** Opt-in automatic chord track derived from simultaneous notes on one staff. */
+export interface ChordRecognitionConfig {
+  enabled: boolean;
+  /** Source staff, zero-based. Defaults to the top staff. */
+  staffIndex?: number;
+  /** Include slash bass for inversions. Defaults to false. */
+  includeBass?: boolean;
 }
 
 /**
@@ -300,6 +311,8 @@ export interface MeasurePosition {
  * - preambleWidth is in STAFF coordinates (unscaled, multiply by staffScale for page coords)
  */
 export interface SystemLayout {
+  /** Top of engraved ink relative to the first staff, in page coordinates. */
+  inkTop?: number;
   /** 0-based system index */
   index: number;
   /** Measure indices contained in this system (0-based) */
@@ -447,6 +460,7 @@ export interface Score {
   schemaVersion?: number;
 
   title: string;
+  /** Meter such as '4/4', or 'none' for measures with no duration limit. */
   timeSignature: string; // Shared across staves (e.g., '4/4', '3/4')
   keySignature: string; // Shared across staves (e.g., 'C', 'G')
   bpm: number;
@@ -932,9 +946,12 @@ export interface TranspositionResult {
 /**
  * Utility type for allowing partial nested objects
  */
-export type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
-};
+// Optional object unions stay partial; arrays are replaced whole by the config merger.
+export type DeepPartial<T> = T extends readonly unknown[]
+  ? T
+  : T extends object
+    ? { [P in keyof T]?: DeepPartial<T[P]> }
+    : T;
 
 /**
  * Staff template options for score generation.
@@ -958,22 +975,79 @@ export type StaffTemplate = 'grand' | 'treble' | 'bass' | 'alto' | 'tenor';
  * - Generator Mode: Pass `staff` + `measureCount` to create blank scores
  * - Render Mode: Pass `staves` array to load existing compositions
  */
+/** Ordinary scroll-view engraving options; values do not change the musical document. */
+export interface EngravingConfig {
+  spacing?: 'natural' | 'justify';
+  /** Total width available to measures in unscaled staff units; never shrinks natural spacing. */
+  measureWidth?: number;
+  showPlaceholderRests?: boolean;
+  stemDirection?: 'up' | 'down';
+  showPreamble?: boolean;
+  showBarlines?: boolean;
+  chordFontFamily?: string;
+  chordFontSize?: number;
+  chordFontWeight?: number;
+}
+
+/** Host viewport sizing in CSS pixels. Fullscreen uses the available screen instead. */
+export interface ViewportConfig {
+  height?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  verticalAlign?: 'start' | 'center' | 'end';
+  overflow?: 'auto' | 'hidden' | 'visible';
+}
+
+/** Tuplet engraving preferences; these do not change rhythm or exported score data. */
+export interface TupletConfig {
+  /** Hide the bracket and center the number on the beam when one beam covers exactly the complete tuplet. Defaults to false. */
+  hideBracketWhenBeamed?: boolean;
+}
+
+/** Per-view user editing permissions. Host API calls remain unrestricted. */
+export interface InteractionPolicy {
+  /** Allow new rhythmic events, measures, and reserved-slot entry. Default true. */
+  allowEventInsertion?: boolean;
+  /** Allow duration, dot, tuplet, and meter changes. Default true. */
+  allowDurationChanges?: boolean;
+  /** Allow removing events or their final pitched note, including rest conversion. Default true. */
+  allowEventDeletion?: boolean;
+}
+
+export interface InteractionConfig extends InteractionPolicy {
+  isEnabled: boolean;
+  enableKeyboard: boolean;
+  enablePlayback: boolean;
+}
+
 export interface RiffScoreConfig {
   ui: {
+    tuplet?: TupletConfig;
     showToolbar: boolean;
+    showFooter?: boolean;
+    /** Hide note/rest entry previews without disabling entry, selection, or editing. */
+    showGhostNotes?: boolean;
+    /** Show unavailable-entry previews (grey notes with a cross). */
+    showBlockedGhostNotes?: boolean;
+    viewport?: ViewportConfig;
+    /** Offset from the default scroll-view title position, in unscaled score units. */
+    scoreTitleOffset?: { x?: number; y?: number };
+    /** Scroll-view outer padding in staff units; defaults to 0 above and 50 below. Ignored in page view. */
+    scrollPadding?: { top?: number; bottom?: number };
+    /** Per-instance overrides merged with the selected preset. */
+    themeOverrides?: DeepPartial<Theme>;
+    /** Ordinary scroll-view engraving; ignored in page view. */
+    engraving?: EngravingConfig;
     scale: number;
     theme?: ThemeName;
     showBackground?: boolean; // Whether to show panel background (default: true)
     showScoreTitle?: boolean;
   };
-  interaction: {
-    isEnabled: boolean; // Master switch for all interactions
-    enableKeyboard: boolean;
-    enablePlayback: boolean;
-  };
+  interaction: InteractionConfig;
   score: {
     title: string;
     bpm: number;
+    /** Meter such as '4/4', or 'none' for measures with no duration limit. */
     timeSignature: string;
     keySignature: string;
 
@@ -1003,6 +1077,8 @@ export interface RiffScoreConfig {
 
   /** Chord track configuration */
   chord?: {
+    /** When enabled, note recognition owns the chord track, including API/export output. */
+    recognition?: ChordRecognitionConfig;
     /** Display notation preferences */
     display?: ChordDisplayConfig;
 
@@ -1017,11 +1093,17 @@ export interface RiffScoreConfig {
 export const DEFAULT_RIFF_CONFIG: RiffScoreConfig = {
   ui: {
     showToolbar: true,
+    showFooter: true,
+    showGhostNotes: true,
+    showBlockedGhostNotes: true,
     scale: 0.75,
     showBackground: true,
     showScoreTitle: true,
   },
   interaction: {
+    allowEventInsertion: true,
+    allowDurationChanges: true,
+    allowEventDeletion: true,
     isEnabled: true,
     enableKeyboard: true,
     enablePlayback: true,

@@ -11,6 +11,7 @@ import { ChordSymbol as ChordSymbolType, ChordDisplayConfig } from '@/types';
 import { useModifierKeys } from '@hooks/editor';
 import { clientToSvg } from '@/engines/layout/coordinateUtils';
 import { ScoreLayout } from '@/engines/layout/types';
+import { calculateChordTrackY } from '@/engines/layout/vertical';
 import { CONFIG } from '@/config';
 import { LAYOUT } from '@/constants';
 import { ChordSymbol } from './ChordSymbol';
@@ -33,6 +34,9 @@ interface MeasurePosition {
 }
 
 interface ChordTrackProps {
+  /** Automatically recognized symbols are display-only. */
+  editable?: boolean;
+  fontSize?: number;
   /** Array of chord symbols to render */
   chords: ChordSymbolType[];
 
@@ -210,12 +214,13 @@ export function clipHitBand(noteYs: number[], trackY: number): { y: number; heig
 
 export const ChordTrack = memo(function ChordTrack({
   chords,
+  fontSize = 20,
+  editable = true,
   displayConfig,
   keySignature,
   validPositions,
   measurePositions,
   layout,
-  quantsPerMeasure,
   editingChordId,
   selectedChordId,
   creatingAt,
@@ -275,18 +280,12 @@ export const ChordTrack = memo(function ChordTrack({
       return pageTrackY;
     }
 
-    const { minDistanceFromStaff, paddingAboveNotes, minY } = CONFIG.chordTrack;
-
-    const staffTop = layout.getY.staff(0)?.top ?? CONFIG.baseY;
-    const defaultY = staffTop - minDistanceFromStaff;
-
-    const highestNoteY = layout.getY.notes().top;
-    const collisionY = highestNoteY - paddingAboveNotes;
-
-    // Use the higher position (lower Y value) between collision-based and default
-    // Clamp to minY (can go all the way to 0 for extreme cases)
-    return Math.max(minY, Math.min(collisionY, defaultY));
-  }, [layout, pageTrackY]);
+    return calculateChordTrackY(
+      layout.getY.staff(0)?.top ?? CONFIG.baseY,
+      CONFIG.baseY + layout.vertical.top,
+      fontSize
+    );
+  }, [layout, pageTrackY, fontSize]);
 
   // Notehead centres the hit band must stay clear of: this system's notes in page view, every
   // note of the (single-system) layout in scroll view.
@@ -305,43 +304,6 @@ export const ChordTrack = memo(function ChordTrack({
     }
     return cursorStyle;
   }, [isMetaKeyHeld, hoveredChordId, cursorStyle]);
-
-  /**
-   * Calculate per-chord Y offset for collision avoidance.
-   * Returns a negative offset (move up) if the note at this position is higher
-   * than what the system baseline accounts for.
-   */
-  const getChordYOffset = useCallback(
-    (position: ChordPosition): number => {
-      if (pageTrackY !== undefined) {
-        return 0;
-      }
-
-      const { paddingAboveNotes, minY } = CONFIG.chordTrack;
-      // Note: getY.notes still uses global quant for now
-      const globalQuant = position.measure * quantsPerMeasure + position.quant;
-
-      const noteY = layout.getY.notes(globalQuant).top;
-      const systemNoteY = layout.getY.notes().top;
-
-      // If this position has no specific notes (fell back to system-wide), no offset needed
-      if (noteY === systemNoteY) return 0;
-
-      // The chord should be paddingAboveNotes pixels above the note
-      const idealChordY = noteY - paddingAboveNotes;
-
-      // If the ideal position is above the track baseline, return the offset
-      // (negative = move up in SVG coordinates)
-      if (idealChordY < trackY) {
-        // Clamp to minY (can go all the way to 0 for extreme cases)
-        const clampedY = Math.max(minY, idealChordY);
-        return clampedY - trackY;
-      }
-
-      return 0;
-    },
-    [layout, pageTrackY, trackY, quantsPerMeasure]
-  );
 
   const handleTrackClick = useCallback(
     (e: React.MouseEvent<SVGRectElement>) => {
@@ -428,10 +390,12 @@ export const ChordTrack = memo(function ChordTrack({
         chord,
         x: getAbsoluteX(position, layout, resolveX),
         beatPosition: getBeatPosition(chord.measure, chord.quant),
-        yOffset: getChordYOffset(position),
+        yOffset: 0,
       };
     });
-  }, [filteredChords, layout, resolveX, getChordYOffset]);
+  }, [filteredChords, layout, resolveX]);
+
+  if (displayConfig?.visible === false) return null;
 
   return (
     <g
@@ -440,7 +404,10 @@ export const ChordTrack = memo(function ChordTrack({
       transform={`translate(0, ${trackY})`}
       role="region"
       aria-label="Chord symbols"
-      style={{ cursor: computedCursorStyle }}
+      style={{
+        cursor: editable ? computedCursorStyle : 'default',
+        pointerEvents: editable ? undefined : 'none',
+      }}
     >
       {/* Hit area for clicks (clipped so it never covers a note's hit area) */}
       <rect
@@ -461,7 +428,7 @@ export const ChordTrack = memo(function ChordTrack({
 
       {/* Render chord symbols - using memoized positions */}
       {chordPositions.map(({ chord, x, beatPosition, yOffset }) => {
-        return editingChordId === chord.id ? (
+        return editable && editingChordId === chord.id ? (
           <g key={chord.id} transform={`translate(0, ${yOffset})`}>
             <ChordInput
               x={x}
@@ -489,8 +456,8 @@ export const ChordTrack = memo(function ChordTrack({
       })}
 
       {/* Creating new chord */}
-      {editingChordId === 'new' && creatingAt !== null && isCreatingOnThisTrack && (
-        <g transform={`translate(0, ${getChordYOffset(creatingAt)})`}>
+      {editable && editingChordId === 'new' && creatingAt !== null && isCreatingOnThisTrack && (
+        <g transform="translate(0, 0)">
           <ChordInput
             x={getAbsoluteX(creatingAt, layout, resolveX)}
             initialValue=""
@@ -503,8 +470,8 @@ export const ChordTrack = memo(function ChordTrack({
       )}
 
       {/* Preview ghost chord on hover */}
-      {previewPosition !== null && editingChordId !== 'new' && (
-        <g transform={`translate(0, ${getChordYOffset(previewPosition)})`}>
+      {editable && previewPosition !== null && editingChordId !== 'new' && (
+        <g transform="translate(0, 0)">
           <text
             className="riff-ChordSymbol riff-ChordSymbol--preview"
             data-testid="chord-preview-ghost"

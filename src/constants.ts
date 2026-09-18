@@ -32,7 +32,7 @@ export const TIME_SIGNATURES: Record<string, number> = {
 };
 
 /**
- * Bar capacity in quants for a time signature — the single source of truth for "how many
+ * Bar capacity in quants (Infinity for unmetered `none`) for a time signature — the single source of truth for "how many
  * quants fill a measure" (#242). Every capacity check and the measure-integrity invariant go
  * through this, so they can never disagree.
  *
@@ -45,6 +45,7 @@ export const TIME_SIGNATURES: Record<string, number> = {
  * for capacity math, but callers needing the meter (e.g. beaming) must read `timeSignature`.
  */
 export const getMeasureCapacity = (timeSignature: string): number => {
+  if (timeSignature === 'none') return Infinity;
   const known = TIME_SIGNATURES[timeSignature];
   if (known != null) return known;
   // Defensive: scores loaded through the API may carry a missing/garbage timeSignature.
@@ -521,6 +522,8 @@ export const BEAMING = {
 export const TUPLET = {
   HOOK_HEIGHT: 8,
   PADDING: 15,
+  /** Clearance from a beam to an unbracketed number (before baseline offsets). */
+  NUMBER_BEAM_PADDING: 8,
   // Matches BEAMING.MAX_SLOPE so a bracket drawn over a beamed tuplet can run parallel to
   // the beam instead of being clamped flatter than it.
   MAX_SLOPE: BEAMING.MAX_SLOPE,

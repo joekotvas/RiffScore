@@ -9,19 +9,13 @@ import {
   InstrumentType,
 } from '@/engines/toneEngine';
 import { createTimeline } from '@/services/TimelineService';
+import { getPlaybackOffset } from '@/services/MeasureTiming';
 import { DEFAULT_CHORD_PLAYBACK } from '@/types';
 
 /**
  * Playback method names provided by this factory
  */
 type PlaybackMethodNames = 'play' | 'pause' | 'stop' | 'rewind' | 'setInstrument';
-
-/**
- * Internal state for playback (not stored in Score)
- * Used for resume functionality
- */
-let lastPlayPosition = { measureIndex: 0, quant: 0 };
-let isInitialized = false;
 
 /**
  * Factory for creating Playback API methods.
@@ -36,6 +30,8 @@ export const createPlaybackMethods = (
   ctx: APIContext
 ): Pick<MusicEditorAPI, PlaybackMethodNames> & ThisType<MusicEditorAPI> => {
   const { setResult } = ctx;
+  let lastPlayPosition = { measureIndex: 0, quant: 0 };
+  let isInitialized = false;
 
   /**
    * Ensures Tone.js is initialized before playback.
@@ -50,6 +46,13 @@ export const createPlaybackMethods = (
   return {
     async play(startMeasure, startQuant) {
       try {
+        if (ctx.playback) {
+          const measure = startMeasure ?? ctx.playback.playbackPosition?.measureIndex ?? 0;
+          const quant = startQuant ?? ctx.playback.playbackPosition?.quant ?? 0;
+          await ctx.playback.playScore(measure, quant);
+          setResult({ ok: true, status: 'info', method: 'play', message: 'Playback started' });
+          return this;
+        }
         await ensureInit();
 
         // Use provided start position, or resume from last, or start from beginning
@@ -65,16 +68,7 @@ export const createPlaybackMethods = (
         // Generate timeline
         const timeline = createTimeline(score, bpm);
 
-        // Find start time offset
-        let startTimeOffset = 0;
-        const startEvent = timeline.find(
-          (e) =>
-            e.measureIndex >= measureIndex && (e.measureIndex > measureIndex || e.quant >= quant)
-        );
-
-        if (startEvent) {
-          startTimeOffset = startEvent.time;
-        }
+        const startTimeOffset = getPlaybackOffset(score, bpm, measureIndex, quant);
 
         // Schedule playback. Route through scheduleScorePlayback (melody + chord
         // accompaniment) so api.play() matches the UI's transport — the API was
@@ -86,7 +80,7 @@ export const createPlaybackMethods = (
         // events are only emitted when chord playback is enabled AND
         // score.chordTrack is non-empty, so chordless scores are unaffected.
         const chordPlayback = ctx.config.chord?.playback ?? DEFAULT_CHORD_PLAYBACK;
-        scheduleScorePlayback(
+        await scheduleScorePlayback(
           timeline,
           score,
           bpm,
@@ -125,7 +119,8 @@ export const createPlaybackMethods = (
 
     pause() {
       // Stop transport but retain position for resume
-      stopTonePlayback();
+      if (ctx.playback) ctx.playback.pausePlayback();
+      else stopTonePlayback();
       // lastPlayPosition is already updated during playback
       setResult({
         ok: true,
@@ -138,7 +133,8 @@ export const createPlaybackMethods = (
     },
 
     stop() {
-      stopTonePlayback();
+      if (ctx.playback) ctx.playback.stopPlayback();
+      else stopTonePlayback();
       // Reset to beginning
       lastPlayPosition = { measureIndex: 0, quant: 0 };
       setResult({
@@ -151,6 +147,18 @@ export const createPlaybackMethods = (
     },
 
     rewind(measureNum = 0) {
+      if (ctx.playback) {
+        const wasPlaying = ctx.playback.isPlaying;
+        ctx.playback.seekPlayback?.(measureNum, 0);
+        if (wasPlaying) void this.play(measureNum, 0);
+        setResult({
+          ok: true,
+          status: 'info',
+          method: 'rewind',
+          message: `Rewound to measure ${measureNum + 1}`,
+        });
+        return this;
+      }
       // Stop any current playback
       const wasPlaying = toneIsPlaying();
       stopTonePlayback();
@@ -193,7 +201,8 @@ export const createPlaybackMethods = (
         return this;
       }
 
-      toneSetInstrument(instrumentId as InstrumentType);
+      if (ctx.playback?.setInstrument) ctx.playback.setInstrument(instrumentId as InstrumentType);
+      else toneSetInstrument(instrumentId as InstrumentType);
       setResult({
         ok: true,
         status: 'info',
@@ -204,12 +213,4 @@ export const createPlaybackMethods = (
       return this;
     },
   };
-};
-
-/**
- * Resets internal playback state (for testing)
- */
-export const resetPlaybackState = (): void => {
-  lastPlayPosition = { measureIndex: 0, quant: 0 };
-  isInitialized = false;
 };

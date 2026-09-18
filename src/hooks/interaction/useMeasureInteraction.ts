@@ -1,3 +1,4 @@
+import { createScreenToSvgTransform } from '@/utils/svgCoordinates';
 import { useState, useCallback } from 'react';
 import { getPitchForOffset } from '@/engines/layout';
 import { HitZone } from '@/engines/layout/types';
@@ -83,8 +84,13 @@ export function useMeasureInteraction({
       }
 
       const rect = e.currentTarget.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / scale;
-      const y = (e.clientY - rect.top) / scale;
+      const local = createScreenToSvgTransform(e.currentTarget)?.(e.clientX, e.clientY);
+      const x = local
+        ? local.x - Number(e.currentTarget.getAttribute('x') ?? 0)
+        : (e.clientX - rect.left) / scale;
+      const y = local
+        ? local.y - Number(e.currentTarget.getAttribute('y') ?? 0)
+        : (e.clientY - rect.top) / scale;
 
       // Find closest hit zone
       const hit = hitZones.find((zone) => x >= zone.startX && x < zone.endX);

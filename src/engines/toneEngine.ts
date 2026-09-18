@@ -10,21 +10,17 @@
 
 import { TimelineEvent } from '@/services/TimelineService';
 import { Score, ChordPlaybackConfig } from '@/types';
-import { getChordVoicing } from '@/services/ChordService';
-import { TIME_SIGNATURES } from '@/constants';
+import {
+  createChordPlaybackEvents,
+  type ChordPlaybackEvent,
+} from '@/services/ChordPlaybackService';
+// Preserve existing imports while keeping timeline construction independent of audio.
+export {
+  createChordPlaybackEvents,
+  type ChordPlaybackEvent,
+} from '@/services/ChordPlaybackService';
 
 // --- TYPES ---
-
-/**
- * Chord playback event for scheduling.
- */
-export interface ChordPlaybackEvent {
-  time: number; // Start time in seconds
-  duration: number; // Duration in seconds
-  notes: string[]; // Voicing notes (e.g., ['C3', 'E3', 'G3'])
-  symbol: string; // Original chord symbol
-  velocity: number; // Velocity 0-1
-}
 
 export type InstrumentType = 'bright' | 'mellow' | 'organ' | 'piano';
 
@@ -50,6 +46,7 @@ type ToneModule = typeof import('tone');
  * Used for typed synth registry instead of `any`.
  */
 interface PolySynthLike {
+  releaseAll?: () => void;
   triggerAttack: (notes: string | string[], time?: number, velocity?: number) => void;
   triggerRelease: (notes: string | string[], time?: number) => void;
   triggerAttackRelease: (
@@ -120,79 +117,6 @@ const loadTone = async (): Promise<ToneModule> => {
  */
 const getTone = (): ToneModule | null => toneModuleCache;
 
-// --- CHORD PLAYBACK HELPERS ---
-
-/**
- * Creates chord playback events from a score's chord track.
- * @param score - The score containing chord symbols
- * @param bpm - Tempo in beats per minute
- * @param velocity - Velocity for chord playback (0-127)
- * @returns Array of ChordPlaybackEvent for scheduling
- */
-export const createChordPlaybackEvents = (
-  score: Score,
-  bpm: number,
-  velocity: number = 50
-): ChordPlaybackEvent[] => {
-  const chordTrack = score.chordTrack;
-  if (!chordTrack || chordTrack.length === 0) return [];
-
-  const events: ChordPlaybackEvent[] = [];
-  const quantsPerMeasure = TIME_SIGNATURES[score.timeSignature] || TIME_SIGNATURES['4/4'];
-  const secondsPerBeat = 60 / bpm;
-  const secondsPerQuant = secondsPerBeat / 16; // 16 quants per quarter note
-
-  // Calculate total quants in score
-  const totalMeasures = score.staves[0]?.measures.length || 0;
-  const totalQuants = totalMeasures * quantsPerMeasure;
-
-  for (let i = 0; i < chordTrack.length; i++) {
-    const chord = chordTrack[i];
-    const nextChord = chordTrack[i + 1];
-
-    // Get voicing notes
-    const notes = getChordVoicing(chord.symbol);
-    if (notes.length === 0) continue;
-
-    // Convert measure-local position to global quant for timing
-    const globalQuant = chord.measure * quantsPerMeasure + chord.quant;
-    const startTime = globalQuant * secondsPerQuant;
-
-    // Calculate end position (until next chord, end of measure, or end of score)
-    let endGlobalQuant: number;
-
-    if (nextChord) {
-      const nextGlobalQuant = nextChord.measure * quantsPerMeasure + nextChord.quant;
-      const measureEndQuant = (chord.measure + 1) * quantsPerMeasure;
-
-      if (nextGlobalQuant <= measureEndQuant) {
-        // Next chord is in same measure or at measure boundary
-        endGlobalQuant = nextGlobalQuant;
-      } else {
-        // Cap at end of current measure
-        endGlobalQuant = Math.min(measureEndQuant, totalQuants);
-      }
-    } else {
-      // Last chord: cap at end of current measure or score
-      const measureEndQuant = (chord.measure + 1) * quantsPerMeasure;
-      endGlobalQuant = Math.min(measureEndQuant, totalQuants);
-    }
-
-    const duration = (endGlobalQuant - globalQuant) * secondsPerQuant;
-    if (duration <= 0) continue;
-
-    events.push({
-      time: startTime,
-      duration,
-      notes,
-      symbol: chord.symbol,
-      velocity: velocity / 127, // Convert MIDI velocity to 0-1
-    });
-  }
-
-  return events;
-};
-
 // --- STATE ---
 
 // Mutable registry of synth instances. Properties are added dynamically as instruments are loaded.
@@ -200,6 +124,8 @@ const synths: Record<string, PolySynthLike> = {};
 let sampler: SamplerLike | null = null;
 let currentPart: PartLike | null = null;
 let chordPart: PartLike | null = null;
+let playbackGeneration = 0;
+let onPlaybackCancelled: (() => void) | null = null;
 let state: ToneEngineState = {
   instrumentState: 'not-loaded',
   selectedInstrument: 'bright',
@@ -429,70 +355,122 @@ export const getInstrumentOptions = (): {
 
 // --- PLAYBACK ---
 
+export interface PlaybackLifecycle {
+  signal?: AbortSignal;
+  /** Cancellation is distinct from completion so pause preserves the resume position. */
+  onCancel?: () => void;
+}
+
 /**
  * Schedules the score for playback using Tone.js Transport and Part.
  * Ensures Tone.js is loaded before playback.
  */
-export const scheduleTonePlayback = async (
+const schedulePlayback = async (
   timeline: TimelineEvent[],
   bpm: number,
   startTimeOffset: number = 0,
   onPositionUpdate?: (measureIndex: number, quant: number, duration: number) => void,
-  onComplete?: () => void
+  onComplete?: () => void,
+  lifecycle: PlaybackLifecycle = {},
+  chordEvents: ChordPlaybackEvent[] = []
 ): Promise<void> => {
-  // Ensure Tone is loaded
-  const Tone = await loadTone();
-
-  const instrument = getActiveInstrument();
-  if (!instrument) {
-    // Not initialized yet, auto-init
-    await initTone();
-    return await scheduleTonePlayback(timeline, bpm, startTimeOffset, onPositionUpdate, onComplete);
-  }
-
+  const { signal, onCancel } = lifecycle;
+  if (signal?.aborted) return;
+  // Claim the transport before the first await. A stop or newer play invalidates this start.
   stopTonePlayback();
-  Tone.Transport.bpm.value = bpm;
+  const generation = playbackGeneration;
+  const current = () => generation === playbackGeneration && !signal?.aborted;
+  const cancel = () => {
+    if (generation === playbackGeneration) stopTonePlayback();
+  };
+  let releaseNotes = () => {};
+  onPlaybackCancelled = () => {
+    signal?.removeEventListener('abort', cancel);
+    releaseNotes();
+    onCancel?.();
+  };
+  signal?.addEventListener('abort', cancel, { once: true });
+  try {
+    const Tone = await loadTone();
+    if (!current()) return;
+    if (!getActiveInstrument()) await initTone();
+    if (!current()) return;
+    const instrument = getActiveInstrument();
+    if (!instrument) throw new Error('Audio instrument is unavailable.');
+    releaseNotes = () => instrument.releaseAll?.();
+    Tone.Transport.bpm.value = bpm;
 
-  const filteredTimeline = timeline.filter((e) => e.time >= startTimeOffset);
-  if (filteredTimeline.length === 0) {
-    onComplete?.();
-    return;
+    const filteredTimeline = timeline.filter((e) => e.time >= startTimeOffset);
+    const remainingChords = chordEvents.filter((e) => e.time + e.duration > startTimeOffset);
+    if (filteredTimeline.length === 0 && remainingChords.length === 0) {
+      stopTonePlayback();
+      onComplete?.();
+      return;
+    }
+
+    const adjustedTimeline = filteredTimeline.map((e) => ({
+      ...e,
+      time: e.time - startTimeOffset,
+    }));
+
+    const events = adjustedTimeline.map((e) => ({
+      time: e.time,
+      note: e.pitch || freqToNote(e.frequency),
+      duration: e.duration,
+      measureIndex: e.measureIndex,
+      quant: e.quant,
+    }));
+
+    if (events.length > 0) {
+      const part = new Tone.Part((time: number, event: (typeof events)[0]) => {
+        if (!current()) return;
+        instrument.triggerAttackRelease(event.note, event.duration, time);
+        Tone.Draw.schedule(() => {
+          if (current()) onPositionUpdate?.(event.measureIndex, event.quant, event.duration);
+        }, time);
+      }, events);
+      currentPart = part;
+      part.start(0);
+    }
+
+    // Register both parts before starting the transport, including chord-only charts.
+    if (remainingChords.length > 0) {
+      await scheduleChordPlayback(remainingChords, startTimeOffset);
+      if (!current()) return;
+    }
+    const endTime =
+      Math.max(
+        ...events.map((event) => event.time + event.duration),
+        ...remainingChords.map((event) => event.time + event.duration - startTimeOffset)
+      ) + 0.1;
+
+    Tone.Transport.scheduleOnce((time: number) => {
+      Tone.Draw.schedule(() => {
+        if (current()) {
+          stopTonePlayback();
+          onComplete?.();
+        }
+      }, time);
+    }, endTime);
+
+    Tone.Transport.start();
+    updateState({ isPlaying: true });
+  } catch (error) {
+    cancel();
+    throw error;
   }
-
-  const adjustedTimeline = filteredTimeline.map((e) => ({
-    ...e,
-    time: e.time - startTimeOffset,
-  }));
-
-  const events = adjustedTimeline.map((e) => ({
-    time: e.time,
-    note: e.pitch || freqToNote(e.frequency),
-    duration: e.duration,
-    measureIndex: e.measureIndex,
-    quant: e.quant,
-  }));
-
-  const part = new Tone.Part((time: number, event: (typeof events)[0]) => {
-    instrument.triggerAttackRelease(event.note, event.duration, time);
-    Tone.Draw.schedule(() => {
-      onPositionUpdate?.(event.measureIndex, event.quant, event.duration);
-    }, time);
-  }, events);
-  currentPart = part;
-
-  part.start(0);
-
-  const lastEvent = events[events.length - 1];
-  const endTime = lastEvent.time + lastEvent.duration + 0.1;
-
-  Tone.Transport.scheduleOnce(() => {
-    updateState({ isPlaying: false });
-    onComplete?.();
-  }, endTime);
-
-  Tone.Transport.start();
-  updateState({ isPlaying: true });
 };
+
+/** Schedule melody playback without accompaniment. */
+export const scheduleTonePlayback = (
+  timeline: TimelineEvent[],
+  bpm: number,
+  startTimeOffset: number = 0,
+  onPositionUpdate?: (measureIndex: number, quant: number, duration: number) => void,
+  onComplete?: () => void,
+  lifecycle: PlaybackLifecycle = {}
+): Promise<void> =>
+  schedulePlayback(timeline, bpm, startTimeOffset, onPositionUpdate, onComplete, lifecycle);
 
 /**
  * Schedules chord playback events alongside the melody.
@@ -506,7 +484,9 @@ export const scheduleChordPlayback = async (
 ): Promise<void> => {
   if (chordEvents.length === 0) return;
 
+  const generation = playbackGeneration;
   const Tone = await loadTone();
+  if (generation !== playbackGeneration) return;
   const instrument = getActiveInstrument();
   if (!instrument) return;
 
@@ -529,6 +509,7 @@ export const scheduleChordPlayback = async (
   }
 
   const chordPartInstance = new Tone.Part((time: number, event: ChordPlaybackEvent) => {
+    if (generation !== playbackGeneration) return;
     // Play all notes in the chord voicing with the specified velocity
     for (const note of event.notes) {
       instrument.triggerAttackRelease(note, event.duration, time, event.velocity);
@@ -556,22 +537,31 @@ export const scheduleScorePlayback = async (
   chordConfig?: ChordPlaybackConfig,
   startTimeOffset: number = 0,
   onPositionUpdate?: (measureIndex: number, quant: number, duration: number) => void,
-  onComplete?: () => void
+  onComplete?: () => void,
+  lifecycle: PlaybackLifecycle = {}
 ): Promise<void> => {
-  // Schedule melody playback
-  await scheduleTonePlayback(timeline, bpm, startTimeOffset, onPositionUpdate, onComplete);
-
-  // Schedule chord playback if enabled
-  if (chordConfig?.enabled && score.chordTrack && score.chordTrack.length > 0) {
-    const chordEvents = createChordPlaybackEvents(score, bpm, chordConfig.velocity);
-    await scheduleChordPlayback(chordEvents, startTimeOffset);
-  }
+  const chordEvents = chordConfig?.enabled
+    ? createChordPlaybackEvents(score, bpm, chordConfig.velocity)
+    : [];
+  await schedulePlayback(
+    timeline,
+    bpm,
+    startTimeOffset,
+    onPositionUpdate,
+    onComplete,
+    lifecycle,
+    chordEvents
+  );
 };
 
 /**
  * Stops playback and cleans up resources.
  */
 export const stopTonePlayback = (): void => {
+  playbackGeneration++;
+  const cancelled = onPlaybackCancelled;
+  onPlaybackCancelled = null;
+  cancelled?.();
   const Tone = getTone();
   if (!Tone) return;
 

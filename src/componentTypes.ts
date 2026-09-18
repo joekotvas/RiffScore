@@ -1,4 +1,4 @@
-import { Selection, Measure, PreviewNote } from './types';
+import { Selection, Measure, PreviewNote, TupletConfig } from './types';
 import { HitZone, MeasureLayoutV2, EventLayout, ChordLayout } from './engines/layout/types';
 import { NoteInput, PlacementOverride } from './hooks/note/useNoteEntry';
 import type { AccidentalGlyphDecision } from './utils/accidentalContext';
@@ -23,6 +23,7 @@ export interface LayoutConfig {
  * This object can be passed down the tree to avoid prop drilling.
  */
 export interface DragStartParams {
+  screenToLocal?: import('./utils/svgCoordinates').ScreenToSvg;
   measureIndex: number;
   eventId: string;
   noteId: string;
@@ -38,6 +39,9 @@ export interface InteractionState {
   // State
   selection: Selection;
   previewNote: PreviewNote | null; // Note preview data
+  showGhostNotes?: boolean;
+  /** Show unavailable-entry previews (grey notes with a cross). */
+  showBlockedGhostNotes?: boolean; // Presentation only: entry still uses previewNote
   activeDuration: string;
   isDotted: boolean;
   modifierHeld: boolean;
@@ -73,6 +77,7 @@ export interface InteractionState {
  * Standardized props for the Measure component.
  */
 export interface MeasureProps {
+  tuplet?: TupletConfig;
   // 1. Identity & Data
   measureIndex: number;
   measureData: Measure; // { events, isPickup, id }
@@ -80,6 +85,8 @@ export interface MeasureProps {
   // 2. Formatting (Positioning)
   startX: number;
   isLast: boolean;
+  showBarlines?: boolean;
+  showPlaceholderRests?: boolean;
   forcedWidth?: number; // For Grand Staff sync
   forcedEventPositions?: Record<number, number>;
   measureLayout?: MeasureLayoutV2;

@@ -11,7 +11,11 @@ export const handlePlayback = (
   selection: Selection,
   score: Score
 ) => {
-  const { playScore, isPlaying, lastPlayStart } = playback;
+  const { isPlaying, lastPlayStart } = playback;
+  const playScore = (measure: number, quant: number): void => {
+    // UI shortcuts have no promise consumer; controls/API still expose scheduling errors.
+    void Promise.resolve(playback.playScore(measure, quant)).catch(() => {});
+  };
   const measures = getActiveStaff(score).measures;
 
   // PLAYBACK 'P'
