@@ -212,6 +212,7 @@ test('viewport policy receives frozen geometry, controls SVG scale, and explicit
   );
   const api = ref.current!;
   expect(api).toBeDefined();
+  expect(screen.getByTestId('score-canvas-container')).toHaveStyle({ paddingLeft: '0px' });
   expect(container.querySelector('.riff-ScoreCanvas__svg')).toHaveAttribute(
     'viewBox',
     '-10 5 200 80'

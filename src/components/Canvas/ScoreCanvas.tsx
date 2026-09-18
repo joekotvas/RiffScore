@@ -1123,6 +1123,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       style={
         {
           ...(!isPageView && overflow ? { overflow } : {}),
+          // A viewport policy owns the entire frame, including its outer padding.
+          paddingLeft: !isPageView && resolveViewport ? 0 : undefined,
           backgroundColor: isPageView
             ? undefined
             : showBackground
