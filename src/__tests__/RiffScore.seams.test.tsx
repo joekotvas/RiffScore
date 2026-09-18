@@ -195,3 +195,84 @@ test('page overlays resolve a note on exactly one page in page coordinates', () 
   expect(resolved[0].point!.x).toBeGreaterThan(0);
   expect(resolved[0].point!.x).toBeLessThan(resolved[0].width);
 });
+
+test('viewport policy receives frozen geometry, controls SVG scale, and explicit bounds take precedence', () => {
+  const ref = React.createRef<import('../api.types').MusicEditorAPI>();
+  const policy = jest.fn(
+    (geometry: import('../components/Canvas/ScoreGeometry').ScoreViewGeometry) => {
+      expect(Object.isFrozen(geometry.staves[0])).toBe(true);
+      expect(geometry.staves[0].right).toBeGreaterThan(geometry.staves[0].left);
+      return { bounds: { x: -20, y: 10, width: 400, height: 160 }, scale: 0.5 };
+    }
+  );
+  const { container, rerender, unmount } = render(
+    <React.StrictMode>
+      <RiffScore apiRef={ref} config={seed} resolveViewport={policy} />
+    </React.StrictMode>
+  );
+  const api = ref.current!;
+  expect(api).toBeDefined();
+  expect(screen.getByTestId('score-canvas-container')).toHaveStyle({ paddingLeft: '0px' });
+  expect(container.querySelector('.riff-ScoreCanvas__svg')).toHaveAttribute(
+    'viewBox',
+    '-10 5 200 80'
+  );
+  expect(container.querySelector('.riff-ScoreCanvas__svg')).toHaveAttribute('width', '200');
+  act(() => api.select(0).setPitch('D4'));
+  const edited = api.getScore();
+  rerender(
+    <React.StrictMode>
+      <RiffScore
+        apiRef={ref}
+        config={{ ...seed, ui: { ...seed.ui, viewport: { bounds: { width: 300, height: 100 } } } }}
+        resolveViewport={policy}
+      />
+    </React.StrictMode>
+  );
+  expect(ref.current).toBe(api);
+  expect(api.getScore()).toBe(edited);
+  expect(container.querySelector('.riff-ScoreCanvas__svg')).toHaveAttribute(
+    'viewBox',
+    '0 0 150 50'
+  );
+  expect(edited.staves[0].measures[0].events[0].notes[0].pitch).toBe('D4');
+  unmount();
+  expect(ref.current).toBeNull();
+});
+
+test('invalid viewport results fall back and page view never invokes the scroll policy', () => {
+  const ref = React.createRef<import('../api.types').MusicEditorAPI>();
+  const policy = jest.fn(() => ({ bounds: { x: 0, y: 0, width: NaN, height: -1 }, scale: 0 }));
+  const { container } = render(<RiffScore apiRef={ref} config={seed} resolveViewport={policy} />);
+  expect(container.querySelector('.riff-ScoreCanvas__svg')?.outerHTML).not.toMatch(/NaN|Infinity/);
+  expect(policy).toHaveBeenCalled();
+  policy.mockClear();
+  act(() => ref.current!.setViewMode('page'));
+  expect(policy).not.toHaveBeenCalled();
+});
+
+test('hiding notation retains the same API, score, history and reactive controls', () => {
+  const ref = React.createRef<import('../api.types').MusicEditorAPI>();
+  let controls!: import('../components/Layout/ScoreControls').ScoreControls;
+  const capture = (value: typeof controls) => {
+    controls = value;
+    return null;
+  };
+  const { container, rerender } = render(
+    <RiffScore apiRef={ref} config={seed} renderControls={capture} />
+  );
+  const api = ref.current!;
+  act(() => api.select(0).setPitch('D4'));
+  rerender(
+    <RiffScore
+      apiRef={ref}
+      config={{ ...seed, ui: { ...seed.ui, showScore: false } }}
+      renderControls={capture}
+    />
+  );
+  expect(ref.current).toBe(api);
+  expect(container.querySelector('.riff-ScoreCanvas__svg')).toBeNull();
+  expect(controls.canUndo).toBe(true);
+  act(() => controls.undo());
+  expect(api.getScore().staves[0].measures[0].events[0].notes[0].pitch).toBe('C4');
+});

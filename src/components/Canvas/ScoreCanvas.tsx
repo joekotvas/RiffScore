@@ -57,7 +57,14 @@ import { calculateStretchFactor } from '@/engines/layout';
 import { calculateAllMeasureWidths } from '@/services/PageLayoutService';
 import type { RenderScoreOverlay, ScoreAnchor } from './ScoreOverlay';
 
+import {
+  normalizeScoreBounds,
+  type ResolveScoreViewport,
+  type ScoreViewGeometry,
+} from './ScoreGeometry';
+
 interface ScoreCanvasProps {
+  resolveViewport?: ResolveScoreViewport;
   renderOverlay?: RenderScoreOverlay;
   interactive?: boolean;
   scale: number;
@@ -108,8 +115,9 @@ const PAPER_CSS_VARIABLES = themeCSSVariables(PAPER_THEME) as React.CSSPropertie
  */
 const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   renderOverlay,
+  resolveViewport,
   interactive = true,
-  scale,
+  scale: requestedScale,
   engraving,
   view,
   bounds,
@@ -201,14 +209,129 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     ? (layout.getX.measureOrigin({ measure: firstVisibleMeasure }) ?? 0) -
       (layout.getX.measureOrigin({ measure: 0 }) ?? 0)
     : 0;
-  const validBounds =
-    !isPageView &&
-    bounds &&
-    [bounds.x ?? 0, bounds.y ?? 0, bounds.width, bounds.height].every(Number.isFinite) &&
-    bounds.width > 0 &&
-    bounds.height > 0
-      ? { ...bounds, x: bounds.x ?? 0, y: bounds.y ?? 0 }
-      : undefined;
+  const totalWidth = useMemo(() => {
+    // In page view, use page dimensions
+    if (isPageView) {
+      return pageLayout.dimensions.width;
+    }
+    // In scroll view, calculate from measure positions
+    if (layout.staves.length > 0) {
+      const firstStaff = layout.staves[0];
+      const lastMeasure =
+        firstStaff.measures[measureIndices?.at(-1) ?? firstStaff.measures.length - 1];
+      return lastMeasure ? lastMeasure.x + lastMeasure.width + 50 : 800;
+    }
+    return 800;
+  }, [layout, isPageView, pageLayout.dimensions.width, measureIndices]);
+
+  const chordFont = chordDisplay.font;
+  const chordFontSize =
+    Number.isFinite(chordFont?.size) && chordFont!.size! > 0 ? chordFont!.size : undefined;
+  const notationTop = CONFIG.baseY + (layout.vertical?.top ?? 0);
+  const visibleChords =
+    chordDisplay.visible !== false &&
+    (score.chordTrack ?? []).some(
+      (chord) => !measureIndices || measureIndices.includes(chord.measure)
+    );
+  const chordTop = visibleChords
+    ? calculateChordTrackY(layout.getY.staff(0)?.top ?? CONFIG.baseY, notationTop, chordFontSize) -
+      (chordFontSize ?? 20)
+    : notationTop;
+  const titleY = Math.min(40, Math.min(notationTop, chordTop) - 16) + (scoreTitleOffset?.y ?? 0);
+  const contentTop =
+    showScoreTitle && score.title
+      ? Math.min(notationTop, chordTop, titleY - 30)
+      : Math.min(notationTop, chordTop);
+  const scrollTop = !isPageView
+    ? Math.max(0, -contentTop + 4) +
+      (Number.isFinite(scrollPadding?.top) ? Math.max(0, scrollPadding!.top!) : 0)
+    : 0;
+  const scrollBottom = Number.isFinite(scrollPadding?.bottom)
+    ? Math.max(0, scrollPadding!.bottom!)
+    : 50;
+
+  // SVG height derived from layout (forward-flow pattern)
+  const svgHeight = useMemo(() => {
+    // In page view, use total height (all pages + gaps)
+    if (isPageView) {
+      return pageLayout.totalHeight;
+    }
+    // In scroll view, derive from content: the staff block plus padding, extended only when
+    // the lowest ink or lyric band below the last staff would otherwise run off the edge
+    // (deep ledger notes, wide beamed groups, several lyric lines).
+    const contentBottom = layout.getY.content.bottom;
+    const inkBottom = CONFIG.baseY + (layout.vertical?.bottom ?? 0);
+    return contentBottom > 0 ? Math.max(contentBottom + scrollBottom, inkBottom + 4) : 200;
+  }, [layout, isPageView, pageLayout.totalHeight, scrollBottom]);
+
+  const defaultBounds = useMemo(
+    () => ({
+      x: viewOriginX,
+      y: -scrollTop,
+      width: Math.max(1, totalWidth - viewOriginX),
+      height: svgHeight + scrollTop,
+    }),
+    [viewOriginX, scrollTop, totalWidth, svgHeight]
+  );
+  const geometry: ScoreViewGeometry = useMemo(() => {
+    const staves = layout.staves.flatMap((staff, index) => {
+      const first = staff.measures[firstVisibleMeasure];
+      const last = staff.measures[measureIndices?.at(-1) ?? staff.measures.length - 1];
+      if (!first || !last || (measureIndices && !measureIndices.length)) return [];
+      const vertical = layout.getY.staff(index)!;
+      return [
+        Object.freeze({
+          id: score.staves[index].id,
+          index,
+          clef: score.staves[index].clef,
+          top: vertical.top,
+          bottom: vertical.bottom,
+          left: display?.showPreamble === false ? first.x : viewOriginX,
+          right: last.x + last.width,
+          firstEventX: score.staves[index].measures[firstVisibleMeasure]?.events.length
+            ? first.x + (layout.getX({ measure: firstVisibleMeasure, quant: 0 }) ?? 0)
+            : null,
+        }),
+      ];
+    });
+    const left = Math.min(
+      ...staves.map((staff) => staff.left),
+      showScoreTitle && score.title ? (scoreTitleOffset?.x ?? 0) : Infinity
+    );
+    const right = Math.max(...staves.map((staff) => staff.right));
+    const bottom = Math.max(layout.getY.content.bottom, CONFIG.baseY + layout.vertical.bottom);
+    return Object.freeze({
+      staffSpace: CONFIG.lineHeight,
+      staves: Object.freeze(staves),
+      defaultBounds: Object.freeze({ ...defaultBounds }),
+      contentBounds: Object.freeze({
+        x: Number.isFinite(left) ? left : viewOriginX,
+        y: contentTop,
+        width: Number.isFinite(right - left) ? Math.max(1, right - left) : 200,
+        height: Math.max(1, bottom - contentTop),
+      }),
+    });
+  }, [
+    layout,
+    score.staves,
+    score.title,
+    showScoreTitle,
+    scoreTitleOffset?.x,
+    firstVisibleMeasure,
+    measureIndices,
+    display?.showPreamble,
+    viewOriginX,
+    contentTop,
+    defaultBounds,
+  ]);
+  const resolvedViewport = isPageView ? undefined : resolveViewport?.(geometry);
+  const validBounds = isPageView
+    ? undefined
+    : (normalizeScoreBounds(bounds) ?? normalizeScoreBounds(resolvedViewport?.bounds));
+  const scale =
+    !isPageView && Number.isFinite(resolvedViewport?.scale) && resolvedViewport!.scale! > 0
+      ? resolvedViewport!.scale!
+      : requestedScale;
   const pointerScale = scale * zoom;
 
   // --- INTERACTION LOGIC MOVED FROM SCORE EDITOR ---
@@ -326,7 +449,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     playbackPosition,
     previewNote,
     scale,
-    enabled: !view?.measures && !bounds,
+    enabled: !view?.measures && !bounds && !resolveViewport,
   });
 
   const unscaledMeasureWidths = useMemo(() => calculateAllMeasureWidths(score, 1.0), [score]);
@@ -568,61 +691,6 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       pageRefsMap.current.delete(pageIndex);
     }
   }, []);
-
-  const totalWidth = useMemo(() => {
-    // In page view, use page dimensions
-    if (isPageView) {
-      return pageLayout.dimensions.width;
-    }
-    // In scroll view, calculate from measure positions
-    if (layout.staves.length > 0) {
-      const firstStaff = layout.staves[0];
-      const lastMeasure =
-        firstStaff.measures[measureIndices?.at(-1) ?? firstStaff.measures.length - 1];
-      return lastMeasure ? lastMeasure.x + lastMeasure.width + 50 : 800;
-    }
-    return 800;
-  }, [layout, isPageView, pageLayout.dimensions.width, measureIndices]);
-
-  const chordFont = chordDisplay.font;
-  const chordFontSize =
-    Number.isFinite(chordFont?.size) && chordFont!.size! > 0 ? chordFont!.size : undefined;
-  const notationTop = CONFIG.baseY + (layout.vertical?.top ?? 0);
-  const visibleChords =
-    chordDisplay.visible !== false &&
-    (score.chordTrack ?? []).some(
-      (chord) => !measureIndices || measureIndices.includes(chord.measure)
-    );
-  const chordTop = visibleChords
-    ? calculateChordTrackY(layout.getY.staff(0)?.top ?? CONFIG.baseY, notationTop, chordFontSize) -
-      (chordFontSize ?? 20)
-    : notationTop;
-  const titleY = Math.min(40, Math.min(notationTop, chordTop) - 16) + (scoreTitleOffset?.y ?? 0);
-  const contentTop =
-    showScoreTitle && score.title
-      ? Math.min(notationTop, chordTop, titleY - 30)
-      : Math.min(notationTop, chordTop);
-  const scrollTop = !isPageView
-    ? Math.max(0, -contentTop + 4) +
-      (Number.isFinite(scrollPadding?.top) ? Math.max(0, scrollPadding!.top!) : 0)
-    : 0;
-  const scrollBottom = Number.isFinite(scrollPadding?.bottom)
-    ? Math.max(0, scrollPadding!.bottom!)
-    : 50;
-
-  // SVG height derived from layout (forward-flow pattern)
-  const svgHeight = useMemo(() => {
-    // In page view, use total height (all pages + gaps)
-    if (isPageView) {
-      return pageLayout.totalHeight;
-    }
-    // In scroll view, derive from content: the staff block plus padding, extended only when
-    // the lowest ink or lyric band below the last staff would otherwise run off the edge
-    // (deep ledger notes, wide beamed groups, several lyric lines).
-    const contentBottom = layout.getY.content.bottom;
-    const inkBottom = CONFIG.baseY + (layout.vertical?.bottom ?? 0);
-    return contentBottom > 0 ? Math.max(contentBottom + scrollBottom, inkBottom + 4) : 200;
-  }, [layout, isPageView, pageLayout.totalHeight, scrollBottom]);
 
   // Cursor layout (consumes centralized layout - no duplicate calculations)
   // Calculate cursor layout
@@ -998,12 +1066,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     ]
   );
 
-  const scrollBounds = validBounds ?? {
-    x: viewOriginX,
-    y: -scrollTop,
-    width: Math.max(1, totalWidth - viewOriginX),
-    height: svgHeight + scrollTop,
-  };
+  const scrollBounds = validBounds ?? defaultBounds;
   const resolveAnchor = (
     anchor: ScoreAnchor,
     pageIndex: number | null
@@ -1060,6 +1123,8 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       style={
         {
           ...(!isPageView && overflow ? { overflow } : {}),
+          // A viewport policy owns the entire frame, including its outer padding.
+          paddingLeft: !isPageView && resolveViewport ? 0 : undefined,
           backgroundColor: isPageView
             ? undefined
             : showBackground
@@ -1359,6 +1424,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                 )}
 
                 {renderOverlay?.({
+                  geometry: null,
                   pageIndex: page.index,
                   bounds: {
                     x: 0,
@@ -1700,6 +1766,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
             {renderOverlay && (
               <g className="riff-ScoreOverlay">
                 {renderOverlay({
+                  geometry,
                   pageIndex: null,
                   bounds: scrollBounds,
                   resolveAnchor: (anchor) => resolveAnchor(anchor, null),

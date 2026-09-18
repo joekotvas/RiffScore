@@ -1,3 +1,4 @@
+import type { ResolveScoreViewport } from '../Canvas/ScoreGeometry';
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { preparePrint, restoreFromPrint } from '@/services/PrintService';
@@ -55,6 +56,8 @@ import type { RenderScoreOverlay } from '../Canvas/ScoreOverlay';
 
 interface ScoreEditorContentProps {
   renderOverlay?: RenderScoreOverlay;
+  resolveViewport?: ResolveScoreViewport;
+  showScore?: boolean;
   playbackCursor?: PlaybackCursorState | null;
   renderControls?: RenderScoreControls;
   scale?: number;
@@ -91,6 +94,8 @@ const ScoreEditorBody = ({
   scale = 1,
   renderControls,
   renderOverlay,
+  resolveViewport,
+  showScore = true,
   playbackCursor,
   label,
   showToolbar = true,
@@ -473,6 +478,7 @@ const ScoreEditorBody = ({
 
       <div
         className="riff-ScoreEditor__viewport"
+        hidden={!showScore}
         style={{
           backgroundColor: showBackground ? theme.background : 'transparent',
           width: dimension(viewportOptions?.width),
@@ -501,45 +507,48 @@ const ScoreEditorBody = ({
                 : 'top center',
           }}
         >
-          <ScoreCanvas
-            renderOverlay={renderOverlay}
-            interactive={interactive}
-            scale={scale}
-            view={view}
-            bounds={viewportOptions?.bounds}
-            engraving={engraving}
-            tuplet={tuplet}
-            showScoreTitle={showScoreTitle}
-            showGhostNotes={showGhostNotes}
-            showBlockedGhostNotes={showBlockedGhostNotes}
-            scoreTitleOffset={scoreTitleOffset}
-            scrollPadding={scrollPadding}
-            overflow={viewportOptions?.overflow}
-            showBackground={showBackground}
-            chordDisplay={chordDisplay}
-            chordEditable={chordEditable}
-            zoom={viewportZoom / 100}
-            playbackPosition={
-              playbackCursor === undefined
-                ? playback.playbackPosition
-                : (playbackCursor ?? { measureIndex: 0, quant: 0, duration: 0 })
-            }
-            containerRef={scoreContainerRef}
-            onHoverChange={handleHoverChange}
-            onBackgroundClick={handleBackgroundClick}
-            onKeySigClick={() => toolbarRef.current?.openKeySigMenu()}
-            onTimeSigClick={() => toolbarRef.current?.openTimeSigMenu()}
-            onClefClick={() => toolbarRef.current?.openClefMenu()}
-            isPlaying={
-              playbackCursor === undefined
-                ? playback.isPlaying
-                : (playbackCursor?.isPlaying ?? false)
-            }
-            isPlaybackVisible={
-              playbackCursor === undefined ? playback.isActive : playbackCursor !== null
-            }
-            chordTrack={chordTrackHook}
-          />
+          {showScore && (
+            <ScoreCanvas
+              renderOverlay={renderOverlay}
+              resolveViewport={resolveViewport}
+              interactive={interactive}
+              scale={scale}
+              view={view}
+              bounds={viewportOptions?.bounds}
+              engraving={engraving}
+              tuplet={tuplet}
+              showScoreTitle={showScoreTitle}
+              showGhostNotes={showGhostNotes}
+              showBlockedGhostNotes={showBlockedGhostNotes}
+              scoreTitleOffset={scoreTitleOffset}
+              scrollPadding={scrollPadding}
+              overflow={viewportOptions?.overflow}
+              showBackground={showBackground}
+              chordDisplay={chordDisplay}
+              chordEditable={chordEditable}
+              zoom={viewportZoom / 100}
+              playbackPosition={
+                playbackCursor === undefined
+                  ? playback.playbackPosition
+                  : (playbackCursor ?? { measureIndex: 0, quant: 0, duration: 0 })
+              }
+              containerRef={scoreContainerRef}
+              onHoverChange={handleHoverChange}
+              onBackgroundClick={handleBackgroundClick}
+              onKeySigClick={() => toolbarRef.current?.openKeySigMenu()}
+              onTimeSigClick={() => toolbarRef.current?.openTimeSigMenu()}
+              onClefClick={() => toolbarRef.current?.openClefMenu()}
+              isPlaying={
+                playbackCursor === undefined
+                  ? playback.isPlaying
+                  : (playbackCursor?.isPlaying ?? false)
+              }
+              isPlaybackVisible={
+                playbackCursor === undefined ? playback.isActive : playbackCursor !== null
+              }
+              chordTrack={chordTrackHook}
+            />
+          )}
         </div>
       </div>
 
@@ -554,13 +563,13 @@ const ScoreEditorBody = ({
           redo: () => {
             if (interactive) scoreLogic.historyAPI.redo();
           },
+          playbackState: { ...playback.playbackPosition, isPlaying: playback.isPlaying },
+          playbackEnabled: interactive && enablePlayback,
           isPlaying: playback.isPlaying,
           play: async () => {
             if (!interactive || !enablePlayback) return;
-            await playback.playScore(
-              playback.playbackPosition.measureIndex ?? 0,
-              playback.playbackPosition.quant ?? 0
-            );
+            const position = playback.getPosition();
+            await playback.playScore(position.measureIndex ?? 0, position.quant ?? 0);
           },
           pause: playback.pausePlayback,
           stop: playback.stopPlayback,

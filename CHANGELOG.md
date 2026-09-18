@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Instance-local `apiRef`, frozen scroll geometry, and a pure `resolveViewport` presentation callback.
+- `renderOverlay.geometry`, exported `ClefGlyph`/`MusicGlyph`, and a stable note-group styling hook.
+- `ui.showScore` for controls-only compositions; reactive playback state and availability in custom controls.
+- Headless `riffscore/extensions` contract/capability checks; the React package entry preserves its Next.js client boundary.
+
+### Fixed
+- Custom controls can seek and play in one synchronous action without resuming from stale React state.
+
+
 ## [1.0.0-alpha.18] - 2026-09-18
 
 ### Added

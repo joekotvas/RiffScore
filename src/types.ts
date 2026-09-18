@@ -1034,6 +1034,8 @@ export interface RiffScoreConfig {
     /** A measure window always uses scroll view. */
     view?: ScoreViewConfig;
     showToolbar: boolean;
+    /** Hide the notation surface while retaining custom controls and the editor transport. */
+    showScore?: boolean;
     showFooter?: boolean;
     /** Hide note/rest entry previews without disabling entry, selection, or editing. */
     showGhostNotes?: boolean;

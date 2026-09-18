@@ -1,6 +1,6 @@
 {
   "name": "riffscore",
-  "version": "1.0.0-alpha.18",
+  "version": "1.0.0-alpha.19",
   "description": "An intuitive, embeddable sheet music editor for React",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -16,6 +16,11 @@
       "types": "./dist/theory.d.ts",
       "import": "./dist/theory.mjs",
       "require": "./dist/theory.js"
+    },
+    "./extensions": {
+      "types": "./dist/extensions.d.ts",
+      "import": "./dist/extensions.mjs",
+      "require": "./dist/extensions.js"
     }
   },
   "files": [

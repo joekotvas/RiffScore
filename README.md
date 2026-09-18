@@ -259,6 +259,8 @@ npm run demo:dev
 
 Configure instance-local themes, viewport sizing, notation visibility, engraving preferences and editing permissions without replacing the editor. Add reactive controls with `renderControls`, drive a visual cursor with `playbackCursor`, or use unmetered notation and opt-in chord recognition. See the [configuration guide](./docs/CONFIGURATION.md#alpha18-presentation-and-interaction-controls) and [release notes](./CHANGELOG.md).
 
+The alpha.19 candidate adds an instance-local `apiRef`, frozen overlay geometry and a pure `resolveViewport` callback for separately packaged presentations. See [presentation composition](./docs/CONFIGURATION.md#presentation-composition-alpha19-candidate).
+
 
 ### Alpha.18 integration primitives
 
