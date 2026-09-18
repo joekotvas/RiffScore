@@ -241,7 +241,7 @@ test('viewport policy receives frozen geometry, controls SVG scale, and explicit
 
 test('invalid viewport results fall back and page view never invokes the scroll policy', () => {
   const ref = React.createRef<import('../api.types').MusicEditorAPI>();
-  const policy = jest.fn(() => ({ bounds: { width: NaN, height: -1 }, scale: 0 }));
+  const policy = jest.fn(() => ({ bounds: { x: 0, y: 0, width: NaN, height: -1 }, scale: 0 }));
   const { container } = render(<RiffScore apiRef={ref} config={seed} resolveViewport={policy} />);
   expect(container.querySelector('.riff-ScoreCanvas__svg')?.outerHTML).not.toMatch(/NaN|Infinity/);
   expect(policy).toHaveBeenCalled();
