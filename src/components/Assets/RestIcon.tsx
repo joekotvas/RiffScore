@@ -1,6 +1,6 @@
-// @ts-nocheck
+import { MusicGlyph } from './MusicGlyph';
 import React from 'react';
-import { REST_GLYPHS, BRAVURA_FONT } from '@/constants/SMuFL';
+import { REST_GLYPHS } from '@/constants/SMuFL';
 import { CONFIG } from '@/config';
 
 const ICON_SIZE = CONFIG.toolbar.iconSize;
@@ -15,7 +15,6 @@ const ICON_SIZE = CONFIG.toolbar.iconSize;
  */
 const RestIcon = ({ type, color = 'currentColor' }: { type: string; color?: string }) => {
   const commonProps = {
-    fontFamily: BRAVURA_FONT,
     fill: color,
     textAnchor: 'middle' as const,
     style: { userSelect: 'none' as const },
@@ -30,9 +29,9 @@ const RestIcon = ({ type, color = 'currentColor' }: { type: string; color?: stri
           <>
             {/* Staff line visual aid (above) */}
             <line x1={5} y1={8} x2={15} y2={8} stroke={color} strokeWidth={1} />
-            <text x={cx} y={8} fontSize={20} {...commonProps}>
+            <MusicGlyph x={cx} y={8} fontSize={20} {...commonProps}>
               {REST_GLYPHS.whole}
-            </text>
+            </MusicGlyph>
           </>
         );
 
@@ -41,53 +40,53 @@ const RestIcon = ({ type, color = 'currentColor' }: { type: string; color?: stri
           <>
             {/* Staff line visual aid (below) */}
             <line x1={5} y1={12} x2={15} y2={12} stroke={color} strokeWidth={1} />
-            <text x={cx} y={12} fontSize={20} {...commonProps}>
+            <MusicGlyph x={cx} y={12} fontSize={20} {...commonProps}>
               {REST_GLYPHS.half}
-            </text>
+            </MusicGlyph>
           </>
         );
 
       case 'quarter':
         return (
-          <text x={cx} y={12} fontSize={20} {...commonProps}>
+          <MusicGlyph x={cx} y={12} fontSize={20} {...commonProps}>
             {REST_GLYPHS.quarter}
-          </text>
+          </MusicGlyph>
         );
 
       case 'eighth':
         return (
-          <text x={cx} y={10} fontSize={22} {...commonProps}>
+          <MusicGlyph x={cx} y={10} fontSize={22} {...commonProps}>
             {REST_GLYPHS.eighth}
-          </text>
+          </MusicGlyph>
         );
 
       case 'sixteenth':
         return (
-          <text x={cx} y={8} fontSize={20} {...commonProps}>
+          <MusicGlyph x={cx} y={8} fontSize={20} {...commonProps}>
             {REST_GLYPHS.sixteenth}
-          </text>
+          </MusicGlyph>
         );
 
       case 'thirtysecond':
         return (
-          <text x={cx} y={10} fontSize={20} {...commonProps}>
+          <MusicGlyph x={cx} y={10} fontSize={20} {...commonProps}>
             {REST_GLYPHS.thirtysecond}
-          </text>
+          </MusicGlyph>
         );
 
       case 'sixtyfourth':
         return (
-          <text x={cx} y={8} fontSize={17} {...commonProps}>
+          <MusicGlyph x={cx} y={8} fontSize={17} {...commonProps}>
             {REST_GLYPHS.sixtyfourth}
-          </text>
+          </MusicGlyph>
         );
 
       default:
         // Default to quarter if unknown
         return (
-          <text x={cx} y={12} fontSize={20} {...commonProps}>
+          <MusicGlyph x={cx} y={12} fontSize={20} {...commonProps}>
             {REST_GLYPHS.quarter}
-          </text>
+          </MusicGlyph>
         );
     }
   };

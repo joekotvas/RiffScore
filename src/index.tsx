@@ -41,6 +41,9 @@ export type {
   Measure,
   Staff,
   RiffScoreConfig,
+  DeepPartial,
+  ChordDisplayConfig,
+  ChordPlaybackConfig,
   ChordRecognitionConfig,
   EngravingConfig,
   TupletConfig,
@@ -63,3 +66,21 @@ export type {
 } from './components/Layout/ScoreControls';
 
 export { recognizeChord, recognizeScoreChords } from './services/chord/ChordRecognition';
+
+export { RiffScoreSession, type RiffScoreSessionProps } from './context/RiffScoreSession';
+export type { ScoreViewConfig, ScoreBounds } from './types';
+export type { PlaybackState } from './api.types';
+
+export {
+  MusicGlyphProvider,
+  getDefaultGlyphMetrics,
+  type MusicGlyphAdapter,
+  type MusicGlyphMetrics,
+  type MusicGlyphProps,
+} from './context/MusicGlyphContext';
+
+export type {
+  ScoreAnchor,
+  ScoreOverlayContext,
+  RenderScoreOverlay,
+} from './components/Canvas/ScoreOverlay';

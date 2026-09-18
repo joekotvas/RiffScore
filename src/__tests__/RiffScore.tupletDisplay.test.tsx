@@ -13,7 +13,7 @@ const config = (notes: string, hideBracketWhenBeamed?: boolean): DeepPartial<Rif
   ui: {
     showToolbar: false,
     showFooter: false,
-    tuplet: { hideBracketWhenBeamed },
+    engraving: { tuplets: { hideBracketWhenBeamed } },
   },
   score: { abc: `X:1\nM:4/4\nL:1/8\nK:C\n${notes}|]` },
 });
@@ -65,7 +65,10 @@ describe('tuplet display configuration', () => {
     (mode) => {
       const settings = config('(3B/8 ^B/8 =B/8', true);
       if (mode === 'engraving')
-        settings.ui = { ...settings.ui, engraving: { showPreamble: false } };
+        settings.ui = {
+          ...settings.ui,
+          engraving: { ...settings.ui?.engraving, showPreamble: false },
+        };
       const { container } = render(<RiffScore id="accidental-tuplet" config={settings} />);
       if (mode === 'page')
         act(() => window.riffScore.get('accidental-tuplet')!.setViewMode('page'));

@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 
 interface UseFocusTrapOptions {
   /** Ref to the container element that traps focus */
@@ -27,6 +27,10 @@ export function useFocusTrap({
   autoFocus = true,
   enableArrowKeys = false,
 }: UseFocusTrapOptions) {
+  const escapeRef = useRef(onEscape);
+  useEffect(() => {
+    escapeRef.current = onEscape;
+  }, [onEscape]);
   const getFocusableElements = useCallback(() => {
     if (!containerRef.current) return [];
     return Array.from(
@@ -61,7 +65,7 @@ export function useFocusTrap({
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        onEscape?.();
+        escapeRef.current?.();
         return;
       }
 
@@ -99,7 +103,9 @@ export function useFocusTrap({
     // Use capture phase to intercept before default handlers
     document.addEventListener('keydown', handleKeyDown, true);
 
-    const elementToReturnTo = returnFocusRef?.current;
+    const elementToReturnTo =
+      returnFocusRef?.current ??
+      (autoFocus && document.activeElement instanceof HTMLElement ? document.activeElement : null);
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown, true);
@@ -109,5 +115,5 @@ export function useFocusTrap({
         elementToReturnTo.focus();
       }
     };
-  }, [isActive, onEscape, containerRef, returnFocusRef, enableArrowKeys, getFocusableElements]);
+  }, [isActive, containerRef, returnFocusRef, enableArrowKeys, getFocusableElements, autoFocus]);
 }

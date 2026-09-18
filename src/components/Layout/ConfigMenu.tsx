@@ -6,6 +6,8 @@ import { THEMES, ThemeName } from '../../config';
 const ConfigMenu = () => {
   const { theme, themeName, setTheme, zoom, setZoom } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const panelId = React.useId();
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -28,6 +30,12 @@ const ConfigMenu = () => {
     <div
       className="ConfigMenu"
       ref={menuRef}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          setIsOpen(false);
+          triggerRef.current?.focus();
+        }
+      }}
       style={{
         position: 'fixed',
         top: '1rem',
@@ -36,6 +44,11 @@ const ConfigMenu = () => {
       }}
     >
       <button
+        ref={triggerRef}
+        type="button"
+        aria-label={isOpen ? 'Close configuration' : 'Open configuration'}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
         onClick={() => setIsOpen(!isOpen)}
         style={{
           padding: '0.5rem',
@@ -53,6 +66,9 @@ const ConfigMenu = () => {
 
       {isOpen && (
         <div
+          id={panelId}
+          role="region"
+          aria-label="Configuration"
           style={{
             position: 'absolute',
             top: '3rem',
@@ -149,6 +165,7 @@ const ConfigMenu = () => {
               Zoom: {Math.round(zoom * 100)}%
             </label>
             <input
+              aria-label="Zoom"
               type="range"
               min="0.5"
               max="2.0"

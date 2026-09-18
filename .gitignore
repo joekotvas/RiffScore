@@ -49,3 +49,4 @@ dist
 /playwright-report/
 /e2e/visual/__screenshots__/*-darwin.png
 /e2e/visual/__screenshots__/*-win32.png
+/.qa-browser/

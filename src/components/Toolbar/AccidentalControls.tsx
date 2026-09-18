@@ -1,3 +1,4 @@
+import { MusicGlyph } from '@/components/Assets/MusicGlyph';
 /**
  * AccidentalControls
  *
@@ -5,7 +6,7 @@
  * Handles both entry mode state and selection adjustment.
  */
 import React from 'react';
-import { ACCIDENTALS, BRAVURA_FONT } from '@/constants/SMuFL';
+import { ACCIDENTALS } from '@/constants/SMuFL';
 import { CONFIG } from '@/config';
 import ToolbarButton from './ToolbarButton';
 
@@ -28,17 +29,16 @@ const AccidentalIcon: React.FC<AccidentalIconProps> = ({ type, color = 'currentC
 
   return (
     <svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} fill="none">
-      <text
+      <MusicGlyph
         x={ICON_SIZE / 2}
         y={yPos}
-        fontFamily={BRAVURA_FONT}
         fontSize={FONT_SIZE}
         fill={color}
         textAnchor="middle"
         style={{ userSelect: 'none' }}
       >
         {glyph}
-      </text>
+      </MusicGlyph>
     </svg>
   );
 };

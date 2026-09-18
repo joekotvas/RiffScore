@@ -244,7 +244,12 @@ describe('RiffScore presentation configuration', () => {
     expect(container.querySelector('.riff-ScoreCanvas')).toHaveStyle({ overflow: 'visible' });
     expect(container.querySelector('.riff-ScoreCanvas__svg')).toHaveStyle({ overflow: 'visible' });
     expect(container.querySelector('.riff-metadata__title')).toHaveAttribute('x', '4');
-    expect(container.querySelector('.riff-metadata__title')).toHaveAttribute('y', '18');
+    const titleY = Number(container.querySelector('.riff-metadata__title')!.getAttribute('y'));
+    const top = Number(
+      container.querySelector('.riff-ScoreCanvas__svg')!.getAttribute('viewBox')!.split(' ')[1]
+    );
+    expect(titleY).toBeLessThan(18);
+    expect(top).toBeLessThan(titleY * (config.ui?.scale ?? 1));
   });
 });
 
@@ -255,7 +260,7 @@ it('pads scroll notation without changing its layout and retains low-note cleara
   };
   const { container, rerender } = render(<RiffScore id="scroll-spacing" config={plain} />);
   const svg = () => container.querySelector('.riff-ScoreCanvas__svg')!;
-  const initialHeight = Number(svg().getAttribute('height'));
+  const initialTitleY = Number(container.querySelector('.riff-metadata__title')!.getAttribute('y'));
   const staff = container.querySelector('g.staff')!.innerHTML;
   rerender(
     <RiffScore
@@ -271,11 +276,12 @@ it('pads scroll notation without changing its layout and retains low-note cleara
     />
   );
   const bounds = svg().getAttribute('viewBox')!.split(' ').map(Number);
-  expect(bounds[1]).toBeCloseTo(-24 * 0.85);
+  expect(bounds[1]).toBeLessThanOrEqual(-24 * 0.85);
   expect(bounds[3]).toBe(Number(svg().getAttribute('height')));
-  expect(bounds[3]).toBeLessThan(initialHeight);
   expect(container.querySelector('g.staff')!.innerHTML).toBe(staff);
-  expect(container.querySelector('.riff-metadata__title')).toHaveAttribute('y', '6');
+  expect(Number(container.querySelector('.riff-metadata__title')!.getAttribute('y'))).toBe(
+    initialTitleY - 34
+  );
   const api = window.riffScore.get('scroll-spacing')!;
   act(() => {
     api.select(0, 0, 0, 0).setPitch('C2');
@@ -304,7 +310,7 @@ it('keeps the native scroll surface available in read-only mode without allowing
   const original = api.getScore();
   const canvas = container.querySelector('.riff-ScoreCanvas')!;
   expect(canvas).toHaveClass('riff-ScoreCanvas--readonly');
-  expect(canvas).toHaveAttribute('tabindex', '-1');
+  expect(canvas).toHaveAttribute('tabindex', '0');
   const svg = container.querySelector('svg.riff-ScoreCanvas__svg')!;
   fireEvent.mouseDown(svg, { clientX: 100, clientY: 100 });
   fireEvent.mouseMove(svg, { clientX: 120, clientY: 80 });

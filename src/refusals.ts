@@ -77,6 +77,7 @@ export type RefusalCode =
   | 'INVALID_TARGET'
   // --- io / playback / misc ---
   | 'INVALID_INTERACTION_CONFIG'
+  | 'INVALID_PLAYBACK_POSITION'
   | 'INVALID_SCORE'
   | 'SCORE_VALIDATION_WARNINGS'
   | 'EXPORT_NOT_IMPLEMENTED'
@@ -188,6 +189,7 @@ export const REFUSALS: Record<RefusalCode, RefusalSpec> = {
   INVALID_TARGET: { severity: 'error', message: s('Invalid navigation target') },
 
   // --- io / playback / misc ---
+  INVALID_PLAYBACK_POSITION: { severity: 'error', message: s('Invalid playback position') },
   INVALID_INTERACTION_CONFIG: {
     severity: 'error',
     message: s('Invalid interaction configuration'),

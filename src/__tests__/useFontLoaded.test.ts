@@ -1,3 +1,4 @@
+/* eslint-disable testing-library/render-result-naming-convention -- React server rendering returns a markup string, not a Testing Library render result. */
 /**
  * useFontLoaded Hook Tests
  *
@@ -8,13 +9,11 @@
 
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useFontLoaded, FontLoadedResult } from '@/hooks/layout';
-import { ReactElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 // Helper to extract CSS content from styleElement
 const getCSSContent = (result: { current: FontLoadedResult }): string => {
-  const element = result.current.styleElement as ReactElement<{ children: string }>;
-  // eslint-disable-next-line testing-library/no-node-access
-  return element.props.children;
+  return renderToStaticMarkup(result.current.styleElement);
 };
 
 describe('useFontLoaded', () => {
@@ -173,6 +172,7 @@ describe('useFontLoaded', () => {
       const cssContent = getCSSContent(result);
       expect(cssContent).toContain('@keyframes typingEllipsis');
       expect(cssContent).toContain("content: 'Loading...'");
+      expect(cssContent).not.toContain("&#x27;");
     });
 
     it('disables pointer-events while loading', () => {

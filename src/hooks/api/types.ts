@@ -51,6 +51,8 @@ export interface APIContext {
     stopPlayback: () => void;
     pausePlayback: () => void;
     isPlaying: boolean;
+    getIsPlaying?: () => boolean;
+    getPosition?: () => { measureIndex: number | null; quant: number | null; duration: number };
     playbackPosition?: { measureIndex: number | null; quant: number | null };
     seekPlayback?: (measureIndex: number, quant?: number) => void;
     setInstrument?: (instrument: import('@/engines/toneEngine').InstrumentType) => void;

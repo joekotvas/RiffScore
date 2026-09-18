@@ -46,7 +46,11 @@ export interface FontLoadedResult {
 }
 
 // Pre-created style element (constant, never changes)
-const FONT_STYLE_ELEMENT: ReactElement = createElement('style', null, FONT_LOADING_CSS);
+// CSS is a compile-time constant. Raw text avoids React 18 SSR escaping quotes
+// inside a style element, whose contents the HTML parser does not entity-decode.
+const FONT_STYLE_ELEMENT: ReactElement = createElement('style', {
+  dangerouslySetInnerHTML: { __html: FONT_LOADING_CSS },
+});
 
 /**
  * Hook to detect when fonts have finished loading and provide

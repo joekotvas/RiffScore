@@ -19,6 +19,8 @@ describe('handlePlayback', () => {
       stopPlayback: jest.fn(),
       pausePlayback: jest.fn(),
       isPlaying: false,
+      getPosition: () => ({ measureIndex: null, quant: null, duration: 0 }),
+      getIsPlaying: () => false,
       lastPlayStart: { measureIndex: 0, quant: 0 },
       playbackPosition: { measureIndex: null, quant: null, duration: 0 },
       handlePlayToggle: jest.fn(),

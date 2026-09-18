@@ -77,7 +77,12 @@ const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(
     return (
       <button
         ref={ref}
-        onClick={onClick}
+        onClick={(event) => {
+          // Safari does not focus buttons on pointer activation. Modal openers need
+          // a stable focus return target; score-editing buttons can opt out.
+          if (!preventFocus) event.currentTarget.focus();
+          onClick?.();
+        }}
         onMouseDown={(e) => {
           if (preventFocus) {
             e.preventDefault();

@@ -12,6 +12,8 @@ export interface ScoreControls {
   isPlaying: boolean;
   play: () => Promise<void>;
   pause: () => void;
+  stop: () => void;
+  seek: (measureIndex: number, quant?: number) => void;
   bpm: number;
   setBpm: (bpm: number) => void;
   instrument: InstrumentType;

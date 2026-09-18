@@ -1,8 +1,7 @@
 name: CI
 
 # Fast, merge-gating checks for the deterministic test layers (unit, property,
-# glyph/geometry, structural oracles). Browser-geometry / visual / mutation jobs
-# are deferred to later phases per the verification strategy.
+# glyph/geometry, structural oracles). Browser and pixel checks run in separate workflows.
 
 on:
   push:

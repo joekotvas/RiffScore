@@ -1,3 +1,4 @@
+import { MusicGlyph } from '@/components/Assets/MusicGlyph';
 /**
  * ClefIcon
  *
@@ -5,7 +6,7 @@
  * Supports standard and grand staff representations.
  */
 import React from 'react';
-import { CLEFS, BRAVURA_FONT } from '@/constants/SMuFL';
+import { CLEFS } from '@/constants/SMuFL';
 import { getClefReference } from '@/utils/clef';
 
 // Icon staff geometry (60x60 viewBox): 5 lines at y = ICON_TOP_LINE_Y + i*ICON_LINE_GAP
@@ -118,16 +119,9 @@ const ClefIcon: React.FC<ClefIconProps> = ({
               opacity="0.5"
             />
           ))}
-          <text
-            x={22}
-            y={20}
-            fontFamily={BRAVURA_FONT}
-            fontSize={20}
-            fill="currentColor"
-            textAnchor="middle"
-          >
+          <MusicGlyph x={22} y={20} fontSize={20} fill="currentColor" textAnchor="middle">
             {CLEFS.gClef}
-          </text>
+          </MusicGlyph>
 
           {/* Bottom Staff (Bass) - 5 lines */}
           {[0, 1, 2, 3, 4].map((i) => (
@@ -142,16 +136,9 @@ const ClefIcon: React.FC<ClefIconProps> = ({
               opacity="0.5"
             />
           ))}
-          <text
-            x={22}
-            y={42}
-            fontFamily={BRAVURA_FONT}
-            fontSize={20}
-            fill="currentColor"
-            textAnchor="middle"
-          >
+          <MusicGlyph x={22} y={42} fontSize={20} fill="currentColor" textAnchor="middle">
             {CLEFS.fClef}
-          </text>
+          </MusicGlyph>
         </>
       ) : (
         <>
@@ -182,16 +169,15 @@ const ClefIcon: React.FC<ClefIconProps> = ({
           ))}
 
           {/* Clef rendered with Bravura font */}
-          <text
+          <MusicGlyph
             x={config.x}
             y={config.y}
-            fontFamily={BRAVURA_FONT}
             fontSize={config.fontSize}
             fill="currentColor"
             textAnchor="middle"
           >
             {getClefGlyph()}
-          </text>
+          </MusicGlyph>
         </>
       )}
     </svg>

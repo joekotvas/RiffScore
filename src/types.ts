@@ -131,6 +131,8 @@ export interface ChordSymbol {
  * Configuration for chord display notation.
  */
 export interface ChordDisplayConfig {
+  /** Typography in unscaled score units; defaults to the UI font, 20, and 600. */
+  font?: { family?: string; size?: number; weight?: number };
   /** Show chord symbols and their input region. False also skips keyboard navigation to symbols. Defaults to true. */
   visible?: boolean;
   /** Notation system for rendering */
@@ -963,34 +965,41 @@ export type DeepPartial<T> = T extends readonly unknown[]
  */
 export type StaffTemplate = 'grand' | 'treble' | 'bass' | 'alto' | 'tenor';
 
-/**
- * Configuration interface for RiffScore component.
- * Supports two modes:
- * - Generator Mode: Pass `staff` + `measureCount` to create blank scores
- * - Render Mode: Pass `staves` array to load existing compositions
- */
-/**
- * Configuration interface for RiffScore component.
- * Supports two modes:
- * - Generator Mode: Pass `staff` + `measureCount` to create blank scores
- * - Render Mode: Pass `staves` array to load existing compositions
- */
 /** Ordinary scroll-view engraving options; values do not change the musical document. */
 export interface EngravingConfig {
   spacing?: 'natural' | 'justify';
+  /** Tuplet number/bracket rendering in both scroll and page view. */
+  tuplets?: TupletConfig;
   /** Total width available to measures in unscaled staff units; never shrinks natural spacing. */
-  measureWidth?: number;
+  contentWidth?: number;
   showPlaceholderRests?: boolean;
   stemDirection?: 'up' | 'down';
   showPreamble?: boolean;
   showBarlines?: boolean;
-  chordFontFamily?: string;
-  chordFontSize?: number;
-  chordFontWeight?: number;
+}
+
+/** Rendering window and clef overrides; source music and identities stay unchanged. */
+export interface ScoreViewConfig {
+  /** Contiguous, zero-based window; end is exclusive. Rendering retains original identities. */
+  measures?: { start?: number; end?: number };
+  /** Rendering-only clefs, indexed by staff. Never transposes notes or changes exports. */
+  clefs?: Partial<Record<number, Exclude<ClefType, 'grand'>>>;
+}
+
+export interface ScoreBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 /** Host viewport sizing in CSS pixels. Fullscreen uses the available screen instead. */
 export interface ViewportConfig {
+  width?: number;
+  minWidth?: number;
+  maxWidth?: number;
+  /** Explicit scroll-view crop in unscaled score units. Ignored in page view. */
+  bounds?: ScoreBounds;
   height?: number;
   minHeight?: number;
   maxHeight?: number;
@@ -1022,7 +1031,8 @@ export interface InteractionConfig extends InteractionPolicy {
 
 export interface RiffScoreConfig {
   ui: {
-    tuplet?: TupletConfig;
+    /** A measure window always uses scroll view. */
+    view?: ScoreViewConfig;
     showToolbar: boolean;
     showFooter?: boolean;
     /** Hide note/rest entry previews without disabling entry, selection, or editing. */
@@ -1036,7 +1046,7 @@ export interface RiffScoreConfig {
     scrollPadding?: { top?: number; bottom?: number };
     /** Per-instance overrides merged with the selected preset. */
     themeOverrides?: DeepPartial<Theme>;
-    /** Ordinary scroll-view engraving; ignored in page view. */
+    /** Ordinary engraving; only tuplets applies in page view. */
     engraving?: EngravingConfig;
     scale: number;
     theme?: ThemeName;

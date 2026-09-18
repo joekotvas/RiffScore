@@ -184,7 +184,7 @@ describe('usePlayback', () => {
       });
     });
 
-    it('should stop existing playback before starting new', async () => {
+    it('cancels its previous request before starting another', async () => {
       const score = createMockScore();
       const { result } = renderHook(() => usePlayback(score, 120));
 
@@ -198,7 +198,7 @@ describe('usePlayback', () => {
       });
 
       // stopTonePlayback should have been called during second playScore
-      expect(mockStopTonePlayback).toHaveBeenCalled();
+      expect(mockScheduleTonePlayback.mock.calls[0][7].signal.aborted).toBe(true);
     });
   });
 
@@ -279,7 +279,7 @@ describe('usePlayback', () => {
   });
 
   describe('stopPlayback', () => {
-    it('should call stopTonePlayback', async () => {
+    it('aborts its own transport on stop', async () => {
       const score = createMockScore();
       const { result } = renderHook(() => usePlayback(score, 120));
 
@@ -291,7 +291,7 @@ describe('usePlayback', () => {
         result.current.stopPlayback();
       });
 
-      expect(mockStopTonePlayback).toHaveBeenCalled();
+      expect(mockScheduleTonePlayback.mock.calls[0][7].signal.aborted).toBe(true);
     });
 
     it('should set isPlaying to false', async () => {

@@ -1,9 +1,10 @@
+import { MusicGlyph } from '@/components/Assets/MusicGlyph';
 import React from 'react';
 import { KEY_SIGNATURES, KEY_SIGNATURE_OFFSETS, KeySignatureOffsets } from '@/constants';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
 import { calculateSystemPreamble } from '@/engines/layout';
-import { ACCIDENTALS, TIME_SIG_DIGITS, BRAVURA_FONT, getFontSize } from '@/constants/SMuFL';
+import { ACCIDENTALS, TIME_SIG_DIGITS, getFontSize } from '@/constants/SMuFL';
 import ClefGlyph from '../Assets/ClefGlyph';
 
 interface ScoreHeaderProps {
@@ -95,16 +96,15 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
           const y = baseY + offset;
 
           return (
-            <text
+            <MusicGlyph
               key={i}
               x={x}
               y={y}
               fontSize={getFontSize(CONFIG.lineHeight)}
-              fontFamily={BRAVURA_FONT}
               fill={theme.score.fill}
             >
               {type === 'sharp' ? ACCIDENTALS.sharp : ACCIDENTALS.flat}
-            </text>
+            </MusicGlyph>
           );
         })}
       </g>
@@ -113,26 +113,24 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
       {showTimeSignature && timeSignature !== 'none' && (
         <g onClick={onTimeSigClick} style={{ cursor: 'pointer', userSelect: 'none' }}>
           <rect x={timeSigStartX} y={baseY} width={timeSigWidth} height="48" fill="transparent" />
-          <text
+          <MusicGlyph
             x={timeSigStartX + 15}
             y={baseY + CONFIG.lineHeight}
             fontSize={getFontSize(CONFIG.lineHeight)}
-            fontFamily={BRAVURA_FONT}
             textAnchor="middle"
             fill={theme.text}
           >
             {timeSigGlyphs(timeSignature.split('/')[0])}
-          </text>
-          <text
+          </MusicGlyph>
+          <MusicGlyph
             x={timeSigStartX + 15}
             y={baseY + CONFIG.lineHeight * 3}
             fontSize={getFontSize(CONFIG.lineHeight)}
-            fontFamily={BRAVURA_FONT}
             textAnchor="middle"
             fill={theme.text}
           >
             {timeSigGlyphs(timeSignature.split('/')[1])}
-          </text>
+          </MusicGlyph>
         </g>
       )}
     </g>

@@ -15,7 +15,7 @@ import {
   calculateAllMeasureWidths,
   getPageForMeasure,
 } from '@/services/PageLayoutService';
-import type { PageLayout, SystemLayout, LayoutConfig, Page } from '@/types';
+import type { PageLayout, SystemLayout, LayoutConfig, Page, Score } from '@/types';
 import { DEFAULT_LAYOUT_CONFIG } from '@/config';
 
 /**
@@ -71,9 +71,9 @@ const createEmptyPageLayout = (config: LayoutConfig): PageLayout => ({
  *
  * @returns Page layout data and helper functions
  */
-export const usePageLayout = (): UsePageLayoutResult => {
+export const usePageLayout = (displayScore?: Score): UsePageLayoutResult => {
   const { state } = useScoreContext();
-  const { score } = state;
+  const score = displayScore ?? state.score;
 
   const config = score.layout ?? DEFAULT_LAYOUT_CONFIG;
   const viewMode = config.viewMode;

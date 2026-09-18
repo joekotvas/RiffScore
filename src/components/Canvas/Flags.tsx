@@ -1,6 +1,7 @@
+import { MusicGlyph } from '@/components/Assets/MusicGlyph';
 import React from 'react';
 import { CONFIG } from '@/config';
-import { BRAVURA_FONT, getFontSize, FLAGS as SMUFL_FLAGS } from '@/constants/SMuFL';
+import { getFontSize, FLAGS as SMUFL_FLAGS } from '@/constants/SMuFL';
 
 /**
  * Renders flag glyphs for notes (eighth, sixteenth, etc.) using Bravura font.
@@ -52,17 +53,16 @@ const Flags: React.FC<FlagsProps> = ({ stemX, stemTipY, duration, direction, col
   const fontSize = getFontSize(CONFIG.lineHeight);
 
   return (
-    <text
+    <MusicGlyph
       x={stemX - 0.75}
       y={stemTipY}
-      fontFamily={BRAVURA_FONT}
       fontSize={fontSize}
       fill={color}
       textAnchor="start"
       style={{ userSelect: 'none' }}
     >
       {glyph}
-    </text>
+    </MusicGlyph>
   );
 };
 

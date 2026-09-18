@@ -22,15 +22,20 @@ export function ScoreInteractionProvider({
       <Args extends unknown[], Result>(action: (...args: Args) => Result) =>
       (...args: Args): Result => {
         const selection = selectionEngine.getState();
-        const result = engine.withMutationGuard(
-          (before, after) => allowsInteraction(before, after, permissions),
-          () => action(...args)
-        );
-        if (!result.accepted) {
-          selectionEngine.setState(selection);
-          source.setPreviewNote(null);
+        let accepted = false;
+        try {
+          const result = engine.withMutationGuard(
+            (before, after) => allowsInteraction(before, after, permissions),
+            () => action(...args)
+          );
+          accepted = result.accepted;
+          return result.value;
+        } finally {
+          if (!accepted) {
+            selectionEngine.setState(selection);
+            source.setPreviewNote(null);
+          }
         }
-        return result.value;
       };
     // All editing domains use the same entity policy, including nested/batch commands
     // and undo/redo. No command-name allowlist or duplicated keyboard/mouse rules.
