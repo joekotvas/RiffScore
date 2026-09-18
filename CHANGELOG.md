@@ -20,7 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - API navigation preserves staff/clef/meter/entry context; synchronous exports include immediately preceding edits.
 - Collision-aware accidental spacing and low-note clearance; rendered geometry remains aligned with pointer/selection coordinates.
 - Chord visibility consistently hides the input region and keyboard entry paths without removing musical chord data.
-- Playback cancellation prevents late starts; chord accompaniment completes correctly for chord-only and trailing-rest passages.
+- Playback cancellation prevents late starts; chord accompaniment completes correctly for chord-only and trailing-rest passages. API resume positions are instance-local, and UI/API playback share musical-position timing that preserves leading rests.
+- Permission guards evaluate the final recognized score once; subscriber failures do not invalidate committed edits or prevent other subscribers from receiving them.
+- Grand-staff reduction supports alto/tenor clefs with typed, undoable staff preservation.
 - Empty unmetered bars no longer emit zero-length MusicXML rests; zero-length measure boundaries retain valid playback positions.
 - MIDI initialization cleans up safely on unmount and respects disabled interaction; focused editors retain keyboard ownership.
 - Read-only scores retain native scrolling, and nested partial configuration handles optional objects correctly.
