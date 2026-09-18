@@ -1,6 +1,6 @@
 # Phase 7: Metadata Rendering
 
-**Issue:** [#174](https://github.com/joekotvas/riffscore/issues/174)
+**Issue:** historical issue 174
 **Estimated Effort:** 3-4 days
 **Dependencies:** Phase 2 (Commands & API), Phase 3 (Multi-System Rendering)
 

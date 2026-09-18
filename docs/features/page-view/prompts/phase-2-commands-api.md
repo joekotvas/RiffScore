@@ -1,6 +1,6 @@
 # Phase 2: Commands & API
 
-**Issue:** [#174](https://github.com/joekotvas/riffscore/issues/174)
+**Issue:** historical issue 174
 **Estimated Effort:** 1-2 days
 **Dependencies:** Phase 1 (types, config, services)
 

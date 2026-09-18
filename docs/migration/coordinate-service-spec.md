@@ -1,6 +1,6 @@
 # Coordinate Utilities - Technical Spec
 
-**Issue:** [#204](https://github.com/joekotvas/riffscore/issues/204)
+**Issue:** historical issue 204
 **Date:** 2026-02-13
 
 ---

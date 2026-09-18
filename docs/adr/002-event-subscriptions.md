@@ -4,7 +4,7 @@
 > **Status:** Accepted  
 > **Date:** 2025-12-21  
 > **Deciders:** Core Team  
-> **Revised:** 2025-12-21 ([Issue #122](https://github.com/joekotvas/RiffScore/issues/122), [PR #123](https://github.com/joekotvas/RiffScore/pull/123))
+> **Revised:** 2025-12-21 (historical issue 122, historical PR 123)
 
 ## Context
 
@@ -52,7 +52,7 @@ We chose to implement the Event Subscription pattern using a custom hook (`useAP
 
 ## Revision: useEffect-Only Callbacks (2025-12-21)
 
-**Issue:** [#122](https://github.com/joekotvas/RiffScore/issues/122) — Subscription callbacks firing twice or with stale data.
+**Issue:** historical issue 122 — Subscription callbacks firing twice or with stale data.
 
 ### Problem
 

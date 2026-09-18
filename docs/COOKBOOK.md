@@ -138,7 +138,7 @@ score.selectFirstChord()
 ### Change Chord Display
 
 > [!NOTE]
-> `setChordDisplay()` and `setChordPlayback()` are **not yet implemented** — they return a `NOT_IMPLEMENTED` error. The getter methods (`getChordDisplay()`, `getChordPlayback()`) work and return the current config. See [#207](https://github.com/joekotvas/RiffScore/issues/207).
+> `setChordDisplay()` and `setChordPlayback()` are **not yet implemented** — they return a `NOT_IMPLEMENTED` warning under the current refusal policy. The getter methods (`getChordDisplay()`, `getChordPlayback()`) work and return the current config. See [Implement runtime chord display and playback configuration setters](https://github.com/joekotvas/RiffScore/issues/27).
 
 ```javascript
 const score = window.riffScore.active;

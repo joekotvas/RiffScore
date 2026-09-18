@@ -33,7 +33,7 @@ Expose RiffScore's editing capabilities to external scripts via a stable, intent
 
 ## Proposed Changes
 
-### Phase 0: Type Definitions ([#86](https://github.com/joekotvas/RiffScore/issues/86))
+### Phase 0: Type Definitions (historical issue 86)
 
 #### [MODIFY] `src/types.ts`
 -   Export `MusicEditorAPI` interface (all method signatures).
@@ -47,7 +47,7 @@ Expose RiffScore's editing capabilities to external scripts via a stable, intent
 
 ---
 
-### Phase 1: The Glue Layer ([#87](https://github.com/joekotvas/RiffScore/issues/87))
+### Phase 1: The Glue Layer (historical issue 87)
 
 #### [NEW] `src/hooks/useScoreAPI.ts`
 Implement core API hook.
@@ -119,7 +119,7 @@ describe('Chainability', () => {
 
 ---
 
-### Phase 2: Selection Engine ([#89](https://github.com/joekotvas/RiffScore/issues/89))
+### Phase 2: Selection Engine (historical issue 89)
 
 #### [NEW] `src/engines/SelectionEngine.ts`
 -   State: `Selection` object (synchronous ref).
@@ -162,7 +162,7 @@ describe('NavigateCommand', () => {
 
 ---
 
-### Phase 3: Event Subscriptions ([#90](https://github.com/joekotvas/RiffScore/issues/90))
+### Phase 3: Event Subscriptions (historical issue 90)
 
 #### [MODIFY] `src/hooks/useScoreAPI.ts`
 Implement `on(event, callback)`:
@@ -185,7 +185,7 @@ describe('Event Subscriptions', () => {
 
 ---
 
-### Phase 4: Transaction Batching ([#91](https://github.com/joekotvas/RiffScore/issues/91))
+### Phase 4: Transaction Batching (historical issue 91)
 
 #### [NEW] `src/commands/BatchCommand.ts`
 -   Implements `Command` interface.
@@ -227,7 +227,7 @@ describe('Transaction Batching', () => {
 
 ---
 
-### Phase 1b: Initial Documentation ([#88](https://github.com/joekotvas/RiffScore/issues/88))
+### Phase 1b: Initial Documentation (historical issue 88)
 
 Create the core API documentation while the API is fresh.
 
@@ -242,12 +242,12 @@ Create the core API documentation while the API is fresh.
 
 ---
 
-### Phase 5: Interaction Refactor ([#92](https://github.com/joekotvas/RiffScore/issues/92)) – Deferred
+### Phase 5: Interaction Refactor (historical issue 92) – Deferred
 -   Split `interaction.ts` into semantic modules as guided by API seams.
 
 ---
 
-### Phase 5b: Final Documentation ([#93](https://github.com/joekotvas/RiffScore/issues/93))
+### Phase 5b: Final Documentation (historical issue 93)
 
 Update all existing docs and announce the feature.
 

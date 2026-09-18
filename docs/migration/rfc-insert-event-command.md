@@ -9,13 +9,13 @@
 
 | Issue | Title | Relevance |
 |-------|-------|-----------|
-| [#161](https://github.com/joekotvas/RiffScore/issues/161) | Improve addNote API | Current work - insert mode, overflow |
-| [#167](https://github.com/joekotvas/RiffScore/issues/167) | .write() API | Future - scriptable insertion engine |
-| [#36](https://github.com/joekotvas/RiffScore/issues/36) | Copy, Paste, and Cut notes | Future - clipboard operations |
-| [#37](https://github.com/joekotvas/RiffScore/issues/37) | Drag notes horizontally to reorder | Future - drag-and-drop |
-| [#49](https://github.com/joekotvas/RiffScore/issues/49) | Bug: Dragging multi-note selection only moves targeted event | Related bug - event moving |
-| [#51](https://github.com/joekotvas/RiffScore/issues/51) | Bug: Dragging notes past staff range allows invalid pitches | Related bug - event validation |
-| [#131](https://github.com/joekotvas/RiffScore/issues/131) | Tuplet bracket angle should match beam angle | Related - tuplet handling |
+| historical issue 161 | Improve addNote API | Current work - insert mode, overflow |
+| historical issue 167 | .write() API | Future - scriptable insertion engine |
+| historical issue 36 | Copy, Paste, and Cut notes | Future - clipboard operations |
+| historical issue 37 | Drag notes horizontally to reorder | Future - drag-and-drop |
+| historical issue 49 | Bug: Dragging multi-note selection only moves targeted event | Related bug - event moving |
+| historical issue 51 | Bug: Dragging notes past staff range allows invalid pitches | Related bug - event validation |
+| historical issue 131 | Tuplet bracket angle should match beam angle | Related - tuplet handling |
 
 ---
 

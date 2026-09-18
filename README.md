@@ -1,5 +1,7 @@
 # RiffScore
 
+Current development backlog: [Issue tracking](./docs/ISSUE_TRACKING.md).
+
 ![npm version](https://img.shields.io/npm/v/riffscore)
 ![license](https://img.shields.io/npm/l/riffscore)
 
@@ -19,6 +21,7 @@ npm install riffscore
 
 ```tsx
 import { RiffScore } from 'riffscore';
+import 'riffscore/styles.css';
 
 function App() {
   return <RiffScore id="my-editor" />;
@@ -27,7 +30,7 @@ function App() {
 
 That's it! RiffScore renders a fully interactive grand staff editor with sensible defaults.
 
-> **Note**: Styles and fonts are bundled automatically — no separate CSS import or font setup required.
+> **Note**: Import `riffscore/styles.css` once in your application and load your bundler’s emitted CSS. The package includes the Bravura font assets; no separate font download is required.
 
 ### With Configuration
 

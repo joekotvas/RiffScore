@@ -1,6 +1,6 @@
 # Phase 8: Export Integration
 
-**Issue:** [#174](https://github.com/joekotvas/riffscore/issues/174)
+**Issue:** historical issue 174
 **Estimated Effort:** 1 day
 **Dependencies:** Phase 1 (Types), Phase 2 (Metadata API)
 

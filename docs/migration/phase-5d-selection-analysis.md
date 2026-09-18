@@ -1,7 +1,7 @@
 # Phase 5D: Selection Handler Consolidation
 
-**Issue:** [#135](https://github.com/joekotvas/RiffScore/issues/135)  
-**Status:** 🔄 In Progress  
+**Issue:** historical issue 135
+**Status:** 🔄 In Progress
 **Date:** 2025-12-22
 
 ---

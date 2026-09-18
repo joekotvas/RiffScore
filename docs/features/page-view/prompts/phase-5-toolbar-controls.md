@@ -1,6 +1,6 @@
 # Phase 5: Toolbar Controls
 
-**Issue:** [#174](https://github.com/joekotvas/riffscore/issues/174)
+**Issue:** historical issue 174
 **Estimated Effort:** 1 day
 **Dependencies:** Phase 2 (Commands & API), Phase 4 (Score Setup Dialog)
 

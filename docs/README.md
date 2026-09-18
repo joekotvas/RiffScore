@@ -1,5 +1,7 @@
 # RiffScore Documentation
 
+Current development backlog: [Issue tracking](./ISSUE_TRACKING.md).
+
 Welcome to the RiffScore documentation hub. This directory contains comprehensive guides for using, configuring, and contributing to RiffScore.
 
 ## 📚 User Guides

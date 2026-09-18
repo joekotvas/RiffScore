@@ -78,4 +78,4 @@ export class InsertEventCommand implements Command {
 
 - [RFC: InsertEventCommand](../migration/rfc-insert-event-command.md)
 - [ADR-003: Transaction Batching](./003-transaction-batching.md)
-- [Issue #161](https://github.com/joekotvas/RiffScore/issues/161)
+- historical issue 161

@@ -1,6 +1,6 @@
 # Page View Implementation Prompts
 
-**Issue:** [#174](https://github.com/joekotvas/riffscore/issues/174)
+**Issue:** historical issue 174
 
 This directory contains agent prompt documents for implementing the Page View & Print feature. Each phase is designed to be executed by an AI agent with subagents for parallelization.
 

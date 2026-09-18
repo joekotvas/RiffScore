@@ -1,6 +1,6 @@
 # Phase 6: Print Support
 
-**Issue:** [#174](https://github.com/joekotvas/riffscore/issues/174)
+**Issue:** historical issue 174
 **Estimated Effort:** 2 days
 **Dependencies:** Phase 3 (Multi-System Rendering)
 

@@ -3,7 +3,7 @@
 > **Principle**: Single Source of Truth, No Duplicate Calculations
 > **Status**: Accepted
 > **Date**: 2026-02-15
-> **Related**: [#174](https://github.com/joekotvas/riffscore/issues/174) Page View & Print
+> **Related**: historical issue 174 Page View & Print
 
 ## Context
 

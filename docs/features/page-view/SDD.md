@@ -1,7 +1,7 @@
 # Page View & Print - Software Design Document
 
 **Feature:** Page View Mode with System Breaks and Print Support
-**Issue:** [#174](https://github.com/joekotvas/riffscore/issues/174)
+**Issue:** historical issue 174
 **Status:** Implemented (see ROADMAP M4)
 **Date:** 2026-02-14
 **Parent:** [PRD.md](./PRD.md) | [SRS.md](./SRS.md)

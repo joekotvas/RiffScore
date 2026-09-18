@@ -4,7 +4,7 @@
 > **Status:** Accepted  
 > **Date:** 2025-12-21  
 > **Deciders:** Core Team  
-> **Related:** [PR #120](https://github.com/joekotvas/RiffScore/pull/120)
+> **Related:** historical PR 120
 
 ## Context
 

@@ -1,6 +1,6 @@
 # Phase 0: Zero-Indexed Internal Measure Numbers
 
-**Issue:** [#227](https://github.com/joekotvas/riffscore/issues/227)
+**Issue:** historical issue 227
 **Estimated Effort:** 1-2 days
 **Dependencies:** None (prerequisite for Page View)
 **Blocking:** All subsequent phases
