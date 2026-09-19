@@ -8,6 +8,7 @@ export type {
 export const RIFFSCORE_EXTENSION_CONTRACT = 1 as const;
 export const RIFFSCORE_CAPABILITIES = Object.freeze([
   'viewport-resolver',
+  'viewport-autoscroll',
   'overlay-geometry',
   'api-ref',
   'reactive-controls',

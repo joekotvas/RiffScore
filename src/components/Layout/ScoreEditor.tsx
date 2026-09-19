@@ -361,7 +361,7 @@ const ScoreEditorBody = ({
       isHoveringScore,
       scoreContainerRef,
       isAnyMenuOpen: () => (toolbarRef.current?.isMenuOpen() ?? false) || showHelp,
-      isDisabled: !enableKeyboard || !interactive,
+      isDisabled: !enableKeyboard || !interactive || !showScore,
       enablePlayback,
       showChordSymbols: chordDisplay?.visible !== false,
     },
