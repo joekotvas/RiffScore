@@ -1,3 +1,7 @@
+import { prepareAnnotations, annotationTextWidth } from './ScoreAnnotations';
+import { NoteAnnotationContext } from '@/context/NoteAnnotationContext';
+import { LYRICS } from '@/constants';
+import type { ScoreAnnotations } from '@/components/Canvas/ScoreAnnotations';
 import { getMeasureTiming } from '@/services/MeasureTiming';
 /**
  * ScoreCanvas.tsx
@@ -66,6 +70,7 @@ import {
 interface ScoreCanvasProps {
   resolveViewport?: ResolveScoreViewport;
   renderOverlay?: RenderScoreOverlay;
+  annotations?: ScoreAnnotations;
   interactive?: boolean;
   scale: number;
   view?: ScoreViewConfig;
@@ -115,6 +120,7 @@ const PAPER_CSS_VARIABLES = themeCSSVariables(PAPER_THEME) as React.CSSPropertie
  */
 const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   renderOverlay,
+  annotations,
   resolveViewport,
   interactive = true,
   scale: requestedScale,
@@ -158,18 +164,22 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     [interactive, sessionSelection]
   );
   const previewNote = interactive ? sessionPreview : null;
+  const prepared = useMemo(
+    () => prepareAnnotations(sourceScore, annotations),
+    [sourceScore, annotations]
+  );
   const score = useMemo(
     () =>
       view?.clefs
         ? {
-            ...sourceScore,
-            staves: sourceScore.staves.map((staff, index) => ({
+            ...prepared.score,
+            staves: prepared.score.staves.map((staff, index) => ({
               ...staff,
               clef: view.clefs?.[index] ?? staff.clef,
             })),
           }
-        : sourceScore,
-    [sourceScore, view]
+        : prepared.score,
+    [prepared.score, view]
   );
   const scoreRef = useMemo(() => ({ current: score }), [score]);
   const { selectionEngine, dispatch } = ctx.engines;
@@ -178,7 +188,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   const { addNote: addNoteToMeasure, handleMeasureHover, updatePitch: updateNotePitch } = ctx.entry;
   const { clearSelection, setPreviewNote } = ctx;
 
-  const { pageLayout, isPageView: configuredPageView } = usePageLayout(score);
+  const { pageLayout, isPageView: configuredPageView } = usePageLayout(score, prepared.eventWidths);
   const isPageView = !view?.measures && configuredPageView;
   const measureIndices = useMemo(
     () =>
@@ -197,6 +207,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   const display = isPageView ? undefined : engraving;
   const { layout } = useScoreLayout({
     score,
+    eventWidths: prepared.eventWidths,
     visibleMeasures: measureIndices,
     stemDirection: display?.stemDirection,
     spacing: display?.spacing,
@@ -458,7 +469,10 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
       (resolveViewport ? resolvedViewport?.autoScroll === true : !bounds),
   });
 
-  const unscaledMeasureWidths = useMemo(() => calculateAllMeasureWidths(score, 1.0), [score]);
+  const unscaledMeasureWidths = useMemo(
+    () => calculateAllMeasureWidths(score, 1.0, prepared.eventWidths),
+    [score, prepared.eventWidths]
+  );
 
   const pageSystemByMeasure = useMemo(() => {
     const map = new Map<number, { pageIndex: number; system: SystemLayout }>();
@@ -1121,7 +1135,57 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
     };
   };
 
-  return (
+  const renderAnnotations = (pageIndex: number | null): React.ReactNode => (
+    <g
+      data-riffscore-part="annotation-rows"
+      pointerEvents="none"
+      fill={pageIndex === null ? theme.score.note : PAPER_THEME.score.note}
+    >
+      {prepared.rows.flatMap((row) =>
+        row.entries.map((entry) => {
+          if (measureIndices && !measureIndices.includes(entry.measureIndex)) return null;
+          const measure = layout.staves[row.staffIndex]?.measures[entry.measureIndex];
+          const localX = measure?.events[entry.eventId]?.localX;
+          if (localX === undefined) return null;
+          const located =
+            pageIndex === null ? undefined : pageSystemByMeasure.get(entry.measureIndex);
+          if (pageIndex !== null && located?.pageIndex !== pageIndex) return null;
+          const system = located?.system;
+          const x = system
+            ? getPageXFromLocalX(entry.measureIndex, localX, system)
+            : measure.x + localX;
+          if (x === null) return null;
+          const scale = pageIndex === null ? 1 : pageLayout.staffScale;
+          const baseline = system
+            ? system.y + (system.textBaselines?.[row.staffIndex] ?? 0)
+            : CONFIG.baseY + (layout.vertical?.textBaselines?.[row.staffIndex] ?? 0);
+          return entry.text.map(
+            (text, index) =>
+              text && (
+                <text
+                  key={`${row.staffIndex}:${row.id}:${entry.eventId}:${index}`}
+                  data-annotation-row={row.id}
+                  data-annotation-event={entry.eventId}
+                  x={x}
+                  y={baseline + (row.line + index) * LYRICS.LINE_HEIGHT * scale}
+                  textAnchor="middle"
+                  fontFamily="monospace"
+                  fontSize={13 * scale}
+                  textLength={annotationTextWidth(text) * scale}
+                  lengthAdjust="spacingAndGlyphs"
+                  aria-label={`${row.label}: ${text}`}
+                  role="img"
+                >
+                  {text}
+                </text>
+              )
+          );
+        })
+      )}
+    </g>
+  );
+
+  const canvas = (
     <div
       ref={containerRef}
       data-testid="score-canvas-container"
@@ -1429,6 +1493,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                   />
                 )}
 
+                {renderAnnotations(page.index)}
                 {renderOverlay?.({
                   geometry: null,
                   pageIndex: page.index,
@@ -1769,6 +1834,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
                   pointerEvents="none"
                 />
               ))}
+            {renderAnnotations(null)}
             {renderOverlay && (
               <g className="riff-ScoreOverlay">
                 {renderOverlay({
@@ -1783,6 +1849,11 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
         </svg>
       )}
     </div>
+  );
+  return (
+    <NoteAnnotationContext.Provider value={prepared.noteheads}>
+      {canvas}
+    </NoteAnnotationContext.Provider>
   );
 };
 

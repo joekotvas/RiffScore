@@ -188,7 +188,8 @@ export const calculateSystemLayout = (
   measures: { events: ScoreEvent[]; clef?: string }[],
   keySignature: string = 'C',
   tieStopsByStaff?: ReadonlyArray<ReadonlySet<string> | undefined>,
-  timeSignature: string = '4/4'
+  timeSignature: string = '4/4',
+  eventWidths?: ReadonlyMap<string, number>
 ): Record<number, number> => {
   const timePoints = getSystemTimePoints(measures);
   const quantToX: Record<number, number> = { [timePoints[0]]: CONFIG.measurePaddingLeft };
@@ -255,7 +256,41 @@ export const calculateSystemLayout = (
       quant = nextQuant;
     });
   });
-  let shift = 0;
+  // Centered text lanes share the rhythmic grid across all staves. Reserve both
+  // edges even for a single event, and propagate constraints through split beats.
+  let firstInset = 0;
+  if (eventWidths?.size)
+    measures.forEach((measure, staffIndex) => {
+      let quant = 0;
+      measure.events.forEach((event, index) => {
+        const half = (eventWidths?.get(event.id) ?? 0) / 2;
+        const next = measure.events[index + 1];
+        const nextHalf = ((next && eventWidths?.get(next.id)) || 0) / 2;
+        const nextQuant = quant + getNoteDuration(event.duration, event.dotted, event.tuplet);
+        if (half || nextHalf) {
+          const clef = measure.clef ?? (staffIndex === 0 ? 'treble' : 'bass');
+          const offset = (item: ScoreEvent, following?: ScoreEvent): number => {
+            const metrics = getEventMetrics(
+              item,
+              clef,
+              accidentalGlyphsByMeasure[staffIndex],
+              beamedIdsByMeasure[staffIndex].has(item.id),
+              following,
+              drawnStemDirection(measure.events, item, clef)
+            );
+            return metrics.accidentalSpace + Math.abs(metrics.minOffset);
+          };
+          const currentOffset = offset(event, next);
+          const nextOffset = next ? offset(next) : 0;
+          if (index === 0) firstInset = Math.max(firstInset, half - currentOffset);
+          const entries = constraints.get(nextQuant) ?? [];
+          entries.push({ from: quant, distance: half + nextHalf + 8 + currentOffset - nextOffset });
+          constraints.set(nextQuant, entries);
+        }
+        quant = nextQuant;
+      });
+    });
+  let shift = firstInset;
   for (const quant of timePoints) {
     const originalX = quantToX[quant];
     let x = originalX + shift;

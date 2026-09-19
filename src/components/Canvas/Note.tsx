@@ -1,5 +1,6 @@
 import { MusicGlyph } from '@/components/Assets/MusicGlyph';
-import React from 'react';
+import React, { useContext } from 'react';
+import { NoteAnnotationContext } from '@/context/NoteAnnotationContext';
 import { LAYOUT } from '@/constants';
 import { CONFIG } from '@/config';
 import { useTheme } from '@/context/ThemeContext';
@@ -261,6 +262,7 @@ const Note: React.FC<NoteProps> = React.memo(
     handlers = null, // { onMouseEnter, onMouseLeave, onMouseDown, onDoubleClick }
   }) => {
     const { theme } = useTheme();
+    const annotation = useContext(NoteAnnotationContext).get(note?.id ?? '');
 
     // Resolve pitch from either direct prop or note object
     const effectivePitch = pitch || note?.pitch;
@@ -315,7 +317,46 @@ const Note: React.FC<NoteProps> = React.memo(
 
         {/* 3. Note Head */}
         <g style={{ pointerEvents: 'none' }}>
-          <NoteHead x={noteX} y={noteY} duration={duration} color={color} />
+          {!isGhost && annotation?.label && (duration === 'whole' || duration === 'half') ? (
+            // A thin, opaque hollow head keeps staff/ledger lines out of the label.
+            // Its footprint and stem attachment remain within the standard head envelope.
+            <ellipse
+              className="NoteHead"
+              cx={noteX}
+              cy={noteY}
+              rx={duration === 'whole' ? 9.5 : 6.5}
+              ry={5}
+              transform={duration === 'half' ? `rotate(-18 ${noteX} ${noteY})` : undefined}
+              fill={theme.background}
+              stroke={color}
+              strokeWidth={1.2}
+            />
+          ) : (
+            <NoteHead x={noteX} y={noteY} duration={duration} color={color} />
+          )}
+          {!isGhost && annotation?.label && (
+            <text
+              data-riffscore-part="notehead-label"
+              x={noteX}
+              y={noteY}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontFamily="sans-serif"
+              fontWeight="700"
+              fontSize={duration === 'half' ? 6 : 7}
+              textLength={Math.min(
+                duration === 'half' ? 8 : 12,
+                Array.from(annotation.label).length * 4
+              )}
+              lengthAdjust="spacingAndGlyphs"
+              pointerEvents="none"
+              fill={duration === 'whole' || duration === 'half' ? color : theme.background}
+              aria-label={annotation.label}
+              role="img"
+            >
+              {annotation.label}
+            </text>
+          )}
         </g>
 
         {/* 4. Dot */}

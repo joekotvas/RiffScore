@@ -332,6 +332,8 @@ export interface SystemLayout {
    * `CONFIG.staffSpacing` apart, more where a staff's ink or lyric band needs it.
    */
   staffOffsets: number[];
+  /** First text-lane baseline per staff, relative to the system top (page pixels). */
+  textBaselines?: number[];
   /** X position where measures start (page coords, includes preamble + indent) */
   xOffset: number;
   /** Available width for measures (page coords, preamble already excluded) */

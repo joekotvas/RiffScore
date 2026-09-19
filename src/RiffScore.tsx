@@ -1,3 +1,4 @@
+import type { ScoreAnnotations } from '@/components/Canvas/ScoreAnnotations';
 /**
  * RiffScore Component
  *
@@ -32,6 +33,7 @@ export interface RiffScoreProps {
   apiRef?: React.Ref<MusicEditorAPI>;
   resolveViewport?: ResolveScoreViewport;
   renderOverlay?: RenderScoreOverlay;
+  annotations?: ScoreAnnotations;
   /** External visual playback state; null hides the cursor, undefined uses the editor transport. */
   playbackCursor?: PlaybackCursorState | null;
   /** Render custom controls backed by this editor’s reactive history and playback state. */
@@ -73,6 +75,7 @@ const RiffScoreInner: React.FC<RiffScoreProps> = ({
   config: userConfig,
   renderControls,
   renderOverlay,
+  annotations,
   resolveViewport,
   apiRef,
   playbackCursor,
@@ -132,6 +135,7 @@ const RiffScoreInner: React.FC<RiffScoreProps> = ({
               <ScoreEditorContent
                 renderControls={renderControls}
                 renderOverlay={renderOverlay}
+                annotations={annotations}
                 resolveViewport={resolveViewport}
                 playbackCursor={playbackCursor}
                 scale={config.ui.scale}
@@ -188,6 +192,7 @@ export const RiffScore: React.FC<RiffScoreProps> = ({
   config,
   renderControls,
   renderOverlay,
+  annotations,
   resolveViewport,
   apiRef,
   playbackCursor,
@@ -200,6 +205,7 @@ export const RiffScore: React.FC<RiffScoreProps> = ({
         config={config}
         renderControls={renderControls}
         renderOverlay={renderOverlay}
+        annotations={annotations}
         resolveViewport={resolveViewport}
         playbackCursor={playbackCursor}
       />

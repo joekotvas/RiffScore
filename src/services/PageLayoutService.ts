@@ -121,8 +121,12 @@ export const calculateSingleMeasureWidth = (
  * @param staffScale - Staff scale factor (1.0 = 100%)
  * @returns Array of measure widths in pixels
  */
-export const calculateAllMeasureWidths = (score: Score, staffScale: number = 1.0): number[] =>
-  calculateSynchronizedMeasureWidths(score).map((width) => width * staffScale);
+export const calculateAllMeasureWidths = (
+  score: Score,
+  staffScale: number = 1.0,
+  eventWidths?: ReadonlyMap<string, number>
+): number[] =>
+  calculateSynchronizedMeasureWidths(score, eventWidths).map((width) => width * staffScale);
 
 // =============================================================================
 // SYSTEM BREAK CALCULATION
@@ -611,7 +615,8 @@ const calculateMeasurePositions = (
  */
 export const calculatePageLayout = (
   score: Score,
-  config: LayoutConfig = DEFAULT_LAYOUT_CONFIG
+  config: LayoutConfig = DEFAULT_LAYOUT_CONFIG,
+  eventWidths?: ReadonlyMap<string, number>
 ): PageLayout => {
   const pageDims = PAGE_DIMENSIONS[config.pageSize];
   const margins = MARGIN_PRESETS[config.margins];
@@ -657,7 +662,7 @@ export const calculatePageLayout = (
   const subsequentPreambleWidth = subsequentPreamble.measuresX;
 
   // Calculate measure widths (excluding preamble, which is handled separately)
-  const measureWidths = calculateAllMeasureWidths(score, staffScale);
+  const measureWidths = calculateAllMeasureWidths(score, staffScale, eventWidths);
 
   // Effective content widths for measures (page coords, after preamble)
   const firstSystemEffectiveWidth = contentArea.width - firstPreambleWidth * staffScale;
@@ -708,7 +713,11 @@ export const calculatePageLayout = (
       stretchByMeasure.set(m, calculateStretchFactor(natural, width, justification))
     );
   });
-  const measureExtents = calculateMeasureExtents(score, (m) => stretchByMeasure.get(m) ?? 1.0);
+  const measureExtents = calculateMeasureExtents(
+    score,
+    (m) => stretchByMeasure.get(m) ?? 1.0,
+    eventWidths
+  );
 
   // Build system layouts (without final Y positions - will be set during page distribution)
   const allSystems: SystemLayout[] = [];
@@ -777,6 +786,9 @@ export const calculatePageLayout = (
       paddingBottom,
       inkTop: vertical.top * staffScale,
       staffOffsets: vertical.offsets.map((offset) => offset * staffScale),
+      ...(vertical.textBaselines
+        ? { textBaselines: vertical.textBaselines.map((y) => y * staffScale) }
+        : {}),
       xOffset,
       contentWidth: systemContentWidth,
       preambleWidth: systemPreambleWidth, // Staff coords (unscaled)
