@@ -121,6 +121,7 @@ export interface VerticalLayout {
   bottom: number;
   /** Lyric band height reserved below each staff. */
   lyricBands: number[];
+  textBaselines?: number[];
 }
 
 /**
@@ -150,6 +151,13 @@ export const calculateStaffOffsets = (
     top: Math.min(0, extents[0].top),
     bottom: offsets[last] + Math.max(STAFF_HEIGHT, extents[last].bottom + lyricBands[last]),
     lyricBands,
+    ...(lyricLines.some((lines) => lines > 0)
+      ? {
+          textBaselines: extents.map(
+            (extent, index) => offsets[index] + lyricLineBaseline(extent.bottom, 0)
+          ),
+        }
+      : {}),
   };
 };
 

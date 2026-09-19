@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- View-only `annotations` for short notehead labels and ordered, staff-scoped text rows, with synchronized horizontal spacing and content-aware scroll/page/print layout.
+- Headless written-pitch/key queries and the `score-annotations` extension capability.
 - Opt-in `autoScroll` for viewport resolvers, following canonical engraving coordinates with the resolved origin and scale.
 - Instance-local `apiRef`, frozen scroll geometry, and a pure `resolveViewport` presentation callback.
 - `renderOverlay.geometry`, exported `ClefGlyph`/`MusicGlyph`, and a stable note-group styling hook.

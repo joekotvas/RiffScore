@@ -71,7 +71,10 @@ const createEmptyPageLayout = (config: LayoutConfig): PageLayout => ({
  *
  * @returns Page layout data and helper functions
  */
-export const usePageLayout = (displayScore?: Score): UsePageLayoutResult => {
+export const usePageLayout = (
+  displayScore?: Score,
+  eventWidths?: ReadonlyMap<string, number>
+): UsePageLayoutResult => {
   const { state } = useScoreContext();
   const score = displayScore ?? state.score;
 
@@ -82,16 +85,16 @@ export const usePageLayout = (displayScore?: Score): UsePageLayoutResult => {
   // Calculate measure widths (needed for positioning even in scroll view)
   const measureWidths = useMemo(() => {
     const staffScale = config.staffSize / 100;
-    return calculateAllMeasureWidths(score, staffScale);
-  }, [score, config.staffSize]);
+    return calculateAllMeasureWidths(score, staffScale, eventWidths);
+  }, [score, config.staffSize, eventWidths]);
 
   // Calculate page layout only when in page view
   const pageLayout = useMemo(() => {
     if (!isPageView) {
       return createEmptyPageLayout(config);
     }
-    return calculatePageLayout(score, config);
-  }, [score, config, isPageView]);
+    return calculatePageLayout(score, config, eventWidths);
+  }, [score, config, isPageView, eventWidths]);
 
   // Get system layout for a measure
   const getSystem = useCallback(

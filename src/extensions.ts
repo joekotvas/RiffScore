@@ -13,6 +13,7 @@ export const RIFFSCORE_CAPABILITIES = Object.freeze([
   'api-ref',
   'reactive-controls',
   'glyph-adapter',
+  'score-annotations',
 ] as const);
 
 export interface RiffScoreExtensionDescriptor {
@@ -34,3 +35,11 @@ export function assertExtensionCompatibility(extension: RiffScoreExtensionDescri
     );
   }
 }
+
+export type {
+  ScoreAnnotations,
+  ScoreAnnotationRow,
+  AnnotationEventContext,
+  AnnotationNoteContext,
+  NoteheadAnnotation,
+} from './components/Canvas/ScoreAnnotations';

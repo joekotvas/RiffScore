@@ -1,3 +1,4 @@
+import type { ScoreAnnotations } from '@/components/Canvas/ScoreAnnotations';
 import type { ResolveScoreViewport } from '../Canvas/ScoreGeometry';
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { flushSync } from 'react-dom';
@@ -56,6 +57,7 @@ import type { RenderScoreOverlay } from '../Canvas/ScoreOverlay';
 
 interface ScoreEditorContentProps {
   renderOverlay?: RenderScoreOverlay;
+  annotations?: ScoreAnnotations;
   resolveViewport?: ResolveScoreViewport;
   showScore?: boolean;
   playbackCursor?: PlaybackCursorState | null;
@@ -94,6 +96,7 @@ const ScoreEditorBody = ({
   scale = 1,
   renderControls,
   renderOverlay,
+  annotations,
   resolveViewport,
   showScore = true,
   playbackCursor,
@@ -517,6 +520,7 @@ const ScoreEditorBody = ({
           {showScore && (
             <ScoreCanvas
               renderOverlay={renderOverlay}
+              annotations={annotations}
               resolveViewport={resolveViewport}
               interactive={interactive}
               scale={scale}

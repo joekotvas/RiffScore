@@ -48,7 +48,8 @@ import {
 const calculateSystemMetrics = (
   staves: Staff[],
   keySignature: string = 'C',
-  timeSignature: string = '4/4'
+  timeSignature: string = '4/4',
+  eventWidths?: ReadonlyMap<string, number>
 ) => {
   const tieStopsPerStaff = staves.map((staff) => collectTieStops(staff.measures));
   const maxMeasures = Math.max(...staves.map((s) => s.measures.length));
@@ -79,7 +80,8 @@ const calculateSystemMetrics = (
       measuresAtIndices,
       keySignature,
       tieStopsPerStaff,
-      timeSignature
+      timeSignature,
+      eventWidths
     );
     const maxX = Math.max(...Object.values(currentForcedPositions));
 
@@ -103,10 +105,18 @@ const calculateSystemMetrics = (
  * layout, or measure positions, hit boxes, the cursor, chord X and the right margin drift from
  * what is drawn.
  */
-export const calculateSynchronizedMeasureWidths = (score: Score): number[] => {
+export const calculateSynchronizedMeasureWidths = (
+  score: Score,
+  eventWidths?: ReadonlyMap<string, number>
+): number[] => {
   if (!score.staves || score.staves.length === 0) return [];
   const keySignature = score.keySignature || score.staves[0].keySignature || 'C';
-  return calculateSystemMetrics(score.staves, keySignature, score.timeSignature || '4/4').widths;
+  return calculateSystemMetrics(
+    score.staves,
+    keySignature,
+    score.timeSignature || '4/4',
+    eventWidths
+  ).widths;
 };
 
 // --- Phase 2: Atomic Event/Note Helper ---
@@ -273,12 +283,18 @@ const buildMeasureGeometries = (
  */
 export const calculateMeasureExtents = (
   score: Score,
-  stretchFor: (measureIndex: number) => number = () => 1.0
+  stretchFor: (measureIndex: number) => number = () => 1.0,
+  eventWidths?: ReadonlyMap<string, number>
 ): StaffExtent[][] => {
   if (!score.staves || score.staves.length === 0) return [];
   const keySignature = score.keySignature || score.staves[0].keySignature || 'C';
   const timeSignature = score.timeSignature || '4/4';
-  const { forcedPositions } = calculateSystemMetrics(score.staves, keySignature, timeSignature);
+  const { forcedPositions } = calculateSystemMetrics(
+    score.staves,
+    keySignature,
+    timeSignature,
+    eventWidths
+  );
   return buildMeasureGeometries(
     score,
     keySignature,
@@ -296,6 +312,7 @@ export const calculateMeasureExtents = (
  * @returns ScoreLayout object containing full position maps and getX function
  */
 export interface ScoreLayoutOptions {
+  eventWidths?: ReadonlyMap<string, number>;
   /** Restrict sizing to a rendered window while retaining global measure coordinates. */
   visibleMeasures?: readonly number[];
   spacing?: 'natural' | 'justify';
@@ -355,7 +372,12 @@ export const calculateScoreLayout = (
 
   // 1. Calculate System Metrics (Grand Staff Logic)
   const { widths: synchronizedWidths, forcedPositions: synchronizedForcedPositions } =
-    calculateSystemMetrics(score.staves, scoreKeySignature, scoreTimeSignature);
+    calculateSystemMetrics(
+      score.staves,
+      scoreKeySignature,
+      scoreTimeSignature,
+      options.eventWidths
+    );
 
   // Compact embeds can spread the music across their host without enlarging glyphs.
   const naturalWidth = synchronizedWidths.reduce(

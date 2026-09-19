@@ -517,3 +517,29 @@ Explicit `ui.viewport.bounds` takes precedence over callback bounds. Invalid bou
 `riffscore/extensions` is a headless entry point containing contract version 1, capability names and `assertExtensionCompatibility`. This is an explicit compatibility check, not a registry, loader, license manager or global service container. React integrations use ordinary imports, props and providers.
 
 Viewport resolvers may return `autoScroll: true` to follow selection, keyboard entry and playback within a scrollable frame. It defaults off for custom viewports. Core uses the canonical engraving coordinates, resolved origin and effective scale; page views and measure windows retain their own behavior. Reduced-motion preferences disable smooth scrolling.
+
+### Notehead labels and below-staff rows
+
+The optional `annotations` presentation prop supplies generic notehead text and ordered text rows. It requires the `score-annotations` capability. Resolvers receive frozen, detached musical facts, including source identities, written pitches, key, meter, duration, and measure-local quant. They must be pure; exceptions propagate to the host's error boundary. Keep the annotation object stable with `useMemo` when deriving it from host settings.
+
+```tsx
+import type { ScoreAnnotations } from 'riffscore';
+const annotations: ScoreAnnotations = {
+  notehead: ({ note }) => ({ label: note.pitch?.[0] }),
+  rows: [{
+    id: 'pitch',
+    label: 'Written pitch',
+    staffIds: ['melody'], // omit to apply to every staff
+    text: ({ notes, isRest }) => isRest ? null : notes.map(note => note.pitch ?? ''),
+  }],
+};
+<RiffScore annotations={annotations} />
+```
+
+Rows have unique nonempty IDs and accessible names. Return `null` for blank events, a string for one line, or a string array for a vertical stack. Core reserves the largest stack for each row on each staff; subsequent rows follow in array order. Existing `staff.lyricLines` reservations come first. Rows use deterministic fixed-width text metrics for SSR and browser agreement; their width participates in synchronized note spacing, system breaks, and their height in staff/page spacing. They are inert to pointer interaction. Long prose belongs in host content rather than event labels.
+
+Notehead labels fit inside the existing head envelope and retain stem attachment and the filled/hollow duration distinction. Labeled hollow heads use a thin outlined oval within the standard envelope to keep staff and ledger lines out of the text; unlabeled and filled heads retain the active music glyph. Use short labels (typically one to three characters); use rows for longer text and for reading at small display sizes. Labels remain text in SVG and carry accessible names. Ordinary notes remain unchanged when annotations are absent; entry ghosts never receive labels.
+
+Annotations are view-only. They do not become lyrics, enter document history, alter playback, or appear in MusicXML/ABC/JSON exports. Browser printing includes them. Each view of a shared session can use different annotations. Explicit host viewport bounds still win and may intentionally crop annotations. Core supplies presentation primitives; educational naming conventions and presets belong to the integrating application or extension.
+
+`riffscore/theory` additionally exports `getPitchInfo` (written letter, signed alteration, octave, pitch class; `null` for invalid input) and `resolveKey`/`ResolvedKey`/`KeyMode`. These expose existing theory facts without importing React or a second music engine.

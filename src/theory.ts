@@ -8,3 +8,8 @@ export { getNoteDuration } from './utils/core';
 export { getMeasureCapacity } from './constants';
 export { parseChord, getChordVoicing } from './services/ChordService';
 export type { Score, Staff, Measure, ScoreEvent, Note, ChordSymbol } from './types';
+
+export { resolveKey } from './utils/keyResolution';
+export type { ResolvedKey, KeyMode } from './utils/keyResolution';
+export { getPitchInfo } from './utils/pitchInfo';
+export type { PitchInfo } from './utils/pitchInfo';

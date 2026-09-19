@@ -92,3 +92,11 @@ export type {
 } from './components/Canvas/ScoreGeometry';
 export { default as ClefGlyph } from './components/Assets/ClefGlyph';
 export { MusicGlyph } from './components/Assets/MusicGlyph';
+
+export type {
+  ScoreAnnotations,
+  ScoreAnnotationRow,
+  AnnotationEventContext,
+  AnnotationNoteContext,
+  NoteheadAnnotation,
+} from './components/Canvas/ScoreAnnotations';
