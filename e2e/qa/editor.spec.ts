@@ -212,3 +212,29 @@ test('rotation and zoom preserve contained viewports and usable note targets', a
     true
   );
 });
+
+test('footer zoom keeps the final selected note within the visible scrollport', async ({
+  page,
+}) => {
+  const editor = page.locator('[data-riffscore-id="qa"]');
+  const zoom = editor.getByRole('textbox', { name: 'Zoom percentage' });
+  await zoom.fill('200');
+  await zoom.press('Enter');
+  await page.evaluate(() => {
+    const api = window.riffScore.get('qa')!;
+    api.select(api.getScore().staves[0].measures.length - 1);
+  });
+  const lastNote = editor.locator('[data-note-hit-area]').last();
+  await expect
+    .poll(async () => {
+      const target = await lastNote.boundingBox();
+      const viewport = await editor.locator('.riff-ScoreEditor__viewport').boundingBox();
+      return Boolean(
+        target &&
+        viewport &&
+        target.x >= viewport.x &&
+        target.x + target.width <= viewport.x + viewport.width + 1
+      );
+    })
+    .toBe(true);
+});

@@ -8,12 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Opt-in `autoScroll` for viewport resolvers, following canonical engraving coordinates with the resolved origin and scale.
 - Instance-local `apiRef`, frozen scroll geometry, and a pure `resolveViewport` presentation callback.
 - `renderOverlay.geometry`, exported `ClefGlyph`/`MusicGlyph`, and a stable note-group styling hook.
 - `ui.showScore` for controls-only compositions; reactive playback state and availability in custom controls.
 - Headless `riffscore/extensions` contract/capability checks; the React package entry preserves its Next.js client boundary.
 
 ### Fixed
+- Footer zoom retains the visible horizontal scrollport; auto-scroll also follows chord selections.
+- Controls-only instances no longer consume another editor's keyboard shortcuts.
 - Custom controls can seek and play in one synchronous action without resuming from stale React state.
 
 

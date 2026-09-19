@@ -444,12 +444,18 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   // --- AUTO-SCROLL LOGIC ---
   useAutoScroll({
     containerRef,
-    score,
+    layout,
+    chordTrack: chordDisplay.visible === false ? undefined : score.chordTrack,
     selection,
     playbackPosition,
     previewNote,
+    // scrollLeft/clientWidth are local CSS pixels; outer viewport zoom is already applied.
     scale,
-    enabled: !view?.measures && !bounds && !resolveViewport,
+    originX: validBounds?.x ?? defaultBounds.x,
+    enabled:
+      !isPageView &&
+      !view?.measures &&
+      (resolveViewport ? resolvedViewport?.autoScroll === true : !bounds),
   });
 
   const unscaledMeasureWidths = useMemo(() => calculateAllMeasureWidths(score, 1.0), [score]);

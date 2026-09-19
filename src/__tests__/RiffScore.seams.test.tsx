@@ -276,3 +276,21 @@ test('hiding notation retains the same API, score, history and reactive controls
   act(() => controls.undo());
   expect(api.getScore().staves[0].measures[0].events[0].notes[0].pitch).toBe('C4');
 });
+
+test('controls-only instances cannot consume keyboard navigation from a visible editor', () => {
+  render(
+    <>
+      <RiffScore id="controls-only" config={{ ...seed, ui: { ...seed.ui, showScore: false } }} />
+      <RiffScore id="keyboard-visible" config={seed} />
+    </>
+  );
+  const visible = window.riffScore.get('keyboard-visible')!;
+  const hidden = window.riffScore.get('controls-only')!;
+  act(() => visible.select(0));
+  const initial = visible.getSelection().eventId;
+  const hiddenSelection = hidden.getSelection();
+  act(() => screen.getByTestId('score-canvas-container').focus());
+  fireEvent.keyDown(screen.getByTestId('score-canvas-container'), { key: 'ArrowRight' });
+  expect(visible.getSelection().eventId).not.toBe(initial);
+  expect(hidden.getSelection()).toEqual(hiddenSelection);
+});

@@ -27,6 +27,8 @@ export type ResolveScoreViewport = (geometry: ScoreViewGeometry) =>
   | {
       bounds?: ScoreBounds;
       scale?: number;
+      /** Opt into following selection, keyboard entry and playback in a scrollable frame. */
+      autoScroll?: boolean;
     }
   | undefined;
 

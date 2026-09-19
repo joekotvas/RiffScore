@@ -1,186 +1,91 @@
-import { useEffect, useCallback, useMemo, useRef } from 'react';
-import { CONFIG } from '@/config';
-import {
-  calculateMeasureWidth,
-  calculateMeasureLayout,
-  calculateSystemPreamble,
-} from '@/engines/layout';
-import { getActiveStaff, Score, Selection, PreviewNote } from '@/types';
-import { getNoteDuration } from '@/utils/core';
-
-// ------------------------------------------------------------------
-// Types & Interfaces
-// ------------------------------------------------------------------
+import { useEffect, useCallback } from 'react';
+import type { ScoreLayout } from '@/engines/layout/types';
+import type { Selection, PreviewNote, ChordSymbol } from '@/types';
 
 interface UseAutoScrollProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
-  score: Score;
+  layout: ScoreLayout;
+  chordTrack?: readonly ChordSymbol[];
   selection: Selection;
   playbackPosition: { measureIndex: number | null; quant: number | null; duration: number };
   previewNote: PreviewNote | null;
   scale: number;
+  originX?: number;
   enabled?: boolean;
 }
 
-type ScrollStrategy = 'scroll-to-start' | 'keep-in-view';
-
-// ------------------------------------------------------------------
-// Hook Implementation
-// ------------------------------------------------------------------
-
+/** Follow canonical engraving coordinates; never reconstruct a second measure layout. */
 export const useAutoScroll = ({
   containerRef,
-  score,
+  layout,
+  chordTrack,
   selection,
   playbackPosition,
   previewNote,
   scale,
+  originX = 0,
   enabled = true,
-}: UseAutoScrollProps) => {
-  // 1. Memoize Derived Data
-  const activeStaff = useMemo(() => getActiveStaff(score), [score]);
-
-  const keySignature = useMemo(
-    () => score.keySignature || activeStaff.keySignature || 'C',
-    [score.keySignature, activeStaff.keySignature]
-  );
-
-  const clef = useMemo(
-    () => (score.staves.length >= 2 ? 'grand' : activeStaff.clef || 'treble'),
-    [score.staves.length, activeStaff.clef]
-  );
-
-  // 2. Measure Start X Cache (O(1) lookup during playback)
-  // Cache invalidates when measures or keySignature changes
-  const measureStartXCache = useMemo(() => {
-    const { measuresX } = calculateSystemPreamble(keySignature);
-    const cache = [measuresX];
-    let x = measuresX;
-
-    for (const measure of activeStaff.measures || []) {
-      x += calculateMeasureWidth(measure.events, measure.isPickup);
-      cache.push(x);
-    }
-    return cache;
-  }, [activeStaff.measures, keySignature]);
-
-  // 3. Helper: Calculate Layout for a specific measure
-  // Performance Note: If playback stutters on large scores (300+ measures) or
-  // many instruments, consider pre-computing all measure layouts into a memoized
-  // cache (like measureStartXCache) rather than calculating on each lookup.
-  const getMeasureData = useCallback(
-    (measureIndex: number) => {
-      const measure = activeStaff.measures[measureIndex];
-      if (!measure) return null;
-
-      const layout = calculateMeasureLayout(measure.events, undefined, clef);
-      const startX = measureStartXCache[measureIndex] ?? measureStartXCache[0] ?? 0;
-
-      return { measure, layout, startX };
-    },
-    [activeStaff.measures, clef, measureStartXCache]
-  );
-
-  // 4. Unified Scroll Function
-  const performScroll = useCallback(
-    (targetX: number, strategy: ScrollStrategy) => {
+}: UseAutoScrollProps): void => {
+  const scrollToX = useCallback(
+    (x: number | null) => {
       const container = containerRef.current;
-      if (!container || !enabled) return;
-
-      const { scrollLeft, clientWidth } = container;
-      const scaledTargetX = targetX * scale;
-      const padding = 100;
-
-      let newScrollLeft: number | null = null;
-      const rightEdge = scrollLeft + clientWidth - padding;
-      const leftEdge = scrollLeft + padding;
-
-      if (strategy === 'scroll-to-start') {
-        // If target is OFF SCREEN, bring it to the left edge
-        if (scaledTargetX > rightEdge || scaledTargetX < leftEdge) {
-          newScrollLeft = Math.max(0, scaledTargetX - padding);
-        }
-      } else {
-        // 'keep-in-view'
-        if (scaledTargetX > rightEdge) {
-          newScrollLeft = scaledTargetX - clientWidth + padding + 200;
-        } else if (scaledTargetX < leftEdge) {
-          newScrollLeft = Math.max(0, scaledTargetX - padding - 100);
-        }
-      }
-
-      if (newScrollLeft !== null) {
-        container.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
+      if (!enabled || !container || !container.clientWidth || x === null || !Number.isFinite(x))
+        return;
+      const target = (x - originX) * scale;
+      const padding = Math.min(100, container.clientWidth / 4);
+      const { scrollLeft, clientWidth, scrollWidth } = container;
+      const left =
+        target < scrollLeft + padding
+          ? target - padding
+          : target > scrollLeft + clientWidth - padding
+            ? target - clientWidth + padding
+            : scrollLeft;
+      const next = Math.max(0, Math.min(left, scrollWidth - clientWidth));
+      if (Math.abs(next - scrollLeft) > 1) {
+        const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        container.scrollTo({ left: next, behavior: reducedMotion ? 'auto' : 'smooth' });
       }
     },
-    [containerRef, scale, enabled]
+    [containerRef, enabled, originX, scale]
   );
 
-  // ------------------------------------------------------------------
-  // Effects
-  // ------------------------------------------------------------------
-
-  // Effect: Handle Selection
-  useEffect(() => {
-    if (selection.measureIndex === null || !selection.eventId) return;
-
-    const data = getMeasureData(selection.measureIndex);
-    if (!data) return;
-
-    const eventOffset = data.layout.eventPositions[selection.eventId] || 0;
-    performScroll(data.startX + eventOffset, 'keep-in-view');
-  }, [selection.measureIndex, selection.eventId, getMeasureData, performScroll]);
-
-  // Effect: Handle Preview (Keyboard only)
-  useEffect(() => {
-    if (!previewNote || previewNote.source === 'hover' || previewNote.measureIndex === null) return;
-
-    const data = getMeasureData(previewNote.measureIndex);
-    if (!data) return;
-
-    let localOffsetX = CONFIG.measurePaddingLeft;
-
-    if (previewNote.mode === 'APPEND') {
-      localOffsetX = data.layout.totalWidth - CONFIG.measurePaddingRight;
-    } else if (previewNote.mode === 'INSERT' && previewNote.index > 0) {
-      const prevEvent = data.measure.events[previewNote.index - 1];
-      const GAP_SPACING = 30;
-      localOffsetX = (data.layout.eventPositions[prevEvent?.id] || 0) + GAP_SPACING;
-    }
-
-    performScroll(data.startX + localOffsetX, 'keep-in-view');
-  }, [previewNote, getMeasureData, performScroll]);
-
-  // Effect: Handle Playback
-  const lastScrolledMeasureRef = useRef<number | null>(null);
+  const quantX = useCallback(
+    (measure: number, quant: number): number | null => {
+      const origin = layout.getX.measureOrigin({ measure });
+      const local = layout.getX({ measure, quant });
+      return origin === null || local === null ? null : origin + local;
+    },
+    [layout]
+  );
 
   useEffect(() => {
-    if (playbackPosition.measureIndex === null || playbackPosition.quant === null) {
-      lastScrolledMeasureRef.current = null;
+    if (selection.chordId) {
+      const chord = chordTrack?.find((item) => item.id === selection.chordId);
+      if (chord) scrollToX(quantX(chord.measure, chord.quant));
       return;
     }
+    if (selection.measureIndex === null || !selection.eventId) return;
+    const measure = layout.staves[selection.staffIndex ?? 0]?.measures[selection.measureIndex];
+    const event = measure?.events[selection.eventId];
+    if (measure && event) scrollToX(measure.x + event.localX);
+  }, [
+    layout,
+    chordTrack,
+    selection.chordId,
+    selection.staffIndex,
+    selection.measureIndex,
+    selection.eventId,
+    quantX,
+    scrollToX,
+  ]);
 
-    const data = getMeasureData(playbackPosition.measureIndex);
-    if (!data) return;
+  useEffect(() => {
+    if (previewNote?.source !== 'keyboard') return;
+    scrollToX(quantX(previewNote.measureIndex, previewNote.visualQuant));
+  }, [previewNote, quantX, scrollToX]);
 
-    // Find offset based on quant
-    let localOffsetX = CONFIG.measurePaddingLeft;
-    let currentQuant = 0;
-    let found = false;
-
-    for (const event of data.measure.events) {
-      if (currentQuant >= playbackPosition.quant) {
-        localOffsetX = data.layout.eventPositions[event.id] || CONFIG.measurePaddingLeft;
-        found = true;
-        break;
-      }
-      currentQuant += getNoteDuration(event.duration, event.dotted, event.tuplet);
-    }
-
-    if (!found && currentQuant < playbackPosition.quant) {
-      localOffsetX = data.layout.totalWidth - CONFIG.measurePaddingRight;
-    }
-
-    performScroll(data.startX + localOffsetX, 'scroll-to-start');
-  }, [playbackPosition, getMeasureData, performScroll]);
+  useEffect(() => {
+    if (playbackPosition.measureIndex === null || playbackPosition.quant === null) return;
+    scrollToX(quantX(playbackPosition.measureIndex, playbackPosition.quant));
+  }, [playbackPosition.measureIndex, playbackPosition.quant, quantX, scrollToX]);
 };
