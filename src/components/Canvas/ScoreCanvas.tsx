@@ -445,6 +445,7 @@ const ScoreCanvas: React.FC<ScoreCanvasProps> = ({
   useAutoScroll({
     containerRef,
     layout,
+    chordTrack: chordDisplay.visible === false ? undefined : score.chordTrack,
     selection,
     playbackPosition,
     previewNote,

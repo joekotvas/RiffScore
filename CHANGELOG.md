@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Headless `riffscore/extensions` contract/capability checks; the React package entry preserves its Next.js client boundary.
 
 ### Fixed
+- Footer zoom retains the visible horizontal scrollport; auto-scroll also follows chord selections.
 - Controls-only instances no longer consume another editor's keyboard shortcuts.
 - Custom controls can seek and play in one synchronous action without resuming from stale React state.
 

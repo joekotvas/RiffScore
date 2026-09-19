@@ -84,3 +84,14 @@ test('reduced motion uses immediate scrolling and clamps to the available extent
   if (original) Object.defineProperty(window, 'matchMedia', original);
   else Reflect.deleteProperty(window, 'matchMedia');
 });
+
+test('selected chord symbols follow their measure and quant without an event selection', () => {
+  renderHook(() =>
+    useAutoScroll({
+      ...base,
+      chordTrack: [{ id: 'chord', measure: 0, quant: 32, symbol: 'C' }],
+      selection: { ...selection, measureIndex: null, eventId: null, chordId: 'chord' },
+    })
+  );
+  expect(scrollTo).toHaveBeenLastCalledWith({ left: 780, behavior: expect.any(String) });
+});

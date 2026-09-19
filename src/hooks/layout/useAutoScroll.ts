@@ -1,10 +1,11 @@
 import { useEffect, useCallback } from 'react';
 import type { ScoreLayout } from '@/engines/layout/types';
-import type { Selection, PreviewNote } from '@/types';
+import type { Selection, PreviewNote, ChordSymbol } from '@/types';
 
 interface UseAutoScrollProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   layout: ScoreLayout;
+  chordTrack?: readonly ChordSymbol[];
   selection: Selection;
   playbackPosition: { measureIndex: number | null; quant: number | null; duration: number };
   previewNote: PreviewNote | null;
@@ -17,6 +18,7 @@ interface UseAutoScrollProps {
 export const useAutoScroll = ({
   containerRef,
   layout,
+  chordTrack,
   selection,
   playbackPosition,
   previewNote,
@@ -57,11 +59,25 @@ export const useAutoScroll = ({
   );
 
   useEffect(() => {
+    if (selection.chordId) {
+      const chord = chordTrack?.find((item) => item.id === selection.chordId);
+      if (chord) scrollToX(quantX(chord.measure, chord.quant));
+      return;
+    }
     if (selection.measureIndex === null || !selection.eventId) return;
     const measure = layout.staves[selection.staffIndex ?? 0]?.measures[selection.measureIndex];
     const event = measure?.events[selection.eventId];
     if (measure && event) scrollToX(measure.x + event.localX);
-  }, [layout, selection.staffIndex, selection.measureIndex, selection.eventId, scrollToX]);
+  }, [
+    layout,
+    chordTrack,
+    selection.chordId,
+    selection.staffIndex,
+    selection.measureIndex,
+    selection.eventId,
+    quantX,
+    scrollToX,
+  ]);
 
   useEffect(() => {
     if (previewNote?.source !== 'keyboard') return;

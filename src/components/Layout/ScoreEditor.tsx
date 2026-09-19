@@ -500,6 +500,13 @@ const ScoreEditorBody = ({
                 : viewportOptions?.verticalAlign === 'end'
                   ? 'flex-end'
                   : undefined,
+            // Keep the transformed scrollport inside its host at footer zoom levels.
+            // Native scrollLeft/clientWidth then describe the full visible horizontal region.
+            width:
+              (score.layout?.viewMode ?? DEFAULT_LAYOUT_CONFIG.viewMode) === 'scroll' &&
+              viewportZoom > 100
+                ? `${10000 / viewportZoom}%`
+                : undefined,
             transform: `scale(${viewportZoom / 100})`,
             transformOrigin:
               (score.layout?.viewMode ?? DEFAULT_LAYOUT_CONFIG.viewMode) === 'scroll'
